@@ -129,19 +129,17 @@ function twGenerateFinalRef($db, $conf, $langs, $user, $object)
 		try {
 			$rm = new ReflectionMethod($gen, 'getNextValue');
 			$argc = $rm->getNumberOfParameters();
-			if ($argc == 0) $ref = $gen->getNextValue();
+			if     ($argc == 0) $ref = $gen->getNextValue();
 			elseif ($argc == 1) $ref = $gen->getNextValue($object);
 			elseif ($argc == 2) $ref = $gen->getNextValue($user, $object);
-			else $ref = $gen->getNextValue($db, $object, $user);
+			else                $ref = $gen->getNextValue($db, $object, $user);
 		} catch (Throwable $e) { $ref = ''; }
 	}
 	if (empty($ref)) {
 		$yyyy = sprintf('%04d', (int)$object->year);
 		$ss   = sprintf('%02d', (int)$object->week);
-		// fallback simple
 		$ref  = 'FH'.$yyyy.$ss.'-'.$object->id;
 	}
-	// sécurise unicité (très rare si générateur correct)
 	$refbase = $ref; $suffix = 1;
 	while (1) {
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week WHERE ref='".$db->escape($ref)."' AND entity=".(int)$object->entity;
@@ -184,6 +182,11 @@ if ($action == 'add') {
 	if ($action == 'add') {
 		$res = $object->create($user);
 		if ($res > 0) {
+			// Force provisional with id "(PROV{id})"
+			if (empty($object->ref) || $object->ref == '(PROV)' || preg_match('/^\(PROV\)$/', $object->ref)) {
+				$object->ref = '(PROV'.$object->id.')';
+				$object->update($user);
+			}
 			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 			exit;
 		} else {
@@ -416,7 +419,7 @@ if ($action == 'create') {
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td></tr>';
 	// Week
 	print '<tr><td>'.$langs->trans("Week").'</td><td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td></tr>';
-	// Validator default manager
+	// Validator default = manager
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1).'</td></tr>';
 	// Note
@@ -530,7 +533,7 @@ JS;
 	}
 	print '</td></tr>';
 
-	// Note (LEFT column, as requested)
+	// Note (LEFT column)
 	print '<tr><td>'.$langs->trans("Note").'</td><td>';
 	if ($canEditHeader) {
 		if ($action == 'edit_note') {
@@ -562,7 +565,7 @@ JS;
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-	// Pas de rappel du statut ici (déjà dans le bandeau)
+	// Pas de rappel du statut ici
 	print '</table>';
 	print '</div>';
 
@@ -584,7 +587,10 @@ JS;
 
 	foreach ($lines as $L) {
 		$tid = (int) $L->fk_task;
-		$dte = $L->day_date;
+		// Make sure we have YYYY-MM-DD for key
+		if (is_numeric($L->day_date)) $dte = dol_print_date($L->day_date, 'dayrfc');  // YYYY-MM-DD
+		else $dte = substr($L->day_date, 0, 10);
+
 		$hoursByTaskDay[$tid][$dte] = (float) $L->hours;
 		if (!isset($zoneByDay[$dte]) && $L->zone !== '') $zoneByDay[$dte] = $L->zone;
 		if (!isset($mealByDay[$dte])) $mealByDay[$dte] = (int) $L->meal;
