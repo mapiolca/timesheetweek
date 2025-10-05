@@ -29,13 +29,13 @@ $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects", "use
 
 global $db, $conf, $user;
 
-// Params
+// ---------------- Params ----------------
 $id      = GETPOSTINT('id');
 $ref     = GETPOST('ref', 'alpha');
 $action  = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
 
-// Init
+// ---------------- Init ----------------
 $object = new TimesheetWeek($db);
 $hookmanager->initHooks(array('timesheetweekcard', 'globalcard'));
 
@@ -45,7 +45,7 @@ if (!empty($object->id)) {
 	$id = $object->id;
 }
 
-// --- Permissions (module) ---
+// ---------------- Permissions ----------------
 $permRead          = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
 $permReadAll       = $user->hasRight('timesheetweek', 'timesheetweek', 'readAll');
 $permReadChild     = $user->hasRight('timesheetweek', 'timesheetweek', 'readChild');
@@ -63,11 +63,16 @@ $permDelete        = $user->hasRight('timesheetweek', 'timesheetweek', 'delete')
 $permDeleteChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteAll');
 
-// Helpers permissions
+if (!$permRead) accessforbidden();
+
+// ---------------- Helpers ----------------
+function tw_count($v) {
+	return (is_countable($v) ? count($v) : 0);
+}
 function twIsOwnerOrChildOrAll($user, $obj, $write=false) {
 	if (!$obj->id) return false;
 	$fkuser = (int) $obj->fk_user;
-	if ($fkuser == $user->id) return true;
+	if ($fkuser == (int) $user->id) return true;
 	$childids = $user->getAllChildIds(1);
 	if (in_array($fkuser, $childids)) {
 		return $write ? $user->hasRight('timesheetweek','timesheetweek','writeChild') : $user->hasRight('timesheetweek','timesheetweek','readChild');
@@ -90,19 +95,15 @@ function twCanDelete($user, $obj) {
 	return false;
 }
 function twCanValidate($user, $obj) {
-	// validateur désigné
-	if (!empty($obj->fk_user_valid) && (int) $obj->fk_user_valid === (int) $user->id && $user->hasRight('timesheetweek','timesheetweek','validate')) return true;
-	// validateOwn
+	if (!empty($obj->fk_user_valid) && (int)$obj->fk_user_valid === (int)$user->id && $user->hasRight('timesheetweek','timesheetweek','validate')) return true;
 	if ($obj->fk_user == $user->id && $user->hasRight('timesheetweek','timesheetweek','validateOwn')) return true;
-	// validateChild
 	$childids = $user->getAllChildIds(1);
 	if (in_array((int)$obj->fk_user, $childids) && $user->hasRight('timesheetweek','timesheetweek','validateChild')) return true;
-	// validateAll
 	if ($user->hasRight('timesheetweek','timesheetweek','validateAll')) return true;
 	return false;
 }
 
-// ---------- Helpers: numérotation ----------
+// ---------- Numérotation ----------
 function twLoadNumberingModule($db, $conf, $moduleclass)
 {
 	$dirmodels = array_merge(array('/'), (array) $conf->modules_parts['models']);
@@ -111,11 +112,7 @@ function twLoadNumberingModule($db, $conf, $moduleclass)
 		if (is_readable($file)) {
 			require_once $file;
 			if (class_exists($moduleclass)) {
-				try {
-					return new $moduleclass($db);
-				} catch (Throwable $e) {
-					try { return new $moduleclass(); } catch (Throwable $e2) {}
-				}
+				try { return new $moduleclass($db); } catch (Throwable $e) { try { return new $moduleclass(); } catch (Throwable $e2) {} }
 			}
 		}
 	}
@@ -125,46 +122,36 @@ function twGenerateFinalRef($db, $conf, $langs, $user, $object)
 {
 	$moduleclass = getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON', 'mod_timesheetweek_advanced');
 	$gen = twLoadNumberingModule($db, $conf, $moduleclass);
-
 	$ref = '';
 	if ($gen && method_exists($gen, 'getNextValue')) {
 		try {
 			$rm = new ReflectionMethod($gen, 'getNextValue');
 			$argc = $rm->getNumberOfParameters();
-			if ($argc == 0)						$ref = $gen->getNextValue();
-			elseif ($argc == 1)					$ref = $gen->getNextValue($object);
-			elseif ($argc == 2)					$ref = $gen->getNextValue($user, $object);
-			else								$ref = $gen->getNextValue($db, $object, $user);
-		} catch (Throwable $e) {
-			$ref = '';
-		}
+			if ($argc == 0) $ref = $gen->getNextValue();
+			elseif ($argc == 1) $ref = $gen->getNextValue($object);
+			elseif ($argc == 2) $ref = $gen->getNextValue($user, $object);
+			else $ref = $gen->getNextValue($db, $object, $user);
+		} catch (Throwable $e) { $ref = ''; }
 	}
-
 	if (empty($ref)) {
-		$yyyy = sprintf('%04d', (int) $object->year);
-		$ss   = sprintf('%02d', (int) $object->week);
+		$yyyy = sprintf('%04d', (int)$object->year);
+		$ss   = sprintf('%02d', (int)$object->week);
 		$ref  = 'FH'.$yyyy.$ss.'-'.$object->id;
 	}
-
-	$refbase = $ref;
-	$suffix = 1;
+	$refbase = $ref; $suffix = 1;
 	while (1) {
-		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week
-			WHERE ref = '".$db->escape($ref)."' AND entity = ".((int) $object->entity);
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week WHERE ref='".$db->escape($ref)."' AND entity=".(int)$object->entity;
 		$resql = $db->query($sql);
 		if ($resql) {
 			if ($db->num_rows($resql) == 0) break;
 			$db->free($resql);
-			$suffix++;
-			$ref = $refbase.'-'.$suffix;
-		} else {
-			break;
-		}
+			$suffix++; $ref = $refbase.'-'.$suffix;
+		} else break;
 	}
 	return $ref;
 }
 
-// ---------- Actions ----------
+// ---------------- Actions ----------------
 
 // CREATE
 if ($action == 'add') {
@@ -202,52 +189,37 @@ if ($action == 'add') {
 	}
 }
 
-// UPDATE header fields (inline pencils) - only DRAFT & perm
+// UPDATE header fields (inline) - only DRAFT
 if ($id > 0 && $object->id) {
 	$canEditHeader = twCanWriteHeader($user, $object);
 
-	// Update employee
 	if ($action == 'update_employee' && $canEditHeader) {
 		if (!checkToken()) accessforbidden('CSRF token not valid');
 		$new_user = GETPOSTINT('fk_user');
-		$object->fk_user = $new_user > 0 ? $new_user : $object->fk_user;
+		if ($new_user > 0) $object->fk_user = $new_user;
 		$object->update($user);
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
-
-	// Update week
 	if ($action == 'update_week' && $canEditHeader) {
 		if (!checkToken()) accessforbidden('CSRF token not valid');
 		$weekyear = GETPOST('weekyear', 'alpha');
 		if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
-			$object->year = (int) $m[1];
-			$object->week = (int) $m[2];
-			$object->update($user);
-		} else {
-			setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
-		}
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+			$object->year = (int)$m[1]; $object->week=(int)$m[2]; $object->update($user);
+		} else setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
-
-	// Update validator
 	if ($action == 'update_validator' && $canEditHeader) {
 		if (!checkToken()) accessforbidden('CSRF token not valid');
 		$new_valid = GETPOSTINT('fk_user_valid');
 		$object->fk_user_valid = $new_valid > 0 ? $new_valid : null;
 		$object->update($user);
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
-
-	// Update note
 	if ($action == 'update_note' && $canEditHeader) {
 		if (!checkToken()) accessforbidden('CSRF token not valid');
 		$object->note = GETPOST('note', 'restricthtml');
 		$object->update($user);
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 }
 
@@ -257,21 +229,17 @@ if ($action == 'save' && $id > 0) {
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
-
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
 	$weekdates = array();
-	foreach ($days as $d) {
-		$weekdates[$d] = $dto->format('Y-m-d');
-		$dto->modify('+1 day');
-	}
+	foreach ($days as $d) { $weekdates[$d] = $dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
 	$grandTotal = 0;
 
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/', $key, $m)) {
-			$taskid = (int) $m[1];
-			$day    = $m[2];
+			$taskid  = (int) $m[1];
+			$day     = $m[2];
 			$daydate = $weekdates[$day];
 
 			$raw = trim($val);
@@ -279,7 +247,7 @@ if ($action == 'save' && $id > 0) {
 			if ($raw !== '') {
 				if (strpos($raw, ':') !== false) {
 					list($hh, $mm) = array_pad(explode(':', $raw), 2, '0');
-					$hours = (int) $hh + (max(0,(int)$mm)/60);
+					$hours = (int)$hh + (max(0,(int)$mm)/60);
 				} else {
 					$hours = (float) str_replace(',', '.', $raw);
 				}
@@ -289,7 +257,7 @@ if ($action == 'save' && $id > 0) {
 			$meal = GETPOST('meal_'.$day, 'alpha') ? 1 : 0;
 
 			$line = new TimesheetWeekLine($db);
-			$exists = $line->fetchByComposite($object->id, $taskid, $daydate) > 0;
+			$exists = ($line->fetchByComposite($object->id, $taskid, $daydate) > 0);
 
 			if ($hours > 0) {
 				$line->fk_timesheet_week = $object->id;
@@ -307,7 +275,7 @@ if ($action == 'save' && $id > 0) {
 		}
 	}
 
-	// Update totals on header
+	// Update totals
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
@@ -318,8 +286,7 @@ if ($action == 'save' && $id > 0) {
 	$object->update($user);
 
 	setEventMessages($langs->trans("Saved"), null, 'mesgs');
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
 // SUBMIT
@@ -328,11 +295,11 @@ if ($action === 'submit' && $id > 0) {
 	if (!$canSubmit) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	$nbLines = method_exists($object,'countLines') ? $object->countLines() : count($object->getLines());
+	$linesTmp = $object->getLines();
+	$nbLines = method_exists($object,'countLines') ? (int)$object->countLines() : tw_count($linesTmp);
 	if (empty($nbLines)) {
 		setEventMessages($langs->trans("NoTimeLinesToSubmit"), null, 'warnings');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 
 	$db->begin();
@@ -341,19 +308,18 @@ if ($action === 'submit' && $id > 0) {
 		if (empty($newref)) {
 			$db->rollback();
 			setEventMessages($langs->trans("ErrorCantGenerateRef"), null, 'errors');
-			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-			exit;
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 		}
 		$object->ref = $newref;
 		if ($object->update($user) <= 0) {
 			$db->rollback();
 			setEventMessages($object->error, $object->errors, 'errors');
-			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-			exit;
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 		}
 	}
 	$object->status = TimesheetWeek::STATUS_SUBMITTED;
 	$object->date_validation = dol_now();
+
 	if ($object->update($user) > 0) {
 		$db->commit();
 		setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
@@ -361,50 +327,39 @@ if ($action === 'submit' && $id > 0) {
 		$db->rollback();
 		setEventMessages($object->error, $object->errors, 'errors');
 	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
-// CONFIRM APPROVE
+// APPROVE
 if ($action == 'confirm_approve' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	if ((int)$object->fk_user_valid !== (int)$user->id) {
-		$object->fk_user_valid = $user->id;
-	}
+	if ((int)$object->fk_user_valid !== (int)$user->id) $object->fk_user_valid = $user->id;
 
 	$object->status = TimesheetWeek::STATUS_APPROVED;
 	$object->date_validation = dol_now();
 
-	if ($object->update($user) > 0) {
-		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($object->update($user) > 0) setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+	else setEventMessages($object->error, $object->errors, 'errors');
+
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
-// CONFIRM REFUSE
+// REFUSE
 if ($action == 'confirm_refuse' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	if ((int)$object->fk_user_valid !== (int)$user->id) {
-		$object->fk_user_valid = $user->id;
-	}
+	if ((int)$object->fk_user_valid !== (int)$user->id) $object->fk_user_valid = $user->id;
 
 	$object->status = TimesheetWeek::STATUS_REFUSED;
 	$object->date_validation = dol_now();
 
-	if ($object->update($user) > 0) {
-		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($object->update($user) > 0) setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+	else setEventMessages($object->error, $object->errors, 'errors');
+
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
 // BACK TO DRAFT
@@ -413,13 +368,10 @@ if ($action == 'backtodraft' && $id > 0) {
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
 	$object->status = TimesheetWeek::STATUS_DRAFT;
-	if ($object->update($user) > 0) {
-		setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($object->update($user) > 0) setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
+	else setEventMessages($object->error, $object->errors, 'errors');
+
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
 // DELETE
@@ -430,24 +382,19 @@ if ($action == 'confirm_delete' && $confirm == 'yes' && $id > 0) {
 	$resdel = $object->delete($user);
 	if ($resdel > 0) {
 		setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs');
-		header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php', 1));
-		exit;
+		header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php', 1)); exit;
 	} else {
 		setEventMessages($object->error, $object->errors, 'errors');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 }
 
-// ---------- View ----------
+// ---------------- View ----------------
 $form = new Form($db);
 
 $title = $langs->trans("TimesheetWeek");
 $help_url = '';
-$morecss = array();
-$morejs = array();
-
-llxHeader('', $title, $help_url, '', 0, 0, $morejs, $morecss);
+llxHeader('', $title, $help_url);
 
 // CREATE MODE
 if ($action == 'create') {
@@ -461,34 +408,22 @@ if ($action == 'create') {
 
 	print '<table class="border centpercent">';
 	// Employee
-	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
-	print $form->select_dolusers($user->id, 'fk_user', 1);
-	print '</td></tr>';
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td></tr>';
 	// Week
-	print '<tr><td>'.$langs->trans("Week").'</td><td>';
-	print getWeekSelectorDolibarr($form, 'weekyear');
-	print '<div id="weekrange" class="opacitymedium paddingleft small"></div>';
-	print '</td></tr>';
-	// Validator default to manager if available
-	$defaultValidatorId = !empty($user->fk_user) ? (int) $user->fk_user : 0;
-	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
-	print $form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1);
-	print '</td></tr>';
+	print '<tr><td>'.$langs->trans("Week").'</td><td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td></tr>';
+	// Validator (default = manager)
+	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1).'</td></tr>';
 	// Note
-	print '<tr><td>'.$langs->trans("Note").'</td><td>';
-	print '<textarea name="note" rows="3" class="quatrevingtpercent"></textarea>';
-	print '</td></tr>';
-
+	print '<tr><td>'.$langs->trans("Note").'</td><td><textarea name="note" rows="3" class="quatrevingtpercent"></textarea></td></tr>';
 	print '</table>';
 
 	print '<div class="center">';
 	print '<input type="submit" class="button" value="'.$langs->trans("Create").'">';
 	print '&nbsp;<a class="button button-cancel" href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("Cancel").'</a>';
 	print '</div>';
-
 	print '</form>';
 
-	// JS week range
 	print <<<'JS'
 <script>
 (function ($) {
@@ -501,41 +436,37 @@ if ($action == 'create') {
 </script>
 JS;
 
-} else if ($id > 0 && $object->id) {
-	// VIEW MODE
-
-	// Security view
+} elseif ($id > 0 && $object->id) {
+	// --- Security view ---
 	$cansee = false;
 	if ($permReadAll) $cansee = true;
-	else if ($permReadChild) {
+	elseif ($permReadChild) {
 		if ($object->fk_user == $user->id) $cansee = true;
 		else {
 			$subs = $user->getAllChildIds(1);
-			if (in_array($object->fk_user, $subs)) $cansee = true;
+			if (is_array($subs) && in_array($object->fk_user, $subs)) $cansee = true;
 		}
-	} else if ($permRead && $object->fk_user == $user->id) $cansee = true;
+	} elseif ($permRead && $object->fk_user == $user->id) $cansee = true;
 	if (!$cansee) accessforbidden();
 
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
-	// Banner
 	$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 	dol_banner_tab($object, 'ref', $linkback, 0, 'ref', 'ref', '', '', 0, '', '', '');
 
 	print '<div class="fichecenter">';
 
-	// Left block
+	// Left header
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent tableforfield">';
 
 	$canEditHeader = twCanWriteHeader($user, $object);
-	$draft = ($object->status == TimesheetWeek::STATUS_DRAFT);
+	$uemp = new User($db);
+	if ($object->fk_user > 0) $uemp->fetch($object->fk_user);
 
 	// Employee
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
-	$uemp = new User($db);
-	$uemp->fetch($object->fk_user);
 	if ($canEditHeader) {
 		if ($action == 'edit_employee') {
 			print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -546,8 +477,7 @@ JS;
 			print ' <a class="button button-cancel small" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			print '</form>';
 		} else {
-			print $uemp->getNomUrl(1).' ';
-			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_employee">'.img_edit().'</a>';
+			print $uemp->getNomUrl(1).' <a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_employee">'.img_edit().'</a>';
 		}
 	} else {
 		print $uemp->getNomUrl(1);
@@ -566,8 +496,7 @@ JS;
 			print ' <a class="button button-cancel small" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			print '</form>';
 		} else {
-			print $langs->trans("Week").' '.(int)$object->week.' - '.(int)$object->year.' ';
-			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_week">'.img_edit().'</a>';
+			print $langs->trans("Week").' '.(int)$object->week.' - '.(int)$object->year.' <a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_week">'.img_edit().'</a>';
 		}
 	} else {
 		print $langs->trans("Week").' '.(int)$object->week.' - '.(int)$object->year;
@@ -586,20 +515,13 @@ JS;
 			print ' <a class="button button-cancel small" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			print '</form>';
 		} else {
-			if ($object->fk_user_valid > 0) {
-				$uval = new User($db);
-				$uval->fetch($object->fk_user_valid);
-				print $uval->getNomUrl(1).' ';
-			} else {
-				print '<span class="opacitymedium">'.$langs->trans("None").'</span> ';
-			}
+			if ($object->fk_user_valid > 0) { $uval = new User($db); $uval->fetch($object->fk_user_valid); print $uval->getNomUrl(1).' '; }
+			else print '<span class="opacitymedium">'.$langs->trans("None").'</span> ';
 			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_validator">'.img_edit().'</a>';
 		}
 	} else {
-		if ($object->fk_user_valid > 0) {
-			$uval = new User($db); $uval->fetch($object->fk_user_valid);
-			print $uval->getNomUrl(1);
-		} else print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+		if ($object->fk_user_valid > 0) { $uval = new User($db); $uval->fetch($object->fk_user_valid); print $uval->getNomUrl(1); }
+		else print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
 	}
 	print '</td></tr>';
 
@@ -615,15 +537,14 @@ JS;
 			print ' <a class="button button-cancel small" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a></div>';
 			print '</form>';
 		} else {
-			print nl2br(dol_escape_htmltag($object->note)).' ';
-			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit().'</a>';
+			print nl2br(dol_escape_htmltag($object->note)).' <a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit().'</a>';
 		}
 	} else {
 		print nl2br(dol_escape_htmltag($object->note));
 	}
 	print '</td></tr>';
 
-	// Totals in header
+	// Totaux
 	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.dol_escape_htmltag(sprintf('%0.2f', (float)$object->total_hours)).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.dol_escape_htmltag(sprintf('%0.2f', (float)$object->overtime_hours)).'</td></tr>';
 
@@ -645,9 +566,12 @@ JS;
 	print dol_get_fiche_end();
 	print '<div class="clearboth"></div>';
 
-	// Lines (grid)
+	// ---------------- Grid ----------------
 	$tasks = $object->getAssignedTasks($object->fk_user);
+	if (!is_array($tasks)) $tasks = array();
+
 	$lines = $object->getLines();
+	if (!is_array($lines)) $lines = array();
 
 	$hoursByTaskDay = array();
 	$zoneByDay = array();
@@ -662,19 +586,18 @@ JS;
 	}
 
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
+	$nbDays = tw_count($days) ?: 7;
+
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
 	$weekdates = array();
-	foreach ($days as $d) {
-		$weekdates[$d] = $dto->format('Y-m-d');
-		$dto->modify('+1 day');
-	}
+	foreach ($days as $d) { $weekdates[$d] = $dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
 
-	$nbLines = method_exists($object,'countLines') ? $object->countLines() : count($lines);
+	$nbLines = method_exists($object,'countLines') ? (int)$object->countLines() : tw_count($lines);
 	$editableGrid = twIsOwnerOrChildOrAll($user, $object, true) && ($object->status == TimesheetWeek::STATUS_DRAFT);
 
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -700,13 +623,11 @@ JS;
 		$dte = $weekdates[$d];
 		$sel = isset($zoneByDay[$dte]) ? $zoneByDay[$dte] : '';
 		$meal = !empty($mealByDay[$dte]) ? 1 : 0;
-		print '<td class="center">';
 		$disabled = (!$editableGrid ? ' disabled' : '');
+		print '<td class="center">';
 		print '<select name="zone_'.$d.'" class="flat"'.$disabled.'>';
 		print '<option value=""></option>';
-		for ($z=1;$z<=5;$z++) {
-			print '<option value="'.$z.'"'.($sel==$z?' selected':'').'>'.$z.'</option>';
-		}
+		for ($z=1;$z<=5;$z++) print '<option value="'.$z.'"'.($sel==$z?' selected':'').'>'.$z.'</option>';
 		print '</select><br>';
 		print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.($meal?' checked':'').$disabled.'> '.$langs->trans("Meal").'</label>';
 		print '</td>';
@@ -735,7 +656,7 @@ JS;
 	foreach ($byproject as $pid => $pdata) {
 		// Project row
 		print '<tr class="oddeven trforbreak nobold">';
-		print '<td colspan="'.(count($days)+2).'">';
+		print '<td colspan="'.($nbDays+2).'">';
 		$projectstatic->id = $pid;
 		$projectstatic->ref = $pdata['ref'];
 		$projectstatic->title = $pdata['title'];
@@ -754,47 +675,36 @@ JS;
 			print '</td>';
 			foreach ($days as $d) {
 				$dte = $weekdates[$d];
-				$val = isset($hoursByTaskDay[$tid][$dte]) ? $hoursByTaskDay[$tid][$dte] : 0.0;
+				$val = isset($hoursByTaskDay[$tid][$dte]) ? (float)$hoursByTaskDay[$tid][$dte] : 0.0;
 				$valText = ($val > 0 ? sprintf('%02d:%02d', floor($val), round(($val - floor($val)) * 60)) : '');
 				$dis = $editableGrid ? '' : ' disabled';
-				print '<td class="center">';
-				print '<input type="text" class="flat hourinput" size="4" name="hours_'.$tid.'_'.$d.'" placeholder="0:00" value="'.dol_escape_htmltag($valText).'"'.$dis.'>';
-				print '</td>';
+				print '<td class="center"><input type="text" class="flat hourinput" size="4" name="hours_'.$tid.'_'.$d.'" placeholder="0:00" value="'.dol_escape_htmltag($valText).'"'.$dis.'></td>';
 			}
 			print '<td class="right task-total">00:00</td>';
 			print '</tr>';
 		}
 	}
 
-	// Totals
-	print '<tr class="liste_total">';
-	print '<td class="right">'.$langs->trans("Total").'</td>';
+	// Totaux
+	print '<tr class="liste_total"><td class="right">'.$langs->trans("Total").'</td>';
 	foreach ($days as $d) print '<td class="right day-total">00:00</td>';
-	print '<td class="right grand-total">00:00</td>';
-	print '</tr>';
+	print '<td class="right grand-total">00:00</td></tr>';
 
-	print '<tr class="liste_total">';
-	print '<td class="right">'.$langs->trans("Meals").'</td>';
-	print '<td colspan="'.count($days).'" class="right meal-total">0</td>';
-	print '<td></td>';
-	print '</tr>';
+	print '<tr class="liste_total"><td class="right">'.$langs->trans("Meals").'</td><td colspan="'.$nbDays.'" class="right meal-total">0</td><td></td></tr>';
 
-	print '<tr class="liste_total">';
-	print '<td class="right">'.$langs->trans("Overtime").' (>'.dol_escape_htmltag(sprintf('%02d:%02d', floor($contractedHours), round(($contractedHours - floor($contractedHours))*60))).')</td>';
-	print '<td colspan="'.count($days).'" class="right overtime-total">00:00</td>';
-	print '<td></td>';
-	print '</tr>';
+	$contractedStr = sprintf('%02d:%02d', floor($contractedHours), round(($contractedHours - floor($contractedHours))*60));
+	print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.dol_escape_htmltag($contractedStr).')</td><td colspan="'.$nbDays.'" class="right overtime-total">00:00</td><td></td></tr>';
 
 	print '</table>';
 	print '</div>';
 
-	// Save button (only editable)
+	// Save button
 	if ($editableGrid) {
 		print '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 	}
 	print '</form>';
 
-	// Action buttons
+	// ---------- Action buttons ----------
 	print '<div class="tabsAction">';
 
 	// Submit (only if at least one line)
@@ -808,7 +718,7 @@ JS;
 		print '<a class="butActionRefused" href="#" title="'.$langs->trans("NoTimeLinesToSubmit").'">'.$langs->trans("Submit").'</a>';
 	}
 
-	// Back to draft (visible on submitted/approved/refused if writer)
+	// Back to draft (visible for submitted/approved/refused if writer)
 	if (twIsOwnerOrChildOrAll($user, $object, true) && $object->status != TimesheetWeek::STATUS_DRAFT) {
 		print '<form class="inline-block" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -817,20 +727,20 @@ JS;
 		print '</form>';
 	}
 
-	// Approve / Refuse (popup confirm) when submitted
+	// Approve / Refuse when submitted
 	if ($object->status == TimesheetWeek::STATUS_SUBMITTED && twCanValidate($user, $object)) {
 		print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_approve">'.$langs->trans("Approve").'</a>';
 		print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse">'.$langs->trans("Refuse").'</a>';
 	}
 
-	// Delete (also visible on approved/refused if deleter)
+	// Delete (visible also on approved/refused if user has delete rights)
 	if (twCanDelete($user, $object)) {
 		print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete">'.$langs->trans("Delete").'</a>';
 	}
 
 	print '</div>';
 
-	// Confirm popups with token
+	// ---------- Confirm popups ----------
 	if ($action == 'delete') {
 		$formq = array(
 			array('type'=>'hidden','name'=>'token','value'=>newToken()),
@@ -853,7 +763,7 @@ JS;
 		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Refuse"), $langs->trans("ConfirmRefuse"), 'confirm_refuse', $formq, 0, 1);
 	}
 
-	// JS totals + disable zone/meal if submitted
+	// ---------- JS totals & lock zone/meal on submitted ----------
 	$disableZoneMeal = ($object->status == TimesheetWeek::STATUS_SUBMITTED);
 	print "<script>
 (function($){
@@ -891,7 +801,6 @@ JS;
 </script>";
 
 } else {
-	// Not found
 	print '<div class="error">'.$langs->trans("ErrorRecordNotFound").'</div>';
 }
 
