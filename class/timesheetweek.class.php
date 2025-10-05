@@ -598,66 +598,6 @@ class TimesheetWeek extends CommonObject
 	}
 
 	/**
-	 * Récupère toutes les tâches assignées à un utilisateur donné,
-	 * via la relation element_contact, en utilisant l’API native Dolibarr.
-	 *
-	 * @param int $userid ID de l'utilisateur
-	 * @return array Liste des tâches avec leur projet
-	 */
-	public function getAssignedTasks($userid)
-	{
-		global $db, $langs;
-
-		require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
-		require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
-
-		$tasks = array();
-
-		$taskstatic = new Task($db);
-		$projectstatic = new Project($db);
-
-		// 🔹 On récupère la liste des tâches auxquelles l’utilisateur est lié
-		$sql = "SELECT t.rowid as task_id, t.ref as task_ref, t.label as task_label,";
-		$sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title";
-		$sql .= " FROM ".MAIN_DB_PREFIX."projet_task as t";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."projet as p ON p.rowid = t.fk_projet";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."element_contact as ec ON ec.element_id = t.rowid";
-		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."c_type_contact as ctc ON ctc.rowid = ec.fk_c_type_contact";
-		$sql .= " WHERE ctc.element = 'project_task'";
-		$sql .= " AND ec.fk_socpeople = ".((int) $userid);
-		$sql .= " AND p.entity IN (".getEntity('project').")";
-		$sql .= " GROUP BY t.rowid";
-		$sql .= " ORDER BY p.ref, t.label";
-
-		dol_syslog(__METHOD__, LOG_DEBUG);
-		$resql = $this->db->query($sql);
-		if ($resql) {
-			while ($obj = $this->db->fetch_object($resql)) {
-				$tasks[] = array(
-					'project_id'    => $obj->project_id,
-					'project_ref'   => $obj->project_ref,
-					'project_title' => $obj->project_title,
-					'task_id'       => $obj->task_id,
-					'task_label'    => $obj->task_label
-				);
-			}
-			$this->db->free($resql);
-		}
-		else {
-			$this->error = $this->db->lasterror();
-			return array();
-		}
-
-		return $tasks;
-	}
-
-
-
-
-
-
-
-	/**
 	 * Valider la feuille d'heures (approuver)
 	 *
 	 * @param	User	$user		Utilisateur validateur (ex: responsable)
