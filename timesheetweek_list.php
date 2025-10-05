@@ -1,5 +1,5 @@
 <?php
-// Load Dolibarr env
+// Load Dolibarr environment
 $res = 0;
 if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
 if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
@@ -14,158 +14,310 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
 
-$action      = GETPOST('action', 'aZ09');
-$sortfield   = GETPOST('sortfield', 'aZ09comma');
-$sortorder   = GETPOST('sortorder', 'aZ09comma');
-$page        = GETPOSTISSET('pageplusone') ? (GETPOSTINT('pageplusone') - 1) : GETPOSTINT('page');
-if ($page < 0) $page = 0;
-$limit       = GETPOSTINT('limit') > 0 ? GETPOSTINT('limit') : $conf->liste_limit;
-$offset      = $limit * $page;
+/**
+ * Params
+ */
+$action       = GETPOST('action', 'aZ09');
+$massaction   = GETPOST('massaction', 'alpha');
+$show_files   = GETPOSTINT('show_files');
+$confirm      = GETPOST('confirm', 'alpha');
+$cancel       = GETPOST('cancel', 'alpha');
+$toselect     = GETPOST('toselect', 'array');
+$contextpage  = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
 
-$search_ref  = trim(GETPOST('search_ref','alphanohtml'));
-$search_user = GETPOSTINT('search_user');
-$search_year = GETPOSTINT('search_year');
-$search_week = GETPOSTINT('search_week');
-$search_status = GETPOST('search_status','alpha');
+$sortfield    = GETPOST('sortfield', 'aZ09comma');
+$sortorder    = GETPOST('sortorder', 'aZ09comma');
+$page         = GETPOSTISSET('pageplusone') ? (GETPOSTINT('pageplusone') - 1) : GETPOSTINT("page");
+if (empty($page) || $page == -1) $page = 0;
+$limit        = GETPOSTINT('limit') ? GETPOSTINT('limit') : $conf->liste_limit;
+$offset       = $limit * $page;
 
-// Security
+$search_ref   = trim(GETPOST('search_ref','alphanohtml'));
+$search_user  = GETPOSTINT('search_user');
+$search_year  = GETPOSTINT('search_year');
+$search_week  = GETPOSTINT('search_week');
+$search_status= GETPOST('search_status','alpha'); // allow "0,1,2"
+
+/**
+ * Security
+ */
 if (!$user->hasRight('timesheetweek','timesheetweek','read')) accessforbidden();
 
+/**
+ * Objects
+ */
 $form = new Form($db);
-
 $tswstatic = new TimesheetWeek($db);
+$usertmp = new User($db);
 
-// SQL
-$sql = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
-$sql.= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-$sql.= " u.rowid as uid, u.firstname, u.lastname, u.login";
-$sql.= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
-$sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
-$sql.= " WHERE 1=1";
-if ($search_ref !== '')     $sql.= natural_search('t.ref', $search_ref);
-if ($search_user > 0)       $sql.= " AND t.fk_user = ".((int)$search_user);
-if ($search_year > 0)       $sql.= " AND t.year = ".((int)$search_year);
-if ($search_week > 0)       $sql.= " AND t.week = ".((int)$search_week);
-if ($search_status !== '' && $search_status !== '-1') $sql.= " AND t.status IN (".$db->sanitize($search_status).")";
+/**
+ * Arrayfields (select columns)
+ */
+$arrayfields = array(
+	't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
+	'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
+	't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
+	't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
+	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
+	't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
+	't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
+	't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
+	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
+);
 
-if (empty($sortfield)) $sortfield = "t.rowid";
-if (empty($sortorder)) $sortorder = "DESC";
-$sql.= $db->order($sortfield, $sortorder);
-$sql.= $db->plimit($limit+1, $offset);
+/**
+ * Mass actions (UI)
+ */
+$arrayofmassactions = array(
+	'approve_selection' => img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans("ApproveSelection"),
+	'refuse_selection'  => img_picto('', 'warning',  'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
+	'predelete'         => img_picto('', 'delete',   'class="pictofixedwidth"').$langs->trans("DeleteSelection"),
+);
+$massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+
+$arrayofselected = is_array($toselect) ? $toselect : array();
+
+/**
+ * SQL
+ */
+$sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+$sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
+$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
+$sql .= " WHERE 1=1";
+if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
+if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
+if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
+if ($search_week > 0)       $sql .= " AND t.week = ".((int)$search_week);
+if ($search_status !== '' && $search_status !== '-1') $sql .= " AND t.status IN (".$db->sanitize($search_status).")";
+if (!$sortfield) $sortfield = "t.rowid";
+if (!$sortorder) $sortorder = "DESC";
+$sql .= $db->order($sortfield, $sortorder);
+$sql .= $db->plimit($limit + 1, $offset);
 
 $resql = $db->query($sql);
 if (!$resql) dol_print_error($db);
-
 $num = $resql ? $db->num_rows($resql) : 0;
 
+/**
+ * Header
+ */
 $title = $langs->trans("TimesheetWeekList");
 llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist');
 
+/**
+ * Build param for pagination links
+ */
 $param = '';
-if ($search_ref)  $param .= '&search_ref='.urlencode($search_ref);
-if ($search_user) $param .= '&search_user='.(int)$search_user;
-if ($search_year) $param .= '&search_year='.(int)$search_year;
-if ($search_week) $param .= '&search_week='.(int)$search_week;
+if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
+if ($search_user)  $param .= '&search_user='.(int)$search_user;
+if ($search_year)  $param .= '&search_year='.(int)$search_year;
+if ($search_week)  $param .= '&search_week='.(int)$search_week;
 if ($search_status !== '') $param .= '&search_status='.urlencode($search_status);
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, '', 'time', 0, '', '', $limit, 0, 0, 1);
+$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
-print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, '', 'time', 0, $newcardbutton, '', $limit, 0, 0, 1);
+
+/**
+ * Column selector on left of titles
+ */
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN'));
+$selectedfields = $htmlofselectarray;
+$selectedfields .= (count($arrayofmassactions) ? $form->showCheckAddButtons('checkforselect', 1) : '');
+
+/**
+ * Form + table
+ */
+print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
+print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
+print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
+print '<input type="hidden" name="page" value="'.$page.'">';
+print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 
 print '<div class="div-table-responsive">';
-print '<table class="tagtable liste">';
+print '<table class="tagtable nobottomiftotal liste">'."\n";
 
-// Filters
+/**
+ * Filter row
+ */
 print '<tr class="liste_titre_filter">';
-print '<td class="liste_titre left">';
-print $form->showFilterButtons();
-print '</td>';
-print '<td class="liste_titre">';
-print '<input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12">';
-print '</td>';
-print '<td class="liste_titre">';
-print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-print '</td>';
-print '<td class="liste_titre center">';
-print '<input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px">';
-print '</td>';
-print '<td class="liste_titre center">';
-print '<input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" style="width:60px" min="1" max="53">';
-print '</td>';
-print '<td class="liste_titre center"></td>';
-print '<td class="liste_titre center"></td>';
-print '<td class="liste_titre center">';
-print '<input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2">';
-print '</td>';
-print '</tr>';
+if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print '<td class="liste_titre center maxwidthsearch">';
+	print $form->showFilterButtons('left');
+	print '</td>';
+}
+if (!empty($arrayfields['t.ref']['checked'])) {
+	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
+}
+if (!empty($arrayfields['user']['checked'])) {
+	print '<td class="liste_titre maxwidthonsmartphone">';
+	print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
+	print '</td>';
+}
+if (!empty($arrayfields['t.year']['checked'])) {
+	print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
+}
+if (!empty($arrayfields['t.week']['checked'])) {
+	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
+}
+if (!empty($arrayfields['t.status']['checked'])) {
+	print '<td class="liste_titre center"><input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2,3"></td>';
+}
+if (!empty($arrayfields['t.total_hours']['checked'])) {
+	print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+	print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.date_creation']['checked'])) {
+	print '<td class="liste_titre center">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.tms']['checked'])) {
+	print '<td class="liste_titre center">&nbsp;</td>';
+}
+if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons().'</td>';
+}
+print '</tr>'."\n";
 
-// Titles
+/**
+ * Titles row
+ */
 print '<tr class="liste_titre">';
-print_liste_field_titre($langs->trans("Ref"), $_SERVER["PHP_SELF"], 't.ref', '', $param, '', $sortfield, $sortorder);
-print_liste_field_titre($langs->trans("Employee"), $_SERVER["PHP_SELF"], 'u.lastname', '', $param, '', $sortfield, $sortorder);
-print_liste_field_titre($langs->trans("Year"), $_SERVER["PHP_SELF"], 't.year', '', $param, '', $sortfield, $sortorder, 'center ');
-print_liste_field_titre($langs->trans("Week"), $_SERVER["PHP_SELF"], 't.week', '', $param, '', $sortfield, $sortorder, 'center ');
-print_liste_field_titre($langs->trans("TotalHours"), $_SERVER["PHP_SELF"], 't.total_hours', '', $param, '', $sortfield, $sortorder, 'right ');
-print_liste_field_titre($langs->trans("OvertimeHours"), $_SERVER["PHP_SELF"], 't.overtime_hours', '', $param, '', $sortfield, $sortorder, 'right ');
-print_liste_field_titre($langs->trans("Status"), $_SERVER["PHP_SELF"], 't.status', '', $param, '', $sortfield, $sortorder, 'center ');
-print '</tr>';
+if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center ');
+}
+if (!empty($arrayfields['t.ref']['checked'])) {
+	print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", "", $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['user']['checked'])) {
+	print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", "", $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['t.year']['checked'])) {
+	print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!empty($arrayfields['t.week']['checked'])) {
+	print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!empty($arrayfields['t.status']['checked'])) {
+	print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!empty($arrayfields['t.total_hours']['checked'])) {
+	print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+	print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.date_creation']['checked'])) {
+	print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!empty($arrayfields['t.tms']['checked'])) {
+	print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'center maxwidthsearch ');
+}
+print '</tr>'."\n";
 
-// Rows
-$us = new User($db);
+/**
+ * Rows
+ */
 $i = 0;
 $imax = ($limit ? min($num, $limit) : $num);
-
 while ($i < $imax) {
 	$obj = $db->fetch_object($resql);
 	if (!$obj) break;
 
 	print '<tr class="oddeven">';
 
-	// Ref column: **picto + text ref**
-	$tswstatic->id = $obj->rowid;
-	$tswstatic->ref = $obj->ref;
-	$tswstatic->status = $obj->status;
-	print '<td>';
-	print $tswstatic->getNomUrl(1).' '.dol_escape_htmltag($tswstatic->ref);
-	print '</td>';
+	// Left selection checkbox column
+	if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+		print '<td class="nowrap center">';
+		if ($massactionbutton || $massaction) {
+			$selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
+			print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected ? ' checked="checked"' : '').'>';
+		}
+		print '</td>';
+	}
+
+	// Ref (link with ref text)
+	if (!empty($arrayfields['t.ref']['checked'])) {
+		$tswstatic->id = $obj->rowid;
+		$tswstatic->ref = $obj->ref;
+		$tswstatic->status = $obj->status;
+		print '<td>'.$tswstatic->getNomUrl(1, 'ref').'</td>';
+	}
 
 	// Employee
-	$us->id = $obj->uid;
-	$us->firstname = $obj->firstname;
-	$us->lastname = $obj->lastname;
-	$us->login = $obj->login;
-	print '<td>'.$us->getNomUrl(-1).'</td>';
+	if (!empty($arrayfields['user']['checked'])) {
+		$usertmp->id = $obj->uid;
+		$usertmp->firstname = $obj->firstname;
+		$usertmp->lastname = $obj->lastname;
+		$usertmp->login = $obj->login;
+		print '<td>'.$usertmp->getNomUrl(-1).'</td>';
+	}
 
-	// Year/Week
-	print '<td class="center">'.(int)$obj->year.'</td>';
-	print '<td class="center">'.(int)$obj->week.'</td>';
-
+	// Year
+	if (!empty($arrayfields['t.year']['checked'])) {
+		print '<td class="center">'.(int)$obj->year.'</td>';
+	}
+	// Week
+	if (!empty($arrayfields['t.week']['checked'])) {
+		print '<td class="center">'.(int)$obj->week.'</td>';
+	}
+	// Status (badge)
+	if (!empty($arrayfields['t.status']['checked'])) {
+		$tswstatic->status = $obj->status;
+		print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+	}
 	// Total hours
-	$tot = (float) $obj->total_hours;
-	$hh = floor($tot);
-	$mm = round(($tot - $hh) * 60);
-	if ($mm == 60) { $hh++; $mm = 0; }
-	print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+	if (!empty($arrayfields['t.total_hours']['checked'])) {
+		$tot = (float) $obj->total_hours;
+		$hh = floor($tot);
+		$mm = round(($tot - $hh) * 60);
+		if ($mm == 60) { $hh++; $mm = 0; }
+		print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+	}
+	// Overtime
+	if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+		$tot = (float) $obj->overtime_hours;
+		$hh = floor($tot);
+		$mm = round(($tot - $hh) * 60);
+		if ($mm == 60) { $hh++; $mm = 0; }
+		print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+	}
+	// Creation
+	if (!empty($arrayfields['t.date_creation']['checked'])) {
+		print '<td class="center">'.($obj->date_creation ? dol_print_date($db->jdate($obj->date_creation),'dayhour') : '').'</td>';
+	}
+	// Modification
+	if (!empty($arrayfields['t.tms']['checked'])) {
+		print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
+	}
 
-	// Overtime hours
-	$tot = (float) $obj->overtime_hours;
-	$hh = floor($tot);
-	$mm = round(($tot - $hh) * 60);
-	if ($mm == 60) { $hh++; $mm = 0; }
-	print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
-
-	// Status badge
-	$tswstatic->status = $obj->status;
-	print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+	// Right selection checkbox column (if setting to put it right)
+	if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+		print '<td class="nowrap center">';
+		if ($massactionbutton || $massaction) {
+			$selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
+			print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected ? ' checked="checked"' : '').'>';
+		}
+		print '</td>';
+	}
 
 	print '</tr>';
-
 	$i++;
 }
 
 if ($num == 0) {
-	print '<tr><td colspan="6"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
+	$colspan = 1;
+	foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
+	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
 
 print '</table>';
