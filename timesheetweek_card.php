@@ -30,8 +30,8 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelector
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
 
 // ---- Params ----
-$id     = GETPOSTINT('id');
-$action = GETPOST('action', 'aZ09');
+$id      = GETPOSTINT('id');
+$action  = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
 
 // ---- Init ----
@@ -39,50 +39,37 @@ $object = new TimesheetWeek($db);
 $extrafields = new ExtraFields($db);
 $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
-// ---- Fetch ----
-include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php'; // set $object if id/ref provided
+// ---- Fetch (set $object) ----
+include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
-// ---- Permissions (compat create/write, read/readChild/readAll, delete/deleteAll...) ----
-$has = static function($perm) use ($user) {
-	return $user->hasRight('timesheetweek','timesheetweek',$perm);
-};
+// ---- Permissions (nouveau modèle) ----
+$permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
+$permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
+$permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
 
-// Lecture
-$permReadOwn   = $has('read') || $has('lire'); // legacy safeguard
-$permReadChild = $has('readChild') || $has('lire_sub'); // safeguard
-$permReadAll   = $has('readAll') || $has('lire_tous');  // safeguard
+$permCreate        = $user->hasRight('timesheetweek','timesheetweek','create');
+$permCreateChild   = $user->hasRight('timesheetweek','timesheetweek','createChild');
+$permCreateAll     = $user->hasRight('timesheetweek','timesheetweek','createAll');
 
-// Création / edition
-$permCreateOwn   = $has('create') || $has('write');
-$permCreateChild = $has('createChild') || $has('writeChild');
-$permCreateAll   = $has('createAll') || $has('writeAll');
+$permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');       // pas utilisé ici
+$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');  // pas utilisé ici
+$permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAll');    // pas utilisé ici
 
-// Validation
-$permValidateOwn   = $has('validate');
-$permValidateChild = $has('validateChild');
-$permValidateAll   = $has('validateAll');
+$permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
+$permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
+$permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
 
-// Suppression
-$permDeleteOwn   = $has('delete');
-$permDeleteChild = $has('deleteChild');
-$permDeleteAll   = $has('deleteAll');
+$permExport        = $user->hasRight('timesheetweek','timesheetweek','export');         // pas utilisé ici
 
-// Export (pas utilisé ici, mais dispo)
-$permExport = $has('export');
-
-// Raccourcis combinés
-$permReadAny   = ($permReadAll || $permReadChild || $permReadOwn);
-$permCreateAny = ($permCreateAll || $permCreateChild || $permCreateOwn);
-$permDeleteAny = ($permDeleteAll || $permDeleteChild || $permDeleteOwn);
-$permValidateAny = ($permValidateAll || $permValidateChild || $permValidateOwn);
-
-if (!$permReadAny && $action !== 'create' && $action !== 'add') accessforbidden();
+$permReadAny   = ($permRead || $permReadChild || $permReadAll);
+$permCreateAny = ($permCreate || $permCreateChild || $permCreateAll);
+$permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
 // ---- Helpers ----
 /**
- * Vérifie si $user courant a le droit d’agir sur la fiche $userid (propriétaire).
+ * Vérifie si $user courant a le droit d’agir sur la fiche du salarié $userid selon la portée.
  */
-function canActOnUser($userid, $own, $child, $all, User $user) {
+function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	if ($all) return true;
 	if ($own && ($userid == $user->id)) return true;
 	if ($child) {
@@ -101,23 +88,23 @@ if ($action === 'add') {
 	$fk_user_valid = GETPOSTINT('fk_user_valid');
 	$note          = GETPOST('note', 'restricthtml');
 
-	// Si l'utilisateur cible n'est pas autorisé selon la portée, refuse
-	if (!canActOnUser($fk_user ?: $user->id, $permCreateOwn, $permCreateChild, $permCreateAll, $user)) {
+	$targetUserId = $fk_user > 0 ? $fk_user : $user->id;
+	if (!tw_can_act_on_user($targetUserId, $permCreate, $permCreateChild, $permCreateAll, $user)) {
 		accessforbidden();
 	}
 
-	$object->ref          = '(PROV)';
-	$object->fk_user      = $fk_user > 0 ? $fk_user : $user->id;
-	$object->status       = TimesheetWeek::STATUS_DRAFT;
-	$object->note         = $note;
+	$object->ref     = '(PROV)';
+	$object->fk_user = $targetUserId;
+	$object->status  = TimesheetWeek::STATUS_DRAFT;
+	$object->note    = $note;
 
-	// Défault validator = manager hiérarchique si non fourni
+	// Validateur par défaut = manager du salarié cible si non fourni
 	if ($fk_user_valid > 0) {
 		$object->fk_user_valid = $fk_user_valid;
 	} else {
 		$uTmp = new User($db);
-		$uTmp->fetch($object->fk_user);
-		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null; // fallback null
+		$uTmp->fetch($targetUserId);
+		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
 	}
 
 	// Parse semaine
@@ -143,33 +130,32 @@ if ($action === 'add') {
 
 // ----------------- Action: Save grid lines -----------------
 if ($action === 'save' && $id > 0) {
-	// Re-fetch object (in case)
 	if ($object->id <= 0) $object->fetch($id);
 
-	// Vérifie droits d'écriture sur le propriétaire de la fiche
-	if (!canActOnUser($object->fk_user, $permCreateOwn, $permCreateChild, $permCreateAll, $user)) {
+	// Edition autorisée selon portée de création sur le salarié de la fiche
+	if (!tw_can_act_on_user($object->fk_user, $permCreate, $permCreateChild, $permCreateAll, $user)) {
 		accessforbidden();
 	}
 
 	$db->begin();
 
-	// On supprime puis réinsère (simple) — ou on pourrait upsert si besoin fin
+	// Nettoie anciennes lignes
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id);
 
-	// Balayer inputs
+	// Balayage des inputs hours_taskid_day
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) {
 			$taskid = (int) $m[1];
 			$day    = $m[2];
-			$hours  = (string) $val;
+			$hoursStr  = (string) $val;
 
-			// Accepte HH:MM ou décimal
+			// Parse HH:MM ou décimal
 			$h = 0.0;
-			if (strpos($hours, ':') !== false) {
-				list($H,$M) = array_pad(explode(':', $hours, 2), 2, '0');
+			if (strpos($hoursStr, ':') !== false) {
+				list($H,$M) = array_pad(explode(':', $hoursStr, 2), 2, '0');
 				$h = ((int)$H) + ((int)$M)/60.0;
 			} else {
-				$h = (float) str_replace(',', '.', $hours);
+				$h = (float) str_replace(',', '.', $hoursStr);
 			}
 
 			if ($h > 0) {
@@ -198,23 +184,19 @@ if ($action === 'save' && $id > 0) {
 		}
 	}
 
-	// Recalcule totaux & heures sup (stockés sur la fiche)
-	$totalHours = (float) GETPOST('grand_total_hours', 'alpha'); // Peut être vide -> recalc côté serveur si besoin
-	if (!$totalHours) {
-		// Recalcule depuis les lignes
-		$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-		$resSum = $db->query($sqlSum);
-		if ($resSum) {
-			$o = $db->fetch_object($resSum);
-			$totalHours = (float) $o->sh;
-		}
+	// Recalcule total + heures sup
+	$totalHours = 0.0;
+	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
+	$resSum = $db->query($sqlSum);
+	if ($resSum) {
+		$o = $db->fetch_object($resSum);
+		$totalHours = (float) $o->sh;
 	}
 
-	// Heures contractuelles
 	$uEmp = new User($db);
 	$uEmp->fetch($object->fk_user);
 	$contract = !empty($uEmp->weeklyhours) ? (float)$uEmp->weeklyhours : 35.0;
-	$overtime = max(0, $totalHours - $contract);
+	$overtime = max(0.0, $totalHours - $contract);
 
 	$object->total_hours    = $totalHours;
 	$object->overtime_hours = $overtime;
@@ -236,8 +218,8 @@ if ($action === 'save' && $id > 0) {
 // ----------------- Action: Delete -----------------
 if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
-	// check droit de suppression par portée
-	if (!canActOnUser($object->fk_user, $permDeleteOwn, $permDeleteChild, $permDeleteAll, $user)) {
+
+	if (!tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
 		accessforbidden();
 	}
 
@@ -267,6 +249,7 @@ if ($action === 'create') {
 	print '<input type="hidden" name="action" value="add">';
 
 	print '<table class="border centpercent">';
+
 	// Employé
 	print '<tr>';
 	print '<td class="titlefield">'.$langs->trans("Employee").'</td>';
@@ -279,7 +262,7 @@ if ($action === 'create') {
 	print '<td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td>';
 	print '</tr>';
 
-	// Validateur - par défaut manager hiérarchique si dispo
+	// Validateur (par défaut = manager de l’employé courant s’il existe)
 	$defaultValidatorId = null;
 	if (!empty($user->fk_user)) $defaultValidatorId = (int)$user->fk_user;
 	print '<tr>';
@@ -319,8 +302,7 @@ JS;
 
 } else if ($id > 0) {
 	// ---- READ MODE (fiche + grille) ----
-	// Vérifie droit de lecture sur propriétaire de la fiche
-	if (!canActOnUser($object->fk_user, $permReadOwn, $permReadChild, $permReadAll, $user)) {
+	if (!tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)) {
 		accessforbidden();
 	}
 
@@ -331,7 +313,22 @@ JS;
 	$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 	dol_banner_tab($object, 'ref', $linkback);
 
+	// Confirm delete modal si besoin
+	if ($action === 'delete') {
+		$formconfirm = $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans('Delete'),
+			$langs->trans('ConfirmDeleteObject'),
+			'confirm_delete',
+			array(),
+			'no',
+			1
+		);
+		print $formconfirm;
+	}
+
 	print '<div class="fichecenter">';
+
 	// Left block
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent tableforfield">';
@@ -344,7 +341,7 @@ JS;
 	print '<tr><td>'.$langs->trans("Year").'</td><td>'.dol_escape_htmltag($object->year).'</td></tr>';
 	// Semaine
 	print '<tr><td>'.$langs->trans("Week").'</td><td>'.dol_escape_htmltag($object->week).'</td></tr>';
-	// Note (dans la partie gauche comme demandé)
+	// Note (dans la partie gauche)
 	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
 	// Validator
 	if ($object->fk_user_valid > 0) {
@@ -380,16 +377,26 @@ JS;
 
 	// Indexer les heures existantes: hoursBy[taskid][Y-m-d] = décimal
 	$hoursBy = array();
+	$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
+	$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
+
 	if (!empty($lines)) {
 		foreach ($lines as $L) {
-			$keydate = $L->day_date;
+			$keydate = $L->day_date; // Y-m-d
+			// Détermine nom du jour ISO (1=lundi..7=dimanche)
+			$w = (int) date('N', strtotime($keydate));
+			$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
+
 			if (!isset($hoursBy[$L->fk_task])) $hoursBy[$L->fk_task] = array();
 			$hoursBy[$L->fk_task][$keydate] = (float) $L->hours;
+
+			if ((int)$L->meal === 1) $dayMeal[$dayName] = 1;
+			if ($L->zone !== null && $L->zone !== '') $dayZone[$dayName] = (int)$L->zone;
 		}
 	}
 
 	if (empty($tasks)) {
-		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
+        print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
 		$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 		$dto = new DateTime();
@@ -416,15 +423,19 @@ JS;
 		print '<th class="right">'.$langs->trans("Total").'</th>';
 		print '</tr>';
 
-		// Ligne zone + panier
+		// Ligne zone + panier (préfills)
 		print '<tr class="liste_titre">';
 		print '<td></td>';
 		foreach ($days as $d) {
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
-			for ($z=1; $z<=5; $z++) print '<option value="'.$z.'">'.$z.'</option>';
+			for ($z=1; $z<=5; $z++) {
+				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
+				print '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
+			}
 			print '</select><br>';
-			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"> '.$langs->trans("Meal").'</label>';
+			$checked = $dayMeal[$d] ? ' checked' : '';
+			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.'> '.$langs->trans("Meal").'</label>';
 			print '</td>';
 		}
 		print '<td></td>';
@@ -446,16 +457,13 @@ JS;
 
 		// Lignes
 		foreach ($byproject as $pid => $pdata) {
-			// Ligne projet (style Suivi du temps)
+			// Ligne projet (style suivi du temps), cellule unique
 			print '<tr class="oddeven trforbreak nobold">';
-			// cellule unique sur toute la ligne projet
 			$colspan = 1 + count($days) + 1;
 			print '<td colspan="'.$colspan.'">';
-			// getNomUrl project
 			$proj = new Project($db);
-			$proj->id = $pid;
-			$proj->ref = $pdata['ref'];
-			$proj->title = $pdata['title'];
+			$proj->fetch($pid);
+			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
 			print $proj->getNomUrl(1);
 			print '</td>';
 			print '</tr>';
@@ -465,10 +473,9 @@ JS;
 				print '<tr>';
 				print '<td class="paddingleft">';
 				$tsk = new Task($db);
-				$tsk->id = (int)$task['task_id'];
-				$tsk->ref = $task['task_ref'] ?? '';
-				$tsk->label = $task['task_label'];
-				print $tsk->getNomUrl(1, 'withproject'); // avec lien tâche
+				$tsk->fetch((int)$task['task_id']);
+				if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
+				print $tsk->getNomUrl(1, 'withproject');
 				print '</td>';
 
 				$rowTotal = 0.0;
@@ -477,7 +484,6 @@ JS;
 					$val = '';
 					$keydate = $weekdates[$d];
 					if (isset($hoursBy[$task['task_id']][$keydate])) {
-						// pré-remplir au format HH:MM
 						$val = formatHours($hoursBy[$task['task_id']][$keydate]);
 						$rowTotal += (float)$hoursBy[$task['task_id']][$keydate];
 					}
@@ -488,17 +494,20 @@ JS;
 			}
 		}
 
-		// Totaux
+		// Totaux init
+		// total global depuis la fiche (si déjà calculé)
+		$grand = (float)$object->total_hours;
+
 		print '<tr class="liste_total">';
 		print '<td class="right">'.$langs->trans("Total").'</td>';
 		foreach ($days as $d) print '<td class="right day-total">00:00</td>';
-		$grand = (float)$object->total_hours;
 		print '<td class="right grand-total">'.formatHours($grand).'</td>';
 		print '</tr>';
 
 		print '<tr class="liste_total">';
 		print '<td class="right">'.$langs->trans("Meals").'</td>';
-		print '<td colspan="'.count($days).'" class="right meal-total">0</td>';
+		$initMeals = array_sum($dayMeal);
+		print '<td colspan="'.count($days).'" class="right meal-total">'.$initMeals.'</td>';
 		print '<td></td>';
 		print '</tr>';
 
@@ -512,5 +521,79 @@ JS;
 		print '</table>';
 		print '</div>';
 
-		// Bouton Save (si droits d’édition sur ce salarié)
-		if (canActOnUser($object->fk_user, $permCreateOwn, $permCreateChild, $permCreateAll, $user) &&
+		// Bouton Save (si brouillon + droits)
+		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permCreate, $permCreateChild, $permCreateAll, $user)) {
+			print '<input type="hidden" name="grand_total_hours" id="grand_total_hours" value="'.dol_escape_htmltag($grand).'">';
+			print '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
+		} else {
+			print '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
+		}
+
+		print '</form>';
+
+		// JS totaux
+		print '<script>
+(function($){
+	function parseHours(v){
+		if(!v) return 0;
+		if(v.indexOf(":") === -1) return parseFloat(v)||0;
+		var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
+		return h + (m/60);
+	}
+	function formatHours(d){
+		if(isNaN(d)) return "00:00";
+		var h=Math.floor(d); var m=Math.round((d-h)*60);
+		if(m===60){ h++; m=0; }
+		return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+	}
+	function updateTotals(){
+		var grand=0;
+		$(".task-total").text("00:00");
+		$(".day-total").text("00:00");
+
+		$("table.noborder tr").each(function(){
+			var rowT=0;
+			$(this).find("input.hourinput").each(function(){
+				var v=parseHours($(this).val());
+				if(v>0){
+					rowT+=v;
+					var idx=$(this).closest("td").index();
+					var daycell=$("tr.liste_total:first td").eq(idx);
+					var cur=parseHours(daycell.text());
+					daycell.text(formatHours(cur+v));
+					grand+=v;
+				}
+			});
+			if(rowT>0) $(this).find(".task-total").text(formatHours(rowT));
+		});
+
+		$(".grand-total").text(formatHours(grand));
+		$("#grand_total_hours").val(grand.toFixed(2));
+
+		var meals = $(".mealbox:checked").length;
+		$(".meal-total").text(meals);
+
+		var weeklyContract = '.((float)$contractedHours).';
+		var ot = grand - weeklyContract; if (ot < 0) ot = 0;
+		$(".overtime-total").text(formatHours(ot));
+	}
+	$(function(){
+		updateTotals(); // au chargement
+		$(document).on("input change", "input.hourinput, input.mealbox", updateTotals);
+	});
+})(jQuery);
+</script>';
+	}
+
+	// Boutons d’action (barre)
+	print '<div class="tabsAction">';
+	// Delete
+	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
+		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
+	}
+	print '</div>';
+}
+
+// End of page
+llxFooter();
+$db->close();
