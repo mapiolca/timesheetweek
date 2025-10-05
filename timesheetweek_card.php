@@ -47,22 +47,16 @@ $permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
 $permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
 
-$permCreate        = $user->hasRight('timesheetweek','timesheetweek','write');
-$permCreateChild   = $user->hasRight('timesheetweek','timesheetweek','writeChild');
-$permCreateAll     = $user->hasRight('timesheetweek','timesheetweek','writeAll');
-
-$permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');       // pas utilisé ici
-$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');  // pas utilisé ici
-$permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAll');    // pas utilisé ici
+$permWrite         = $user->hasRight('timesheetweek','timesheetweek','write');
+$permWriteChild    = $user->hasRight('timesheetweek','timesheetweek','writeChild');
+$permWriteAll      = $user->hasRight('timesheetweek','timesheetweek','writeAll');
 
 $permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
 $permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
 
-$permExport        = $user->hasRight('timesheetweek','timesheetweek','export');         // pas utilisé ici
-
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
-$permCreateAny = ($permCreate || $permCreateChild || $permCreateAll);
+$permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
 // ---- Helpers ----
@@ -71,17 +65,17 @@ $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
  */
 function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	if ($all) return true;
-	if ($own && ($userid == $user->id)) return true;
+	if ($own && ((int)$userid === (int)$user->id)) return true;
 	if ($child) {
 		$subs = $user->getAllChildIds(1);
-		if (is_array($subs) && in_array((int)$userid, $subs)) return true;
+		if (is_array($subs) && in_array((int)$userid, $subs, true)) return true;
 	}
 	return false;
 }
 
 // ----------------- Action: Create (add) -----------------
 if ($action === 'add') {
-	if (!$permCreateAny) accessforbidden();
+	if (!$permWriteAny) accessforbidden();
 
 	$weekyear      = GETPOST('weekyear', 'alpha'); // YYYY-Wxx
 	$fk_user       = GETPOSTINT('fk_user');
@@ -89,7 +83,7 @@ if ($action === 'add') {
 	$note          = GETPOST('note', 'restricthtml');
 
 	$targetUserId = $fk_user > 0 ? $fk_user : $user->id;
-	if (!tw_can_act_on_user($targetUserId, $permCreate, $permCreateChild, $permCreateAll, $user)) {
+	if (!tw_can_act_on_user($targetUserId, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		accessforbidden();
 	}
 
@@ -132,8 +126,8 @@ if ($action === 'add') {
 if ($action === 'save' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	// Edition autorisée selon portée de création sur le salarié de la fiche
-	if (!tw_can_act_on_user($object->fk_user, $permCreate, $permCreateChild, $permCreateAll, $user)) {
+	// Edition autorisée selon portée d’écriture sur le salarié de la fiche
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		accessforbidden();
 	}
 
@@ -240,7 +234,7 @@ llxHeader('', $title);
 
 // ---- CREATE MODE ----
 if ($action === 'create') {
-	if (!$permCreateAny) accessforbidden();
+	if (!$permWriteAny) accessforbidden();
 
 	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
 
@@ -396,7 +390,7 @@ JS;
 	}
 
 	if (empty($tasks)) {
-        print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
+		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
 		$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 		$dto = new DateTime();
@@ -430,7 +424,7 @@ JS;
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
 			for ($z=1; $z<=5; $z++) {
-				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
+                $sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
 				print '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 			}
 			print '</select><br>';
@@ -495,7 +489,6 @@ JS;
 		}
 
 		// Totaux init
-		// total global depuis la fiche (si déjà calculé)
 		$grand = (float)$object->total_hours;
 
 		print '<tr class="liste_total">';
@@ -521,8 +514,8 @@ JS;
 		print '</table>';
 		print '</div>';
 
-		// Bouton Save (si brouillon + droits)
-		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permCreate, $permCreateChild, $permCreateAll, $user)) {
+		// Bouton Save (si brouillon + droits d’écriture)
+		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 			print '<input type="hidden" name="grand_total_hours" id="grand_total_hours" value="'.dol_escape_htmltag($grand).'">';
 			print '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		} else {
