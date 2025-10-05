@@ -41,7 +41,21 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
-// ---- Permissions (nouveau modèle, avec hasRight) ----
+// ---- SHIM STATUTS (si constantes manquantes dans la classe) ----
+function tw_status($name) {
+	static $map = null;
+	if ($map === null) {
+		$map = array(
+			'draft'     => defined('TimesheetWeek::STATUS_DRAFT')     ? TimesheetWeek::STATUS_DRAFT     : 0,
+			'submitted' => defined('TimesheetWeek::STATUS_SUBMITTED') ? TimesheetWeek::STATUS_SUBMITTED : 1,
+			'validated' => defined('TimesheetWeek::STATUS_VALIDATED') ? TimesheetWeek::STATUS_VALIDATED : 2, // "Approuvée"
+			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
+		);
+	}
+	return $map[$name];
+}
+
+// ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
 $permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
@@ -59,14 +73,11 @@ $permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
 $permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
 
-// Aides
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
-/**
- * Vérifie si $user courant a le droit d’agir (écriture) sur la fiche du salarié $userid selon la portée.
- */
+/** helpers permissions **/
 function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	if ($all) return true;
 	if ($own && ((int)$userid === (int)$user->id)) return true;
@@ -76,21 +87,10 @@ function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	}
 	return false;
 }
-/**
- * Renvoie true si $user est manager du salarié $userid
- */
 function tw_is_manager_of($userid, User $user) {
 	$subs = $user->getAllChildIds(1);
 	return (is_array($subs) && in_array((int)$userid, $subs, true));
 }
-/**
- * Peut valider/refuser ?
- * Règles :
- * - validateAll => oui
- * - validateChild et est manager => oui
- * - validateOwn et user.id == salarié => oui
- * - validate et user.id == validateur désigné => oui
- */
 function tw_can_validate_timesheet(TimesheetWeek $o, User $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll) {
 	if ($permValidateAll) return true;
 	if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
@@ -103,7 +103,7 @@ function tw_can_validate_timesheet(TimesheetWeek $o, User $user, $permValidate, 
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
 
 // ----------------- Inline edits (crayons) -----------------
-if ($action === 'setfk_user' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$newval = GETPOSTINT('fk_user');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	if ($newval > 0) {
@@ -115,7 +115,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == TimesheetW
 	$action = '';
 }
 
-if ($action === 'setvalidator' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+if ($action === 'setvalidator' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$newval = GETPOSTINT('fk_user_valid');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	$object->fk_user_valid = ($newval > 0 ? $newval : null);
@@ -125,7 +125,7 @@ if ($action === 'setvalidator' && $object->id > 0 && $object->status == Timeshee
 	$action = '';
 }
 
-if ($action === 'setnote' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+if ($action === 'setnote' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$newval = GETPOST('note', 'restricthtml');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	$object->note = $newval;
@@ -135,7 +135,7 @@ if ($action === 'setnote' && $object->id > 0 && $object->status == TimesheetWeek
 	$action = '';
 }
 
-if ($action === 'setweekyear' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$weekyear = GETPOST('weekyear', 'alpha');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
@@ -166,7 +166,7 @@ if ($action === 'add') {
 
 	$object->ref     = '(PROV)';
 	$object->fk_user = $targetUserId;
-	$object->status  = TimesheetWeek::STATUS_DRAFT;
+	$object->status  = tw_status('draft');
 	$object->note    = $note;
 
 	// Validateur par défaut = manager du salarié cible si non fourni
@@ -203,8 +203,7 @@ if ($action === 'add') {
 if ($action === 'save' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	// Edition autorisée et statut brouillon
-	if ($object->status != TimesheetWeek::STATUS_DRAFT) {
+	if ($object->status != tw_status('draft')) {
 		setEventMessages($langs->trans("TimesheetIsNotEditable"), null, 'warnings');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
@@ -224,7 +223,6 @@ if ($action === 'save' && $id > 0) {
 			$day      = $m[2];
 			$hoursStr = trim((string) $val);
 
-			// Parse HH:MM ou décimal
 			$h = 0.0;
 			if ($hoursStr !== '') {
 				if (strpos($hoursStr, ':') !== false) {
@@ -237,7 +235,6 @@ if ($action === 'save' && $id > 0) {
 				}
 			}
 
-			// date Y-m-d du jour de la semaine
 			$dto = new DateTime();
 			$dto->setISODate((int)$object->year, (int)$object->week);
 			$dto->modify('+'.$map[$day].' day');
@@ -246,7 +243,6 @@ if ($action === 'save' && $id > 0) {
 			$zone = (int) GETPOST('zone_'.$day, 'int');
 			$meal = GETPOST('meal_'.$day) ? 1 : 0;
 
-			// On cherche une ligne existante
 			$sqlSel = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line 
 				WHERE fk_timesheet_week=".(int)$object->id." AND fk_task=".(int)$taskid." AND day_date='".$db->escape($datestr)."'";
 			$resSel = $db->query($sqlSel);
@@ -258,7 +254,6 @@ if ($action === 'save' && $id > 0) {
 
 			if ($h > 0 && $taskid > 0) {
 				if ($existingId > 0) {
-					// UPDATE
 					$sqlUpd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line 
 						SET hours=".((float)$h).", zone=".(int)$zone.", meal=".(int)$meal."
 						WHERE rowid=".$existingId;
@@ -269,7 +264,6 @@ if ($action === 'save' && $id > 0) {
 						exit;
 					}
 				} else {
-					// INSERT direct
 					$sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (fk_timesheet_week, fk_task, day_date, hours, zone, meal) VALUES (".
 						(int)$object->id.", ".
 						(int)$taskid.", ".
@@ -287,7 +281,6 @@ if ($action === 'save' && $id > 0) {
 				}
 				$processed++;
 			} else {
-				// Pas d'heures => suppression d'une éventuelle ligne
 				if ($existingId > 0) {
 					$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId);
 					$processed++;
@@ -296,7 +289,7 @@ if ($action === 'save' && $id > 0) {
 		}
 	}
 
-	// Recalcule total + heures sup
+	// Totaux
 	$totalHours = 0.0;
 	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
 	$resSum = $db->query($sqlSum);
@@ -310,7 +303,6 @@ if ($action === 'save' && $id > 0) {
 	$contract = !empty($uEmp->weeklyhours) ? (float)$uEmp->weeklyhours : 35.0;
 	$overtime = max(0.0, $totalHours - $contract);
 
-	// Sauvegarde dans la fiche
 	$object->total_hours    = $totalHours;
 	$object->overtime_hours = $overtime;
 	$upd = $object->update($user);
@@ -327,11 +319,11 @@ if ($action === 'save' && $id > 0) {
 	exit;
 }
 
-// ----------------- Action: Submit (Soumettre) -----------------
+// ----------------- Action: Submit -----------------
 if ($action === 'submit' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	if ($object->status != TimesheetWeek::STATUS_DRAFT) {
+	if ($object->status != tw_status('draft')) {
 		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
@@ -340,7 +332,6 @@ if ($action === 'submit' && $id > 0) {
 		accessforbidden();
 	}
 
-	// Refuser soumission si aucune heure
 	$totalHours = 0.0;
 	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
 	$resSum = $db->query($sqlSum);
@@ -354,7 +345,7 @@ if ($action === 'submit' && $id > 0) {
 		exit;
 	}
 
-	$object->status = TimesheetWeek::STATUS_SUBMITTED;
+	$object->status = tw_status('submitted');
 	$res = $object->update($user);
 	if ($res > 0) {
 		setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
@@ -366,23 +357,21 @@ if ($action === 'submit' && $id > 0) {
 }
 
 // ----------------- Action: Back to draft (Retour au brouillon) -----------------
+// Désormais autorisé si statut != brouillon (soumis / approuvé / refusé) pour employé OU validateur (droits)
 if ($action === 'setdraft' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	if ($object->status != TimesheetWeek::STATUS_SUBMITTED) {
-		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+	if ($object->status == tw_status('draft')) {
+		setEventMessages($langs->trans("AlreadyDraft"), null, 'warnings');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
 
 	$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 	$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+	if (!$canEmployee && !$canValidator) accessforbidden();
 
-	if (!$canEmployee && !$canValidator) {
-		accessforbidden();
-	}
-
-	$object->status = TimesheetWeek::STATUS_DRAFT;
+	$object->status = tw_status('draft');
 	$res = $object->update($user);
 	if ($res > 0) {
 		setEventMessages($langs->trans("StatusSetToDraft"), null, 'mesgs');
@@ -396,7 +385,7 @@ if ($action === 'setdraft' && $id > 0) {
 // ----------------- Action: VALIDATE (Approuver) -----------------
 if ($action === 'validate' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
-	if ($object->status != TimesheetWeek::STATUS_SUBMITTED) {
+	if ($object->status != tw_status('submitted')) {
 		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
@@ -405,12 +394,12 @@ if ($action === 'validate' && $id > 0) {
 		accessforbidden();
 	}
 
-	$object->status = TimesheetWeek::STATUS_VALIDATED;
+	$object->status = tw_status('validated'); // statut interne (affiché "Approuvée" en front)
 	$object->date_validation = dol_now();
-	if (empty($object->fk_user_valid)) $object->fk_user_valid = $user->id; // si non défini, on renseigne
+	if (empty($object->fk_user_valid)) $object->fk_user_valid = $user->id;
 	$res = $object->update($user);
 	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetValidated"), null, 'mesgs');
+		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
 	} else {
 		setEventMessages($object->error, $object->errors, 'errors');
 	}
@@ -421,7 +410,7 @@ if ($action === 'validate' && $id > 0) {
 // ----------------- Action: REFUSE (Refuser) -----------------
 if ($action === 'refuse' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
-	if ($object->status != TimesheetWeek::STATUS_SUBMITTED) {
+	if ($object->status != tw_status('submitted')) {
 		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
@@ -430,7 +419,7 @@ if ($action === 'refuse' && $id > 0) {
 		accessforbidden();
 	}
 
-	$object->status = TimesheetWeek::STATUS_REFUSED;
+	$object->status = tw_status('refused');
 	$res = $object->update($user);
 	if ($res > 0) {
 		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
@@ -445,11 +434,12 @@ if ($action === 'refuse' && $id > 0) {
 if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	// autoriser delete si brouillon par auteur/droits, ou si soumis et validateur (selon demande)
-	$canDeleteDraft = ($object->status == TimesheetWeek::STATUS_DRAFT) && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user);
-	$canDeleteSubmittedByValidator = ($object->status == TimesheetWeek::STATUS_SUBMITTED) && tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+	// On autorise la suppression si l'utilisateur a les droits (own/child/all),
+	// quelque soit le statut (brouillon/soumis/approuvé/refusé).
+	$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 
-	if (!$canDeleteDraft && !$canDeleteSubmittedByValidator) accessforbidden();
+	if (!$canDelete) accessforbidden();
 
 	$res = $object->delete($user);
 	if ($res > 0) {
@@ -556,7 +546,7 @@ JS;
 
 	echo '<div class="fichecenter">';
 
-	$canEditInline = ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user));
+	$canEditInline = ($object->status == tw_status('draft') && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user));
 
 	// Left block
 	echo '<div class="fichehalfleft">';
@@ -583,7 +573,7 @@ JS;
 	}
 	echo '</td></tr>';
 
-	// Semaine (Year/Week)
+	// Semaine
 	echo '<tr><td>'.$langs->trans("Week").'</td><td>';
 	if ($action === 'editweekyear' && $canEditInline) {
 		$prefill = sprintf("%04d-W%02d", (int)$object->year, (int)$object->week);
@@ -602,7 +592,7 @@ JS;
 	}
 	echo '</td></tr>';
 
-	// Note (gauche)
+	// Note
 	echo '<tr><td>'.$langs->trans("Note").'</td><td>';
 	if ($action === 'editnote' && $canEditInline) {
 		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -684,11 +674,12 @@ JS;
 
 	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
-	// 1) CHARGER LIGNES EXISTANTES (DIRECT SQL)
+	// 1) CHARGER LIGNES EXISTANTES
 	$hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
 	$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
 	$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
 	$taskIdsFromLines = array();
+	$linesCount = 0;
 
 	$sqlLines = "SELECT fk_task, day_date, hours, zone, meal 
 		FROM ".MAIN_DB_PREFIX."timesheet_week_line
@@ -696,6 +687,7 @@ JS;
 	$resLines = $db->query($sqlLines);
 	if ($resLines) {
 		while ($o = $db->fetch_object($resLines)) {
+			$linesCount++;
 			$fk_task = (int)$o->fk_task;
 			$daydate = $o->day_date;
 			$hours   = (float)$o->hours;
@@ -769,6 +761,9 @@ JS;
 		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
 		$contractedHours = (!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
 
+		// Inputs zone/panier bloqués si statut != brouillon (demande : a minima "soumis")
+		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
+
 		echo '<div class="div-table-responsive">';
 		echo '<table class="noborder centpercent">';
 
@@ -786,14 +781,14 @@ JS;
 		echo '<td></td>';
 		foreach ($days as $d) {
 			echo '<td class="center">';
-			echo '<select name="zone_'.$d.'" class="flat">';
+			echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
 			for ($z=1; $z<=5; $z++) {
 				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
 				echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 			}
 			echo '</select><br>';
 			$checked = $dayMeal[$d] ? ' checked' : '';
-			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.'> '.$langs->trans("Meal").'</label>';
+			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
 			echo '</td>';
 		}
 		echo '<td></td>';
@@ -846,7 +841,9 @@ JS;
 						$val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
 						$rowTotal += (float)$hoursBy[(int)$task['task_id']][$keydate];
 					}
-					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"></td>';
+					// Les heures restent éditables uniquement en brouillon (on n'affiche le bouton Save qu'en brouillon)
+					$readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
+					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
 				}
 				$grandInit += $rowTotal;
 				echo '<td class="right task-total">'.formatHours($rowTotal).'</td>';
@@ -880,7 +877,7 @@ JS;
 		echo '</div>';
 
 		// Bouton Save (si brouillon + droits d’écriture)
-		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+		if ($object->status == tw_status('draft') && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 			echo '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		} else {
 			echo '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
@@ -953,36 +950,53 @@ JS;
 
 	$token = newToken();
 
-	// Supprimer (en brouillon par auteur/droits)
-	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
-		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
-	}
-
-	// Soumettre (si brouillon + droits écriture)
-	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+	// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
+	if ($object->status == tw_status('draft') && $linesCount > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
 	}
 
-	// Retour au brouillon (si soumis + salarié ou validateur)
-	if ($object->status == TimesheetWeek::STATUS_SUBMITTED) {
+	// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
+	if ($object->status != tw_status('draft')) {
 		$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
-
 		if ($canEmployee || $canValidator) {
 			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
 		}
+	}
 
-		// Valider / Refuser / Supprimer pour les validateurs (validate / validateChild / validateAll / validateOwn)
+	// Approuver / Refuser quand soumis (validateur/manager/all/own)
+	if ($object->status == tw_status('submitted')) {
+		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 		if ($canValidator) {
-			echo dolGetButtonAction('', $langs->trans("Validate"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=validate&token='.$token);
+			echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=validate&token='.$token);
 			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=refuse&token='.$token);
-
-			// Supprimer si soumise et valideur (demande explicite)
-			echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 		}
 	}
 
+	// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
+	$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+	if ($canDelete) {
+		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+	}
+
 	echo '</div>';
+
+	// --- Patch d’affichage : remplacer "Validée/Validated" par "Approuvée/Approved" ---
+	$jsStatusPatch = <<<'JS'
+<script>
+(function($){
+	$(function(){
+		$('.status, .statusbadge, .badge, .badgestatus').each(function(){
+			var t = $(this).text().trim();
+			if (t === 'Validée') $(this).text('Approuvée');
+			if (t === 'Validated') $(this).text('Approved');
+		});
+	});
+})(jQuery);
+</script>
+JS;
+	echo $jsStatusPatch;
 }
 
 // End of page
