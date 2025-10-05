@@ -23,7 +23,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // si tu utilises des helpers côté PHP
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // si helpers côté PHP
 
 $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
 
@@ -98,7 +98,7 @@ if ($action == 'add' && $permWrite) {
 	}
 }
 
-// ----------------- Action Save (UPSERT) -----------------
+// ----------------- Action Save (UPSERT des lignes) -----------------
 if ($action == 'save' && $permWrite && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
@@ -125,13 +125,13 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$val = trim($val);
 			$hours = 0.0;
 			if ($val !== '') {
-                if (strpos($val, ':') !== false) {
-                    list($hh, $mm) = array_pad(explode(':', $val, 2), 2, '0');
-                    $hours = ((int) $hh) + ((int) $mm)/60.0;
-                } else {
-                    $hours = (float) str_replace(',', '.', $val);
-                }
-            }
+				if (strpos($val, ':') !== false) {
+					list($hh, $mm) = array_pad(explode(':', $val, 2), 2, '0');
+					$hours = ((int) $hh) + ((int) $mm)/60.0;
+				} else {
+					$hours = (float) str_replace(',', '.', $val);
+				}
+			}
 
 			if (!isset($daysMap[$dayKey])) continue;
 			$dto = new DateTime();
@@ -209,6 +209,26 @@ if ($action == 'save' && $permWrite && $id > 0) {
 	exit;
 }
 
+// ----------------- Action Delete -----------------
+$backtolist = dol_buildpath('/timesheetweek/timesheetweek_list.php', 1);
+
+if ($action == 'confirm_delete' && $permDelete && $id > 0 && GETPOST('confirm', 'alpha') == 'yes') {
+	if ($object->id <= 0) $object->fetch($id);
+
+	$db->begin();
+	// On peut s’appuyer sur la contrainte FK ON DELETE CASCADE des lignes, ou appeler $object->delete($user)
+	$resdel = $object->delete($user);
+	if ($resdel > 0) {
+		$db->commit();
+		header("Location: ".$backtolist);
+		exit;
+	} else {
+		$db->rollback();
+		setEventMessages($object->error ? $object->error : $db->lasterror(), $object->errors, 'errors');
+		$action = ''; // on retombe en vue
+	}
+}
+
 
 /**
  * VIEW
@@ -259,6 +279,18 @@ elseif ($id > 0 && $action != 'create') {
 	// ---- Fiche ----
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head,'card',$langs->trans("TimesheetWeek"),-1,'time');
+
+	// Confirmation suppression (popup)
+	if ($action == 'delete') {
+		$formconfirm = $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans('DeleteTimesheetWeek'),
+			$langs->trans('ConfirmDeleteObject'),
+			'confirm_delete',
+			array(), 0, 'action-delete'
+		);
+		print $formconfirm;
+	}
 
 	dol_banner_tab($object,'ref');
 
@@ -449,8 +481,12 @@ $(function(){ updateTotals(); }); // au chargement
 
 	// boutons d’action de la fiche
 	print '<div class="tabsAction">';
-	if ($permWrite) print dolGetButtonAction('',$langs->trans("Modify"),'default',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
-	if ($permDelete) print dolGetButtonAction('',$langs->trans("Delete"),'delete',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
+	if ($permWrite)  print dolGetButtonAction('',$langs->trans("Modify"),'default',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
+	if ($permDelete) {
+		// Lien qui ouvre le popup de confirmation (préchargé ci-dessus)
+		$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete';
+		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $deleteUrl, 'action-delete', 1);
+	}
 	print '</div>';
 }
 
