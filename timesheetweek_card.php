@@ -336,7 +336,7 @@ if ($action === 'submit' && $id > 0) {
 
 	// Refuser soumission si aucune heure
 	$totalHours = 0.0;
-	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id";
+	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
 	$resSum = $db->query($sqlSum);
 	if ($resSum) {
 		$o = $db->fetch_object($resSum);
