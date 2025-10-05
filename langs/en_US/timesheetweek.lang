@@ -1,0 +1,42 @@
+# Translation file
+
+#
+# Generic
+#
+
+# Module label 'ModuleTimesheetWeekName'
+ModuleTimesheetWeekName = TimesheetWeek
+# Module description 'ModuleTimesheetWeekDesc'
+ModuleTimesheetWeekDesc = TimesheetWeek description
+
+#
+# Admin page
+#
+TimesheetWeekSetup = TimesheetWeek setup
+Settings = Settings
+TimesheetWeekSetupPage = TimesheetWeek setup page
+NewSection=New section
+TIMESHEETWEEK_MYPARAM1 = My param 1
+TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip
+TIMESHEETWEEK_MYPARAM2=My param 2
+TIMESHEETWEEK_MYPARAM2Tooltip=My param 2 tooltip
+
+
+#
+# About page
+#
+About = About
+TimesheetWeekAbout = About TimesheetWeek
+TimesheetWeekAboutPage = TimesheetWeek about page
+
+#
+# Sample page
+#
+TimesheetWeekArea = Home TimesheetWeek
+MyPageName = My page name
+
+#
+# Sample widget
+#
+MyWidget = My widget
+MyWidgetDescription = My widget description

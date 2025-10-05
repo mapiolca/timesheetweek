@@ -1,0 +1,218 @@
+[03-Oct-2025 22:44:19 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(445): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 22:53:04 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(453): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 22:53:08 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(453): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 22:57:07 Europe/Paris] PHP Fatal error:  Uncaught Error: Failed opening required '../class/timesheetweek.class.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:3
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 3
+[03-Oct-2025 22:57:18 Europe/Paris] PHP Fatal error:  Uncaught Error: Failed opening required '../class/timesheetweek.class.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:3
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 3
+[03-Oct-2025 22:57:20 Europe/Paris] PHP Fatal error:  Uncaught Error: Failed opening required '../class/timesheetweek.class.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:3
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 3
+[03-Oct-2025 22:57:23 Europe/Paris] PHP Fatal error:  Uncaught Error: Failed opening required '../class/timesheetweek.class.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:3
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 3
+[03-Oct-2025 22:57:30 Europe/Paris] PHP Fatal error:  Uncaught Error: Failed opening required '../class/timesheetweek.class.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:3
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 3
+[03-Oct-2025 23:16:30 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(82): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:16:54 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_contact.php(225): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...', '', 0, '<!-- No photo t...', '', 1)
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:16:55 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_document.php(246): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:16:55 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(82): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:02 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_document.php(246): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:03 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_agenda.php(262): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:05 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(82): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:07 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_contact.php(225): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...', '', 0, '<!-- No photo t...', '', 1)
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:09 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_document.php(246): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:17:10 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:968
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(946): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_agenda.php(262): dol_banner_tab(Object(TimesheetWeek), 'ref', '<a href="/custo...', 1, 'ref', 'ref', '<div class="ref...')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 968
+[03-Oct-2025 23:57:06 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:965
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(943): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(99): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 965
+[04-Oct-2025 00:00:47 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:965
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(943): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(103): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 965
+[04-Oct-2025 00:03:01 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:965
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(943): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(103): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 965
+[04-Oct-2025 00:36:44 Europe/Paris] PHP Fatal error:  Cannot redeclare TimesheetWeek::refuse() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 782
+[04-Oct-2025 00:37:46 Europe/Paris] PHP Fatal error:  Cannot redeclare TimesheetWeek::validate() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 729
+[04-Oct-2025 00:39:14 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 00:39:22 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 00:39:26 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 00:39:29 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 00:39:32 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 00:39:40 Europe/Paris] PHP Parse error:  syntax error, unexpected token "if", expecting "function" or "const" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 545
+[04-Oct-2025 01:10:37 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to undefined function getWeekSelector() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:114
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 114
+[04-Oct-2025 01:13:29 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to undefined function getWeekSelector() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:114
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 114
+[04-Oct-2025 01:13:30 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to undefined function getWeekSelector() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:114
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 114
+[04-Oct-2025 01:25:37 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to undefined function timesheetweekPrepareHead() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:142
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 142
+[04-Oct-2025 01:40:41 Europe/Paris] PHP Fatal error:  Uncaught Error: Undefined constant TimesheetWeek::STATUS_VALIDATED in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php:1022
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php(1000): TimesheetWeek->LibStatut(0, 6)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php(3389): TimesheetWeek->getLibStatut(6)
+#2 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(142): dol_banner_tab(Object(TimesheetWeek), 'ref')
+#3 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 1022
+[04-Oct-2025 02:10:19 Europe/Paris] PHP Parse error:  syntax error, unexpected token "<", expecting end of file in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php on line 316
+[04-Oct-2025 02:10:37 Europe/Paris] PHP Fatal error:  Cannot redeclare timesheetweekShowPerWeek() (previously declared in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php:250) in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php on line 326
+[04-Oct-2025 02:10:39 Europe/Paris] PHP Fatal error:  Cannot redeclare timesheetweekShowPerWeek() (previously declared in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php:250) in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php on line 326
+[04-Oct-2025 02:10:52 Europe/Paris] PHP Fatal error:  Cannot redeclare timesheetweekShowPerWeek() (previously declared in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php:250) in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/lib/timesheetweek.lib.php on line 326
+[04-Oct-2025 02:39:38 Europe/Paris] PHP Parse error:  syntax error, unexpected token "public", expecting end of file in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 1319
+[04-Oct-2025 02:40:27 Europe/Paris] PHP Parse error:  syntax error, unexpected token "public", expecting end of file in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 1319
+[04-Oct-2025 02:40:30 Europe/Paris] PHP Parse error:  syntax error, unexpected token "public", expecting end of file in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweek.class.php on line 1319
+[04-Oct-2025 02:44:40 Europe/Paris] PHP Parse error:  syntax error, unexpected token "else" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 225
+[04-Oct-2025 02:44:41 Europe/Paris] PHP Parse error:  syntax error, unexpected token "else" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 225
+[04-Oct-2025 02:45:00 Europe/Paris] PHP Parse error:  syntax error, unexpected token "else" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 225
+[04-Oct-2025 03:31:57 Europe/Paris] PHP Fatal error:  Uncaught ArgumentCountError: time() expects exactly 0 arguments, 1 given in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:289
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(289): time('39.00000000')
+#1 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 289
+[04-Oct-2025 03:32:08 Europe/Paris] PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function dol_mktime(), 1 passed in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 289 and at least 6 expected in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php:3917
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(289): dol_mktime('39.00000000')
+#1 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php on line 3917
+[04-Oct-2025 03:32:10 Europe/Paris] PHP Fatal error:  Uncaught ArgumentCountError: Too few arguments to function dol_mktime(), 1 passed in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 289 and at least 6 expected in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php:3917
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(289): dol_mktime('39.00000000')
+#1 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/lib/functions.lib.php on line 3917
+[04-Oct-2025 03:32:18 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to undefined function dolmktime() in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php:289
+Stack trace:
+#0 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 289
+[04-Oct-2025 03:42:20 Europe/Paris] PHP Parse error:  Unmatched '}' in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 329
+[04-Oct-2025 03:57:08 Europe/Paris] PHP Parse error:  syntax error, unexpected token "(", expecting variable or "{" or "$" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 221
+[04-Oct-2025 03:57:14 Europe/Paris] PHP Parse error:  syntax error, unexpected token "(", expecting variable or "{" or "$" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 221
+[04-Oct-2025 03:57:15 Europe/Paris] PHP Parse error:  syntax error, unexpected token "(", expecting variable or "{" or "$" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 221
+[04-Oct-2025 04:13:38 Europe/Paris] PHP Fatal error:  Cannot declare class TimesheetWeekLine, because the name is already in use in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweekline.class.php on line 3
+[04-Oct-2025 04:15:38 Europe/Paris] PHP Fatal error:  Cannot declare class TimesheetWeekLine, because the name is already in use in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/class/timesheetweekline.class.php on line 3
+[04-Oct-2025 04:16:44 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to a member function fetch_array() on bool in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php:431
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/debugbar/class/TraceableDB.php(278): DoliDBMysqli->fetch_array(false)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(136): TraceableDB->fetch_array(false)
+#2 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php on line 431
+[04-Oct-2025 04:16:59 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to a member function fetch_array() on bool in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php:431
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/debugbar/class/TraceableDB.php(278): DoliDBMysqli->fetch_array(false)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(136): TraceableDB->fetch_array(false)
+#2 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php on line 431
+[04-Oct-2025 04:17:00 Europe/Paris] PHP Fatal error:  Uncaught Error: Call to a member function fetch_array() on bool in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php:431
+Stack trace:
+#0 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/debugbar/class/TraceableDB.php(278): DoliDBMysqli->fetch_array(false)
+#1 /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php(136): TraceableDB->fetch_array(false)
+#2 {main}
+  thrown in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/core/db/mysqli.class.php on line 431
+[04-Oct-2025 04:42:54 Europe/Paris] PHP Parse error:  syntax error, unexpected token "?" in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 1
+[04-Oct-2025 05:00:36 Europe/Paris] PHP Parse error:  Unmatched '}' in /home/ipsservi/public_html/lesmetiersdubatiment/develop/htdocs/custom/timesheetweek/timesheetweek_card.php on line 354
