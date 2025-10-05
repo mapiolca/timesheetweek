@@ -1,7 +1,6 @@
 <?php
 /* Copyright (C) 2025
  * Pierre ARDOIN - Les Métiers du Bâtiment
- *
  * GPL v3+
  */
 
@@ -66,8 +65,14 @@ $permDeleteAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteAl
 if (!$permRead) accessforbidden();
 
 // ---------------- Helpers ----------------
-function tw_count($v) {
-	return (is_countable($v) ? count($v) : 0);
+function tw_count($v) { return (is_countable($v) ? count($v) : 0); }
+function tw_checkToken()
+{
+	// Wrapper CSRF : utilise checkToken() si disponible, sinon compare le token session
+	if (function_exists('checkToken')) return checkToken();
+	$tok = GETPOST('token', 'alphanohtml');
+	if (!isset($_SESSION['newtoken'])) return false;
+	return !empty($tok) && hash_equals($_SESSION['newtoken'], $tok);
 }
 function twIsOwnerOrChildOrAll($user, $obj, $write=false) {
 	if (!$obj->id) return false;
@@ -194,14 +199,14 @@ if ($id > 0 && $object->id) {
 	$canEditHeader = twCanWriteHeader($user, $object);
 
 	if ($action == 'update_employee' && $canEditHeader) {
-		if (!checkToken()) accessforbidden('CSRF token not valid');
+		if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 		$new_user = GETPOSTINT('fk_user');
 		if ($new_user > 0) $object->fk_user = $new_user;
 		$object->update($user);
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 	if ($action == 'update_week' && $canEditHeader) {
-		if (!checkToken()) accessforbidden('CSRF token not valid');
+		if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 		$weekyear = GETPOST('weekyear', 'alpha');
 		if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 			$object->year = (int)$m[1]; $object->week=(int)$m[2]; $object->update($user);
@@ -209,14 +214,14 @@ if ($id > 0 && $object->id) {
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 	if ($action == 'update_validator' && $canEditHeader) {
-		if (!checkToken()) accessforbidden('CSRF token not valid');
+		if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 		$new_valid = GETPOSTINT('fk_user_valid');
 		$object->fk_user_valid = $new_valid > 0 ? $new_valid : null;
 		$object->update($user);
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 	}
 	if ($action == 'update_note' && $canEditHeader) {
-		if (!checkToken()) accessforbidden('CSRF token not valid');
+		if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 		$object->note = GETPOST('note', 'restricthtml');
 		$object->update($user);
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
@@ -226,7 +231,7 @@ if ($id > 0 && $object->id) {
 // SAVE lines
 if ($action == 'save' && $id > 0) {
 	if (!twIsOwnerOrChildOrAll($user, $object, true)) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 	$dto = new DateTime();
@@ -293,7 +298,7 @@ if ($action == 'save' && $id > 0) {
 if ($action === 'submit' && $id > 0) {
 	$canSubmit = twIsOwnerOrChildOrAll($user, $object, true);
 	if (!$canSubmit) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	$linesTmp = $object->getLines();
 	$nbLines = method_exists($object,'countLines') ? (int)$object->countLines() : tw_count($linesTmp);
@@ -333,7 +338,7 @@ if ($action === 'submit' && $id > 0) {
 // APPROVE
 if ($action == 'confirm_approve' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	if ((int)$object->fk_user_valid !== (int)$user->id) $object->fk_user_valid = $user->id;
 
@@ -349,7 +354,7 @@ if ($action == 'confirm_approve' && $confirm == 'yes' && $id > 0) {
 // REFUSE
 if ($action == 'confirm_refuse' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	if ((int)$object->fk_user_valid !== (int)$user->id) $object->fk_user_valid = $user->id;
 
@@ -365,7 +370,7 @@ if ($action == 'confirm_refuse' && $confirm == 'yes' && $id > 0) {
 // BACK TO DRAFT
 if ($action == 'backtodraft' && $id > 0) {
 	if (!twIsOwnerOrChildOrAll($user, $object, true)) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	$object->status = TimesheetWeek::STATUS_DRAFT;
 	if ($object->update($user) > 0) setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
@@ -377,7 +382,7 @@ if ($action == 'backtodraft' && $id > 0) {
 // DELETE
 if ($action == 'confirm_delete' && $confirm == 'yes' && $id > 0) {
 	if (!twCanDelete($user, $object)) accessforbidden();
-	if (!checkToken()) accessforbidden('CSRF token not valid');
+	if (!tw_checkToken()) accessforbidden('CSRF token not valid');
 
 	$resdel = $object->delete($user);
 	if ($resdel > 0) {
@@ -706,6 +711,8 @@ JS;
 
 	// ---------- Action buttons ----------
 	print '<div class="tabsAction">';
+
+	$nbLines = method_exists($object,'countLines') ? (int)$object->countLines() : tw_count($lines);
 
 	// Submit (only if at least one line)
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && $nbLines > 0 && twIsOwnerOrChildOrAll($user, $object, true)) {
