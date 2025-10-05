@@ -22,7 +22,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours()
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // helpers: getWeekSelectorDolibarr(), formatHours()
 
 $langs->loadLangs(array('timesheetweek@timesheetweek', 'other', 'projects'));
 
@@ -43,15 +43,19 @@ include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 $permRead          = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
 $permReadAll       = $user->hasRight('timesheetweek', 'timesheetweek', 'readAll');
 $permReadChild     = $user->hasRight('timesheetweek', 'timesheetweek', 'readChild');
+
 $permCreate        = $user->hasRight('timesheetweek', 'timesheetweek', 'create');
 $permCreateChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'createChild');
 $permCreateAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'createAll');
+
 $permValidate      = $user->hasRight('timesheetweek', 'timesheetweek', 'validate');
 $permValidateChild = $user->hasRight('timesheetweek', 'timesheetweek', 'validateChild');
 $permValidateAll   = $user->hasRight('timesheetweek', 'timesheetweek', 'validateAll');
+
 $permDelete        = $user->hasRight('timesheetweek', 'timesheetweek', 'delete');
 $permDeleteChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteAll');
+
 $permExport        = $user->hasRight('timesheetweek', 'timesheetweek', 'export');
 
 // --- Global access gate: allow page if user has ANY read OR ANY create right ---
@@ -66,7 +70,6 @@ function tw_get_default_validator($db, $fk_user)
 {
 	$u = new User($db);
 	if ($fk_user > 0 && $u->fetch($fk_user) > 0) {
-		// Support both properties if present
 		if (!empty($u->fk_user)) return (int) $u->fk_user;
 		if (!empty($u->fk_user_superior)) return (int) $u->fk_user_superior;
 	}
@@ -441,7 +444,6 @@ JS;
 
 	$formconfirm = '';
 	if ($useajax) {
-<|diff_marker|> ADD A1020
 		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Submit'), $langs->trans('ConfirmSubmit', $object->ref), 'confirm_submit', array(), 1, 'action-submit');
 		}
@@ -462,7 +464,6 @@ JS;
 
 	print '<div class="fichecenter">';
 	print '<div class="fichehalfleft">';
-<|diff_marker|> ADD A1040
 	print '<table class="border centpercent tableforfield">';
 
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
@@ -483,7 +484,6 @@ JS;
 
 	print '<tr><td>'.$langs->trans("Week").'</td><td>';
 	if ($action === 'edit_weekyear' && $canEditHeader) {
-<|diff_marker|> ADD A1060
 		$currentWeek = tw_weekyear($object->year, $object->week);
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -504,7 +504,6 @@ JS;
 	if ($action === 'edit_fk_user_valid' && $canEditHeader) {
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
-<|diff_marker|> ADD A1080
 		print '<input type="hidden" name="action" value="update_fk_user_valid">';
 		print $form->select_dolusers($object->fk_user_valid, 'new_fk_user_valid', 1);
 		print ' <input type="submit" class="button small" value="'.$langs->trans("Save").'">';
@@ -525,7 +524,6 @@ JS;
 		print '<textarea name="new_note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
 		print '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'"> ';
 		print '<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-<|diff_marker|> ADD A1100
 		print '</form>';
 	} else {
 		print nl2br(dol_escape_htmltag($object->note));
@@ -546,7 +544,6 @@ JS;
 	}
 	if (property_exists($object, 'overtime_hours')) {
 		print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.tw_formatHoursSafe((float) $object->overtime_hours).'</td></tr>';
-<|diff_marker|> ADD A1120
 	}
 	print '</table>';
 	print '</div>';
@@ -567,7 +564,6 @@ JS;
 	print '<h3 class="paddingtop">'.$langs->trans("TimesheetWeekEntries").'</h3>';
 
 	if (empty($tasks)) {
-<|diff_marker|> ADD A1140
 		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
 		$days = array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');
@@ -588,7 +584,6 @@ JS;
 		foreach ($days as $d) {
 			print '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
 		}
-<|diff_marker|> ADD A1160
 		print '<th>'.$langs->trans("Total").'</th>';
 		print '</tr>';
 
@@ -609,7 +604,6 @@ JS;
 		}
 		print '<td></td>';
 		print '</tr>';
-<|diff_marker|> ADD A1180
 
 		$byproject = array();
 		foreach ($tasks as $t) {
@@ -630,7 +624,6 @@ JS;
 			print '<td colspan="'.(count($days)+2).'" class="bold">';
 			print $projectstatic->getNomUrl(1, '', 0, '', 0, 0, '');
 			if (!empty($projectstatic->title)) print ' <span class="opacitymedium"> - '.dol_escape_htmltag($projectstatic->title).'</span>';
-<|diff_marker|> ADD A1200
 			print '</td></tr>';
 
 			foreach ($pdata['tasks'] as $t) {
@@ -651,7 +644,6 @@ JS;
 
 					$rowTotal += tw_parse_hours_to_float($prefill);
 				}
-<|diff_marker|> ADD A1220
 				print '<td class="right task-total">'.tw_formatHoursSafe($rowTotal).'</td>';
 				print '</tr>';
 			}
@@ -671,8 +663,8 @@ JS;
 			print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		}
 
-		print '<script>
-<|diff_marker|> ADD A1240
+		$jsTotals = <<<'JS'
+<script>
 (function($){
 	function parseHours(v){ if(!v) return 0; v=(""+v).replace(",","."); if(v.indexOf(":")===-1) return parseFloat(v)||0;
 		var p=v.split(":"),h=parseInt(p[0],10)||0,m=parseInt(p[1],10)||0; if(m<0)m=0; if(m>59)m=59; return h+(m/60); }
@@ -693,7 +685,6 @@ JS;
 			});
 			if(rowTotal>0) $(this).find(".task-total").text(formatHours(rowTotal));
 		});
-<|diff_marker|> ADD A1260
 		$("tr.liste_total:first td").each(function(){
 			if ($(this).hasClass("day-total")) {
 				var idx=$(this).index();
@@ -703,7 +694,7 @@ JS;
 		});
 		$(".grand-total").text(formatHours(grand));
 		$(".meal-total").text($(".mealbox:checked").length);
-		var contracted = '.((float) $contractedHours).';
+		var contracted = %s;
 		var ot=grand-contracted; if(ot<0) ot=0;
 		$(".overtime-total").text(formatHours(ot));
 	}
@@ -712,12 +703,15 @@ JS;
 		$(document).on("input change","input.hourinput, input.mealbox, select[name^=zone_]", updateTotals);
 	});
 })(jQuery);
-</script>';
+</script>
+JS;
+		print sprintf($jsTotals, (float) $contractedHours);
 	}
 
-		print '</form>';
-	print '</div>';
+	print '</form>';
+	print '</div>'; // fichecenter (tableau des temps)
 
+	// ---- Boutons d’action ----
 	print '<div class="tabsAction">';
 	if ($object->status != TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
@@ -725,7 +719,6 @@ JS;
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 		if ($useajax) print dolGetButtonAction('', $langs->trans('Submit'), 'default', '', 'action-submit', 1);
 		else print dolGetButtonAction('', $langs->trans('Submit'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_submit', '', 1);
-<|diff_marker|> ADD A1280
 	}
 	if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && (tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll) || $isValidator)) {
 		if ($useajax) print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', '', 'action-setdraft', 1);
@@ -746,7 +739,6 @@ JS;
 	}
 	print '</div>';
 }
-<|diff_marker|> ADD A1300
 
 llxFooter();
 $db->close();
