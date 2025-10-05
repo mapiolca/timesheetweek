@@ -104,8 +104,9 @@ print_liste_field_titre($langs->trans("Ref"), $_SERVER["PHP_SELF"], 't.ref', '',
 print_liste_field_titre($langs->trans("Employee"), $_SERVER["PHP_SELF"], 'u.lastname', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre($langs->trans("Year"), $_SERVER["PHP_SELF"], 't.year', '', $param, '', $sortfield, $sortorder, 'center ');
 print_liste_field_titre($langs->trans("Week"), $_SERVER["PHP_SELF"], 't.week', '', $param, '', $sortfield, $sortorder, 'center ');
-print_liste_field_titre($langs->trans("Status"), $_SERVER["PHP_SELF"], 't.status', '', $param, '', $sortfield, $sortorder, 'center ');
 print_liste_field_titre($langs->trans("TotalHours"), $_SERVER["PHP_SELF"], 't.total_hours', '', $param, '', $sortfield, $sortorder, 'right ');
+print_liste_field_titre($langs->trans("TotalHours"), $_SERVER["PHP_SELF"], 't.overtime_hours', '', $param, '', $sortfield, $sortorder, 'right ');
+print_liste_field_titre($langs->trans("Status"), $_SERVER["PHP_SELF"], 't.status', '', $param, '', $sortfield, $sortorder, 'center ');
 print '</tr>';
 
 // Rows
@@ -138,16 +139,23 @@ while ($i < $imax) {
 	print '<td class="center">'.(int)$obj->year.'</td>';
 	print '<td class="center">'.(int)$obj->week.'</td>';
 
-	// Status badge
-	$tswstatic->status = $obj->status;
-	print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-
 	// Total hours
 	$tot = (float) $obj->total_hours;
 	$hh = floor($tot);
 	$mm = round(($tot - $hh) * 60);
 	if ($mm == 60) { $hh++; $mm = 0; }
 	print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+
+	// Total hours
+	$tot = (float) $obj->overtime_hours;
+	$hh = floor($tot);
+	$mm = round(($tot - $hh) * 60);
+	if ($mm == 60) { $hh++; $mm = 0; }
+	print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+
+	// Status badge
+	$tswstatic->status = $obj->status;
+	print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
 
 	print '</tr>';
 
