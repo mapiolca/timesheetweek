@@ -73,6 +73,57 @@ function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	return false;
 }
 
+// ----------------- Inline edits (crayons) -----------------
+if (!empty($id) && $object->id <= 0) $object->fetch($id);
+
+// set salarié
+if ($action === 'setfk_user' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+	$newval = GETPOSTINT('fk_user');
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	if ($newval > 0) {
+		$object->fk_user = $newval;
+		$res = $object->update($user);
+		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
+		else setEventMessages($object->error, $object->errors, 'errors');
+	}
+	$action = '';
+}
+// set validateur
+if ($action === 'setvalidator' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+	$newval = GETPOSTINT('fk_user_valid');
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	$object->fk_user_valid = ($newval > 0 ? $newval : null);
+	$res = $object->update($user);
+	if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
+	else setEventMessages($object->error, $object->errors, 'errors');
+	$action = '';
+}
+// set note
+if ($action === 'setnote' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+	$newval = GETPOST('note', 'restricthtml');
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	$object->note = $newval;
+	$res = $object->update($user);
+	if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
+	else setEventMessages($object->error, $object->errors, 'errors');
+	$action = '';
+}
+// set semaine (YYYY-Wxx)
+if ($action === 'setweekyear' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
+	$weekyear = GETPOST('weekyear', 'alpha');
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
+		$object->year = (int)$m[1];
+		$object->week = (int)$m[2];
+		$res = $object->update($user);
+		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
+		else setEventMessages($object->error, $object->errors, 'errors');
+	} else {
+		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
+	}
+	$action = '';
+}
+
 // ----------------- Action: Create (add) -----------------
 if ($action === 'add') {
 	if (!$permWriteAny) accessforbidden();
@@ -126,7 +177,12 @@ if ($action === 'add') {
 if ($action === 'save' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	// Edition autorisée selon portée d’écriture sur le salarié de la fiche
+	// Edition autorisée et statut brouillon
+	if ($object->status != TimesheetWeek::STATUS_DRAFT) {
+		setEventMessages($langs->trans("TimesheetIsNotEditable"), null, 'warnings');
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		accessforbidden();
 	}
@@ -136,12 +192,14 @@ if ($action === 'save' && $id > 0) {
 	// Map jour -> offset
 	$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 
-	// Boucle sur inputs
+	$processed = 0;
+
+	// Balayage des inputs
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) {
 			$taskid = (int) $m[1];
 			$day    = $m[2];
-			$hoursStr  = (string) $val;
+			$hoursStr  = trim((string) $val);
 
 			// Parse HH:MM ou décimal
 			$h = 0.0;
@@ -205,10 +263,12 @@ if ($action === 'save' && $id > 0) {
 						exit;
 					}
 				}
+				$processed++;
 			} else {
 				// 0 ou vide => DELETE si existe
 				if ($existingId > 0) {
 					$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId);
+					$processed++;
 				}
 			}
 		}
@@ -358,30 +418,95 @@ JS;
 
 	print '<div class="fichecenter">';
 
+	$canEditInline = ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user));
+
 	// Left block
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent tableforfield">';
+
 	// Employé
-	if ($object->fk_user > 0) {
-		$u=new User($db); $u->fetch($object->fk_user);
-		print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$u->getNomUrl(1).'</td></tr>';
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+	if ($action === 'editfk_user' && $canEditInline) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="setfk_user">';
+		print $form->select_dolusers($object->fk_user, 'fk_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		if ($object->fk_user > 0) {
+			$u = new User($db); $u->fetch($object->fk_user);
+			print $u->getNomUrl(1);
+		}
+		if ($canEditInline) {
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user">'.img_edit('',1).'</a>';
+		}
 	}
-	// Année
-	print '<tr><td>'.$langs->trans("Year").'</td><td>'.dol_escape_htmltag($object->year).'</td></tr>';
-	// Semaine
-	print '<tr><td>'.$langs->trans("Week").'</td><td>'.dol_escape_htmltag($object->week).'</td></tr>';
+	print '</td></tr>';
+
+	// Semaine (Year/Week avec sélecteur semaine)
+	print '<tr><td>'.$langs->trans("Week").'</td><td>';
+	if ($action === 'editweekyear' && $canEditInline) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="setweekyear">';
+		$prefill = sprintf("%04d-W%02d", (int)$object->year, (int)$object->week);
+		print getWeekSelectorDolibarr($form, 'weekyear', $prefill);
+		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		print dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
+		if ($canEditInline) {
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+		}
+	}
+	print '</td></tr>';
+
 	// Note (dans la partie gauche)
-	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
-	// Validator
-	if ($object->fk_user_valid > 0) {
-		$v=new User($db); $v->fetch($object->fk_user_valid);
-		print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$v->getNomUrl(1).'</td></tr>';
+	print '<tr><td>'.$langs->trans("Note").'</td><td>';
+	if ($action === 'editnote' && $canEditInline) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="setnote">';
+		print '<textarea name="note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
+		print '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		print nl2br(dol_escape_htmltag($object->note));
+		if ($canEditInline) {
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote">'.img_edit('',1).'</a>';
+		}
 	}
+	print '</td></tr>';
+
+	// Validator
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
+	if ($action === 'editvalidator' && $canEditInline) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="setvalidator">';
+		print $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		if ($object->fk_user_valid > 0) {
+			$v = new User($db); $v->fetch($object->fk_user_valid);
+			print $v->getNomUrl(1);
+		}
+		if ($canEditInline) {
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator">'.img_edit('',1).'</a>';
+		}
+	}
+	print '</td></tr>';
+
 	print '</table>';
 	print '</div>';
 
 	// Right block (Totaux en entête)
-	// Recalcule affichage si null
 	$uEmpDisp = new User($db);
 	$uEmpDisp->fetch($object->fk_user);
 	$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours)?(float)$uEmpDisp->weeklyhours:35.0);
