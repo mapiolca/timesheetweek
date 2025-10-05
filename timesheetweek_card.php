@@ -110,12 +110,11 @@ if ($action == 'save' && $permWrite && $id > 0) {
 
 	$db->begin();
 
-	// Pas de lignes "jour" sans tâche. On copie Zone/Panier du header jour sur chaque ligne d'heure créée/mise à jour.
+	// Parcours des inputs
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)/', $key, $m)) {
 			$taskid = (int) $m[1];
 			$dayKey = $m[2];
-
 			$hoursDec = tw_parse_hours_to_decimal($val);
 
 			$dto = new DateTime();
@@ -123,14 +122,13 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$dto->modify('+'.$mapDayOffset[$dayKey].' day');
 			$daydate = $dto->format('Y-m-d');
 
-			// Zone/Panier du header de la colonne (copiés dans la ligne)
+			// Zone/Panier du header de la colonne
 			$zone = GETPOST('zone_'.$dayKey, 'int');
 			$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
 
 			// Upsert (fk_timesheet_week, fk_task, day_date)
 			$sqlcheck = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
 			$sqlcheck .= " WHERE fk_timesheet_week=".(int) $object->id." AND fk_task=".(int) $taskid." AND day_date='".$db->escape($daydate)."'";
-
 			$rescheck = $db->query($sqlcheck);
 			if ($rescheck && $db->num_rows($rescheck) > 0) {
 				$obj = $db->fetch_object($rescheck);
@@ -141,7 +139,6 @@ if ($action == 'save' && $permWrite && $id > 0) {
 					$sqlu .= " meal=".(int) $meal;
 					$sqlu .= " WHERE rowid=".(int) $obj->rowid;
 				} else {
-					// suppression si mis à vide
 					$sqlu = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".(int) $obj->rowid;
 				}
 				if (!$db->query($sqlu)) {
@@ -268,7 +265,7 @@ elseif ($id > 0 && $action != 'create') {
 	print '</div>';
 
 	print '<div class="fichehalfright">';
-	// Rechargement des totaux (si la classe ne les mappe pas dans $object)
+	// Charger totaux
 	$totalHoursDec = 0.0;
 	$overtimeDec   = 0.0;
 	$q = $db->query("SELECT total_hours, overtime_hours FROM ".MAIN_DB_PREFIX."timesheet_week WHERE rowid=".(int)$object->id);
@@ -284,23 +281,26 @@ elseif ($id > 0 && $action != 'create') {
 	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.formatHours($overtimeDec).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
 	print '</table>';
-	print '</div>';
-	print '</div>';
+	print '</div>'; // fichehalfright
+	print '</div>'; // fichecenter
 
 	print dol_get_fiche_end();
+
+	// === Important: reset floats so the grid starts below the header ===
+	print '<div class="clearboth"></div>';
 
 	// ---- Chargement des tâches et lignes existantes ----
 	$tasks = $object->getAssignedTasks($object->fk_user); // Doit exister dans TimesheetWeek
 	$lines = $object->getLines(); // $lines[taskid][YYYY-mm-dd]
 
-	// Pré-remplir l’entête jour Zone/Panier à partir de la 1ère ligne d’heure existante (s'il y en a)
+	// Pré-remplir l’entête jour Zone/Panier à partir d'une ligne existante
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
 	$weekdates = array();
 	foreach($days as $d){ $weekdates[$d]=$dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
-	$dayHeaderDefaults = array(); // ['Y-m-d' => ['zone'=>x,'meal'=>0|1]]
+	$dayHeaderDefaults = array();
 	foreach ($weekdates as $dname => $ymd) {
 		$found = false;
 		if (is_array($lines)) {
@@ -315,14 +315,15 @@ elseif ($id > 0 && $action != 'create') {
 				}
 			}
 		}
-		if (!$found) $dayHeaderDefaults[$ymd] = array('zone'=>1,'meal'=>0); // défaut visuel
+		if (!$found) $dayHeaderDefaults[$ymd] = array('zone'=>1,'meal'=>0);
 	}
 
+	// ---- Grille des heures (form) ----
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="save">';
 
-	print '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+	print '<h3 class="margintoponly">'.$langs->trans("AssignedTasks").'</h3>';
 
 	if (empty($tasks)) {
 		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
@@ -390,7 +391,6 @@ elseif ($id > 0 && $action != 'create') {
 					}
 					$rowTotalDec += $valDec;
 
-					// Affichage HH:MM (placeholder "0:00")
 					$valDisp = ($valDec > 0 ? formatHours($valDec) : '');
 					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.$valDisp.'" placeholder="0:00"></td>';
 				}
@@ -407,54 +407,12 @@ elseif ($id > 0 && $action != 'create') {
 		print '<tr class="liste_total"><td class="right">'.$langs->trans("Meals").'</td><td colspan="'.count($days).'" class="right meal-total">0</td><td></td></tr>';
 		print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.formatHours($contractedHours).')</td><td colspan="'.count($days).'" class="right overtime-total">00:00</td><td></td></tr>';
 
-		print '</table></div>';
+		print '</table>';
+		print '</div>';
+
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
-		print '</form>';
-
-		// JS (totaux dynamiques)
-		print sprintf("
-<script>
-(function($){
-function parseHours(v){if(!v)return 0;if(v.indexOf(':')==-1)return parseFloat(v)||0;var p=v.split(':');var h=parseInt(p[0],10)||0;var m=parseInt(p[1],10)||0;return h+(m/60);}
-function formatHours(d){if(isNaN(d))return '00:00';var h=Math.floor(d);var m=Math.round((d-h)*60);if(m===60){h++;m=0;}return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
-function updateTotals(){
-	var grand=0;
-	$('.task-total').text('00:00');
-	$('.day-total').text('00:00');
-
-	// reset totaux jour
-	var headTotalRow = $('tr.liste_total').first();
-	headTotalRow.find('td').each(function(i){ if(i>0 && $(this).hasClass('right')) $(this).text('00:00'); });
-
-	$('tr').each(function(){
-		var rowT=0;
-		$(this).find('input.hourinput').each(function(){
-			var v=parseHours($(this).val());
-			if(!isNaN(v) && v>0){
-				rowT+=v;
-				var idx=$(this).closest('td').index();
-				var cell=$('tr.liste_total').first().find('td').eq(idx);
-				var cur=parseHours(cell.text());
-				cell.text(formatHours(cur+v));
-				grand+=v;
-			}
-		});
-		if(rowT>0) $(this).find('.task-total').text(formatHours(rowT));
-	});
-	$('.grand-total').text(formatHours(grand));
-
-	// Meals
-	$('.meal-total').text($('.mealbox:checked').length);
-
-	// OT
-	var ot=grand-".((float)$contractedHours).";
-	if(ot<0) ot=0;
-	$('.overtime-total').text(formatHours(ot));
-}
-$(document).on('input change','input.hourinput, input.mealbox',updateTotals);
-})(jQuery);
-</script>");
 	}
+	print '</form>'; // <= close the grid form only here
 
 	// boutons
 	print '<div class="tabsAction">';
