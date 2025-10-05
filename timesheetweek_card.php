@@ -35,7 +35,7 @@ $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
 function tw_parse_hours_to_decimal($str)
 {
 	$str = trim((string) $str);
-	if ($str === '') return 0.0;
+	if ($str === '' || $str === '0' || $str === '0:00') return 0.0;
 	if (strpos($str, ':') !== false) {
 		list($h, $m) = array_pad(explode(':', $str, 2), 2, '0');
 		$h = (int) $h;
@@ -101,7 +101,7 @@ if ($action == 'add' && $permWrite) {
 	}
 }
 
-// ----------------- Action: Save lines (UPSERT sur (week, task, day)) -----------------
+// ----------------- Action: Save lines (UPSERT sur (week, task, day)) + compute totals -----------------
 if ($action == 'save' && $permWrite && $id > 0) {
 	// reload to have week/year
 	$object->fetch($id);
@@ -117,14 +117,13 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$dayKey = $m[2];
 
 			$hoursDec = tw_parse_hours_to_decimal($val);
-			if ($hoursDec <= 0) continue; // on ne crée pas de ligne si pas d'heures
 
 			$dto = new DateTime();
 			$dto->setISODate($object->year, $object->week);
 			$dto->modify('+'.$mapDayOffset[$dayKey].' day');
 			$daydate = $dto->format('Y-m-d');
 
-			// Zone/Panier du header de la colonne
+			// Zone/Panier du header de la colonne (copiés dans la ligne)
 			$zone = GETPOST('zone_'.$dayKey, 'int');
 			$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
 
@@ -135,11 +134,16 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$rescheck = $db->query($sqlcheck);
 			if ($rescheck && $db->num_rows($rescheck) > 0) {
 				$obj = $db->fetch_object($rescheck);
-				$sqlu = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line SET";
-				$sqlu .= " hours=".((float) $hoursDec).",";
-				$sqlu .= " zone=".(int) $zone.",";
-				$sqlu .= " meal=".(int) $meal;
-				$sqlu .= " WHERE rowid=".(int) $obj->rowid;
+				if ($hoursDec > 0) {
+					$sqlu = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line SET";
+					$sqlu .= " hours=".((float) $hoursDec).",";
+					$sqlu .= " zone=".(int) $zone.",";
+					$sqlu .= " meal=".(int) $meal;
+					$sqlu .= " WHERE rowid=".(int) $obj->rowid;
+				} else {
+					// suppression si mis à vide
+					$sqlu = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".(int) $obj->rowid;
+				}
 				if (!$db->query($sqlu)) {
 					$db->rollback();
 					setEventMessages($db->lasterror(), null, 'errors');
@@ -147,18 +151,46 @@ if ($action == 'save' && $permWrite && $id > 0) {
 					exit;
 				}
 			} else {
-				$sqli = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(";
-				$sqli .= " fk_timesheet_week, fk_task, day_date, hours, zone, meal";
-				$sqli .= ") VALUES (";
-				$sqli .= (int) $object->id.", ".(int) $taskid.", '".$db->escape($daydate)."', ".((float) $hoursDec).", ".(int) $zone.", ".(int) $meal.")";
-				if (!$db->query($sqli)) {
-					$db->rollback();
-					setEventMessages($db->lasterror(), null, 'errors');
-					header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-					exit;
+				if ($hoursDec > 0) {
+					$sqli = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(";
+					$sqli .= " fk_timesheet_week, fk_task, day_date, hours, zone, meal";
+					$sqli .= ") VALUES (";
+					$sqli .= (int) $object->id.", ".(int) $taskid.", '".$db->escape($daydate)."', ".((float) $hoursDec).", ".(int) $zone.", ".(int) $meal.")";
+					if (!$db->query($sqli)) {
+						$db->rollback();
+						setEventMessages($db->lasterror(), null, 'errors');
+						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+						exit;
+					}
 				}
 			}
 		}
+	}
+
+	// ---- Compute totals and store into parent ----
+	$total = 0.0;
+	$sqlsum = "SELECT SUM(hours) as th FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id;
+	$resSum = $db->query($sqlsum);
+	if ($resSum) {
+		$ob = $db->fetch_object($resSum);
+		if ($ob && $ob->th !== null) $total = (float) $ob->th;
+	}
+
+	$userEmployee = new User($db);
+	$userEmployee->fetch($object->fk_user);
+	$contracted = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
+	$overtime = $total - $contracted;
+	if ($overtime < 0) $overtime = 0.0;
+
+	$sqlupParent = "UPDATE ".MAIN_DB_PREFIX."timesheet_week";
+	$sqlupParent .= " SET total_hours=".((float) $total).", overtime_hours=".((float) $overtime);
+	$sqlupParent .= " WHERE rowid=".(int) $object->id;
+
+	if (!$db->query($sqlupParent)) {
+		$db->rollback();
+		setEventMessages($db->lasterror(), null, 'errors');
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
 	}
 
 	$db->commit();
@@ -236,10 +268,20 @@ elseif ($id > 0 && $action != 'create') {
 	print '</div>';
 
 	print '<div class="fichehalfright">';
+	// Rechargement des totaux (si la classe ne les mappe pas dans $object)
+	$totalHoursDec = 0.0;
+	$overtimeDec   = 0.0;
+	$q = $db->query("SELECT total_hours, overtime_hours FROM ".MAIN_DB_PREFIX."timesheet_week WHERE rowid=".(int)$object->id);
+	if ($q && ($r=$db->fetch_object($q))) {
+		$totalHoursDec = (float) $r->total_hours;
+		$overtimeDec   = (float) $r->overtime_hours;
+	}
 	print '<table class="border centpercent">';
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms,'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation,'dayhour').'</td></tr>';
+	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.formatHours($totalHoursDec).'</td></tr>';
+	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.formatHours($overtimeDec).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
 	print '</table>';
 	print '</div>';
@@ -358,7 +400,7 @@ elseif ($id > 0 && $action != 'create') {
 		}
 
 		// totaux
-		print '<tr class="liste_total"><td class="right">'.$langs->trans("Total").'</td>';
+		print '<tr class="liste_total'><td class="right">'.$langs->trans("Total").'</td>";
 		foreach($days as $d) print '<td class="right day-total">00:00</td>';
 		print '<td class="right grand-total">00:00</td></tr>';
 
