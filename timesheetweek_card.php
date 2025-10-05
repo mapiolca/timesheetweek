@@ -139,8 +139,8 @@ if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status
 	$weekyear = GETPOST('weekyear', 'alpha');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
-		$object->year = (int)$m[1];
-		$object->week = (int)$m[2];
+		$object->year = (int) $m[1];
+		$object->week = (int) $m[2];
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
 		else setEventMessages($object->error, $object->errors, 'errors');
@@ -356,8 +356,7 @@ if ($action === 'submit' && $id > 0) {
 	exit;
 }
 
-// ----------------- Action: Back to draft (Retour au brouillon) -----------------
-// Désormais autorisé si statut != brouillon (soumis / approuvé / refusé) pour employé OU validateur (droits)
+// ----------------- Action: Back to draft -----------------
 if ($action === 'setdraft' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
@@ -382,8 +381,21 @@ if ($action === 'setdraft' && $id > 0) {
 	exit;
 }
 
-// ----------------- Action: VALIDATE (Approuver) -----------------
-if ($action === 'validate' && $id > 0) {
+// ----------------- Action: ASK VALIDATE / REFUSE (confirm popups) -----------------
+if ($action === 'ask_validate' && $id > 0) {
+	// Security: check right before showing confirm
+	if ($object->id <= 0) $object->fetch($id);
+	if ($object->status != tw_status('submitted')) accessforbidden();
+	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
+}
+if ($action === 'ask_refuse' && $id > 0) {
+	if ($object->id <= 0) $object->fetch($id);
+	if ($object->status != tw_status('submitted')) accessforbidden();
+	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
+}
+
+// ----------------- Action: CONFIRM VALIDATE (Approuver) -----------------
+if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) {
 		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
@@ -394,9 +406,11 @@ if ($action === 'validate' && $id > 0) {
 		accessforbidden();
 	}
 
-	$object->status = tw_status('validated'); // statut interne (affiché "Approuvée" en front)
+	// Mettre à jour validateur + date même si différent
+	$object->fk_user_valid = (int)$user->id;
 	$object->date_validation = dol_now();
-	if (empty($object->fk_user_valid)) $object->fk_user_valid = $user->id;
+	$object->status = tw_status('validated'); // "Approuvée"
+
 	$res = $object->update($user);
 	if ($res > 0) {
 		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
@@ -407,8 +421,8 @@ if ($action === 'validate' && $id > 0) {
 	exit;
 }
 
-// ----------------- Action: REFUSE (Refuser) -----------------
-if ($action === 'refuse' && $id > 0) {
+// ----------------- Action: CONFIRM REFUSE (Refuser) -----------------
+if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) {
 		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
@@ -419,7 +433,11 @@ if ($action === 'refuse' && $id > 0) {
 		accessforbidden();
 	}
 
+	// Mettre à jour validateur même si différent
+	$object->fk_user_valid = (int)$user->id;
+	$object->date_validation = dol_now();
 	$object->status = tw_status('refused');
+
 	$res = $object->update($user);
 	if ($res > 0) {
 		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
@@ -435,7 +453,7 @@ if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
 	// On autorise la suppression si l'utilisateur a les droits (own/child/all),
-	// quelque soit le statut (brouillon/soumis/approuvé/refusé).
+	// ou s'il a des droits validate* (validateur), quelque soit le statut
 	$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
 		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 
@@ -530,13 +548,37 @@ JS;
 	$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 	dol_banner_tab($object, 'ref', $linkback);
 
-	// Confirm delete modal si besoin
+	// Confirm modals
 	if ($action === 'delete') {
 		$formconfirm = $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
 			$langs->trans('Delete'),
 			$langs->trans('ConfirmDeleteObject'),
 			'confirm_delete',
+			array(),
+			'yes',
+			1
+		);
+		print $formconfirm;
+	}
+	if ($action === 'ask_validate') {
+		$formconfirm = $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
+			$langs->trans('ConfirmValidate'),
+			'confirm_validate',
+			array(),
+			'yes',
+			1
+		);
+		print $formconfirm;
+	}
+	if ($action === 'ask_refuse') {
+		$formconfirm = $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans("Refuse"),
+			$langs->trans('ConfirmRefuse'),
+			'confirm_refuse',
 			array(),
 			'yes',
 			1
@@ -761,7 +803,7 @@ JS;
 		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
 		$contractedHours = (!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
 
-		// Inputs zone/panier bloqués si statut != brouillon (demande : a minima "soumis")
+		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
 		echo '<div class="div-table-responsive">';
@@ -811,7 +853,7 @@ JS;
 		// Lignes
 		$grandInit = 0.0;
 		foreach ($byproject as $pid => $pdata) {
-			// Ligne projet (style suivi du temps), cellule unique
+			// Ligne projet
 			echo '<tr class="oddeven trforbreak nobold">';
 			$colspan = 1 + count($days) + 1;
 			echo '<td colspan="'.$colspan.'">';
@@ -841,7 +883,6 @@ JS;
 						$val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
 						$rowTotal += (float)$hoursBy[(int)$task['task_id']][$keydate];
 					}
-					// Les heures restent éditables uniquement en brouillon (on n'affiche le bouton Save qu'en brouillon)
 					$readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
 					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
 				}
@@ -876,7 +917,7 @@ JS;
 		echo '</table>';
 		echo '</div>';
 
-		// Bouton Save (si brouillon + droits d’écriture)
+		// Bouton Save
 		if ($object->status == tw_status('draft') && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 			echo '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		} else {
@@ -951,8 +992,14 @@ JS;
 	$token = newToken();
 
 	// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-	if ($object->status == tw_status('draft') && $linesCount > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-		echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+	if ($object->status == tw_status('draft')) {
+		// Compter les lignes
+		$nbLines = 0;
+		$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
+		if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
+		if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+			echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+		}
 	}
 
 	// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
@@ -968,8 +1015,8 @@ JS;
 	if ($object->status == tw_status('submitted')) {
 		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 		if ($canValidator) {
-			echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=validate&token='.$token);
-			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=refuse&token='.$token);
+			echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
+			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
 		}
 	}
 
