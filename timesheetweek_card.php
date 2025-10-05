@@ -400,7 +400,7 @@ elseif ($id > 0 && $action != 'create') {
 		}
 
 		// totaux
-		print '<tr class="liste_total'><td class="right">'.$langs->trans("Total").'</td>";
+		print '<tr class="liste_total"><td class="right">'.$langs->trans("Total").'</td>';
 		foreach($days as $d) print '<td class="right day-total">00:00</td>';
 		print '<td class="right grand-total">00:00</td></tr>';
 
