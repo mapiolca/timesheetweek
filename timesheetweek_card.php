@@ -22,7 +22,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr() + formatHours()
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours()
 
 $langs->loadLangs(array('timesheetweek@timesheetweek', 'other', 'projects'));
 
@@ -40,16 +40,19 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // --- Permissions (module) ---
-$permRead       = !empty($user->rights->timesheetweek->read);
-$permReadAll    = !empty($user->rights->timesheetweek->readall);
-$permReadChild  = !empty($user->rights->timesheetweek->readchild);
-$permCreate     = !empty($user->rights->timesheetweek->create);
-$permCreateAll  = !empty($user->rights->timesheetweek->createall);
-$permValidate   = !empty($user->rights->timesheetweek->validate);
-$permValidateAll= !empty($user->rights->timesheetweek->validateall);
-$permDelete     = !empty($user->rights->timesheetweek->delete);
-$permDeleteAll  = !empty($user->rights->timesheetweek->deleteall);
-$permExport     = !empty($user->rights->timesheetweek->export);
+$permRead          = !empty($user->rights->timesheetweek->read);
+$permReadAll       = !empty($user->rights->timesheetweek->readAll);
+$permReadChild     = !empty($user->rights->timesheetweek->readChild);
+$permCreate        = !empty($user->rights->timesheetweek->create);
+$permCreateChild   = !empty($user->rights->timesheetweek->createChild);
+$permCreateAll     = !empty($user->rights->timesheetweek->createAll);
+$permValidate      = !empty($user->rights->timesheetweek->validate);
+$permValidateChild = !empty($user->rights->timesheetweek->validateChild);
+$permValidateAll   = !empty($user->rights->timesheetweek->validateAll);
+$permDelete        = !empty($user->rights->timesheetweek->delete);
+$permDeleteChild   = !empty($user->rights->timesheetweek->deleteChild);
+$permDeleteAll     = !empty($user->rights->timesheetweek->deleteAll);
+$permExport        = !empty($user->rights->timesheetweek->export);
 
 if (!$permRead) accessforbidden();
 
@@ -61,11 +64,16 @@ function tw_get_default_validator($db, $fk_user)
 {
 	$u = new User($db);
 	if ($fk_user > 0 && $u->fetch($fk_user) > 0) {
-		// champs usuels : fk_user (ancien), fk_user_superior (selon setup)
 		if (!empty($u->fk_user)) return (int) $u->fk_user;
 		if (!empty($u->fk_user_superior)) return (int) $u->fk_user_superior;
 	}
 	return null;
+}
+function tw_child_ids(User $u) {
+	static $cache = null;
+	if ($cache !== null) return $cache;
+	$cache = $u->getAllChildIds(1);
+	return $cache;
 }
 function tw_can_see($object, $current, $permRead, $permReadAll, $permReadChild)
 {
@@ -73,9 +81,30 @@ function tw_can_see($object, $current, $permRead, $permReadAll, $permReadChild)
 	if ($permReadAll) return true;
 	if ($object->fk_user == $current->id) return true;
 	if ($permReadChild) {
-		$childs = $current->getAllChildIds(1);
-		if (is_array($childs) && in_array($object->fk_user, $childs)) return true;
+		$subs = tw_child_ids($current);
+		if (is_array($subs) && in_array($object->fk_user, $subs)) return true;
 	}
+	return false;
+}
+function tw_has_create_for($targetUserId, $current, $permCreate, $permCreateChild, $permCreateAll)
+{
+	if ($targetUserId == $current->id && $permCreate) return true;
+	if ($permCreateAll) return true;
+	if ($permCreateChild && in_array($targetUserId, (array) tw_child_ids($current))) return true;
+	return false;
+}
+function tw_has_validate_for($targetUserId, $current, $permValidate, $permValidateChild, $permValidateAll)
+{
+	if ($permValidateAll) return true;
+	if ($permValidate && $targetUserId == $current->id) return true;
+	if ($permValidateChild && in_array($targetUserId, (array) tw_child_ids($current))) return true;
+	return false;
+}
+function tw_has_delete_for($targetUserId, $current, $permDelete, $permDeleteChild, $permDeleteAll)
+{
+	if ($permDeleteAll) return true;
+	if ($permDelete && $targetUserId == $current->id) return true;
+	if ($permDeleteChild && in_array($targetUserId, (array) tw_child_ids($current))) return true;
 	return false;
 }
 function tw_formatHoursSafe($hoursFloat)
@@ -107,10 +136,8 @@ function tw_weekyear($y, $w) {
 	$y = (int) $y; $w = (int) $w;
 	return sprintf('%04d-W%02d', $y, $w);
 }
-
 /**
- * Charge les lignes depuis la base (sécurisé pour multi-usage)
- * @return array [$valByTaskDay, $zoneByDate, $mealByDate]
+ * Retourne 3 tableaux: valeurs heures par (task|date), zone par date, repas par date
  */
 function tw_fetch_lines_arrays(DoliDB $db, $fk_timesheet_week)
 {
@@ -119,17 +146,15 @@ function tw_fetch_lines_arrays(DoliDB $db, $fk_timesheet_week)
 	$mealByDate   = array(); // date => 0/1
 
 	$sql = "SELECT rowid, fk_task, day_date, hours, zone, meal
-			FROM ".MAIN_DB_PREFIX."timesheet_week_line
-			WHERE fk_timesheet_week = ".((int) $fk_timesheet_week);
+		FROM ".MAIN_DB_PREFIX."timesheet_week_line
+		WHERE fk_timesheet_week = ".((int) $fk_timesheet_week);
 	$resql = $db->query($sql);
 	if ($resql) {
 		while ($obj = $db->fetch_object($resql)) {
-			$key = ((int) $obj->fk_task).'|'.$db->jdate($obj->day_date) ? dol_print_date($db->jdate($obj->day_date), '%Y-%m-%d') : $obj->day_date;
-			// pour éviter un souci avec jdate, utilisons la chaîne brue: si day_date est Y-m-d, on la garde
-			$key = ((int) $obj->fk_task).'|'.(preg_match('/^\d{4}-\d{2}-\d{2}$/', $obj->day_date) ? $obj->day_date : date('Y-m-d', $db->jdate($obj->day_date)));
+			$dateKey = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $obj->day_date) ? $obj->day_date : date('Y-m-d', $db->jdate($obj->day_date)));
+			$key = ((int) $obj->fk_task).'|'.$dateKey;
 			$valByTaskDay[$key] = tw_formatHoursSafe((float) $obj->hours);
 
-			$dateKey = (preg_match('/^\d{4}-\d{2}-\d{2}$/', $obj->day_date) ? $obj->day_date : date('Y-m-d', $db->jdate($obj->day_date)));
 			if (!isset($zoneByDate[$dateKey]) && $obj->zone !== null) $zoneByDate[$dateKey] = (int) $obj->zone;
 			if (!isset($mealByDate[$dateKey])) $mealByDate[$dateKey] = (int) $obj->meal;
 		}
@@ -141,14 +166,14 @@ function tw_fetch_lines_arrays(DoliDB $db, $fk_timesheet_week)
 // ----------- Actions -----------
 
 // CREATE
-if ($action === 'add' && ($permCreate || $permCreateAll)) {
+if ($action === 'add') {
 	$weekyear       = GETPOST('weekyear', 'alpha'); // YYYY-Wxx
 	$fk_user_post   = GETPOSTINT('fk_user');
 	$fk_user_valid  = GETPOSTINT('fk_user_valid');
 	$note           = GETPOST('note', 'restricthtml');
 
 	$target_userid = $fk_user_post > 0 ? $fk_user_post : $user->id;
-	if (!$permCreateAll && $target_userid != $user->id) accessforbidden();
+	if (!tw_has_create_for($target_userid, $user, $permCreate, $permCreateChild, $permCreateAll)) accessforbidden();
 
 	$object->ref     = '(PROV)';
 	$object->fk_user = $target_userid;
@@ -180,8 +205,7 @@ if ($action === 'add' && ($permCreate || $permCreateAll)) {
 
 // SAVE LINES (upsert)
 if ($action === 'save' && $object->id > 0) {
-	// Vérif droits: propriétaire ou createall
-	if (!($object->fk_user == $user->id || $permCreateAll)) accessforbidden();
+	if (!tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) accessforbidden();
 
 	if ($object->status != TimesheetWeek::STATUS_DRAFT) {
 		setEventMessages($langs->trans("ErrorRecordNotDraft"), null, 'errors');
@@ -195,8 +219,8 @@ if ($action === 'save' && $object->id > 0) {
 	$dto->setISODate($object->year, $object->week);
 	$dayDates = array();
 	foreach ($days as $d) {
-		$dayDates[$d] = $dto->format('Y-m-d');
-		$dto->modify('+1 day');
+        $dayDates[$d] = $dto->format('Y-m-d');
+        $dto->modify('+1 day');
 	}
 	$zoneByDate = array();
 	$mealByDate = array();
@@ -222,9 +246,9 @@ if ($action === 'save' && $object->id > 0) {
 		$meal = isset($mealByDate[$thedate]) ? (int) $mealByDate[$thedate] : 0;
 
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line
-				WHERE fk_timesheet_week = ".((int) $object->id)."
-				AND fk_task = ".((int) $taskid)."
-				AND day_date = '".$db->escape($thedate)."'";
+			WHERE fk_timesheet_week = ".((int) $object->id)."
+			AND fk_task = ".((int) $taskid)."
+			AND day_date = '".$db->escape($thedate)."'";
 		$resql = $db->query($sql);
 		if (!$resql) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 		$exists = ($db->num_rows($resql) > 0);
@@ -232,17 +256,17 @@ if ($action === 'save' && $object->id > 0) {
 
 		if ($exists) {
 			$sqlu = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line
-					SET hours = ".((float) $hours).",
-						zone = ".($zone !== null ? (int) $zone : "NULL").",
-						meal = ".((int) $meal)."
-					WHERE fk_timesheet_week = ".((int) $object->id)."
-					AND fk_task = ".((int) $taskid)."
-					AND day_date = '".$db->escape($thedate)."'";
+				SET hours = ".((float) $hours).",
+					zone = ".($zone !== null ? (int) $zone : "NULL").",
+					meal = ".((int) $meal)."
+				WHERE fk_timesheet_week = ".((int) $object->id)."
+				AND fk_task = ".((int) $taskid)."
+				AND day_date = '".$db->escape($thedate)."'";
 			if (!$db->query($sqlu)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 		} else {
 			if ($hours > 0) {
 				$sqli = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(fk_timesheet_week, fk_task, day_date, hours, zone, meal)
-						VALUES (".((int) $object->id).", ".((int) $taskid).", '".$db->escape($thedate)."', ".((float) $hours).", ".($zone !== null ? (int) $zone : "NULL").", ".((int) $meal).")";
+					VALUES (".((int) $object->id).", ".((int) $taskid).", '".$db->escape($thedate)."', ".((float) $hours).", ".($zone !== null ? (int) $zone : "NULL").", ".((int) $meal).")";
 				if (!$db->query($sqli)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 			}
 		}
@@ -255,9 +279,9 @@ if ($action === 'save' && $object->id > 0) {
 	if ($overtime < 0) $overtime = 0;
 
 	$sqlp = "UPDATE ".MAIN_DB_PREFIX."timesheet_week
-			SET total_hours = ".((float) $grandTotal).",
-				overtime_hours = ".((float) $overtime)."
-			WHERE rowid = ".((int) $object->id);
+		SET total_hours = ".((float) $grandTotal).",
+			overtime_hours = ".((float) $overtime)."
+		WHERE rowid = ".((int) $object->id);
 	if (!$db->query($sqlp)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 
 	$db->commit();
@@ -269,13 +293,15 @@ if ($action === 'save' && $object->id > 0) {
 // ---------- INLINE EDIT (pencils) ----------
 $canEditHeader = false;
 if ($object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
-	$canEditHeader = ($object->fk_user == $user->id) || $permCreateAll;
+	$canEditHeader = tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll);
 }
 
 // Update fk_user
 if ($action === 'update_fk_user' && $canEditHeader) {
 	$val = GETPOSTINT('new_fk_user');
 	if ($val > 0) {
+		// Check permission to assign to this target
+		if (!tw_has_create_for($val, $user, $permCreate, $permCreateChild, $permCreateAll)) accessforbidden();
 		$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user = ".((int) $val)." WHERE rowid = ".((int) $object->id);
 		if ($db->query($sql)) setEventMessages($langs->trans("Modified"), null, 'mesgs');
 		else setEventMessages($db->lasterror(), null, 'errors');
@@ -319,24 +345,27 @@ if ($action === 'update_note' && $canEditHeader) {
 
 // SUBMIT / BACK TO DRAFT / APPROVE / REFUSE / DELETE (confirm)
 if ($action === 'confirm_submit' && $confirm === 'yes' && $object->id > 0) {
-	// Seul le propriétaire peut soumettre (ou createall si vous voulez)
-	if (!($object->fk_user == $user->id || $permCreateAll)) accessforbidden();
+	if (!tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) accessforbidden();
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_SUBMITTED)." WHERE rowid = ".((int) $object->id);
 	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
 	else setEventMessages($db->lasterror(), null, 'errors');
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 if ($action === 'confirm_setdraft' && $confirm === 'yes' && $object->id > 0) {
-	$isOwner = ($object->fk_user == $user->id);
-	$isValidator = ($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) || $permValidateAll;
-	if (!($isOwner || $isValidator)) accessforbidden();
+	$allowed = false;
+	// owner side (create perms)
+	if (tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) $allowed = true;
+	// validator side (validate perms)
+	if (tw_has_validate_for($object->fk_user, $user, $permValidate, $permValidateChild, $permValidateAll)) $allowed = true;
+	if (!$allowed) accessforbidden();
+
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_DRAFT)." WHERE rowid = ".((int) $object->id);
 	if ($db->query($sql)) setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
 	else setEventMessages($db->lasterror(), null, 'errors');
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 if ($action === 'confirm_approve' && $confirm === 'yes' && $object->id > 0) {
-	$isValidator = (($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) && $permValidate) || $permValidateAll;
+	$isValidator = tw_has_validate_for($object->fk_user, $user, $permValidate, $permValidateChild, $permValidateAll);
 	if (!$isValidator) accessforbidden();
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_APPROVED).", date_validation = '".$db->idate(dol_now())."' WHERE rowid = ".((int) $object->id);
 	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
@@ -344,7 +373,7 @@ if ($action === 'confirm_approve' && $confirm === 'yes' && $object->id > 0) {
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 if ($action === 'confirm_refuse' && $confirm === 'yes' && $object->id > 0) {
-	$isValidator = (($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) && $permValidate) || $permValidateAll;
+	$isValidator = tw_has_validate_for($object->fk_user, $user, $permValidate, $permValidateChild, $permValidateAll);
 	if (!$isValidator) accessforbidden();
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_REFUSED)." WHERE rowid = ".((int) $object->id);
 	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
@@ -352,8 +381,7 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $object->id > 0) {
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 if ($action === 'confirm_delete' && $confirm === 'yes' && $object->id > 0) {
-	// Suppression autorisée si DeleteAll ou si owner + Delete
-	if (!($permDeleteAll || ($permDelete && $object->fk_user == $user->id))) accessforbidden();
+	if (!tw_has_delete_for($object->fk_user, $user, $permDelete, $permDeleteChild, $permDeleteAll)) accessforbidden();
 	$db->begin();
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week = ".((int) $object->id));
 	$res = $object->delete($user);
@@ -367,7 +395,7 @@ llxHeader('', $title, '');
 
 // MODE CREATE
 if ($action === 'create') {
-	if (!($permCreate || $permCreateAll)) accessforbidden();
+	if (!($permCreate || $permCreateChild || $permCreateAll)) accessforbidden();
 
 	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'time');
 
@@ -416,7 +444,7 @@ JS;
 	if (!tw_can_see($object, $user, $permRead, $permReadAll, $permReadChild)) accessforbidden();
 
 	$isOwner     = ($object->fk_user == $user->id);
-	$isValidator = (($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) && $permValidate) || $permValidateAll;
+	$isValidator = tw_has_validate_for($object->fk_user, $user, $permValidate, $permValidateChild, $permValidateAll);
 
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'time');
@@ -424,17 +452,17 @@ JS;
 	// Confirm popups Ajax
 	$formconfirm = '';
 	if ($useajax) {
-		if ($object->status == TimesheetWeek::STATUS_DRAFT && ($isOwner || $permCreateAll)) {
+		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Submit'), $langs->trans('ConfirmSubmit', $object->ref), 'confirm_submit', array(), 1, 'action-submit');
 		}
-		if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && ($isOwner || $isValidator)) {
+		if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && (tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll) || $isValidator)) {
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('SetToDraft'), $langs->trans('ConfirmSetToDraft', $object->ref), 'confirm_setdraft', array(), 1, 'action-setdraft');
 		}
 		if ($object->status == TimesheetWeek::STATUS_SUBMITTED && $isValidator) {
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Validate'), $langs->trans('ConfirmValidate', $object->ref), 'confirm_approve', array(), 1, 'action-approve');
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Refuse'), $langs->trans('ConfirmRefuse', $object->ref), 'confirm_refuse', array(), 1, 'action-refuse');
 		}
-		if ($permDeleteAll || ($permDelete && $isOwner)) {
+		if (tw_has_delete_for($object->fk_user, $user, $permDelete, $permDeleteChild, $permDeleteAll)) {
 			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('DeleteTimesheetWeek'), $langs->trans('ConfirmDeleteObject'), 'confirm_delete', array(), 1, 'action-delete');
 		}
 	}
@@ -449,6 +477,7 @@ JS;
 
 	// Employé + crayon
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+	$canEditHeader = ($object->status == TimesheetWeek::STATUS_DRAFT) && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll);
 	if ($action === 'edit_fk_user' && $canEditHeader) {
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -470,7 +499,7 @@ JS;
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="update_weekyear">';
-		print getWeekSelectorDolibarr($form, 'weekyear'); // présélection via JS
+		print getWeekSelectorDolibarr($form, 'weekyear');
 		print '<input type="hidden" name="new_weekyear" id="new_weekyear" value="'.$currentWeek.'">';
 		print ' <input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		print ' <a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
@@ -617,22 +646,18 @@ JS;
 			print '</td></tr>';
 
 			foreach ($pdata['tasks'] as $t) {
+                $taskstatic->id = $t['task_id'];
+                $taskstatic->label = $t['task_label'];
+                $taskstatic->ref = '';
 				print '<tr>';
-				print '<td class="paddingleft">';
-				$taskstatic->id = $t['task_id'];
-				$taskstatic->label = $t['task_label'];
-				$taskstatic->ref = '';
-				print $taskstatic->getNomUrl(1, 'project', 0, '', 0, 0, '');
-				if (empty($taskstatic->label) && !empty($t['task_label'])) print dol_escape_htmltag($t['task_label']);
-				print '</td>';
+				print '<td class="paddingleft">'.$taskstatic->getNomUrl(1, 'project', 0, '', 0, 0, '').'</td>';
 
 				$rowTotal = 0.0;
 				foreach ($days as $d) {
 					$thedate = $weekdates[$d];
 					$name = 'hours_'.$t['task_id'].'_'.$d;
-					$prefill = '';
 					$key = $t['task_id'].'|'.$thedate;
-					if (isset($valByTaskDay[$key])) $prefill = $valByTaskDay[$key];
+					$prefill = isset($valByTaskDay[$key]) ? $valByTaskDay[$key] : '';
 
 					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$name.'" value="'.dol_escape_htmltag($prefill).'" placeholder="00:00" '.($object->status==TimesheetWeek::STATUS_DRAFT?'':'disabled').'></td>';
 
@@ -653,7 +678,7 @@ JS;
 		print '</table>';
 		print '</div>';
 
-		if ($object->status == TimesheetWeek::STATUS_DRAFT && ($isOwner || $permCreateAll)) {
+		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 			print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		}
 
@@ -705,16 +730,16 @@ JS;
 	// --- Boutons d’action ---
 	print '<div class="tabsAction">';
 	// Masquer "Modifier" en brouillon
-	if ($object->status != TimesheetWeek::STATUS_DRAFT && ($isOwner || $permCreateAll)) {
+	if ($object->status != TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
 	// Soumettre
-	if ($object->status == TimesheetWeek::STATUS_DRAFT && ($isOwner || $permCreateAll)) {
+	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll)) {
 		if ($useajax) print dolGetButtonAction('', $langs->trans('Submit'), 'default', '', 'action-submit', 1);
 		else print dolGetButtonAction('', $langs->trans('Submit'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_submit', '', 1);
 	}
 	// Retour à brouillon
-	if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && ($isOwner || $isValidator)) {
+	if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && (tw_has_create_for($object->fk_user, $user, $permCreate, $permCreateChild, $permCreateAll) || $isValidator)) {
 		if ($useajax) print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', '', 'action-setdraft', 1);
 		else print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_setdraft', '', 1);
 	}
@@ -729,7 +754,7 @@ JS;
 		}
 	}
 	// Supprimer
-	if ($permDeleteAll || ($permDelete && $isOwner)) {
+	if (tw_has_delete_for($object->fk_user, $user, $permDelete, $permDeleteChild, $permDeleteAll)) {
 		if ($useajax) print dolGetButtonAction('', $langs->trans("Delete"), 'delete', '', 'action-delete', 1);
 		else print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken(), '', 1);
 	}
