@@ -40,9 +40,7 @@ $hookmanager->initHooks(array('timesheetweekcard', 'globalcard'));
 
 // Fetch object (id/ref)
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
-if (!empty($object->id)) {
-	$id = $object->id;
-}
+if (!empty($object->id)) $id = $object->id;
 
 // ---------------- Permissions ----------------
 $permRead          = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
@@ -68,7 +66,6 @@ if (!$permRead) accessforbidden();
 function tw_count($v) { return (is_countable($v) ? count($v) : 0); }
 function tw_checkToken()
 {
-	// Wrapper CSRF : utilise checkToken() si disponible, sinon compare le token session
 	if (function_exists('checkToken')) return checkToken();
 	$tok = GETPOST('token', 'alphanohtml');
 	if (!isset($_SESSION['newtoken'])) return false;
@@ -141,8 +138,10 @@ function twGenerateFinalRef($db, $conf, $langs, $user, $object)
 	if (empty($ref)) {
 		$yyyy = sprintf('%04d', (int)$object->year);
 		$ss   = sprintf('%02d', (int)$object->week);
+		// fallback simple
 		$ref  = 'FH'.$yyyy.$ss.'-'.$object->id;
 	}
+	// sécurise unicité (très rare si générateur correct)
 	$refbase = $ref; $suffix = 1;
 	while (1) {
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week WHERE ref='".$db->escape($ref)."' AND entity=".(int)$object->entity;
@@ -252,7 +251,8 @@ if ($action == 'save' && $id > 0) {
 			if ($raw !== '') {
 				if (strpos($raw, ':') !== false) {
 					list($hh, $mm) = array_pad(explode(':', $raw), 2, '0');
-					$hours = (int)$hh + (max(0,(int)$mm)/60);
+					$hh = (int) $hh; $mm = max(0, (int) $mm);
+					$hours = $hh + ($mm/60);
 				} else {
 					$hours = (float) str_replace(',', '.', $raw);
 				}
@@ -294,7 +294,7 @@ if ($action == 'save' && $id > 0) {
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
 
-// SUBMIT
+// SUBMIT (force final reference if provisional/empty)
 if ($action === 'submit' && $id > 0) {
 	$canSubmit = twIsOwnerOrChildOrAll($user, $object, true);
 	if (!$canSubmit) accessforbidden();
@@ -308,7 +308,8 @@ if ($action === 'submit' && $id > 0) {
 	}
 
 	$db->begin();
-	if ($object->ref == '(PROV)' || empty($object->ref)) {
+	// Force final ref if not yet
+	if (empty($object->ref) || $object->ref == '(PROV)' || preg_match('/^\(.+\)$/', $object->ref)) {
 		$newref = twGenerateFinalRef($db, $conf, $langs, $user, $object);
 		if (empty($newref)) {
 			$db->rollback();
@@ -398,8 +399,7 @@ if ($action == 'confirm_delete' && $confirm == 'yes' && $id > 0) {
 $form = new Form($db);
 
 $title = $langs->trans("TimesheetWeek");
-$help_url = '';
-llxHeader('', $title, $help_url);
+llxHeader('', $title, '');
 
 // CREATE MODE
 if ($action == 'create') {
@@ -416,7 +416,7 @@ if ($action == 'create') {
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td></tr>';
 	// Week
 	print '<tr><td>'.$langs->trans("Week").'</td><td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td></tr>';
-	// Validator (default = manager)
+	// Validator default manager
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1).'</td></tr>';
 	// Note
@@ -530,7 +530,7 @@ JS;
 	}
 	print '</td></tr>';
 
-	// Note
+	// Note (LEFT column, as requested)
 	print '<tr><td>'.$langs->trans("Note").'</td><td>';
 	if ($canEditHeader) {
 		if ($action == 'edit_note') {
@@ -562,7 +562,7 @@ JS;
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("Status").'</td><td>'.$object->getLibStatut(5).'</td></tr>';
+	// Pas de rappel du statut ici (déjà dans le bandeau)
 	print '</table>';
 	print '</div>';
 
@@ -630,6 +630,7 @@ JS;
 		$meal = !empty($mealByDay[$dte]) ? 1 : 0;
 		$disabled = (!$editableGrid ? ' disabled' : '');
 		print '<td class="center">';
+		print '<span class="opacitymedium">'.$langs->trans("Zone").'</span> ';
 		print '<select name="zone_'.$d.'" class="flat"'.$disabled.'>';
 		print '<option value=""></option>';
 		for ($z=1;$z<=5;$z++) print '<option value="'.$z.'"'.($sel==$z?' selected':'').'>'.$z.'</option>';
@@ -681,7 +682,9 @@ JS;
 			foreach ($days as $d) {
 				$dte = $weekdates[$d];
 				$val = isset($hoursByTaskDay[$tid][$dte]) ? (float)$hoursByTaskDay[$tid][$dte] : 0.0;
-				$valText = ($val > 0 ? sprintf('%02d:%02d', floor($val), round(($val - floor($val)) * 60)) : '');
+				$h = floor($val); $m = round(($val - $h)*60);
+				if ($m == 60) { $h++; $m = 0; }
+				$valText = ($val > 0 ? sprintf('%02d:%02d', $h, $m) : '');
 				$dis = $editableGrid ? '' : ' disabled';
 				print '<td class="center"><input type="text" class="flat hourinput" size="4" name="hours_'.$tid.'_'.$d.'" placeholder="0:00" value="'.dol_escape_htmltag($valText).'"'.$dis.'></td>';
 			}
