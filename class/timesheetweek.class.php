@@ -1154,32 +1154,36 @@ class TimesheetWeek extends CommonObject
 	 *
 	 * @return array Tableau d’objets TimesheetWeekLine indexés par [task_id][date]
 	 */
-	public function getLines()
-	{
-		require_once DOL_DOCUMENT_ROOT.'/custom/timesheetweek/class/timesheetweekline.class.php';
+        public function getLines()
+        {
+                dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
 
-		$lines = array();
-		$sql = "SELECT rowid, fk_task, day_date, hours, zone, meal";
-		$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-		$sql .= " WHERE fk_timesheet_week = ".((int) $this->id);
+                $lines = array();
+                $sql = "SELECT rowid, fk_task, day_date, hours, zone, meal";
+                $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+                $sql .= " WHERE fk_timesheet_week = ".((int) $this->id);
 
-		$resql = $this->db->query($sql);
-		if ($resql) {
-			while ($obj = $this->db->fetch_object($resql)) {
-				$line = new TimesheetWeekLine($this->db);
-				$line->id       = $obj->rowid;
-				$line->fk_task  = $obj->fk_task;
-				$line->day_date = $obj->day_date;
-				$line->hours    = $obj->hours;
-				$line->zone     = $obj->zone;
-				$line->meal     = $obj->meal;
+                $resql = $this->db->query($sql);
+                if ($resql) {
+                        while ($obj = $this->db->fetch_object($resql)) {
+                                $line = new TimesheetWeekLine($this->db);
+                                $line->id      = (int) $obj->rowid;
+                                $line->fk_task = (int) $obj->fk_task;
 
-				// indexation par tâche et date pour lecture rapide
-				$lines[$obj->fk_task][$obj->day_date] = $line;
-			}
-		}
-		return $lines;
-	}
+                                // Normalise la date au format ISO (YYYY-MM-DD) pour assurer la correspondance avec la vue
+                                $dayDateIso = dol_print_date($this->db->jdate($obj->day_date), 'dayrfc');
+                                $line->day_date = $dayDateIso;
+
+                                $line->hours = (float) $obj->hours;
+                                $line->zone  = (int) $obj->zone;
+                                $line->meal  = (int) $obj->meal;
+
+                                // indexation par tâche et date pour lecture rapide
+                                $lines[$line->fk_task][$dayDateIso] = $line;
+                        }
+                }
+                return $lines;
+        }
 
 
 
