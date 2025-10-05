@@ -77,8 +77,7 @@ $hookmanager->initHooks(array('timesheetweeklist'));
 
 // Objet technique + extrafields
 $object = new TimesheetWeek($db);
-// Si tu ajoutes des extrafields: la table attachée doit être timesheet_week
-$object->table_element = 'timesheet_week';
+$object->table_element = 'timesheet_week'; // s'assure que les extrafields pointent sur la bonne table
 
 $extrafields = new ExtraFields($db);
 $extrafields->fetch_name_optionals_label($object->table_element);
@@ -177,7 +176,9 @@ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
 if (!empty($extrafields->attributes[$object->table_element]['label'])) {
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX.$object->table_element."_extrafields as ef on (t.rowid = ef.fk_object)";
 }
-$sql .= " WHERE 1=1"; // << pas de t.entity ici pour compatibilité avec ta table
+
+// ---------- Multicompany filter ----------
+$sql .= " WHERE t.entity IN (".getEntity('timesheetweek').")";
 
 // Permissions filter
 if (!$permReadAll && !$permReadChild) {
@@ -293,7 +294,7 @@ $newcardbutton .= dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle
 // Barre titre
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'object_timesheetweek@timesheetweek', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
-// Form global (requis pour filtres/massactions)
+// Form global
 print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
@@ -305,7 +306,7 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 print '<input type="hidden" name="page_y" value="">';
 print '<input type="hidden" name="mode" value="'.$mode.'">';
 
-// Pre-mass action (email confirm etc.)
+// Pre-mass action
 $topicmail = "SendTimesheetWeek";
 $modelmail = "timesheetweek";
 $objecttmp = $object;
@@ -480,7 +481,7 @@ for ($i=0; $i < $imax; $i++) {
 	if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 		print '<td class="center">';
 		if ($massactionbutton || $massaction) {
-			$selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
+			$selected = in_array($obj->rowid, (array)$toselect) ? 1 : 0;
 			print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected?' checked="checked"':'').'>';
 		}
 		print '</td>';
@@ -560,7 +561,7 @@ for ($i=0; $i < $imax; $i++) {
 	if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 		print '<td class="center">';
 		if ($massactionbutton || $massaction) {
-			$selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
+			$selected = in_array($obj->rowid, (array)$toselect) ? 1 : 0;
 			print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected?' checked="checked"':'').'>';
 		}
 		print '</td>';
