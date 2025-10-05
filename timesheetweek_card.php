@@ -22,37 +22,82 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // si helpers côté PHP
+dol_include_once('/timesheetweek/class/timesheetweekline.class.php'); // si vous avez séparé la classe ligne
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // doit contenir formatHours()
 
 $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
 
+// --------- Helpers ----------
 /**
- * Helpers
+ * Petit sélecteur de semaine "façon Dolibarr" (liste des 60 dernières/10 prochaines semaines)
+ * Retourne un <select id="weekyear" name="weekyear"> avec valeurs YYYY-Wxx
  */
-function tw_format_hours_hhmm($dec)
+function getWeekSelectorDolibarr(Form $form, $name, $selected = '')
 {
-	$dec = (float) $dec;
-	if ($dec <= 0) return '00:00';
-	$h = floor($dec);
-	$m = round(($dec - $h) * 60);
-	if ($m == 60) { $h++; $m = 0; }
-	return str_pad((string) $h, 2, '0', STR_PAD_LEFT).':'.str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+	$out = '<select class="flat maxwidth200" id="'.dol_escape_htmltag($name).'" name="'.dol_escape_htmltag($name).'">';
+	$now = dol_now();
+	$cur = (int) dol_print_date($now, '%Y');
+	$curW = (int) dol_print_date($now, '%W'); // ISO week number (01..53)
+	// On propose ~70 semaines autour
+	$nbpast = 60;
+	$nbnext = 10;
+	$weeks = array();
+
+	// Crée une DateTime au lundi de la semaine courante
+	$dto = new DateTime();
+	$dto->setISODate($cur, $curW);
+
+	// Remonte $nbpast semaines
+	$start = clone $dto;
+	$start->modify('-'.$nbpast.' week');
+
+	$end = clone $dto;
+	$end->modify('+'.$nbnext.' week');
+
+	$iter = clone $start;
+	while ($iter <= $end) {
+		$y = (int) $iter->format('o'); // ISO YEAR
+		$w = (int) $iter->format('W');
+		$val = sprintf('%04d-W%02d', $y, $w);
+		// Label "Sxx - du jj/mm/aaaa au jj/mm/aaaa"
+		$weekStart = clone $iter;
+		$weekEnd = clone $iter;
+		$weekEnd->modify('+6 day');
+
+		$label = sprintf(
+			'%s %02d - %s %s %s',
+			$langs->trans("Week"),
+			$w,
+			$langs->trans("From"),
+			dol_print_date($weekStart->getTimestamp(), 'day'),
+			$langs->trans("to").' '.dol_print_date($weekEnd->getTimestamp(), 'day')
+		);
+
+		$weeks[$val] = $label;
+		$iter->modify('+1 week');
+	}
+
+	foreach ($weeks as $val => $lab) {
+		$out .= '<option value="'.dol_escape_htmltag($val).'"'.($selected == $val ? ' selected' : '').'>'.dol_escape_htmltag($lab).'</option>';
+	}
+	$out .= '</select>';
+	return $out;
 }
 
-// Get parameters
-$id     = GETPOSTINT('id');
-$action = GETPOST('action', 'aZ09');
+// --------- Get parameters ----------
+$id      = GETPOSTINT('id');
+$action  = GETPOST('action', 'aZ09');
+$confirm = GETPOST('confirm', 'alpha');
 
-// Init object
+// --------- Init object ----------
 $object = new TimesheetWeek($db);
 $extrafields = new ExtraFields($db);
 $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
-// Load object
+// --------- Load object ----------
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
-// Permissions (module timesheetweek)
+// --------- Permissions ----------
 $permRead      = !empty($user->rights->timesheetweek->timesheetweek->read);
 $permReadAll   = !empty($user->rights->timesheetweek->timesheetweek->readall);
 $permReadChild = !empty($user->rights->timesheetweek->timesheetweek->readchild);
@@ -61,22 +106,18 @@ $permDelete    = !empty($user->rights->timesheetweek->timesheetweek->delete);
 
 if (!$permRead) accessforbidden();
 
-/**
- * ACTIONS
- */
-
-// ----------------- Action Create -----------------
+// --------- Actions: create ----------
 if ($action == 'add' && $permWrite) {
-	$weekyear      = GETPOST('weekyear', 'alpha'); // format attendu YYYY-Wxx
-	$fk_user       = GETPOSTINT('fk_user');
-	$fk_user_valid = GETPOSTINT('fk_user_valid');
-	$note          = GETPOST('note', 'restricthtml');
+	$weekyear       = GETPOST('weekyear', 'alpha'); // format attendu YYYY-Wxx
+	$fk_user        = GETPOSTINT('fk_user');
+	$fk_user_valid  = GETPOSTINT('fk_user_valid');
+	$note           = GETPOST('note', 'restricthtml');
 
-	$object->ref           = '(PROV)';
-	$object->fk_user       = $fk_user > 0 ? $fk_user : $user->id;
-	$object->status        = TimesheetWeek::STATUS_DRAFT;
-	$object->note          = $note;
-	$object->fk_user_valid = $fk_user_valid > 0 ? $fk_user_valid : null;
+	$object->ref            = '(PROV)';
+	$object->fk_user        = $fk_user > 0 ? $fk_user : $user->id;
+	$object->status         = TimesheetWeek::STATUS_DRAFT;
+	$object->note           = $note;
+	$object->fk_user_valid  = $fk_user_valid > 0 ? $fk_user_valid : null;
 
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 		$object->year = (int) $m[1];
@@ -87,8 +128,8 @@ if ($action == 'add' && $permWrite) {
 	}
 
 	if ($action == 'add') {
-		$res = $object->create($user);
-		if ($res > 0) {
+		$rescreate = $object->create($user);
+		if ($rescreate > 0) {
 			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 			exit;
 		} else {
@@ -98,66 +139,96 @@ if ($action == 'add' && $permWrite) {
 	}
 }
 
-// ----------------- Action Save (UPSERT des lignes) -----------------
+// --------- Actions: save lines (upsert) ----------
 if ($action == 'save' && $permWrite && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
+	// re-fetch to be sure we have year/week
+	if ($object->id <= 0 && $id > 0) $object->fetch($id);
 
 	$db->begin();
 
-	// Map des lignes existantes
-	$existing = array(); // [taskid][day_date] = rowid
-	$sqlsel = "SELECT rowid, fk_task, day_date FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id." AND entity=".(int) $conf->entity;
-	$resql = $db->query($sqlsel);
-	if ($resql) {
-		while ($objl = $db->fetch_object($resql)) {
-			$existing[(int) $objl->fk_task][$objl->day_date] = (int) $objl->rowid;
+	// Heures contractuelles
+	$userEmployee = new User($db);
+	$userEmployee->fetch($object->fk_user);
+	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
+
+	// Map du décalage jour -> +N jours depuis lundi
+	$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
+
+	// Construit un index des lignes existantes pour upsert rapide
+	$linesExisting = array(); // key "taskid|YYYY-MM-DD" => rowid
+	$resq = $db->query("SELECT rowid, fk_task, day_date FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id);
+	if ($resq) {
+		while ($o = $db->fetch_object($resq)) {
+			$key = ((int) $o->fk_task).'|'.$o->day_date;
+			$linesExisting[$key] = (int) $o->rowid;
 		}
-		$db->free($resql);
 	}
 
-	$daysMap = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
+	$totalPosted = 0.0;
 
+	// Récupère zone/meal par jour (hors tâche)
+	$dayZone = array(); $dayMeal = array();
+	foreach ($map as $day => $offset) {
+		$dayZone[$day] = GETPOSTINT('zone_'.$day);
+		$dayMeal[$day] = GETPOST('meal_'.$day, 'alpha') ? 1 : 0;
+	}
+
+	// Balaye les inputs d'heures
 	foreach ($_POST as $key => $val) {
-		if (preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) {
+		if (preg_match('/^hours_(\d+)_(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/', $key, $m)) {
 			$taskid = (int) $m[1];
-			$dayKey = $m[2];
+			$day    = $m[2];
 
-			$val = trim($val);
+			// Parse "HH:MM" ou décimal
 			$hours = 0.0;
+			$val = trim($val);
 			if ($val !== '') {
 				if (strpos($val, ':') !== false) {
 					list($hh, $mm) = array_pad(explode(':', $val, 2), 2, '0');
-					$hours = ((int) $hh) + ((int) $mm)/60.0;
+					$hours = (int)$hh + ((int)$mm / 60.0);
 				} else {
 					$hours = (float) str_replace(',', '.', $val);
 				}
 			}
 
-			if (!isset($daysMap[$dayKey])) continue;
+			// Calcule la date du jour
 			$dto = new DateTime();
-			$dto->setISODate((int) $object->year, (int) $object->week);
-			$dto->modify('+'.$daysMap[$dayKey].' day');
-			$day_date = $dto->format('Y-m-d');
+			$dto->setISODate((int)$object->year, (int)$object->week);
+			$dto->modify('+'.$map[$day].' day');
+			$dayDate = $dto->format('Y-m-d');
 
-			$zone = (int) GETPOST('zone_'.$dayKey, 'int');
-			$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
+			$zone = (int) $dayZone[$day];
+			$meal = (int) $dayMeal[$day];
 
-			$existsRowId = isset($existing[$taskid][$day_date]) ? (int) $existing[$taskid][$day_date] : 0;
+			$keyline = $taskid.'|'.$dayDate;
 
-			if ($existsRowId > 0) {
-				if ($hours > 0) {
-					$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line
-					        SET hours = ".((float) $hours).", zone = ".((int) $zone).", meal = ".((int) $meal).", tms = tms
-					        WHERE rowid = ".((int) $existsRowId);
-					if (!$db->query($sql)) {
+			if ($hours > 0) {
+				$totalPosted += $hours;
+
+				// Upsert
+				if (!empty($linesExisting[$keyline])) {
+					// Update
+					$sqlu  = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line SET";
+					$sqlu .= " hours = ".((float)$hours).",";
+					$sqlu .= " zone = ".((int)$zone).",";
+					$sqlu .= " meal = ".((int)$meal);
+					$sqlu .= " WHERE rowid = ".((int)$linesExisting[$keyline]);
+					$resu = $db->query($sqlu);
+					if (!$resu) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 						exit;
 					}
 				} else {
-					$sql = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid = ".((int) $existsRowId);
-					if (!$db->query($sql)) {
+					// Insert
+					$sqli  = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(";
+					$sqli .= "fk_timesheet_week, fk_task, day_date, hours, zone, meal";
+					$sqli .= ") VALUES (";
+					$sqli .= (int)$object->id.", ".(int)$taskid.", '".$db->escape($dayDate)."', ".((float)$hours).", ".((int)$zone).", ".((int)$meal);
+					$sqli .= ")";
+					$resi = $db->query($sqli);
+					if (!$resi) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
@@ -165,10 +236,10 @@ if ($action == 'save' && $permWrite && $id > 0) {
 					}
 				}
 			} else {
-				if ($hours > 0) {
-					$sql = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(entity, fk_timesheet_week, fk_task, day_date, hours, zone, meal)
-							VALUES(".((int) $conf->entity).",".((int) $object->id).",".((int) $taskid).",'".$db->escape($day_date)."',".((float) $hours).",".((int) $zone).",".((int) $meal).")";
-					if (!$db->query($sql)) {
+				// Si heures = 0 et une ligne existait -> on supprime (comportement plus clean)
+				if (!empty($linesExisting[$keyline])) {
+					$sqld = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid = ".((int)$linesExisting[$keyline]);
+					if (!$db->query($sqld)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
@@ -179,24 +250,15 @@ if ($action == 'save' && $permWrite && $id > 0) {
 		}
 	}
 
-	// MAJ totaux en en-tête
-	$sqlsum = "SELECT SUM(hours) as th FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id." AND entity=".(int) $conf->entity;
-	$resql = $db->query($sqlsum);
-	$totalHours = 0;
-	if ($resql) {
-		$oo = $db->fetch_object($resql);
-		if ($oo && $oo->th !== null) $totalHours = (float) $oo->th;
-		$db->free($resql);
-	}
-	$userEmployee = new User($db);
-	$userEmployee->fetch($object->fk_user);
-	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
-	$overtime = max(0, $totalHours - $contractedHours);
+	// Met à jour total_hours et overtime_hours sur la feuille
+	$overtime = $totalPosted - $contractedHours;
+	if ($overtime < 0) $overtime = 0;
 
-	$sqlupd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week
-		SET total_hours = ".((float) $totalHours).", overtime_hours = ".((float) $overtime)."
-		WHERE rowid = ".((int) $object->id);
-	if (!$db->query($sqlupd)) {
+	$sqlparent  = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET";
+	$sqlparent .= " total_hours = ".((float)$totalPosted).",";
+	$sqlparent .= " overtime_hours = ".((float)$overtime);
+	$sqlparent .= " WHERE rowid = ".((int)$object->id);
+	if (!$db->query($sqlparent)) {
 		$db->rollback();
 		setEventMessages($db->lasterror(), null, 'errors');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
@@ -209,31 +271,24 @@ if ($action == 'save' && $permWrite && $id > 0) {
 	exit;
 }
 
-// ----------------- Action Delete -----------------
-$backtolist = dol_buildpath('/timesheetweek/timesheetweek_list.php', 1);
-
-if ($action == 'confirm_delete' && $permDelete && $id > 0 && GETPOST('confirm', 'alpha') == 'yes') {
-	if ($object->id <= 0) $object->fetch($id);
-
-	$db->begin();
-	// On peut s’appuyer sur la contrainte FK ON DELETE CASCADE des lignes, ou appeler $object->delete($user)
-	$resdel = $object->delete($user);
-	if ($resdel > 0) {
-		$db->commit();
-		header("Location: ".$backtolist);
-		exit;
+// --------- Actions: delete (with confirm popup) ----------
+if ($action == 'confirm_delete' && $permDelete && $id > 0 && GETPOST('token') == $_SESSION['newtoken']) {
+	if ($confirm === 'yes') {
+		$resdel = $object->delete($user);
+		if ($resdel > 0) {
+			header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php',1));
+			exit;
+		} else {
+			setEventMessages($object->error, $object->errors, 'errors');
+		}
 	} else {
-		$db->rollback();
-		setEventMessages($object->error ? $object->error : $db->lasterror(), $object->errors, 'errors');
-		$action = ''; // on retombe en vue
+		// cancel
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
 	}
 }
 
-
-/**
- * VIEW
- */
-
+// --------- View ----------
 $form = new Form($db);
 $title = $langs->trans("TimesheetWeek");
 llxHeader('', $title);
@@ -276,22 +331,25 @@ elseif ($id > 0 && $action != 'create') {
 	} elseif ($permRead && $object->fk_user == $user->id) $cansee = true;
 	if (!$cansee) accessforbidden();
 
-	// ---- Fiche ----
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head,'card',$langs->trans("TimesheetWeek"),-1,'time');
 
-	// Confirmation suppression (popup)
+	// --- Preloaded confirm popup for delete (must be before banner) ---
+	$formconfirm = '';
 	if ($action == 'delete') {
 		$formconfirm = $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
 			$langs->trans('DeleteTimesheetWeek'),
 			$langs->trans('ConfirmDeleteObject'),
 			'confirm_delete',
-			array(), 0, 'action-delete'
+			array(),
+			0,
+			'action-delete'
 		);
-		print $formconfirm;
 	}
+	print $formconfirm;
 
+	// Banner
 	dol_banner_tab($object,'ref');
 
 	print '<div class="fichecenter">';
@@ -308,6 +366,10 @@ elseif ($id > 0 && $action != 'create') {
 		$u=new User($db); $u->fetch($object->fk_user_valid);
 		print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$u->getNomUrl(1).'</td></tr>';
 	}
+	// Totaux stockés
+	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.formatHours((float)$object->total_hours).'</td></tr>';
+	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.formatHours((float)$object->overtime_hours).'</td></tr>';
+
 	print '</table>';
 	print '</div>';
 
@@ -321,9 +383,6 @@ elseif ($id > 0 && $action != 'create') {
 	print '</div>';
 	print '</div>';
 
-	// >>> important pour bloquer les flottants des 2 colonnes
-	print '<div class="clearboth"></div>';
-
 	print dol_get_fiche_end();
 
 	// ---- Grille des heures ----
@@ -332,29 +391,27 @@ elseif ($id > 0 && $action != 'create') {
 	print '<input type="hidden" name="action" value="save">';
 
 	print '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+
+	// Tâches assignées
 	$tasks = $object->getAssignedTasks($object->fk_user);
 
-	// Charger les lignes déjà saisies (pour préremplir)
-	$hoursByTaskDay = array(); // [taskid][Y-m-d] = hours
-	$zoneByDay      = array(); // [Y-m-d] = zone (max rencontrée)
-	$mealByDay      = array(); // [Y-m-d] = 1 si au moins une ligne a meal=1
-
-	$sqlLoad = "SELECT fk_task, day_date, hours, zone, meal
-				FROM ".MAIN_DB_PREFIX."timesheet_week_line
-				WHERE fk_timesheet_week=".(int) $object->id."
-				  AND entity=".(int) $conf->entity;
-	$resLoad = $db->query($sqlLoad);
-	if ($resLoad) {
-		while ($ol = $db->fetch_object($resLoad)) {
-			$tid = (int) $ol->fk_task;
-			$dte = $ol->day_date;
-			$hoursByTaskDay[$tid][$dte] = (float) $ol->hours;
-			if (!isset($zoneByDay[$dte])) $zoneByDay[$dte] = (int) $ol->zone;
-			else $zoneByDay[$dte] = max($zoneByDay[$dte], (int) $ol->zone);
-			if (!isset($mealByDay[$dte])) $mealByDay[$dte] = ((int) $ol->meal ? 1 : 0);
-			else $mealByDay[$dte] = ($mealByDay[$dte] || ((int) $ol->meal ? 1 : 0)) ? 1 : 0;
+	// Lignes déjà saisies
+	$lines = $object->getLines(); // tableau d'objets/records
+	// Indexation des heures existantes par [task_id][YYYY-MM-DD] => ['hours'=>, 'zone'=>, 'meal'=>]
+	$hoursMap = array();
+	$dayMeta  = array(); // par date -> ['zone'=>, 'meal'=>] (on prend la première valeur rencontrée)
+	if (!empty($lines)) {
+		foreach ($lines as $L) {
+			$t = (int) $L->fk_task;
+			$d = $L->day_date;
+			if (!isset($hoursMap[$t])) $hoursMap[$t] = array();
+			$hoursMap[$t][$d] = array(
+				'hours' => (float) $L->hours,
+				'zone'  => (int) $L->zone,
+				'meal'  => (int) $L->meal
+			);
+			if (!isset($dayMeta[$d])) $dayMeta[$d] = array('zone' => (int)$L->zone, 'meal' => (int)$L->meal);
 		}
-		$db->free($resLoad);
 	}
 
 	if (empty($tasks)) {
@@ -364,6 +421,7 @@ elseif ($id > 0 && $action != 'create') {
 		$dto=new DateTime(); $dto->setISODate($object->year,$object->week);
 		$weekdates=array(); foreach($days as $d){ $weekdates[$d]=$dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
+		// Heures contractuelles pour calcul des heures sup
 		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
 		$contractedHours=(!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
 
@@ -378,70 +436,78 @@ elseif ($id > 0 && $action != 'create') {
 		// zone + meal
 		print '<tr class="liste_titre"><td></td>';
 		foreach($days as $d){
-			$dateDay = $weekdates[$d];
-			$curZone = isset($zoneByDay[$dateDay]) ? (int) $zoneByDay[$dateDay] : 0;
-			$curMeal = !empty($mealByDay[$dateDay]) ? 1 : 0;
+			$curDate = $weekdates[$d];
+			$zPref = isset($dayMeta[$curDate]) ? (int)$dayMeta[$curDate]['zone'] : 1;
+			$mPref = isset($dayMeta[$curDate]) ? (int)$dayMeta[$curDate]['meal'] : 0;
 
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
-			for($z=1;$z<=5;$z++) print '<option value="'.$z.'"'.($curZone==$z?' selected':'').'>'.$z.'</option>';
+			for($z=1;$z<=5;$z++){
+				print '<option value="'.$z.'"'.($zPref==$z?' selected':'').'>'.$z.'</option>';
+			}
 			print '</select><br>';
-			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.($curMeal?' checked':'').'> '.$langs->trans("Meal").'</label>';
+			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.($mPref?' checked':'').'> '.$langs->trans("Meal").'</label>';
 			print '</td>';
 		}
 		print '<td></td></tr>';
 
-		// Regrouper les tâches par projet
+		// Regrouper par projet
 		$byproject=array();
-		foreach ($tasks as $t) {
-			$pid = $t['project_id'];
-			if (empty($byproject[$pid])) {
+		foreach($tasks as $t){
+			$pid = (int) $t['project_id'];
+			if (!isset($byproject[$pid])) {
 				$byproject[$pid] = array(
-					'project_id' => $t['project_id'],
-					'project_ref' => $t['project_ref'],
+					'project_id'    => $pid,
+					'project_ref'   => $t['project_ref'],
 					'project_title' => $t['project_title'],
-					'tasks' => array()
+					'tasks'         => array()
 				);
 			}
 			$byproject[$pid]['tasks'][] = $t;
 		}
 
-		$proj = new Project($db);
-		$taskObj = new Task($db);
+		// Statics pour getNomUrl
+		$projectstatic = new Project($db);
+		$taskstatic    = new Task($db);
+
+		$colspan = 1 + count($days) + 1; // Project/Task + 7 days + Total
 
 		foreach($byproject as $pid=>$pdata){
-			// ligne projet style perweek
-			$proj->id = $pdata['project_id'];
-			$proj->ref = $pdata['project_ref'];
-			$proj->title = $pdata['project_title'];
+			// Ligne projet (style perweek)
+			$projectstatic->id   = $pdata['project_id'];
+			$projectstatic->ref  = $pdata['project_ref'];
+			$projectstatic->title= $pdata['project_title'];
 
-			print '<tr class="oddeven trforbreak nobold">';
-			print '<td colspan="'.(count($days)+2).'" class="bold">'.$proj->getNomUrl(1).' &nbsp; <span class="opacitymedium">'.dol_escape_htmltag($proj->title).'</span></td>';
-			print '</tr>';
+			print '<tr class="oddeven trforbreak nobold"><td colspan="'.$colspan.'">';
+			print $projectstatic->getNomUrl(1).' - '.dol_escape_htmltag($pdata['project_title']);
+			print '</td></tr>';
 
-			// lignes tâches
-			foreach($pdata['tasks'] as $t){
-				$taskObj->id = $t['task_id'];
-				$taskObj->label = $t['task_label'];
-				$taskObj->ref = $t['task_ref'] ?? $t['task_id'];
+			// Tâches du projet
+			foreach($pdata['tasks'] as $task){
+				$taskstatic->id    = (int) $task['task_id'];
+				$taskstatic->label = $task['task_label'];
 
 				print '<tr>';
-				print '<td class="paddingleft">'.$taskObj->getNomUrl(1).'</td>';
+				print '<td class="paddingleft">'.$taskstatic->getNomUrl(1).'</td>';
 
-				$rowTotalDec = 0.0;
+				$taskRowTotal = 0.0;
 
 				foreach($days as $d){
-					$iname='hours_'.$t['task_id'].'_'.$d;
-					$dayDate = $weekdates[$d];
+					$curDate = $weekdates[$d];
+					$prefVal = '';
+					if (isset($hoursMap[(int)$task['task_id']][$curDate])) {
+						$prefHours = (float) $hoursMap[(int)$task['task_id']][$curDate]['hours'];
+						// Format HH:MM
+						$hh = floor($prefHours);
+						$mm = round(($prefHours - $hh)*60);
+						if ($mm === 60) { $hh++; $mm = 0; }
+						$prefVal = sprintf('%02d:%02d', $hh, $mm);
+					}
 
-					$dec = isset($hoursByTaskDay[$t['task_id']][$dayDate]) ? (float) $hoursByTaskDay[$t['task_id']][$dayDate] : 0.0;
-					$val = ($dec>0 ? tw_format_hours_hhmm($dec) : '');
-
-					if ($dec>0) $rowTotalDec += $dec;
-
-					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="0:00"></td>';
+					$iname='hours_'.$task['task_id'].'_'.$d;
+					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($prefVal).'" placeholder="0:00"></td>';
 				}
-				print '<td class="right task-total">'.tw_format_hours_hhmm($rowTotalDec).'</td></tr>';
+				print '<td class="right task-total">00:00</td></tr>';
 			}
 		}
 
@@ -451,46 +517,67 @@ elseif ($id > 0 && $action != 'create') {
 		print '<td class="right grand-total">00:00</td></tr>';
 
 		print '<tr class="liste_total"><td class="right">'.$langs->trans("Meals").'</td><td colspan="'.count($days).'" class="right meal-total">0</td><td></td></tr>';
-		print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.tw_format_hours_hhmm($contractedHours).')</td><td colspan="'.count($days).'" class="right overtime-total">00:00</td><td></td></tr>';
+		print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.formatHours($contractedHours).')</td><td colspan="'.count($days).'" class="right overtime-total">00:00</td><td></td></tr>';
 
 		print '</table></div>';
 
-		// bouton de sauvegarde
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
-	}
+		print '</form>';
 
-	// fermer le formulaire **dans tous les cas**
-	print '</form>';
-
-	// JS de calcul des totaux
-	if (!empty($tasks)) {
+		// JS pour totaux + init au chargement
 		print sprintf("
 <script>
 (function($){
-function parseHours(v){if(!v)return 0;if(v.indexOf(':')==-1)return parseFloat(v)||0;var p=v.split(':');var h=parseInt(p[0],10)||0;var m=parseInt(p[1],10)||0;return h+(m/60);}
-function formatHours(d){if(isNaN(d))return '00:00';var h=Math.floor(d);var m=Math.round((d-h)*60);if(m===60){h++;m=0;}return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
-function updateTotals(){var grand=0;$('.task-total').text('00:00');$('.day-total').text('00:00');
-$('tr').each(function(){var rowT=0;$(this).find('input.hourinput').each(function(){var v=parseHours($(this).val());if(!isNaN(v)&&v>0){rowT+=v;var idx=$(this).closest('td').index();var cell=$('tr.liste_total:first td').eq(idx);var cur=parseHours(cell.text());cell.text(formatHours(cur+v));grand+=v;}});if(rowT>0)$(this).find('.task-total').text(formatHours(rowT));});
-$('.grand-total').text(formatHours(grand));$('.meal-total').text($('.mealbox:checked').length);
-var ot=grand-".((float)$contractedHours).";if(ot<0)ot=0;$('.overtime-total').text(formatHours(ot));}
-$(document).on('input change','input.hourinput, input.mealbox',updateTotals);
-$(function(){ updateTotals(); }); // au chargement
+	function parseHours(v){if(!v)return 0;if(v.indexOf(':')==-1)return parseFloat(v)||0;var p=v.split(':');var h=parseInt(p[0],10)||0;var m=parseInt(p[1],10)||0;return h+(m/60);}
+	function formatHours(d){if(isNaN(d))return '00:00';var h=Math.floor(d);var m=Math.round((d-h)*60);if(m===60){h++;m=0;}return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+	function updateTotals(){
+		var grand=0;$('.task-total').text('00:00');$('.day-total').text('00:00');
+		$('tr').each(function(){
+			var rowT=0;
+			$(this).find('input.hourinput').each(function(){
+				var v=parseHours($(this).val());
+				if(!isNaN(v) && v>0){
+					rowT+=v;
+					var idx=$(this).closest('td').index();
+					var cell=$('tr.liste_total:first td').eq(idx);
+					var cur=parseHours(cell.text());
+					cell.text(formatHours(cur+v));
+					grand+=v;
+				}
+			});
+			if(rowT>0)$(this).find('.task-total').text(formatHours(rowT));
+		});
+		$('.grand-total').text(formatHours(grand));
+		$('.meal-total').text($('.mealbox:checked').length);
+		var weeklyContract = %s;
+		var ot = grand - weeklyContract; if(ot<0) ot=0;
+		$('.overtime-total').text(formatHours(ot));
+	}
+	$(function(){ updateTotals(); });
+	$(document).on('input change','input.hourinput, input.mealbox',updateTotals);
 })(jQuery);
-</script>");
+</script>", (float) $contractedHours);
 	}
 
-	// boutons d’action de la fiche
+	// Boutons d’action
 	print '<div class="tabsAction">';
-	if ($permWrite)  print dolGetButtonAction('',$langs->trans("Modify"),'default',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
-	if ($permDelete) {
-		// Lien qui ouvre le popup de confirmation (préchargé ci-dessus)
-		$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete';
-		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $deleteUrl, 'action-delete', 1);
+	if ($permWrite) {
+		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
+
+	// Delete button (Ajax confirm if available)
+	$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken();
+	$buttonId  = 'action-delete-no-ajax';
+	if (!empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile)) {
+		$deleteUrl = '';
+		$buttonId  = 'action-delete';
+	}
+	print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $deleteUrl, $buttonId, $permDelete);
+
 	print '</div>';
 }
 
-// JS pour le sélecteur semaine
+// JS pour le sélecteur semaine (affichage du/au)
 print <<<'JS'
 <script>
 (function ($) {
