@@ -148,7 +148,7 @@ while ($i < $imax) {
 	if ($mm == 60) { $hh++; $mm = 0; }
 	print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
 
-	// Total hours
+	// Overtime hours
 	$tot = (float) $obj->overtime_hours;
 	$hh = floor($tot);
 	$mm = round(($tot - $hh) * 60);
