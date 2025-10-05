@@ -97,7 +97,6 @@ print '<td class="liste_titre center">';
 print '<input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2">';
 print '</td>';
 print '<td class="liste_titre center"></td>';
-print '<td class="liste_titre center"></td>';
 print '</tr>';
 
 // Titles
@@ -107,7 +106,7 @@ print_liste_field_titre($langs->trans("Employee"), $_SERVER["PHP_SELF"], 'u.last
 print_liste_field_titre($langs->trans("Year"), $_SERVER["PHP_SELF"], 't.year', '', $param, '', $sortfield, $sortorder, 'center ');
 print_liste_field_titre($langs->trans("Week"), $_SERVER["PHP_SELF"], 't.week', '', $param, '', $sortfield, $sortorder, 'center ');
 print_liste_field_titre($langs->trans("TotalHours"), $_SERVER["PHP_SELF"], 't.total_hours', '', $param, '', $sortfield, $sortorder, 'right ');
-print_liste_field_titre($langs->trans("TotalHours"), $_SERVER["PHP_SELF"], 't.overtime_hours', '', $param, '', $sortfield, $sortorder, 'right ');
+print_liste_field_titre($langs->trans("OvertimeHours"), $_SERVER["PHP_SELF"], 't.overtime_hours', '', $param, '', $sortfield, $sortorder, 'right ');
 print_liste_field_titre($langs->trans("Status"), $_SERVER["PHP_SELF"], 't.status', '', $param, '', $sortfield, $sortorder, 'center ');
 print '</tr>';
 
