@@ -49,7 +49,7 @@ class TimesheetWeek extends CommonObject
 	public $table_element = 'timesheet_week';
 
 	/**
-	 * @var string 		If permission must be checkec with hasRight('timesheetweek', 'read') and not hasright('mymodyle', 'timesheetweek', 'read'), you can uncomment this line
+	 * @var string 		If permission must be checked with hasRight('timesheetweek', 'read') and not hasRight('mymodule', 'timesheetweek', 'read'), you can uncomment this line
 	 */
 	//public $element_for_permission = 'timesheetweek';
 
@@ -135,13 +135,13 @@ class TimesheetWeek extends CommonObject
 	public $fields = array(
 		"rowid" => array("type" => "int", "label" => "TechnicalID", "enabled" => "1", 'position' => 10, 'notnull' => 1, "visible" => "0",),
 		"ref" => array("type" => "varchar(50)", "label" => "Ref", "enabled" => "1", 'position' => 15, 'notnull' => 1, "visible" => "1", "csslist" => "tdoverflowmax150", "showoncombobox" => "1",),
-		"fk_user" => array("type" => "integer:User:user/class/user.class.php", "label" => "Fkuser", "picto" => "user", "enabled" => "1", 'position' => 20, 'notnull' => 1, "visible" => "-1", "css" => "maxwidth500 widthcentpercentminusxx", "csslist" => "tdoverflowmax150",),
+		"fk_user" => array("type" => "integer:User:user/class/user.class.php", "label" => "User", "picto" => "user", "enabled" => "1", 'position' => 20, 'notnull' => 1, "visible" => "-1", "css" => "maxwidth500 widthcentpercentminusxx", "csslist" => "tdoverflowmax150",),
 		"year" => array("type" => "smallint", "label" => "Year", "enabled" => "1", 'position' => 25, 'notnull' => 1, "visible" => "-1",),
 		"week" => array("type" => "smallint", "label" => "Week", "enabled" => "1", 'position' => 30, 'notnull' => 1, "visible" => "-1",),
 		"status" => array("type" => "smallint", "label" => "Status", "enabled" => "1", 'position' => 500, 'notnull' => 1, "visible" => "-1", "default" => "0",),
 		"note" => array("type" => "text", "label" => "Note", "enabled" => "1", 'position' => 45, 'notnull' => 0, "visible" => "-1",),
 		"date_creation" => array("type" => "datetime", "label" => "DateCreation", "enabled" => "1", 'position' => 50, 'notnull' => 0, "visible" => "-1",),
-		"date_validation" => array("type" => "datetime", "label" => "Datevalidation", "enabled" => "1", 'position' => 55, 'notnull' => 0, "visible" => "-1",),
+		"date_validation" => array("type" => "datetime", "label" => "DateValidation", "enabled" => "1", 'position' => 55, 'notnull' => 0, "visible" => "-1",),
 		"fk_user_valid" => array("type" => "integer:User:user/class/user.class.php", "label" => "UserValidation", "picto" => "user", "enabled" => "1", 'position' => 60, 'notnull' => 0, "visible" => "-1", "css" => "maxwidth500 widthcentpercentminusxx", "csslist" => "tdoverflowmax150",),
 		"tms" => array("type" => "timestamp", "label" => "DateModification", "enabled" => "1", 'position' => 65, 'notnull' => 0, "visible" => "-1",),
 	);

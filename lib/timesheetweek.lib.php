@@ -321,7 +321,14 @@ function timesheetweekShowPerWeek($db, $userId, $year, $week)
  */
 function formatHours($hoursDecimal)
 {
-	$h = floor($hoursDecimal);
-	$m = round(($hoursDecimal - $h) * 60);
-	return sprintf("%02d:%02d", $h, $m);
+    $hoursDecimal = (float) $hoursDecimal;
+    $hours = (int) floor($hoursDecimal);
+    $minutes = (int) round(($hoursDecimal - $hours) * 60);
+
+    if ($minutes >= 60) {
+        $hours += (int) floor($minutes / 60);
+        $minutes = $minutes % 60;
+    }
+
+    return sprintf("%02d:%02d", $hours, $minutes);
 }
