@@ -339,6 +339,26 @@ class modTimesheetWeek extends DolibarrModules
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'deleteAll';
 		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
+		$this->rights[$r][1] = 'Validate TimesheetWeek where designated';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'validate';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
+		$this->rights[$r][1] = 'Validate TimesheetWeek form subordonnates';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'validateChild';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
+		$this->rights[$r][1] = 'Validate TimesheetWeek form all';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'validateAll';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+		$this->rights[$r][1] = 'Validate his own TimesheetWeek';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'validateOwn';
+		$r++;
 
 		/* END MODULEBUILDER PERMISSIONS */
 
