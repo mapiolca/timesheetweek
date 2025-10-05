@@ -256,9 +256,7 @@ if ($action == 'save' && $id > 0) {
 	if (!twIsOwnerOrChildOrAll($user, $object, true)) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	// We need week start
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
-	$dayIndex = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
@@ -268,11 +266,8 @@ if ($action == 'save' && $id > 0) {
 		$dto->modify('+1 day');
 	}
 
-	// For totals
 	$grandTotal = 0;
-	$mealByDay = array(); $zoneByDay = array();
 
-	// Read all POST hour inputs
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/', $key, $m)) {
 			$taskid = (int) $m[1];
@@ -290,14 +285,11 @@ if ($action == 'save' && $id > 0) {
 				}
 			}
 
-			$zone = GETPOST('zone_'.$day, 'alpha'); // keep alpha
+			$zone = GETPOST('zone_'.$day, 'alpha');
 			$meal = GETPOST('meal_'.$day, 'alpha') ? 1 : 0;
-			$mealByDay[$daydate] = $meal;
-			$zoneByDay[$daydate] = $zone;
 
-			// Load existing line
 			$line = new TimesheetWeekLine($db);
-			$exists = $line->fetchByComposite($object->id, $taskid, $daydate) > 0; // implementée dans la classe
+			$exists = $line->fetchByComposite($object->id, $taskid, $daydate) > 0;
 
 			if ($hours > 0) {
 				$line->fk_timesheet_week = $object->id;
@@ -306,22 +298,16 @@ if ($action == 'save' && $id > 0) {
 				$line->hours    = $hours;
 				$line->zone     = $zone;
 				$line->meal     = $meal;
-				if ($exists) {
-					$line->update($user);
-				} else {
-					$line->create($user);
-				}
+				if ($exists) $line->update($user);
+				else $line->create($user);
 				$grandTotal += $hours;
 			} else {
-				// hours empty/0: delete existing line if exists
 				if ($exists) $line->delete($user);
 			}
 		}
 	}
 
-	// Persist zone/meal also on first found line of each day if none saved (optional, noop if already saved with hours)
-
-	// Update totals on header (requires weeklyhours user)
+	// Update totals on header
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
@@ -342,7 +328,6 @@ if ($action === 'submit' && $id > 0) {
 	if (!$canSubmit) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	// Need at least 1 line
 	$nbLines = method_exists($object,'countLines') ? $object->countLines() : count($object->getLines());
 	if (empty($nbLines)) {
 		setEventMessages($langs->trans("NoTimeLinesToSubmit"), null, 'warnings');
@@ -351,7 +336,6 @@ if ($action === 'submit' && $id > 0) {
 	}
 
 	$db->begin();
-	// Generate final ref if needed
 	if ($object->ref == '(PROV)' || empty($object->ref)) {
 		$newref = twGenerateFinalRef($db, $conf, $langs, $user, $object);
 		if (empty($newref)) {
@@ -381,17 +365,11 @@ if ($action === 'submit' && $id > 0) {
 	exit;
 }
 
-// ASK APPROVE/REFUSE (open confirm popup)
-if ($action == 'ask_approve' || $action == 'ask_refuse') {
-	// no-op here, popup rendered later
-}
-
 // CONFIRM APPROVE
 if ($action == 'confirm_approve' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	// If validator differs, update it to current user
 	if ((int)$object->fk_user_valid !== (int)$user->id) {
 		$object->fk_user_valid = $user->id;
 	}
@@ -413,7 +391,6 @@ if ($action == 'confirm_refuse' && $confirm == 'yes' && $id > 0) {
 	if (!twCanValidate($user, $object)) accessforbidden();
 	if (!checkToken()) accessforbidden('CSRF token not valid');
 
-	// Update validator if different
 	if ((int)$object->fk_user_valid !== (int)$user->id) {
 		$object->fk_user_valid = $user->id;
 	}
@@ -570,7 +547,7 @@ JS;
 			print '</form>';
 		} else {
 			print $uemp->getNomUrl(1).' ';
-			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_employee">'.img_edit()).'</a>';
+			print '<a class="editlink editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_employee">'.img_edit().'</a>';
 		}
 	} else {
 		print $uemp->getNomUrl(1);
@@ -646,7 +623,7 @@ JS;
 	}
 	print '</td></tr>';
 
-	// Totals in header (no status column as banner shows it)
+	// Totals in header
 	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.dol_escape_htmltag(sprintf('%0.2f', (float)$object->total_hours)).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.dol_escape_htmltag(sprintf('%0.2f', (float)$object->overtime_hours)).'</td></tr>';
 
@@ -672,7 +649,6 @@ JS;
 	$tasks = $object->getAssignedTasks($object->fk_user);
 	$lines = $object->getLines();
 
-	// Build index for values: hours[task_id][Y-m-d] = float, and day-level zone/meal from first line
 	$hoursByTaskDay = array();
 	$zoneByDay = array();
 	$mealByDay = array();
@@ -694,15 +670,11 @@ JS;
 		$dto->modify('+1 day');
 	}
 
-	// Employee weeklyhours for OT threshold
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
 
-	// Submit allowed only if at least 1 line
 	$nbLines = method_exists($object,'countLines') ? $object->countLines() : count($lines);
-
-	// Editability flags
 	$editableGrid = twIsOwnerOrChildOrAll($user, $object, true) && ($object->status == TimesheetWeek::STATUS_DRAFT);
 
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -780,7 +752,6 @@ JS;
 			$taskstatic->label = $t['task_label'];
 			print $taskstatic->getNomUrl(1);
 			print '</td>';
-			$rowTotal = 0.0;
 			foreach ($days as $d) {
 				$dte = $weekdates[$d];
 				$val = isset($hoursByTaskDay[$tid][$dte]) ? $hoursByTaskDay[$tid][$dte] : 0.0;
@@ -837,7 +808,7 @@ JS;
 		print '<a class="butActionRefused" href="#" title="'.$langs->trans("NoTimeLinesToSubmit").'">'.$langs->trans("Submit").'</a>';
 	}
 
-	// Back to draft (should remain visible on submitted/approved/refused if writer)
+	// Back to draft (visible on submitted/approved/refused if writer)
 	if (twIsOwnerOrChildOrAll($user, $object, true) && $object->status != TimesheetWeek::STATUS_DRAFT) {
 		print '<form class="inline-block" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -852,22 +823,34 @@ JS;
 		print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse">'.$langs->trans("Refuse").'</a>';
 	}
 
-	// Delete (should remain visible also for approved/refused if deleter)
+	// Delete (also visible on approved/refused if deleter)
 	if (twCanDelete($user, $object)) {
 		print '<a class="butActionDelete" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete">'.$langs->trans("Delete").'</a>';
 	}
 
 	print '</div>';
 
-	// Confirm popups
+	// Confirm popups with token
 	if ($action == 'delete') {
-		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Delete"), $langs->trans("ConfirmDelete"), 'confirm_delete', array(), 0, 1);
+		$formq = array(
+			array('type'=>'hidden','name'=>'token','value'=>newToken()),
+			array('type'=>'hidden','name'=>'confirm','value'=>'yes')
+		);
+		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Delete"), $langs->trans("ConfirmDelete"), 'confirm_delete', $formq, 0, 1);
 	}
 	if ($action == 'ask_approve') {
-		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Approve"), $langs->trans("ConfirmApprove"), 'confirm_approve', array(), 0, 1, newToken());
+		$formq = array(
+			array('type'=>'hidden','name'=>'token','value'=>newToken()),
+			array('type'=>'hidden','name'=>'confirm','value'=>'yes')
+		);
+		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Approve"), $langs->trans("ConfirmApprove"), 'confirm_approve', $formq, 0, 1);
 	}
 	if ($action == 'ask_refuse') {
-		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Refuse"), $langs->trans("ConfirmRefuse"), 'confirm_refuse', array(), 0, 1, newToken());
+		$formq = array(
+			array('type'=>'hidden','name'=>'token','value'=>newToken()),
+			array('type'=>'hidden','name'=>'confirm','value'=>'yes')
+		);
+		print $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans("Refuse"), $langs->trans("ConfirmRefuse"), 'confirm_refuse', $formq, 0, 1);
 	}
 
 	// JS totals + disable zone/meal if submitted
@@ -885,11 +868,9 @@ JS;
 			var v=parseHours($(this).val());
 			if(isNaN(v)||v<=0) return;
 			grand += v;
-			// task row total
 			var tr=$(this).closest('tr');
 			var cur=parseHours(tr.find('.task-total').text());
 			tr.find('.task-total').text(formatHours(cur+v));
-			// day total
 			var td=$(this).closest('td'), idx=td.index();
 			var daycell=$('tr.liste_total:first td').eq(idx);
 			var curd=parseHours(daycell.text());
