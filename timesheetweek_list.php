@@ -78,6 +78,9 @@ print '<table class="tagtable liste">';
 
 // Filters
 print '<tr class="liste_titre_filter">';
+print '<td class="liste_titre right">';
+print $form->showFilterButtons();
+print '</td>';
 print '<td class="liste_titre">';
 print '<input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12">';
 print '</td>';
@@ -93,9 +96,8 @@ print '</td>';
 print '<td class="liste_titre center">';
 print '<input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2">';
 print '</td>';
-print '<td class="liste_titre right">';
-print $form->showFilterButtons();
-print '</td>';
+print '<td class="liste_titre center"></td>';
+print '<td class="liste_titre center"></td>';
 print '</tr>';
 
 // Titles
