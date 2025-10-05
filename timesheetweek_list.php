@@ -4,9 +4,10 @@
  */
 
 $res = 0;
-if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
-if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
-if (!$res) die("Include of main fails");
+if (!$res && file_exists(__DIR__.'/../main.inc.php'))			$res = require_once __DIR__.'/../main.inc.php';
+if (!$res && file_exists(__DIR__.'/../../main.inc.php'))		$res = require_once __DIR__.'/../../main.inc.php';
+if (!$res && file_exists(__DIR__.'/../../../main.inc.php'))	$res = require_once __DIR__.'/../../../main.inc.php';
+if (!$res) die('Include of main fails');
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
