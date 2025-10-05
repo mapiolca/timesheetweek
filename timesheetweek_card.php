@@ -39,7 +39,7 @@ $object = new TimesheetWeek($db);
 $extrafields = new ExtraFields($db);
 $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
-// ---- Fetch (set $object) ----
+// ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // ---- Permissions (nouveau modèle) ----
@@ -146,7 +146,9 @@ if ($action === 'save' && $id > 0) {
 			// Parse HH:MM ou décimal
 			$h = 0.0;
 			if (strpos($hoursStr, ':') !== false) {
-				list($H,$M) = array_pad(explode(':', $hoursStr, 2), 2, '0');
+                $tmp = explode(':', $hoursStr, 2);
+				$H = isset($tmp[0]) ? $tmp[0] : '0';
+				$M = isset($tmp[1]) ? $tmp[1] : '0';
 				$h = ((int)$H) + ((int)$M)/60.0;
 			} else {
 				$h = (float) str_replace(',', '.', $hoursStr);
@@ -257,8 +259,7 @@ if ($action === 'create') {
 	print '</tr>';
 
 	// Validateur (par défaut = manager de l’employé courant s’il existe)
-	$defaultValidatorId = null;
-	if (!empty($user->fk_user)) $defaultValidatorId = (int)$user->fk_user;
+	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	print '<tr>';
 	print '<td>'.$langs->trans("Validator").'</td>';
 	print '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200').'</td>';
@@ -357,7 +358,8 @@ JS;
 
 	print '</div>'; // fichecenter
 
-	print dol_get_fiche_end(); // <<< IMPORTANT : la grille est en-dessous de la fiche
+	// >>> IMPORTANT : on clôt la fiche AVANT la grille <<<
+	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -377,7 +379,6 @@ JS;
 	if (!empty($lines)) {
 		foreach ($lines as $L) {
 			$keydate = $L->day_date; // Y-m-d
-			// Détermine nom du jour ISO (1=lundi..7=dimanche)
 			$w = (int) date('N', strtotime($keydate));
 			$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
 
@@ -424,7 +425,7 @@ JS;
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
 			for ($z=1; $z<=5; $z++) {
-                $sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
+				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
 				print '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 			}
 			print '</select><br>';
