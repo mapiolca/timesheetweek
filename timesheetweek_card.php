@@ -286,20 +286,20 @@ elseif ($id > 0 && $action != 'create') {
 
 	print dol_get_fiche_end();
 
-	// === Important: reset floats so the grid starts below the header ===
 	print '<div class="clearboth"></div>';
 
 	// ---- Chargement des tâches et lignes existantes ----
 	$tasks = $object->getAssignedTasks($object->fk_user); // Doit exister dans TimesheetWeek
 	$lines = $object->getLines(); // $lines[taskid][YYYY-mm-dd]
 
-	// Pré-remplir l’entête jour Zone/Panier à partir d'une ligne existante
+	// Dates de la semaine
 	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
 	$weekdates = array();
 	foreach($days as $d){ $weekdates[$d]=$dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
+	// Préremplissage Zone/Panier à partir d'une ligne existante
 	$dayHeaderDefaults = array();
 	foreach ($weekdates as $dname => $ymd) {
 		$found = false;
@@ -341,7 +341,7 @@ elseif ($id > 0 && $action != 'create') {
 		}
 		print '<th>'.$langs->trans("Total").'</th></tr>';
 
-		// zone + meal (préremplissage depuis $dayHeaderDefaults)
+		// zone + meal
 		print '<tr class="liste_titre"><td></td>';
 		foreach($days as $d){
 			$daydate = $weekdates[$d];
@@ -412,7 +412,7 @@ elseif ($id > 0 && $action != 'create') {
 
 		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 	}
-	print '</form>'; // <= close the grid form only here
+	print '</form>'; // close grid form
 
 	// boutons
 	print '<div class="tabsAction">';
@@ -436,6 +436,54 @@ print <<<'JS'
 </script>
 JS;
 
+// JS totaux (mise à jour au chargement de la page)
+print sprintf("
+<script>
+(function($){
+function parseHours(v){if(!v)return 0;if(v.indexOf(':')==-1)return parseFloat(v)||0;var p=v.split(':');var h=parseInt(p[0],10)||0;var m=parseInt(p[1],10)||0;return h+(m/60);}
+function formatHours(d){if(isNaN(d))return '00:00';var h=Math.floor(d);var m=Math.round((d-h)*60);if(m===60){h++;m=0;}return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+function updateTotals(){
+	var grand=0;
+	$('.task-total').text('00:00');
+	$('.day-total').text('00:00');
+
+	// reset totaux jour
+	var headTotalRow = $('tr.liste_total').first();
+	headTotalRow.find('td').each(function(i){ if(i>0 && $(this).hasClass('right')) $(this).text('00:00'); });
+
+	$('tr').each(function(){
+		var rowT=0;
+		$(this).find('input.hourinput').each(function(){
+			var v=parseHours($(this).val());
+			if(!isNaN(v) && v>0){
+				rowT+=v;
+				var idx=$(this).closest('td').index();
+				var cell=$('tr.liste_total').first().find('td').eq(idx);
+				var cur=parseHours(cell.text());
+				cell.text(formatHours(cur+v));
+				grand+=v;
+			}
+		});
+		if(rowT>0) $(this).find('.task-total').text(formatHours(rowT));
+	});
+	$('.grand-total').text(formatHours(grand));
+
+	// Meals
+	$('.meal-total').text($('.mealbox:checked').length);
+
+	// OT
+	var ot=grand-".((float)(isset($contractedHours)?$contractedHours:35.0)).";
+	if(ot<0) ot=0;
+	$('.overtime-total').text(formatHours(ot));
+}
+// Attache les events + lance un calcul initial au chargement
+$(function(){
+	$(document).on('input change','input.hourinput, input.mealbox',updateTotals);
+	updateTotals(); // <-- calcule dès le chargement
+});
+})(jQuery);
+</script>");
+ 
 // End of page
 llxFooter();
 $db->close();
