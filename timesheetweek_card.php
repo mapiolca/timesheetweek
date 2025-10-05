@@ -51,6 +51,7 @@ $permWriteChild    = $user->hasRight('timesheetweek','timesheetweek','writeChild
 $permWriteAll      = $user->hasRight('timesheetweek','timesheetweek','writeAll');
 
 $permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');
+$permValidateOwn   = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
 $permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAll');
 
@@ -58,11 +59,11 @@ $permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
 $permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
 
+// Aides
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
-// ---- Helpers ----
 /**
  * Vérifie si $user courant a le droit d’agir (écriture) sur la fiche du salarié $userid selon la portée.
  */
@@ -76,15 +77,25 @@ function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
 	return false;
 }
 /**
- * Vérifie si $user courant a le droit de valider sur la fiche du salarié $userid selon la portée.
+ * Renvoie true si $user est manager du salarié $userid
  */
-function tw_can_validate_on_user($userid, $own, $child, $all, User $user) {
-	if ($all) return true;
-	if ($own && ((int)$userid === (int)$user->id)) return true;
-	if ($child) {
-		$subs = $user->getAllChildIds(1);
-		if (is_array($subs) && in_array((int)$userid, $subs, true)) return true;
-	}
+function tw_is_manager_of($userid, User $user) {
+	$subs = $user->getAllChildIds(1);
+	return (is_array($subs) && in_array((int)$userid, $subs, true));
+}
+/**
+ * Peut valider/refuser ?
+ * Règles :
+ * - validateAll => oui
+ * - validateChild et est manager => oui
+ * - validateOwn et user.id == salarié => oui
+ * - validate et user.id == validateur désigné => oui
+ */
+function tw_can_validate_timesheet(TimesheetWeek $o, User $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll) {
+	if ($permValidateAll) return true;
+	if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
+	if ($permValidateOwn && ((int)$user->id === (int)$o->fk_user)) return true;
+	if ($permValidate && ((int)$user->id === (int)$o->fk_user_valid)) return true;
 	return false;
 }
 
@@ -364,13 +375,8 @@ if ($action === 'setdraft' && $id > 0) {
 		exit;
 	}
 
-	$canEmployee = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-	$canValidator = false;
-	if ((int)$user->id === (int)$object->fk_user_valid && ($permValidate || $permValidateChild || $permValidateAll)) {
-		$canValidator = true;
-	} elseif (tw_can_validate_on_user($object->fk_user, $permValidate, $permValidateChild, $permValidateAll, $user)) {
-		$canValidator = true;
-	}
+	$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
+	$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 
 	if (!$canEmployee && !$canValidator) {
 		accessforbidden();
@@ -387,13 +393,63 @@ if ($action === 'setdraft' && $id > 0) {
 	exit;
 }
 
+// ----------------- Action: VALIDATE (Approuver) -----------------
+if ($action === 'validate' && $id > 0) {
+	if ($object->id <= 0) $object->fetch($id);
+	if ($object->status != TimesheetWeek::STATUS_SUBMITTED) {
+		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
+	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) {
+		accessforbidden();
+	}
+
+	$object->status = TimesheetWeek::STATUS_VALIDATED;
+	$object->date_validation = dol_now();
+	if (empty($object->fk_user_valid)) $object->fk_user_valid = $user->id; // si non défini, on renseigne
+	$res = $object->update($user);
+	if ($res > 0) {
+		setEventMessages($langs->trans("TimesheetValidated"), null, 'mesgs');
+	} else {
+		setEventMessages($object->error, $object->errors, 'errors');
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
+// ----------------- Action: REFUSE (Refuser) -----------------
+if ($action === 'refuse' && $id > 0) {
+	if ($object->id <= 0) $object->fetch($id);
+	if ($object->status != TimesheetWeek::STATUS_SUBMITTED) {
+		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
+	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) {
+		accessforbidden();
+	}
+
+	$object->status = TimesheetWeek::STATUS_REFUSED;
+	$res = $object->update($user);
+	if ($res > 0) {
+		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+	} else {
+		setEventMessages($object->error, $object->errors, 'errors');
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
 // ----------------- Action: Delete -----------------
 if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
-	if (!tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
-		accessforbidden();
-	}
+	// autoriser delete si brouillon par auteur/droits, ou si soumis et validateur (selon demande)
+	$canDeleteDraft = ($object->status == TimesheetWeek::STATUS_DRAFT) && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user);
+	$canDeleteSubmittedByValidator = ($object->status == TimesheetWeek::STATUS_SUBMITTED) && tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+
+	if (!$canDeleteDraft && !$canDeleteSubmittedByValidator) accessforbidden();
 
 	$res = $object->delete($user);
 	if ($res > 0) {
@@ -492,7 +548,7 @@ JS;
 			$langs->trans('ConfirmDeleteObject'),
 			'confirm_delete',
 			array(),
-			'no',
+			'yes',
 			1
 		);
 		print $formconfirm;
@@ -892,25 +948,40 @@ JS;
 		echo $jsGrid;
 	}
 
-	// Boutons d’action (barre)
+	// ---- Boutons d’action (barre) ----
 	echo '<div class="tabsAction">';
-	// Supprimer (en brouillon)
+
+	$token = newToken();
+
+	// Supprimer (en brouillon par auteur/droits)
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
-		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
+		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 	}
+
 	// Soumettre (si brouillon + droits écriture)
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-		echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit');
+		echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
 	}
+
 	// Retour au brouillon (si soumis + salarié ou validateur)
 	if ($object->status == TimesheetWeek::STATUS_SUBMITTED) {
-		$canEmployee = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-		$canValidator = ((int)$user->id === (int)$object->fk_user_valid && ($permValidate || $permValidateChild || $permValidateAll))
-			|| tw_can_validate_on_user($object->fk_user, $permValidate, $permValidateChild, $permValidateAll, $user);
+		$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
+		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+
 		if ($canEmployee || $canValidator) {
-			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft');
+			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
+		}
+
+		// Valider / Refuser / Supprimer pour les validateurs (validate / validateChild / validateAll / validateOwn)
+		if ($canValidator) {
+			echo dolGetButtonAction('', $langs->trans("Validate"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=validate&token='.$token);
+			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=refuse&token='.$token);
+
+			// Supprimer si soumise et valideur (demande explicite)
+			echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 		}
 	}
+
 	echo '</div>';
 }
 
