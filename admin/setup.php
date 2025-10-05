@@ -66,8 +66,6 @@ $helpurl = '';
 
 llxHeader('', $title, $helpurl);
 
-// Link-back to module list
-$linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?mainmenu=home">'.$langs->trans("BackToModuleList").'</a>';
 print load_fiche_titre($langs->trans("TimesheetWeekSetup"), '', 'bookcal@timesheetweek');
 print '<br>';
 
@@ -108,25 +106,46 @@ foreach ($dirmodels as $reldir) {
 		if (!class_exists($classname)) continue;
 
 		// Instantiate
-		$object = null;
+		$gen = null;
 		try {
-			$object = new $classname();
+			$gen = new $classname();
 		} catch (Throwable $e) {
 			// Some generators require $db in constructor, try with it
 			try {
-				$object = new $classname($db);
+				$gen = new $classname($db);
 			} catch (Throwable $e2) {
 				continue;
 			}
 		}
 
-		// Human label/desc
-		$label = (property_exists($object, 'name') && $object->name) ? $object->name : $classname;
-		$desc  = '';
-		if (method_exists($object, 'info')) {
-			$desc = $object->info();
-		} elseif (property_exists($object, 'desc')) {
-			$desc = $object->desc;
+		// Human label
+		$label = (property_exists($gen, 'name') && $gen->name) ? $gen->name : $classname;
+
+		// Robust description retrieval:
+		$desc = '';
+		if (method_exists($gen, 'info')) {
+			try {
+				$rm = new ReflectionMethod($gen, 'info');
+				$nb = $rm->getNumberOfParameters();
+				if ($nb == 0) {
+					$desc = $gen->info();
+				} else {
+					// Try with $langs first (most common), fallback to $db
+					try {
+						$desc = $gen->info($langs);
+					} catch (Throwable $e) {
+						try {
+							$desc = $gen->info($db);
+						} catch (Throwable $e2) {
+							$desc = '';
+						}
+					}
+				}
+			} catch (Throwable $e) {
+				// ignore
+			}
+		} elseif (property_exists($gen, 'desc')) {
+			$desc = $gen->desc;
 		}
 
 		print '<tr class="oddeven">';
