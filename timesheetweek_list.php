@@ -1,360 +1,536 @@
 <?php
-/* Copyright (C)
- * 2025 - Pierre ARDOIN
- *
-  * GPLv3
+/*  TimesheetWeek - List
+ *  GPLv3
  */
 
-// Load Dolibarr environment (robust include for custom/)
 $res = 0;
 if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
 if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
 if (!$res) die("Include of main fails");
+
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formother.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // formatHours()
 
-$langs->loadLangs(array('timesheetweek@timesheetweek','users','other'));
+$langs->loadLangs(array('timesheetweek@timesheetweek','users','projects','other'));
 
-// Rights (Dolibarr standard)
-$permRead          = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
-$permReadAll       = $user->hasRight('timesheetweek', 'timesheetweek', 'readAll');
-$permReadChild     = $user->hasRight('timesheetweek', 'timesheetweek', 'readChild');
-
-$permCreate        = $user->hasRight('timesheetweek', 'timesheetweek', 'create');
-$permCreateChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'createChild');
-$permCreateAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'createAll');
-
-if (!$permRead && !$permReadChild && !$permReadAll) accessforbidden();
-
-$childids = $user->getAllChildIds(1);
+/**
+ * Status shim, same idea as in card
+ */
+function tw_status($name) {
+	static $map = null;
+	if ($map === null) {
+		$approved = null;
+		if (defined('TimesheetWeek::STATUS_APPROVED')) {
+			$approved = TimesheetWeek::STATUS_APPROVED;
+		} elseif (defined('TimesheetWeek::STATUS_VALIDATED')) {
+			$approved = TimesheetWeek::STATUS_VALIDATED;
+		} else {
+			$approved = 2;
+		}
+		$map = array(
+			'draft'     => defined('TimesheetWeek::STATUS_DRAFT')     ? TimesheetWeek::STATUS_DRAFT     : 0,
+			'submitted' => defined('TimesheetWeek::STATUS_SUBMITTED') ? TimesheetWeek::STATUS_SUBMITTED : 1,
+			'approved'  => $approved,
+			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
+		);
+	}
+	return $map[$name];
+}
+function tw_can_validate_timesheet_row($rowUserId, $rowValidatorId, User $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll) {
+	if ($permValidateAll) return true;
+	if ($permValidateOwn && (int)$user->id === (int)$rowUserId) return true;
+	if ($permValidate && (int)$user->id === (int)$rowValidatorId) return true;
+	if ($permValidateChild) {
+		$subs = $user->getAllChildIds(1);
+		if (is_array($subs) && in_array((int)$rowUserId, $subs, true)) return true;
+	}
+	return false;
+}
+function tw_can_delete_timesheet_row($rowUserId, User $user, $permDelete, $permDeleteChild, $permDeleteAll) {
+	if ($permDeleteAll) return true;
+	if ($permDelete && (int)$user->id === (int)$rowUserId) return true;
+	if ($permDeleteChild) {
+		$subs = $user->getAllChildIds(1);
+		if (is_array($subs) && in_array((int)$rowUserId, $subs, true)) return true;
+	}
+	return false;
+}
 
 // Params
 $action      = GETPOST('action', 'aZ09');
-$contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
+$massaction  = GETPOST('massaction', 'alpha');
+$confirm     = GETPOST('confirm', 'alpha');
+$toselect    = GETPOST('toselect', 'array');
+$contextpage = GETPOST('contextpage', 'aZ09') ?: 'timesheetweeklist';
+$optioncss   = GETPOST('optioncss', 'alpha');
 
-$limit    = GETPOSTINT('limit') ?: $conf->liste_limit;
-$sortfield= GETPOST('sortfield', 'aZ09comma');
-$sortorder= GETPOST('sortorder', 'aZ09comma');
-$page     = GETPOSTISSET('pageplusone') ? (GETPOSTINT('pageplusone') - 1) : GETPOSTINT('page');
-if (empty($page) || $page == -1) $page = 0;
-$offset = $limit * $page;
-
+// Pagination/tri
+$limit     = GETPOSTINT('limit') ? GETPOSTINT('limit') : $conf->liste_limit;
+$sortfield = GETPOST('sortfield', 'aZ09comma');
+$sortorder = GETPOST('sortorder', 'aZ09comma');
+$page      = GETPOSTISSET('pageplusone') ? (GETPOSTINT('pageplusone') - 1) : GETPOSTINT("page");
+if (empty($page) || $page < 0) $page = 0;
+$offset    = $limit * $page;
 if (empty($sortfield)) $sortfield = 't.rowid';
 if (empty($sortorder)) $sortorder = 'DESC';
 
 // Filters
-$search_all      = trim(GETPOST('search_all', 'alphanohtml'));
-$search_ref      = GETPOST('search_ref','alpha');
-$search_user     = GETPOST('search_user','intcomma');
-$search_validator= GETPOST('search_validator','intcomma');
-$search_year     = GETPOSTINT('search_year');
-$search_week     = GETPOSTINT('search_week');
-$search_status   = GETPOST('search_status','intcomma');
+$search_all     = trim(GETPOST('search_all', 'alphanohtml'));
+$search_ref     = GETPOST('search_ref', 'alpha');
+$search_user    = GETPOST('search_user', 'intcomma');
+$search_year    = GETPOST('search_year', 'intcomma');
+$search_week    = GETPOST('search_week', 'intcomma');
+$search_status  = GETPOST('search_status', 'intcomma');
+$search_total_h = GETPOST('search_total_hours', 'alpha');
+$search_ot_h    = GETPOST('search_overtime_hours', 'alpha');
 
-// Objects
-$form = new Form($db);
+$search_datecday   = GETPOSTINT('search_datecday');
+$search_datecmonth = GETPOSTINT('search_datecmonth');
+$search_datecyear  = GETPOSTINT('search_datecyear');
+$search_datecendday   = GETPOSTINT('search_datecendday');
+$search_datecendmonth = GETPOSTINT('search_datecendmonth');
+$search_datecendyear  = GETPOSTINT('search_datecendyear');
+$search_datec = dol_mktime(0, 0, 0, $search_datecmonth, $search_datecday, $search_datecyear);
+$search_datec_end = dol_mktime(23, 59, 59, $search_datecendmonth, $search_datecendday, $search_datecendyear);
+
+// Object
 $object = new TimesheetWeek($db);
 $extrafields = new ExtraFields($db);
-$extrafields->fetch_name_optionals_label($object->table_element);
 
-$fieldstosearchall = array(
-	't.ref'=>'Ref',
-	'u.lastname'=>'Lastname',
-	'u.firstname'=>'Firstname',
-	't.note'=>'Note'
-);
+// Permissions (nouveau modèle)
+$permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
+$permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
+$permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
 
+$permWrite         = $user->hasRight('timesheetweek','timesheetweek','write');
+$permWriteChild    = $user->hasRight('timesheetweek','timesheetweek','writeChild');
+$permWriteAll      = $user->hasRight('timesheetweek','timesheetweek','writeAll');
+
+$permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');
+$permValidateOwn   = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
+$permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+
+$permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
+$permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
+$permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
+
+if (!($permRead || $permReadChild || $permReadAll)) accessforbidden();
+
+// Build allowed user ids for list restriction
+$allowedUserIds = array((int) $user->id);
+if ($permReadAll) {
+	$allowedUserIds = array(); // no restriction
+} elseif ($permReadChild) {
+	$childs = $user->getAllChildIds(1);
+	if (is_array($childs)) $allowedUserIds = array_unique(array_merge($allowedUserIds, array_map('intval',$childs)));
+}
+
+// Array fields (selectable columns)
 $arrayfields = array(
-	't.ref' => array('label'=>$langs->trans("Ref"), 'checked'=>1),
-	'user'  => array('label'=>$langs->trans("Employee"), 'checked'=>1),
-	't.year'=> array('label'=>$langs->trans("Year"), 'checked'=>1),
-	't.week'=> array('label'=>$langs->trans("Week"), 'checked'=>1),
-	'validator' => array('label'=>$langs->trans("Validator"), 'checked'=>1),
-	't.total_hours' => array('label'=>$langs->trans("TotalHours"), 'checked'=>1),
-	't.overtime_hours' => array('label'=>$langs->trans("Overtime"), 'checked'=>1),
-	't.status' => array('label'=>$langs->trans("Status"), 'checked'=>1),
-	't.date_creation' => array('label'=>$langs->trans("DateCreation"), 'checked'=>0),
-	't.tms' => array('label'=>$langs->trans("DateModificationShort"), 'checked'=>0)
+	't.ref'              => array('label'=>$langs->trans("Ref"), 'checked'=>1),
+	'user'               => array('label'=>$langs->trans("User"), 'checked'=>1),
+	't.year'             => array('label'=>$langs->trans("Year"), 'checked'=>1),
+	't.week'             => array('label'=>$langs->trans("Week"), 'checked'=>1),
+	't.total_hours'      => array('label'=>$langs->trans("TotalHours"), 'checked'=>1),
+	't.overtime_hours'   => array('label'=>$langs->trans("Overtime"), 'checked'=>1),
+	'validator'          => array('label'=>$langs->trans("Validator"), 'checked'=>1),
+	't.date_creation'    => array('label'=>$langs->trans("DateCreation"), 'checked'=>0),
+	't.date_validation'  => array('label'=>$langs->trans("DateValidation"), 'checked'=>0),
+	't.tms'              => array('label'=>$langs->trans("DateModificationShort"), 'checked'=>0),
+	't.status'           => array('label'=>$langs->trans("Status"), 'checked'=>1),
 );
-// Extra fields
-include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_array_fields.tpl.php';
+
+// Selection of new fields (persist user setup)
+include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
 
 // Purge filters
-if (GETPOST('button_removefilter', 'alpha') || GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha')) {
-	$search_ref=$search_user=$search_validator=$search_year=$search_week=$search_status='';
-	$search_all='';
+if (GETPOST('button_removefilter_x','alpha') || GETPOST('button_removefilter.x','alpha') || GETPOST('button_removefilter','alpha')) {
+	$search_all = $search_ref = '';
+	$search_user = $search_year = $search_week = $search_status = '';
+	$search_total_h = $search_ot_h = '';
+	$search_datecday = $search_datecmonth = $search_datecyear = '';
+	$search_datecendday = $search_datecendmonth = $search_datecendyear = '';
 }
 
-// SQL
-$sql = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.date_validation, t.fk_user_valid, t.tms, t.total_hours, t.overtime_hours";
-$sql .= ", u.rowid as uid, u.lastname as ulastname, u.firstname as ufirstname, u.login as ulogin";
-$sql .= ", v.rowid as vid, v.lastname as vlastname, v.firstname as vfirstname, v.login as vlogin";
-// Extra
-if (!empty($extrafields->attributes[$object->table_element]['label'])) {
-	foreach ($extrafields->attributes[$object->table_element]['label'] as $key => $val) {
-		if ($extrafields->attributes[$object->table_element]['type'][$key] != 'separate') {
-			$sql .= ", ef.".$db->escape($key)." as options_".$db->escape($key);
+// Handle mass actions (approve/refuse/delete)
+if ($massaction == 'mass_approve' && is_array($toselect) && count($toselect)) {
+	$error=0; $ok=0;
+	foreach ($toselect as $rowid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int)$rowid) > 0) {
+			$can = tw_can_validate_timesheet_row($tw->fk_user, $tw->fk_user_valid, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+			if ($can && (int)$tw->status === (int) tw_status('submitted')) {
+				$tw->fk_user_valid = (int)$user->id;
+				$tw->date_validation = dol_now();
+				$tw->status = tw_status('approved');
+				if ($tw->update($user) > 0) $ok++; else $error++;
+			}
 		}
 	}
+	if ($ok) setEventMessages($langs->trans("TimesheetApproved").' ('.$ok.')', null, 'mesgs');
+	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
+	$massaction='';
 }
-$sqlfields = $sql;
-
-$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
-if (!empty($extrafields->attributes[$object->table_element]['label'])) {
-	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX.$object->table_element."_extrafields as ef on (t.rowid = ef.fk_object)";
+if ($massaction == 'mass_refuse' && is_array($toselect) && count($toselect)) {
+	$error=0; $ok=0;
+	foreach ($toselect as $rowid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int)$rowid) > 0) {
+			$can = tw_can_validate_timesheet_row($tw->fk_user, $tw->fk_user_valid, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+			if ($can && (int)$tw->status === (int) tw_status('submitted')) {
+				$tw->fk_user_valid = (int)$user->id;
+				$tw->date_validation = dol_now();
+				$tw->status = tw_status('refused');
+				if ($tw->update($user) > 0) $ok++; else $error++;
+			}
+		}
+	}
+	if ($ok) setEventMessages($langs->trans("TimesheetRefused").' ('.$ok.')', null, 'mesgs');
+	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
+	$massaction='';
 }
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
-$sql .= " WHERE t.entity IN (".getEntity('timesheetweek').")";
+if ($massaction == 'predelete' && $confirm == 'yes' && is_array($toselect) && count($toselect)) {
+	$error=0; $ok=0;
+	foreach ($toselect as $rowid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int)$rowid) > 0) {
+			$can = tw_can_delete_timesheet_row($tw->fk_user, $user, $permDelete, $permDeleteChild, $permDeleteAll);
+			if ($can) {
+				if ($tw->delete($user) > 0) $ok++; else $error++;
+			}
+		}
+	}
+	if ($ok) setEventMessages($langs->trans("RecordDeleted").' ('.$ok.')', null, 'mesgs');
+	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
+	$massaction='';
+}
 
-// Search all
-if (!empty($search_all)) $sql .= natural_search(array_keys($fieldstosearchall), $search_all);
+// Build SQL
+$sql = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.date_validation, t.fk_user_valid, t.tms, t.total_hours, t.overtime_hours";
+$sql.= ", u.rowid as uid, u.lastname as ulastname, u.firstname as ufirstname, u.login as ulogin";
+$sql.= ", v.rowid as vid, v.lastname as vlastname, v.firstname as vfirstname, v.login as vlogin";
+$sql.= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
+$sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
+$sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
+$sql.= " WHERE t.entity IN (".getEntity('timesheetweek').")";
 
-// Filters
-if ($search_ref)     $sql .= natural_search('t.ref', $search_ref);
-if ($search_user !== '' && $search_user >= 0) $sql .= " AND t.fk_user IN (".$db->sanitize($search_user).")";
-if ($search_validator !== '' && $search_validator >= 0) $sql .= " AND t.fk_user_valid IN (".$db->sanitize($search_validator).")";
-if ($search_year)    $sql .= " AND t.year = ".((int)$search_year);
-if ($search_week)    $sql .= " AND t.week = ".((int)$search_week);
-if ($search_status !== '' && $search_status >= 0) $sql .= " AND t.status IN (".$db->sanitize($search_status).")";
-
-// Rights restriction
+// Restrict rights
 if (!$permReadAll) {
-	if ($permReadChild) {
-		$all = $childids;
-		$all[] = $user->id;
-		if (empty($all)) $all = array(0);
-		$sql .= " AND t.fk_user IN (".$db->sanitize(implode(',', $all)).")";
-	} elseif ($permRead) {
-		$sql .= " AND t.fk_user = ".((int)$user->id);
-	} else {
-		$sql .= " AND 1=0";
+	// Restrict to allowed users (own + childs)
+	if (!empty($allowedUserIds)) {
+		$sql .= " AND t.fk_user IN (".implode(',', array_map('intval', $allowedUserIds)).")";
 	}
 }
 
-// Where from extrafields
-include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_sql.tpl.php';
-
-// Count for pagination
-$nbtotalofrecords = '';
-if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
-	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
-	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
-	$rescount = $db->query($sqlforcount);
-	if ($rescount) {
-		$objforcount = $db->fetch_object($rescount);
-		$nbtotalofrecords = $objforcount->nbtotalofrecords;
-		$db->free($rescount);
-	}
-	if (($page * $limit) > $nbtotalofrecords) {
-		$page = 0; $offset = 0;
-	}
+// Global search
+if (!empty($search_all)) {
+	$sql .= natural_search(array('t.ref','u.lastname','u.firstname','v.lastname','v.firstname','t.note'), $search_all);
 }
+// Specific filters
+if (!empty($search_ref))    $sql .= natural_search('t.ref', $search_ref);
+if ($search_user !== '' && $search_user >= 0) $sql .= " AND t.fk_user IN (".$db->sanitize($search_user).")";
+if ($search_year !== '' && $search_year >= 0) $sql .= " AND t.year = ".((int)$search_year);
+if ($search_week !== '' && $search_week >= 0) $sql .= " AND t.week = ".((int)$search_week);
+if ($search_status !== '' && $search_status >= 0) $sql .= " AND t.status IN (".$db->sanitize($search_status).")";
+if ($search_total_h !== '') $sql .= natural_search('t.total_hours', $search_total_h, 1);
+if ($search_ot_h    !== '') $sql .= natural_search('t.overtime_hours', $search_ot_h, 1);
+if ($search_datec)      $sql .= " AND t.date_creation >= '".$db->idate($search_datec)."'";
+if ($search_datec_end)  $sql .= " AND t.date_creation <= '".$db->idate($search_datec_end)."'";
 
-// Order & limit
+// Count
+$sqlcount = preg_replace('/SELECT .* FROM/i', 'SELECT COUNT(*) as nb FROM', $sql);
+$sqlcount = preg_replace('/ORDER BY .*$/i', '', $sqlcount);
+$resc = $db->query($sqlcount);
+$nbtotalofrecords = 0;
+if ($resc) { $obj = $db->fetch_object($resc); $nbtotalofrecords = (int) $obj->nb; $db->free($resc); }
+
 $sql .= $db->order($sortfield, $sortorder);
 if ($limit) $sql .= $db->plimit($limit+1, $offset);
 
-// Query
 $resql = $db->query($sql);
-if (!$resql) dol_print_error($db);
+if (!$resql) {
+	dol_print_error($db);
+	exit;
+}
+$num = $db->num_rows($resql);
 
 // View
+$form = new Form($db);
+$formother = new FormOther($db);
+
 $title = $langs->trans("TimesheetWeekList");
+$help_url = '';
 $morejs = array();
 $morecss = array();
 
-llxHeader('', $title, '', '', 0, 0, $morejs, $morecss, '', 'bodyforlist');
+llxHeader('', $title, $help_url, '', 0, 0, $morejs, $morecss, '', 'bodyforlist');
 
-$newbtn = '';
-// New button if allowed (any create scope)
-if ($permCreate || $permCreateChild || $permCreateAll) {
-	$newbtn = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?action=create');
+$param = '';
+if ($limit && $limit != $conf->liste_limit) $param .= '&limit='.((int)$limit);
+if ($optioncss) $param .= '&optioncss='.urlencode($optioncss);
+
+if ($search_all)     $param .= '&search_all='.urlencode($search_all);
+if ($search_ref)     $param .= '&search_ref='.urlencode($search_ref);
+if ($search_user !== '' && $search_user >= 0) $param .= '&search_user='.urlencode($search_user);
+if ($search_year !== '' && $search_year >= 0) $param .= '&search_year='.urlencode($search_year);
+if ($search_week !== '' && $search_week >= 0) $param .= '&search_week='.urlencode($search_week);
+if ($search_status !== '' && $search_status >= 0) $param .= '&search_status='.urlencode($search_status);
+if ($search_total_h !== '') $param .= '&search_total_hours='.urlencode($search_total_h);
+if ($search_ot_h    !== '') $param .= '&search_overtime_hours='.urlencode($search_ot_h);
+if ($search_datecday)      $param .= '&search_datecday='.((int)$search_datecday);
+if ($search_datecmonth)    $param .= '&search_datecmonth='.((int)$search_datecmonth);
+if ($search_datecyear)     $param .= '&search_datecyear='.((int)$search_datecyear);
+if ($search_datecendday)   $param .= '&search_datecendday='.((int)$search_datecendday);
+if ($search_datecendmonth) $param .= '&search_datecendmonth='.((int)$search_datecendmonth);
+if ($search_datecendyear)  $param .= '&search_datecendyear='.((int)$search_datecendyear);
+
+// Mass actions available
+$arrayofmassactions = array(
+	'mass_approve' => img_picto('', 'validate', 'class="pictofixedwidth"').($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
+	'mass_refuse'  => img_picto('', 'disable', 'class="pictofixedwidth"').$langs->trans("Refuse"),
+	'predelete'    => img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans("Delete"),
+);
+$massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+
+// Column selector + buttons on LEFT like native
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, 1);
+$selectedfields = $htmlofselectarray;
+$selectedfields .= $form->showCheckAddButtons('checkforselect', 1);
+
+// New button
+$newcardbutton = '';
+if ($user->hasRight('timesheetweek','timesheetweek','write') || $user->hasRight('timesheetweek','timesheetweek','writeChild') || $user->hasRight('timesheetweek','timesheetweek','writeAll')) {
+	$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create');
 }
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], '', $sortfield, $sortorder, '', $db->num_rows($resql), $nbtotalofrecords, 'bookcal', 0, $newbtn, '', $limit, 0, 0, 1);
+// Title bar
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit);
 
-// Filters form
-print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" id="searchFormList">';
+// Confirm pre-massaction (delete)
+$objecttmp = new TimesheetWeek($db);
+$trackid = 'tsw';
+include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
+
+// Search/filter form
+print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
+print '<input type="hidden" name="action" value="list">';
 print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 print '<input type="hidden" name="page" value="'.$page.'">';
 print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 
-$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
-$htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN'));
-$selectedfields = $htmlofselectarray;
-
 print '<div class="div-table-responsive">';
-print '<table class="tagtable nobottomiftotal liste">';
+print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n";
 
-// Search line
+// Line: filters (loupe on left)
 print '<tr class="liste_titre_filter">';
+// Left column: loupe + selected fields (and mass action check add)
+print '<td class="liste_titre center maxwidthsearch">';
+print $form->showFilterButtons('left');
+print '</td>';
 
+// Ref
 if (!empty($arrayfields['t.ref']['checked'])) {
-	print '<td class="liste_titre"><input class="flat" type="text" size="10" name="search_ref" value="'.dol_escape_htmltag($search_ref).'"></td>';
+	print '<td class="liste_titre left">';
+	print '<input class="flat" size="12" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+	print '</td>';
 }
+// User
 if (!empty($arrayfields['user']['checked'])) {
-	print '<td class="liste_titre">';
-	if ($permReadAll || $permReadChild) {
-		print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-	} else {
-		print $user->getNomUrl(-1);
-		print '<input type="hidden" name="search_user" value="'.((int)$user->id).'">';
-	}
+	print '<td class="liste_titre left minwidth200">';
+	print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
 	print '</td>';
 }
+// Year
 if (!empty($arrayfields['t.year']['checked'])) {
-	print '<td class="liste_titre"><input class="flat" type="text" size="4" name="search_year" value="'.($search_year ? (int)$search_year : '').'"></td>';
-}
-if (!empty($arrayfields['t.week']['checked'])) {
-	print '<td class="liste_titre"><input class="flat" type="text" size="3" name="search_week" value="'.($search_week ? (int)$search_week : '').'"></td>';
-}
-if (!empty($arrayfields['validator']['checked'])) {
-	print '<td class="liste_titre">';
-	print $form->select_dolusers($search_validator, 'search_validator', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+	print '<td class="liste_titre center">';
+	print '<input class="flat" size="4" type="text" name="search_year" value="'.dol_escape_htmltag($search_year).'">';
 	print '</td>';
 }
+// Week
+if (!empty($arrayfields['t.week']['checked'])) {
+	print '<td class="liste_titre center">';
+	print '<input class="flat" size="3" type="text" name="search_week" value="'.dol_escape_htmltag($search_week).'">';
+	print '</td>';
+}
+// Total hours
 if (!empty($arrayfields['t.total_hours']['checked'])) {
-	print '<td class="liste_titre right">&nbsp;</td>';
-}
-if (!empty($arrayfields['t.overtime_hours']['checked'])) {
-	print '<td class="liste_titre right">&nbsp;</td>';
-}
-if (!empty($arrayfields['t.status']['checked'])) {
 	print '<td class="liste_titre right">';
-	// Simple select for status
+	print '<input class="flat" size="6" type="text" name="search_total_hours" value="'.dol_escape_htmltag($search_total_h).'">';
+	print '</td>';
+}
+// Overtime
+if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+	print '<td class="liste_titre right">';
+	print '<input class="flat" size="6" type="text" name="search_overtime_hours" value="'.dol_escape_htmltag($search_ot_h).'">';
+	print '</td>';
+}
+// Validator
+if (!empty($arrayfields['validator']['checked'])) {
+	print '<td class="liste_titre left">&nbsp;</td>';
+}
+// Date creation
+if (!empty($arrayfields['t.date_creation']['checked'])) {
+	print '<td class="liste_titre center">';
+	print '<div class="nowrapfordate">';
+	print $form->selectDate($search_datec ? $search_datec : -1, 'search_datec', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('From'));
+	print '</div><div class="nowrapfordate">';
+	print $form->selectDate($search_datec_end ? $search_datec_end : -1, 'search_datecend', 0, 0, 1, '', 1, 0, 0, '', '', '', '', 1, '', $langs->trans('to'));
+	print '</div>';
+	print '</td>';
+}
+// Date validation
+if (!empty($arrayfields['t.date_validation']['checked'])) {
+	print '<td class="liste_titre center">&nbsp;</td>';
+}
+// Date modif
+if (!empty($arrayfields['t.tms']['checked'])) {
+	print '<td class="liste_titre center">&nbsp;</td>';
+}
+// Status
+if (!empty($arrayfields['t.status']['checked'])) {
+	print '<td class="liste_titre center">';
+	// Simple select status
 	print '<select class="flat" name="search_status">';
-	print '<option value=""></option>';
-	print '<option value="'.TimesheetWeek::STATUS_DRAFT.'"'.($search_status===''.TimesheetWeek::STATUS_DRAFT ? ' selected':'').'>'.$langs->trans("Draft").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_SUBMITTED.'"'.($search_status===''.TimesheetWeek::STATUS_SUBMITTED ? ' selected':'').'>'.$langs->trans("Submitted").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_APPROVED.'"'.($search_status===''.TimesheetWeek::STATUS_APPROVED ? ' selected':'').'>'.$langs->trans("Approved").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_REFUSED.'"'.($search_status===''.TimesheetWeek::STATUS_REFUSED ? ' selected':'').'>'.$langs->trans("Refused").'</option>';
+	$cur = ($search_status !== '' ? (int)$search_status : -1);
+	$statuses = array(
+		-1 => $langs->trans("All"),
+		tw_status('draft')     => $langs->trans("Draft"),
+		tw_status('submitted') => $langs->trans("Submitted"),
+		tw_status('approved')  => ($langs->trans("Approved")!='Approved'?$langs->trans("Approved"):'Approuvée'),
+		tw_status('refused')   => $langs->trans("Refused"),
+	);
+	foreach ($statuses as $k=>$lab) {
+		print '<option value="'.$k.'"'.($cur===$k?' selected':'').'>'.$lab.'</option>';
+	}
 	print '</select>';
 	print '</td>';
 }
-if (!empty($arrayfields['t.date_creation']['checked'])) print '<td class="liste_titre">&nbsp;</td>';
-if (!empty($arrayfields['t.tms']['checked'])) print '<td class="liste_titre">&nbsp;</td>';
-
-// Right column with buttons
-print '<td class="liste_titre center">';
-$searchpicto = $form->showFilterButtons();
-print $searchpicto;
+// Right column for filters if checkbox not on left — but we keep left-only layout, so show column selector here
+print '<td class="liste_titre center maxwidthsearch">';
+print $selectedfields;
 print '</td>';
 
-print '</tr>';
+print '</tr>'."\n";
 
-// Title line
+// Titles
 print '<tr class="liste_titre">';
-if (!empty($arrayfields['t.ref']['checked'])) print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], 't.ref', '', '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['user']['checked'])) print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], 'u.lastname', '', '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['t.year']['checked'])) print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], 't.year', '', '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['t.week']['checked'])) print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], 't.week', '', '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['validator']['checked'])) print_liste_field_titre($arrayfields['validator']['label'], $_SERVER["PHP_SELF"], 'v.lastname', '', '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['t.total_hours']['checked'])) print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], 't.total_hours', '', '', '', $sortfield, $sortorder, 'right');
-if (!empty($arrayfields['t.overtime_hours']['checked'])) print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], 't.overtime_hours', '', '', '', $sortfield, $sortorder, 'right');
-if (!empty($arrayfields['t.status']['checked'])) print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], 't.status', '', '', '', $sortfield, $sortorder, 'center');
-if (!empty($arrayfields['t.date_creation']['checked'])) print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], 't.date_creation', '', '', '', $sortfield, $sortorder, 'center');
-if (!empty($arrayfields['t.tms']['checked'])) print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], 't.tms', '', '', '', $sortfield, $sortorder, 'center');
-print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], '', '', '', '', $sortfield, $sortorder, 'center maxwidthsearch');
-print '</tr>';
+print_liste_field_titre('', $_SERVER["PHP_SELF"], "", '', '', '', $sortfield, $sortorder, 'maxwidthsearch center'); // left checkbox col
+
+if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
+if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder, 'left ');
+if (!empty($arrayfields['t.year']['checked']))           print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.week']['checked']))           print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.total_hours']['checked']))    print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", $param, '', '', $sortfield, $sortorder, 'right ');
+if (!empty($arrayfields['t.overtime_hours']['checked'])) print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", $param, '', '', $sortfield, $sortorder, 'right ');
+if (!empty($arrayfields['validator']['checked']))        print_liste_field_titre($arrayfields['validator']['label'], $_SERVER["PHP_SELF"], "v.lastname", $param, '', '', $sortfield, $sortorder, 'left ');
+if (!empty($arrayfields['t.date_creation']['checked']))  print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.date_validation']['checked']))print_liste_field_titre($arrayfields['t.date_validation']['label'], $_SERVER["PHP_SELF"], "t.date_validation", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.tms']['checked']))            print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.status']['checked']))         print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", $param, '', '', $sortfield, $sortorder, 'center ');
+
+print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', '', '', $sortfield, $sortorder, 'maxwidthsearch center ');
+print '</tr>'."\n";
 
 // Loop
-$totalarray = array();
-$nbtotalofrecords = (isset($nbtotalofrecords) ? $nbtotalofrecords : 0);
+$total_total_hours = 0;
+$total_overtime_hours = 0;
 
-$num = $resql ? $db->num_rows($resql) : 0;
+$tswstatic = new TimesheetWeek($db);
+$usertmp   = new User($db);
+$validtmp  = new User($db);
+
 $i = 0;
 $imax = ($limit ? min($num, $limit) : $num);
-
-$u = new User($db);
-$v = new User($db);
-$ts = new TimesheetWeek($db);
 
 while ($i < $imax) {
 	$obj = $db->fetch_object($resql);
 	if (!$obj) break;
 
-	print '<tr class="oddeven">';
+	print '<tr class="oddeven" data-rowid="'.$obj->rowid.'">';
+
+	// Left select checkbox
+	print '<td class="center">';
+	$selected = (is_array($toselect) && in_array($obj->rowid, $toselect)) ? ' checked' : '';
+	print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.(int)$obj->rowid.'"'.$selected.'>';
+	print '</td>';
+
+	$tswstatic->id = (int)$obj->rowid;
+	$tswstatic->ref = $obj->ref;
+	$tswstatic->status = (int)$obj->status;
 
 	// Ref
 	if (!empty($arrayfields['t.ref']['checked'])) {
-		$ts->id = $obj->rowid;
-		$ts->ref = $obj->ref;
-		print '<td class="nowrap">';
-		print '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?id='.$obj->rowid.'">'.dol_escape_htmltag($obj->ref).'</a>';
+		print '<td class="nowraponall">';
+		print $tswstatic->getNomUrl(1);
 		print '</td>';
 	}
-
 	// User
 	if (!empty($arrayfields['user']['checked'])) {
 		print '<td class="left">';
-		$u->id = $obj->uid;
-		$u->lastname = $obj->ulastname;
-		$u->firstname = $obj->ufirstname;
-		$u->login = $obj->ulogin;
-		print $u->getNomUrl(-1);
+		$usertmp->id = (int)$obj->uid; $usertmp->firstname = $obj->ufirstname; $usertmp->lastname = $obj->ulastname; $usertmp->login = $obj->ulogin;
+		print $usertmp->getNomUrl(-1);
 		print '</td>';
 	}
-
 	// Year
 	if (!empty($arrayfields['t.year']['checked'])) {
-		print '<td class="center">'.(int)$obj->year.'</td>';
+		print '<td class="center">'.dol_escape_htmltag($obj->year).'</td>';
 	}
-
 	// Week
 	if (!empty($arrayfields['t.week']['checked'])) {
-		print '<td class="center">'.(int)$obj->week.'</td>';
+		print '<td class="center">'.dol_escape_htmltag($obj->week).'</td>';
 	}
-
+	// Total hours
+	if (!empty($arrayfields['t.total_hours']['checked'])) {
+		print '<td class="right">'.formatHours((float)$obj->total_hours).'</td>';
+		$total_total_hours += (float)$obj->total_hours;
+	}
+	// Overtime hours
+	if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+		print '<td class="right">'.formatHours((float)$obj->overtime_hours).'</td>';
+		$total_overtime_hours += (float)$obj->overtime_hours;
+	}
 	// Validator
 	if (!empty($arrayfields['validator']['checked'])) {
 		print '<td class="left">';
-		if ((int)$obj->vid > 0) {
-			$v->id = $obj->vid;
-			$v->lastname = $obj->vlastname;
-			$v->firstname = $obj->vfirstname;
-			$v->login = $obj->vlogin;
-			print $v->getNomUrl(-1);
+		if (!empty($obj->vid)) {
+			$validtmp->id = (int)$obj->vid; $validtmp->firstname = $obj->vfirstname; $validtmp->lastname = $obj->vlastname; $validtmp->login = $obj->vlogin;
+			print $validtmp->getNomUrl(-1);
 		} else {
 			print '&nbsp;';
 		}
 		print '</td>';
 	}
-
-	// Total hours
-	if (!empty($arrayfields['t.total_hours']['checked'])) {
-		print '<td class="right">'.formatHours((float)$obj->total_hours).'</td>';
+	// Dates
+	if (!empty($arrayfields['t.date_creation']['checked'])) {
+		print '<td class="center">'.($obj->date_creation?dol_print_date($db->jdate($obj->date_creation),'dayhour'):'').'</td>';
 	}
-
-	// Overtime
-	if (!empty($arrayfields['t.overtime_hours']['checked'])) {
-		print '<td class="right">'.formatHours((float)$obj->overtime_hours).'</td>';
+	if (!empty($arrayfields['t.date_validation']['checked'])) {
+		print '<td class="center">'.($obj->date_validation?dol_print_date($db->jdate($obj->date_validation),'dayhour'):'').'</td>';
 	}
-
+	if (!empty($arrayfields['t.tms']['checked'])) {
+		print '<td class="center">'.($obj->tms?dol_print_date($db->jdate($obj->tms),'dayhour'):'').'</td>';
+	}
 	// Status
 	if (!empty($arrayfields['t.status']['checked'])) {
-		$ts->status = $obj->status;
-		print '<td class="center">'.$ts->getLibStatut(5).'</td>';
+		print '<td class="center nowrap">';
+		// Patch wording
+		$lib = $tswstatic->getLibStatut(5);
+		$lib = str_replace(array('Validée','Validated'), array('Approuvée','Approved'), $lib);
+		print $lib;
+		print '</td>';
 	}
 
-	// Date creation
-	if (!empty($arrayfields['t.date_creation']['checked'])) {
-		print '<td class="center">'.dol_print_date($db->jdate($obj->date_creation), 'dayhour').'</td>';
-	}
-
-	// TMS
-	if (!empty($arrayfields['t.tms']['checked'])) {
-		print '<td class="center">'.dol_print_date($db->jdate($obj->tms), 'dayhour').'</td>';
-	}
-
+	// Right col: selected fields control already displayed on left. Here we just keep symmetrical cell.
 	print '<td class="center">&nbsp;</td>';
 
 	print '</tr>';
@@ -363,10 +539,29 @@ while ($i < $imax) {
 }
 
 if ($num == 0) {
-	$colspan = 1;
-	foreach ($arrayfields as $key=>$val) if (!empty($val['checked'])) $colspan++;
+	$colspan = 1; // checkbox col
+	foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
+	$colspan++; // right col
 	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
+
+// Totals line
+print '<tr class="liste_total">';
+print '<td class="right">'.$langs->trans("Total").'</td>';
+// Then for each column add cells or skip
+if (!empty($arrayfields['t.ref']['checked']))            print '<td></td>';
+if (!empty($arrayfields['user']['checked']))             print '<td></td>';
+if (!empty($arrayfields['t.year']['checked']))           print '<td></td>';
+if (!empty($arrayfields['t.week']['checked']))           print '<td></td>';
+if (!empty($arrayfields['t.total_hours']['checked']))    print '<td class="right">'.formatHours($total_total_hours).'</td>';
+if (!empty($arrayfields['t.overtime_hours']['checked'])) print '<td class="right">'.formatHours($total_overtime_hours).'</td>';
+if (!empty($arrayfields['validator']['checked']))        print '<td></td>';
+if (!empty($arrayfields['t.date_creation']['checked']))  print '<td></td>';
+if (!empty($arrayfields['t.date_validation']['checked']))print '<td></td>';
+if (!empty($arrayfields['t.tms']['checked']))            print '<td></td>';
+if (!empty($arrayfields['t.status']['checked']))         print '<td></td>';
+print '<td></td>';
+print '</tr>';
 
 print '</table>';
 print '</div>';
