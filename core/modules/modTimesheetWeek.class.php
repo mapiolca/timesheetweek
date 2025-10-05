@@ -295,19 +295,49 @@ class modTimesheetWeek extends DolibarrModules
 		// Add here entries to declare new permissions
 		/* BEGIN MODULEBUILDER PERMISSIONS */
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 0 + 1);
-		$this->rights[$r][1] = 'Read TimesheetWeek object of TimesheetWeek';
+		$this->rights[$r][1] = 'Read his own TimesheetWeek';
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'read';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 1 + 1);
-		$this->rights[$r][1] = 'Create/Update TimesheetWeek object of TimesheetWeek';
+		$this->rights[$r][1] = 'Read Subordonate\'s TimesheetWeek';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'readChild';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
+		$this->rights[$r][1] = 'Read All TimesheetWeek';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'readAll';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
+		$this->rights[$r][1] = 'Create/Update TimesheetWeek for him';
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'write';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
-		$this->rights[$r][1] = 'Delete TimesheetWeek object of TimesheetWeek';
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 4 + 1);
+		$this->rights[$r][1] = 'Create/Update TimesheetWeek for his subordonnates';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'writeChild';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 5 + 1);
+		$this->rights[$r][1] = 'Create/Update TimesheetWeek for all';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'writeAll';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 6 + 1);
+		$this->rights[$r][1] = 'Delete His own TimesheetWeek';
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'delete';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 7 + 1);
+		$this->rights[$r][1] = 'Delete TimesheetWeek for his subordonnates';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'deleteChild';
+		$r++;
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
+		$this->rights[$r][1] = 'Delete TimesheetWeek for all';
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'deleteAll';
 		$r++;
 
 		/* END MODULEBUILDER PERMISSIONS */
