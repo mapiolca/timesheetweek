@@ -13,10 +13,12 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobjectline.class.php';
 
-class TimesheetWeekLine extends CommonObject
+class TimesheetWeekLine extends CommonObjectLine
 {
     public $element = 'timesheetweekline';
     public $table_element = 'timesheet_week_line';
+    public $fk_element = 'fk_timesheet_week';
+    public $parent_element = 'timesheetweek';
 
     public $fk_timesheet_week;
     public $fk_task;
