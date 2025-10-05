@@ -62,7 +62,7 @@ $search_note      = trim(GETPOST('search_note','alpha'));
 // Mass actions (placeholder)
 $massaction = GETPOST('massaction', 'alpha');
 
-// Manage remove filters
+// Remove filters
 if (GETPOST('button_removefilter_x') || GETPOST('button_removefilter')) {
 	$search_all = $search_ref = $search_note = '';
 	$search_user = $search_validator = $search_year = $search_week = 0;
@@ -94,9 +94,10 @@ $arrayfields = array(
 	't.tms'             => array('label'=>'DateModification','checked'=>0, 'position'=>130),
 );
 
-// Allow template to toggle columns (persist in session)
-$contextpage = 'timesheetweeklist';
-if (GETPOST('TSELECTEDFIELDS')) {
+// Allow selector to modify $arrayfields
+$varpage = $contextpage;
+$selectedfields = GETPOST('TSELECTEDFIELDS'); // handled by list.tpl.php
+if ($selectedfields) {
 	foreach ($arrayfields as $key => $val) {
 		$arrayfields[$key]['checked'] = GETPOSTISSET('TSELECTEDFIELDS_'.$key) ? 1 : 0;
 	}
@@ -202,7 +203,7 @@ print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 print '<input type="hidden" name="page" value="'.$page.'">';
 
-// Titre + barre
+// Title bar with pagination/top actions
 print_barre_liste(
 	$title,
 	$page,
@@ -221,17 +222,98 @@ print_barre_liste(
 	$limit
 );
 
-// --------------------------- List template header (columns selector) ---------------------------
-$varpage = $contextpage;
-
-$selectedfields = '';
-// Allow hooks to add/remove fields
+// --------------------------- Columns selector (list.tpl.php) ---------------------------
+$selectedfields = (string) $selectedfields; // ensure defined
 $parameters = array('arrayfields'=>&$arrayfields, 'selectedfields'=>&$selectedfields);
-$reshook = $hookmanager->executeHooks('printFieldListOption', $parameters, $object); // For more options on columns
-
+$hookmanager->executeHooks('printFieldListOption', $parameters, $object);
 include DOL_DOCUMENT_ROOT.'/core/tpl/list.tpl.php';
 
-// --------------------------- Table body ---------------------------
+// --------------------------- Table ---------------------------
+print '<div class="div-table-responsive">';
+print '<table class="tagtable liste">';
+
+// ---- Header row (sortable titles)
+print '<tr class="liste_titre">';
+foreach ($arrayfields as $key => $val) {
+	if (empty($val['checked'])) continue;
+	$align = (in_array($key, array('t.week','t.year','t.status','t.total_hours','t.overtime_hours')) ? 'right' : 'left');
+	print_liste_field_titre(
+		$langs->trans($val['label']),
+		$_SERVER["PHP_SELF"],
+		$key,
+		'',
+		$param,
+		'',
+		$align
+	);
+}
+print '</tr>';
+
+// ---- Filter row
+print '<tr class="liste_titre">';
+foreach ($arrayfields as $key => $val) {
+	if (empty($val['checked'])) continue;
+
+	$tdclass = 'liste_titre';
+	if (in_array($key, array('t.week','t.year','t.status'))) $tdclass .= ' right';
+	print '<td class="'.$tdclass.'">';
+
+	// Global search on first visible column
+	static $doneglobalsearch = false;
+	if (!$doneglobalsearch) {
+		print '<input type="text" class="flat" name="search_all" value="'.dol_escape_htmltag($search_all).'" placeholder="'.$langs->trans("Search").'">';
+		print '<br>';
+		$doneglobalsearch = true;
+	}
+
+	if ($key === 't.ref') {
+		print '<input class="flat" type="text" size="8" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
+	} elseif ($key === 't.fk_user') {
+		print $form->select_dolusers($search_user, 'search_user', 1, '', 0, '', '', 0, 0, 0, '', 0, '', 'minwidth150 maxwidth200');
+	} elseif ($key === 't.year') {
+		print '<input class="flat" type="number" min="2000" max="2099" name="search_year" value="'.($search_year>0?$search_year:'').'" style="width:80px">';
+	} elseif ($key === 't.week') {
+		print '<input class="flat" type="number" min="1" max="53" name="search_week" value="'.($search_week>0?$search_week:'').'" style="width:70px">';
+	} elseif ($key === 't.status') {
+		print '<select class="flat" name="search_status">';
+		print '<option value="-1">&nbsp;</option>';
+		$st = array(
+			0 => $langs->trans('Draft'),
+			1 => $langs->trans('InProgress'),
+			2 => $langs->trans('Submitted'),
+			3 => $langs->trans('Approved'),
+			4 => $langs->trans('Refused'),
+		);
+		foreach ($st as $k=>$lab) {
+			print '<option value="'.$k.'"'.(($search_status!==''
+				&& $search_status!=='-1'
+				&& (int)$search_status===$k)?' selected':'').'>'.$lab.'</option>';
+		}
+		print '</select>';
+	} elseif ($key === 't.note') {
+		print '<input class="flat quatrevingtpercent" type="text" name="search_note" value="'.dol_escape_htmltag($search_note).'">';
+	} elseif ($key === 't.fk_user_valid') {
+		print $form->select_dolusers($search_validator, 'search_validator', 1, '', 0, '', '', 0, 0, 0, '', 0, '', 'minwidth150 maxwidth200');
+	} else {
+		print '&nbsp;';
+	}
+
+	print '</td>';
+}
+
+// Search buttons (at end of filter row)
+print '</tr>';
+print '<tr class="liste_titre">';
+print '<td class="center" colspan="'.count(array_filter($arrayfields, function($v){return !empty($v['checked']);})).'">';
+print '<input type="submit" class="button small" name="button_search" value="'.$langs->trans('Search').'">';
+print '&nbsp; ';
+print '<input type="submit" class="button small button_removefilter" name="button_removefilter" value="'.$langs->trans('RemoveFilter').'">';
+print '</td>';
+print '</tr>';
+
+// ----------------------------------------------------------------------------
+// Fetch & render rows
+// ----------------------------------------------------------------------------
 $sqlList = $sql.$db->plimit($limit+1, $offset);
 $resql = $db->query($sqlList);
 if (!$resql) {
@@ -240,69 +322,6 @@ if (!$resql) {
 	$num = $db->num_rows($resql);
 	$i = 0;
 
-	$paramforheader = $param;
-
-	// ----- Filter row (under headers) -----
-	print '<tr class="liste_titre">';
-
-	foreach ($arrayfields as $key => $val) {
-		if (empty($val['checked'])) continue;
-
-		$tdclass = 'liste_titre';
-		if (in_array($key, array('t.week','t.year','t.status'))) $tdclass .= ' right';
-		print '<td class="'.$tdclass.'">';
-
-		// Global search (only once on first column if you want)
-		if ($key === array_key_first($arrayfields)) {
-			print '<input type="text" class="flat" name="search_all" value="'.dol_escape_htmltag($search_all).'" placeholder="'.$langs->trans("Search").'">';
-			print '<br>';
-		}
-
-		if ($key === 't.ref') {
-			print '<input class="flat" type="text" size="8" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
-		} elseif ($key === 't.fk_user') {
-			print $form->select_dolusers($search_user, 'search_user', 1, '', 0, '', '', 0, 0, 0, '', 0, '', 'minwidth150 maxwidth200');
-		} elseif ($key === 't.year') {
-			print '<input class="flat" type="number" min="2000" max="2099" name="search_year" value="'.($search_year>0?$search_year:'').'" style="width:80px">';
-		} elseif ($key === 't.week') {
-			print '<input class="flat" type="number" min="1" max="53" name="search_week" value="'.($search_week>0?$search_week:'').'" style="width:70px">';
-		} elseif ($key === 't.status') {
-			print '<select class="flat" name="search_status">';
-			print '<option value="-1">&nbsp;</option>';
-			$st = array(
-				0 => $langs->trans('Draft'),
-				1 => $langs->trans('InProgress'),
-				2 => $langs->trans('Submitted'),
-				3 => $langs->trans('Approved'),
-				4 => $langs->trans('Refused'),
-			);
-			foreach ($st as $k=>$lab) {
-				print '<option value="'.$k.'"'.(($search_status!==''
-					&& $search_status!=='-1'
-					&& (int)$search_status===$k)?' selected':'').'>'.$lab.'</option>';
-			}
-			print '</select>';
-		} elseif ($key === 't.note') {
-			print '<input class="flat quatrevingtpercent" type="text" name="search_note" value="'.dol_escape_htmltag($search_note).'">';
-		} elseif ($key === 't.fk_user_valid') {
-			print $form->select_dolusers($search_validator, 'search_validator', 1, '', 0, '', '', 0, 0, 0, '', 0, '', 'minwidth150 maxwidth200');
-		} else {
-			print '&nbsp;';
-		}
-
-		print '</td>';
-	}
-
-	// Search buttons
-	print '<td class="liste_titre center">';
-	print '<input type="submit" class="button small" name="button_search" value="'.$langs->trans('Search').'">';
-	print '&nbsp; ';
-	print '<input type="submit" class="button small button_removefilter" name="button_removefilter" value="'.$langs->trans('RemoveFilter').'">';
-	print '</td>';
-
-	print '</tr>';
-
-	// ----- Data rows -----
 	while ($i < min($num, $limit)) {
 		$obj = $db->fetch_object($resql);
 
@@ -391,12 +410,6 @@ if (!$resql) {
 			print '</td>';
 		}
 
-		// Action column (fiche)
-		print '<td class="center">';
-		$link = dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?id='.(int)$obj->rowid;
-		print '<a class="btn btn-link" href="'.$link.'">'.$langs->trans('Card').'</a>';
-		print '</td>';
-
 		print '</tr>';
 
 		$i++;
@@ -408,7 +421,7 @@ if (!$resql) {
 	$db->free($resql);
 }
 
-// Footer action bar (new)
+// Bottom action bar
 print '<div class="tabsAction">';
 if ($permWrite) {
 	print '<a class="butActionNew" href="'.dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?action=create">'.$langs->trans("New").'</a>';
