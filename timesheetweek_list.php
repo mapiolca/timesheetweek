@@ -240,7 +240,7 @@ $massactions = array(
 );
 $massactionbutton = $form->selectMassAction('', $massactions);
 
-// Barre liste (haut du tableau)
+// Barre liste (haut du tableau à angles arrondis)
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newbutton, '', $limit, 0, 0, 1);
 
 // Form list
@@ -255,11 +255,33 @@ print '<input type="hidden" name="page" value="'.$page.'">';
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n";
 
-// ---- Filter row
-print '<tr class="liste_titre_filter">';
-// Column selector + filter buttons at left
+// ---- Title row (en premier pour avoir les angles arrondis)
 $varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
 $selectedfieldshtml = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN'));
+
+print '<tr class="liste_titre">';
+// 1ère cellule : sélecteur de colonnes + select all
+print '<td class="liste_titre center maxwidthsearch">';
+print $selectedfieldshtml;
+print '<div class="small opacitymedium margintoponly"><label><input type="checkbox" id="selectallrows"> '.$langs->trans("SelectAll").'</label></div>';
+print '</td>';
+
+if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
+if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder);
+if (!empty($arrayfields['t.year']['checked']))           print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.week']['checked']))           print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.total_hours']['checked']))    print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", $param, '', '', $sortfield, $sortorder, 'right ');
+if (!empty($arrayfields['t.overtime_hours']['checked'])) print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", $param, '', '', $sortfield, $sortorder, 'right ');
+if (!empty($arrayfields['t.date_creation']['checked']))  print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.date_validation']['checked']))print_liste_field_titre($arrayfields['t.date_validation']['label'], $_SERVER["PHP_SELF"], "t.date_validation", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.tms']['checked']))            print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", $param, '', '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.status']['checked']))         print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", $param, '', '', $sortfield, $sortorder, 'center ');
+print '<td class="liste_titre center maxwidthsearch"></td>';
+print '</tr>';
+
+// ---- Filter row (après les titres)
+print '<tr class="liste_titre_filter">';
+// Left: filter buttons
 print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('left').'</td>';
 
 // Ref
@@ -315,24 +337,6 @@ print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons(
 
 print '</tr>';
 
-// ---- Title row
-print '<tr class="liste_titre">';
-print_liste_field_titre($selectedfieldshtml, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center ');
-
-if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder);
-if (!empty($arrayfields['t.year']['checked']))           print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", $param, '', '', $sortfield, $sortorder, 'center ');
-if (!empty($arrayfields['t.week']['checked']))           print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", $param, '', '', $sortfield, $sortorder, 'center ');
-if (!empty($arrayfields['t.total_hours']['checked']))    print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", $param, '', '', $sortfield, $sortorder, 'right ');
-if (!empty($arrayfields['t.overtime_hours']['checked'])) print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", $param, '', '', $sortfield, $sortorder, 'right ');
-if (!empty($arrayfields['t.date_creation']['checked']))  print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", $param, '', '', $sortfield, $sortorder, 'center ');
-if (!empty($arrayfields['t.date_validation']['checked']))print_liste_field_titre($arrayfields['t.date_validation']['label'], $_SERVER["PHP_SELF"], "t.date_validation", $param, '', '', $sortfield, $sortorder, 'center ');
-if (!empty($arrayfields['t.tms']['checked']))            print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", $param, '', '', $sortfield, $sortorder, 'center ');
-if (!empty($arrayfields['t.status']['checked']))         print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", $param, '', '', $sortfield, $sortorder, 'center ');
-
-print_liste_field_titre('', $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'center maxwidthsearch ');
-print '</tr>'."\n";
-
 // ---- Rows
 $timesheetstatic = new TimesheetWeek($db);
 $arrayofselected = is_array($toselect) ? $toselect : array();
@@ -345,7 +349,7 @@ while ($i < $imax) {
 
 	print '<tr class="oddeven">';
 
-	// Checkbox
+	// Checkbox column (select row)
 	print '<td class="center">';
 	$selected = in_array($obj->rowid, $arrayofselected);
 	print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected?' checked="checked"':'').'>';
@@ -377,24 +381,25 @@ while ($i < $imax) {
 	if (!empty($arrayfields['t.date_validation']['checked'])) print '<td class="center">'.dol_print_date($db->jdate($obj->date_validation), 'day').'</td>';
 	// tms
 	if (!empty($arrayfields['t.tms']['checked'])) print '<td class="center">'.dol_print_date($db->jdate($obj->tms), 'dayhour').'</td>';
-	// status (badge)
+	// status with Dolibarr-like badge
 	if (!empty($arrayfields['t.status']['checked'])) {
 		$timesheetstatic->status = $obj->status;
-		$badge = $timesheetstatic->getLibStatut(5);
-		if (empty($badge)) {
-			// Fallback colored badges
-			$lab = '';
-			$cls = 'statusdraft';
-			if ((string)$obj->status === (string)TimesheetWeek::STATUS_DRAFT) { $lab=$langs->trans("Draft"); $cls='statusdraft'; }
-			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_SUBMITTED) { $lab=$langs->trans("Submitted"); $cls='status1'; }
-			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_APPROVED) { $lab=$langs->trans("Approved"); $cls='status4'; }
-			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_REFUSED) { $lab=$langs->trans("Refused"); $cls='status6'; }
-			$badge = '<span class="badge '.$cls.'">'.$lab.'</span>';
+		$badge = trim($timesheetstatic->getLibStatut(5));
+
+		if ($badge === '') {
+			// Fallback badge exactly like Dolibarr classes
+			$lab = $langs->trans("Draft"); $clsnum = 0;
+			if ((string)$obj->status === (string)TimesheetWeek::STATUS_DRAFT)    { $lab=$langs->trans("Draft");     $clsnum=0; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_SUBMITTED){ $lab=$langs->trans("Submitted"); $clsnum=1; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_APPROVED) { $lab=$langs->trans("Approved");  $clsnum=4; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_REFUSED)  { $lab=$langs->trans("Refused");   $clsnum=6; }
+			$badge = '<span class="badge badge-status'.$clsnum.' badge-status" title="'.dol_escape_htmltag($lab).'">'.dol_escape_htmltag($lab).'</span>';
 		}
-		print '<td class="center">'.$badge.'</td>';
+
+		print '<td class="center"><div>'.$badge.'</div></td>';
 	}
 
-	// right spacer
+	// spacer
 	print '<td class="center"></td>';
 
 	print '</tr>';
@@ -402,7 +407,7 @@ while ($i < $imax) {
 }
 
 if ($num == 0) {
-	$colspan = 2; // checkbox + last action col
+	$colspan = 2; // checkbox + right spacer
 	foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
 	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
@@ -418,11 +423,8 @@ if (in_array($massaction, array('approve_selection','refuse_selection','delete_s
 		array('type'=>'hidden','name'=>'token','value'=>newToken()),
 		array('type'=>'hidden','name'=>'confirm','value'=>'yes')
 	);
-	if (is_array($toselect)) {
-		foreach ($toselect as $selid) {
-			$formq[] = array('type'=>'hidden','name'=>'toselect[]','value'=>(int)$selid);
-		}
-	}
+	if (is_array($toselect)) foreach ($toselect as $selid) $formq[] = array('type'=>'hidden','name'=>'toselect[]','value'=>(int)$selid);
+
 	if ($massaction == 'approve_selection') {
 		print $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('ApproveSelection'), $langs->trans("ConfirmApprove"), 'mass_approve', $formq, 0, 1);
 	}
@@ -433,6 +435,17 @@ if (in_array($massaction, array('approve_selection','refuse_selection','delete_s
 		print $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('DeleteSelection'), $langs->trans("ConfirmDelete"), 'mass_delete', $formq, 0, 1);
 	}
 }
+
+// Small JS for "select all"
+print <<<'JS'
+<script>
+jQuery(function($){
+	$('#selectallrows').on('change', function(){
+		$('.checkforselect').prop('checked', this.checked);
+	});
+});
+</script>
+JS;
 
 llxFooter();
 $db->close();
