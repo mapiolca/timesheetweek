@@ -89,10 +89,10 @@ function tw_can_validate_on_user($userid, $own, $child, $all, User $user) {
 	return false;
 }
 
-// ----------------- Inline edits (crayons) -----------------
+// Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
 
-// set salarié
+// ----------------- Inline edits (crayons) -----------------
 if ($action === 'setfk_user' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
 	$newval = GETPOSTINT('fk_user');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
@@ -104,7 +104,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == TimesheetW
 	}
 	$action = '';
 }
-// set validateur
+
 if ($action === 'setvalidator' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
 	$newval = GETPOSTINT('fk_user_valid');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
@@ -114,7 +114,7 @@ if ($action === 'setvalidator' && $object->id > 0 && $object->status == Timeshee
 	else setEventMessages($object->error, $object->errors, 'errors');
 	$action = '';
 }
-// set note
+
 if ($action === 'setnote' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
 	$newval = GETPOST('note', 'restricthtml');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
@@ -124,7 +124,7 @@ if ($action === 'setnote' && $object->id > 0 && $object->status == TimesheetWeek
 	else setEventMessages($object->error, $object->errors, 'errors');
 	$action = '';
 }
-// set semaine (YYYY-Wxx)
+
 if ($action === 'setweekyear' && $object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT) {
 	$weekyear = GETPOST('weekyear', 'alpha');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
@@ -422,48 +422,47 @@ if ($action === 'create') {
 
 	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
 
-	print '<form method="POST" action="'.dol_escape_htmltag($_SERVER["PHP_SELF"]).'">';
-	print '<input type="hidden" name="token" value="'.newToken().'">';
-	print '<input type="hidden" name="action" value="add">';
+	echo '<form method="POST" action="'.dol_escape_htmltag($_SERVER["PHP_SELF"]).'">';
+	echo '<input type="hidden" name="token" value="'.newToken().'">';
+	echo '<input type="hidden" name="action" value="add">';
 
-	print '<table class="border centpercent">';
+	echo '<table class="border centpercent">';
 
 	// Employé
-	print '<tr>';
-	print '<td class="titlefield">'.$langs->trans("Employee").'</td>';
-	print '<td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td>';
-	print '</tr>';
+	echo '<tr>';
+	echo '<td class="titlefield">'.$langs->trans("Employee").'</td>';
+	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td>';
+	echo '</tr>';
 
 	// Semaine
-	print '<tr>';
-	print '<td>'.$langs->trans("Week").'</td>';
-	print '<td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td>';
-	print '</tr>';
+	echo '<tr>';
+	echo '<td>'.$langs->trans("Week").'</td>';
+	echo '<td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td>';
+	echo '</tr>';
 
 	// Validateur (défaut = manager)
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
-	print '<tr>';
-	print '<td>'.$langs->trans("Validator").'</td>';
-	print '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200').'</td>';
-	print '</tr>';
+	echo '<tr>';
+	echo '<td>'.$langs->trans("Validator").'</td>';
+	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200').'</td>';
+	echo '</tr>';
 
 	// Note
-	print '<tr>';
-	print '<td>'.$langs->trans("Note").'</td>';
-	print '<td><textarea name="note" class="quatrevingtpercent" rows="3"></textarea></td>';
-	print '</tr>';
+	echo '<tr>';
+	echo '<td>'.$langs->trans("Note").'</td>';
+	echo '<td><textarea name="note" class="quatrevingtpercent" rows="3"></textarea></td>';
+	echo '</tr>';
 
-	print '</table>';
+	echo '</table>';
 
-	print '<div class="center">';
-	print '<input type="submit" class="button" value="'.$langs->trans("Create").'">';
-	print '&nbsp;<a class="button button-cancel" href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("Cancel").'</a>';
-	print '</div>';
+	echo '<div class="center">';
+	echo '<input type="submit" class="button" value="'.$langs->trans("Create").'">';
+	echo '&nbsp;<a class="button button-cancel" href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("Cancel").'</a>';
+	echo '</div>';
 
-	print '</form>';
+	echo '</form>';
 
-	// JS Range semaine
-	print <<<'JS'
+	$jsWeek = <<<'JS'
 <script>
 (function ($) {
 	function parseYearWeek(val) {
@@ -476,6 +475,7 @@ if ($action === 'create') {
 })(jQuery);
 </script>
 JS;
+	echo $jsWeek;
 
 } else if ($id > 0) {
 	// ---- READ MODE (fiche + grille) ----
@@ -504,109 +504,103 @@ JS;
 		print $formconfirm;
 	}
 
-	print '<div class="fichecenter">';
+	echo '<div class="fichecenter">';
 
 	$canEditInline = ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user));
 
 	// Left block
-	print '<div class="fichehalfleft">';
-	print '<table class="border centpercent tableforfield">';
+	echo '<div class="fichehalfleft">';
+	echo '<table class="border centpercent tableforfield">';
 
 	// Employé
-	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+	echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
 	if ($action === 'editfk_user' && $canEditInline) {
-<|diff_marker|> ADD A1000
-		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-		print '<input type="hidden" name="action" value="setfk_user">';
-		print $form->select_dolusers($object->fk_user, 'fk_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		print '</form>';
+		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<input type="hidden" name="token" value="'.newToken().'">';
+		echo '<input type="hidden" name="action" value="setfk_user">';
+		echo $form->select_dolusers($object->fk_user, 'fk_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		echo '</form>';
 	} else {
 		if ($object->fk_user > 0) {
 			$u = new User($db); $u->fetch($object->fk_user);
-			print $u->getNomUrl(1);
+			echo $u->getNomUrl(1);
 		}
 		if ($canEditInline) {
-			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user">'.img_edit('',1).'</a>';
+			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	print '</td></tr>';
+	echo '</td></tr>';
 
-	// Semaine (Year/Week avec sélecteur semaine)
-	print '<tr><td>'.$langs->trans("Week").'</td><td>';
-<|diff_marker|> ADD A1020
+	// Semaine (Year/Week)
+	echo '<tr><td>'.$langs->trans("Week").'</td><td>';
 	if ($action === 'editweekyear' && $canEditInline) {
-		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-		print '<input type="hidden" name="action" value="setweekyear">';
 		$prefill = sprintf("%04d-W%02d", (int)$object->year, (int)$object->week);
-		print getWeekSelectorDolibarr($form, 'weekyear', $prefill);
-		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		print '</form>';
+		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<input type="hidden" name="token" value="'.newToken().'">';
+		echo '<input type="hidden" name="action" value="setweekyear">';
+		echo getWeekSelectorDolibarr($form, 'weekyear', $prefill);
+		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		echo '</form>';
 	} else {
-		print dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
+		echo dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
 		if ($canEditInline) {
-			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	print '</td></tr>';
+	echo '</td></tr>';
 
-	// Note (dans la partie gauche)
-	print '<tr><td>'.$langs->trans("Note").'</td><td>';
+	// Note (gauche)
+	echo '<tr><td>'.$langs->trans("Note").'</td><td>';
 	if ($action === 'editnote' && $canEditInline) {
-<|diff_marker|> ADD A1040
-		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-		print '<input type="hidden" name="action" value="setnote">';
-		print '<textarea name="note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
-		print '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		print '</form>';
+		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<input type="hidden" name="token" value="'.newToken().'">';
+		echo '<input type="hidden" name="action" value="setnote">';
+		echo '<textarea name="note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
+		echo '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		echo '</form>';
 	} else {
-		print nl2br(dol_escape_htmltag($object->note));
+		echo nl2br(dol_escape_htmltag($object->note));
 		if ($canEditInline) {
-			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote">'.img_edit('',1).'</a>';
+			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	print '</td></tr>';
+	echo '</td></tr>';
 
 	// Validator
-	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
+	echo '<tr><td>'.$langs->trans("Validator").'</td><td>';
 	if ($action === 'editvalidator' && $canEditInline) {
-		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		print '<input type="hidden" name="token" value="'.newToken().'">';
-<|diff_marker|> ADD A1060
-		print '<input type="hidden" name="action" value="setvalidator">';
-		print $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-		print '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		print '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		print '</form>';
+		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<input type="hidden" name="token" value="'.newToken().'">';
+		echo '<input type="hidden" name="action" value="setvalidator">';
+		echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		echo '</form>';
 	} else {
 		if ($object->fk_user_valid > 0) {
 			$v = new User($db); $v->fetch($object->fk_user_valid);
-			print $v->getNomUrl(1);
+			echo $v->getNomUrl(1);
 		}
 		if ($canEditInline) {
-			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator">'.img_edit('',1).'</a>';
+			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	print '</td></tr>';
+	echo '</td></tr>';
 
-	print '</table>';
-	print '</div>';
+	echo '</table>';
+	echo '</div>';
 
 	// Right block (Totaux en entête)
-<|diff_marker|> ADD A1080
 	$uEmpDisp = new User($db);
 	$uEmpDisp->fetch($object->fk_user);
 	$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours)?(float)$uEmpDisp->weeklyhours:35.0);
 	$th = (float) $object->total_hours;
 	$ot = (float) $object->overtime_hours;
 	if ($th <= 0) {
-		// Essai de calcul rapide si pas à jour
 		$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
 		$resSum = $db->query($sqlSum);
 		if ($resSum) {
@@ -615,33 +609,31 @@ JS;
 			$ot = max(0.0, $th - $contractedHoursDisp);
 		}
 	}
-	print '<div class="fichehalfright">';
-	print '<table class="border centpercent tableforfield">';
-	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-<|diff_marker|> ADD A1100
-	print '<tr><td>'.$langs->trans("TotalHours").'</td><td><span class="header-total-hours">'.formatHours($th).'</span></td></tr>';
-	print '<tr><td>'.$langs->trans("Overtime").' (>'.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
-	print '</table>';
-	print '</div>';
+	echo '<div class="fichehalfright">';
+	echo '<table class="border centpercent tableforfield">';
+	echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
+	echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
+	echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
+	echo '<tr><td>'.$langs->trans("TotalHours").'</td><td><span class="header-total-hours">'.formatHours($th).'</span></td></tr>';
+	echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+	echo '</table>';
+	echo '</div>';
 
-	print '</div>'; // fichecenter
+	echo '</div>'; // fichecenter
 
-	// >>> CLEARBOTH pour sortir des floats et replacer la grille sous l'entête <<<
-	print '<div class="clearboth"></div>';
+	// place correctement la grille
+	echo '<div class="clearboth"></div>';
 
-	// >>> Clôt la fiche AVANT la grille <<<
+	// Clôt la fiche AVANT la grille
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
-	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-	print '<input type="hidden" name="token" value="'.newToken().'">';
-	print '<input type="hidden" name="action" value="save">';
+	echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<input type="hidden" name="token" value="'.newToken().'">';
+	echo '<input type="hidden" name="action" value="save">';
 
-	print '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
-<|diff_marker|> ADD A1120
 	$tasks = $object->getAssignedTasks($object->fk_user); // array de tâches assignées
 	$lines = $object->getLines(); // objets TimesheetWeekLine existants
 
@@ -662,11 +654,10 @@ JS;
 			if ((int)$L->meal === 1) $dayMeal[$dayName] = 1;
 			if ($L->zone !== null && $L->zone !== '') $dayZone[$dayName] = (int)$L->zone;
 		}
-<|diff_marker|> ADD A1140
 	}
 
 	if (empty($tasks)) {
-		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
+		echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
 		$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
 		$dto = new DateTime();
@@ -681,37 +672,35 @@ JS;
 		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
 		$contractedHours = (!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
 
-		print '<div class="div-table-responsive">';
-		print '<table class="noborder centpercent">';
-<|diff_marker|> ADD A1160
+		echo '<div class="div-table-responsive">';
+		echo '<table class="noborder centpercent">';
 
 		// Header jours
-		print '<tr class="liste_titre">';
-		print '<th>'.$langs->trans("Project / Task").'</th>';
+		echo '<tr class="liste_titre">';
+		echo '<th>'.$langs->trans("Project / Task").'</th>';
 		foreach ($days as $d) {
-			print '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
+			echo '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
 		}
-		print '<th class="right">'.$langs->trans("Total").'</th>';
-		print '</tr>';
+		echo '<th class="right">'.$langs->trans("Total").'</th>';
+		echo '</tr>';
 
 		// Ligne zone + panier (préfills)
-		print '<tr class="liste_titre">';
-		print '<td></td>';
+		echo '<tr class="liste_titre">';
+		echo '<td></td>';
 		foreach ($days as $d) {
-			print '<td class="center">';
-			print '<select name="zone_'.$d.'" class="flat">';
+			echo '<td class="center">';
+			echo '<select name="zone_'.$d.'" class="flat">';
 			for ($z=1; $z<=5; $z++) {
 				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
-				print '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
+				echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 			}
-<|diff_marker|> ADD A1180
-			print '</select><br>';
+			echo '</select><br>';
 			$checked = $dayMeal[$d] ? ' checked' : '';
-			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.'> '.$langs->trans("Meal").'</label>';
-			print '</td>';
+			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.'> '.$langs->trans("Meal").'</label>';
+			echo '</td>';
 		}
-		print '<td></td>';
-		print '</tr>';
+		echo '<td></td>';
+		echo '</tr>';
 
 		// Regrouper par projet
 		$byproject = array();
@@ -725,33 +714,31 @@ JS;
 				);
 			}
 			$byproject[$pid]['tasks'][] = $t;
-<|diff_marker|> ADD A1200
 		}
 
 		// Lignes
 		$grandInit = 0.0;
 		foreach ($byproject as $pid => $pdata) {
 			// Ligne projet (style suivi du temps), cellule unique
-			print '<tr class="oddeven trforbreak nobold">';
+			echo '<tr class="oddeven trforbreak nobold">';
 			$colspan = 1 + count($days) + 1;
-			print '<td colspan="'.$colspan.'">';
+			echo '<td colspan="'.$colspan.'">';
 			$proj = new Project($db);
 			$proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
-			print $proj->getNomUrl(1);
-			print '</td>';
-			print '</tr>';
+			echo $proj->getNomUrl(1);
+			echo '</td>';
+			echo '</tr>';
 
 			// Tâches
 			foreach ($pdata['tasks'] as $task) {
-				print '<tr>';
-				print '<td class="paddingleft">';
-<|diff_marker|> ADD A1220
+				echo '<tr>';
+				echo '<td class="paddingleft">';
 				$tsk = new Task($db);
 				$tsk->fetch((int)$task['task_id']);
 				if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-				print $tsk->getNomUrl(1, 'withproject');
-				print '</td>';
+				echo $tsk->getNomUrl(1, 'withproject');
+				echo '</td>';
 
 				$rowTotal = 0.0;
 				foreach ($days as $d) {
@@ -762,54 +749,52 @@ JS;
 						$val = formatHours($hoursBy[$task['task_id']][$keydate]);
 						$rowTotal += (float)$hoursBy[$task['task_id']][$keydate];
 					}
-					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"></td>';
+					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"></td>';
 				}
 				$grandInit += $rowTotal;
-				print '<td class="right task-total">'.formatHours($rowTotal).'</td>';
-				print '</tr>';
-<|diff_marker|> ADD A1240
+				echo '<td class="right task-total">'.formatHours($rowTotal).'</td>';
+				echo '</tr>';
 			}
 		}
 
 		// Totaux init
 		$grand = ($object->total_hours > 0 ? (float)$object->total_hours : $grandInit);
 
-		print '<tr class="liste_total">';
-		print '<td class="right">'.$langs->trans("Total").'</td>';
-		foreach ($days as $d) print '<td class="right day-total">00:00</td>';
-		print '<td class="right grand-total">'.formatHours($grand).'</td>';
-		print '</tr>';
+		echo '<tr class="liste_total">';
+		echo '<td class="right">'.$langs->trans("Total").'</td>';
+		foreach ($days as $d) echo '<td class="right day-total">00:00</td>';
+		echo '<td class="right grand-total">'.formatHours($grand).'</td>';
+		echo '</tr>';
 
-		print '<tr class="liste_total">';
-		print '<td class="right">'.$langs->trans("Meals").'</td>';
+		echo '<tr class="liste_total">';
+		echo '<td class="right">'.$langs->trans("Meals").'</td>';
 		$initMeals = array_sum($dayMeal);
-		print '<td colspan="'.count($days).'" class="right meal-total">'.$initMeals.'</td>';
-		print '<td></td>';
-		print '</tr>';
+		echo '<td colspan="'.count($days).'" class="right meal-total">'.$initMeals.'</td>';
+		echo '<td></td>';
+		echo '</tr>';
 
-		print '<tr class="liste_total">';
-<|diff_marker|> ADD A1260
-		print '<td class="right">'.$langs->trans("Overtime").' (>'.formatHours($contractedHours).')</td>';
+		echo '<tr class="liste_total">';
+		echo '<td class="right">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
 		$ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
-		print '<td colspan="'.count($days).'" class="right overtime-total">'.formatHours($ot).'</td>';
-		print '<td></td>';
-		print '</tr>';
+		echo '<td colspan="'.count($days).'" class="right overtime-total">'.formatHours($ot).'</td>';
+		echo '<td></td>';
+		echo '</tr>';
 
-		print '</table>';
-		print '</div>';
+		echo '</table>';
+		echo '</div>';
 
 		// Bouton Save (si brouillon + droits d’écriture)
 		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-			print '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
+			echo '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		} else {
-			print '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
+			echo '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
 		}
 
-		print '</form>';
+		echo '</form>';
 
 		// JS totaux + mise à jour entête live
-		print '<script>
-<|diff_marker|> ADD A1280
+		$jsGrid = <<<JS
+<script>
 (function($){
 	function parseHours(v){
 		if(!v) return 0;
@@ -830,7 +815,6 @@ JS;
 
 		$("table.noborder tr").each(function(){
 			var rowT=0;
-<|diff_marker|> ADD A1300
 			$(this).find("input.hourinput").each(function(){
 				var v=parseHours($(this).val());
 				if(v>0){
@@ -850,12 +834,11 @@ JS;
 		var meals = $(".mealbox:checked").length;
 		$(".meal-total").text(meals);
 
-		var weeklyContract = '.((float)$contractedHours).';
-<|diff_marker|> ADD A1320
+		var weeklyContract = {$contractedHours};
 		var ot = grand - weeklyContract; if (ot < 0) ot = 0;
 		$(".overtime-total").text(formatHours(ot));
 
-		// met à jour l\'entête
+		// met à jour l'entête
 		$(".header-total-hours").text(formatHours(grand));
 		$(".header-overtime").text(formatHours(ot));
 	}
@@ -864,19 +847,20 @@ JS;
 		$(document).on("input change", "input.hourinput, input.mealbox", updateTotals);
 	});
 })(jQuery);
-</script>';
+</script>
+JS;
+		echo $jsGrid;
 	}
 
 	// Boutons d’action (barre)
-	print '<div class="tabsAction">';
+	echo '<div class="tabsAction">';
 	// Supprimer (en brouillon)
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
-		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
-<|diff_marker|> ADD A1340
+		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
 	}
 	// Soumettre (si brouillon + droits écriture)
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-		print dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit');
+		echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit');
 	}
 	// Retour au brouillon (si soumis + salarié ou validateur)
 	if ($object->status == TimesheetWeek::STATUS_SUBMITTED) {
@@ -884,13 +868,12 @@ JS;
 		$canValidator = ((int)$user->id === (int)$object->fk_user_valid && ($permValidate || $permValidateChild || $permValidateAll))
 			|| tw_can_validate_on_user($object->fk_user, $permValidate, $permValidateChild, $permValidateAll, $user);
 		if ($canEmployee || $canValidator) {
-			print dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft');
+			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft');
 		}
 	}
-	print '</div>';
+	echo '</div>';
 }
 
 // End of page
 llxFooter();
 $db->close();
-<|diff_marker|> ADD A1360
