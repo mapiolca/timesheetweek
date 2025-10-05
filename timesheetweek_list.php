@@ -19,7 +19,7 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // formatHours()
 $langs->loadLangs(array('timesheetweek@timesheetweek','users','projects','other'));
 
 /**
- * Status shim, same idea as in card
+ * Status shim (compat STATUS_APPROVED/STATUS_VALIDATED)
  */
 function tw_status($name) {
 	static $map = null;
@@ -131,7 +131,7 @@ if ($permReadAll) {
 	if (is_array($childs)) $allowedUserIds = array_unique(array_merge($allowedUserIds, array_map('intval',$childs)));
 }
 
-// Array fields (selectable columns)
+// Selectable columns
 $arrayfields = array(
 	't.ref'              => array('label'=>$langs->trans("Ref"), 'checked'=>1),
 	'user'               => array('label'=>$langs->trans("User"), 'checked'=>1),
@@ -146,7 +146,7 @@ $arrayfields = array(
 	't.status'           => array('label'=>$langs->trans("Status"), 'checked'=>1),
 );
 
-// Selection of new fields (persist user setup)
+// Persist user selection of columns
 include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
 
 // Purge filters
@@ -158,57 +158,44 @@ if (GETPOST('button_removefilter_x','alpha') || GETPOST('button_removefilter.x',
 	$search_datecendday = $search_datecendmonth = $search_datecendyear = '';
 }
 
-// Handle mass actions (approve/refuse/delete)
-if ($massaction == 'mass_approve' && is_array($toselect) && count($toselect)) {
-	$error=0; $ok=0;
-	foreach ($toselect as $rowid) {
+// Prepare selection
+$arrayofselected = is_array($toselect) ? $toselect : array();
+
+/*
+ * Mass actions with confirmation popups
+ * - We use custom actions confirm_mass_approve / confirm_mass_refuse to process after popup
+ */
+if ($action == 'confirm_mass_approve' && $confirm == 'yes') {
+	$error = 0; $ok = 0;
+	foreach ($arrayofselected as $rowid) {
 		$tw = new TimesheetWeek($db);
 		if ($tw->fetch((int)$rowid) > 0) {
 			$can = tw_can_validate_timesheet_row($tw->fk_user, $tw->fk_user_valid, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 			if ($can && (int)$tw->status === (int) tw_status('submitted')) {
-				$tw->fk_user_valid = (int)$user->id;
-				$tw->date_validation = dol_now();
-				$tw->status = tw_status('approved');
-				if ($tw->update($user) > 0) $ok++; else $error++;
+				$res = (method_exists($tw,'approve') ? $tw->approve($user, (int)$user->id) : 0);
+				if ($res > 0) $ok++; else $error++;
 			}
 		}
 	}
 	if ($ok) setEventMessages($langs->trans("TimesheetApproved").' ('.$ok.')', null, 'mesgs');
 	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
-	$massaction='';
+	$massaction = ''; $action = 'list';
 }
-if ($massaction == 'mass_refuse' && is_array($toselect) && count($toselect)) {
-	$error=0; $ok=0;
-	foreach ($toselect as $rowid) {
+if ($action == 'confirm_mass_refuse' && $confirm == 'yes') {
+	$error = 0; $ok = 0;
+	foreach ($arrayofselected as $rowid) {
 		$tw = new TimesheetWeek($db);
 		if ($tw->fetch((int)$rowid) > 0) {
 			$can = tw_can_validate_timesheet_row($tw->fk_user, $tw->fk_user_valid, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 			if ($can && (int)$tw->status === (int) tw_status('submitted')) {
-				$tw->fk_user_valid = (int)$user->id;
-				$tw->date_validation = dol_now();
-				$tw->status = tw_status('refused');
-				if ($tw->update($user) > 0) $ok++; else $error++;
+				$res = (method_exists($tw,'refuse') ? $tw->refuse($user, (int)$user->id) : 0);
+				if ($res > 0) $ok++; else $error++;
 			}
 		}
 	}
 	if ($ok) setEventMessages($langs->trans("TimesheetRefused").' ('.$ok.')', null, 'mesgs');
 	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
-	$massaction='';
-}
-if ($massaction == 'predelete' && $confirm == 'yes' && is_array($toselect) && count($toselect)) {
-	$error=0; $ok=0;
-	foreach ($toselect as $rowid) {
-		$tw = new TimesheetWeek($db);
-		if ($tw->fetch((int)$rowid) > 0) {
-			$can = tw_can_delete_timesheet_row($tw->fk_user, $user, $permDelete, $permDeleteChild, $permDeleteAll);
-			if ($can) {
-				if ($tw->delete($user) > 0) $ok++; else $error++;
-			}
-		}
-	}
-	if ($ok) setEventMessages($langs->trans("RecordDeleted").' ('.$ok.')', null, 'mesgs');
-	if ($error) setEventMessages($langs->trans("Error").' ('.$error.')', null, 'errors');
-	$massaction='';
+	$massaction = ''; $action = 'list';
 }
 
 // Build SQL
@@ -222,7 +209,6 @@ $sql.= " WHERE t.entity IN (".getEntity('timesheetweek').")";
 
 // Restrict rights
 if (!$permReadAll) {
-	// Restrict to allowed users (own + childs)
 	if (!empty($allowedUserIds)) {
 		$sql .= " AND t.fk_user IN (".implode(',', array_map('intval', $allowedUserIds)).")";
 	}
@@ -265,11 +251,7 @@ $form = new Form($db);
 $formother = new FormOther($db);
 
 $title = $langs->trans("TimesheetWeekList");
-$help_url = '';
-$morejs = array();
-$morecss = array();
-
-llxHeader('', $title, $help_url, '', 0, 0, $morejs, $morecss, '', 'bodyforlist');
+llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist');
 
 $param = '';
 if ($limit && $limit != $conf->liste_limit) $param .= '&limit='.((int)$limit);
@@ -307,12 +289,27 @@ if ($user->hasRight('timesheetweek','timesheetweek','write') || $user->hasRight(
 // Title bar
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit);
 
-// Confirm pre-massaction (delete)
+// POPUP CONFIRMATIONS (custom mass actions)
+// ------------------------------------------------
+if ($massaction == 'mass_approve') {
+	$titleconfirm = ($langs->trans('Approve')!='Approve'?$langs->trans('Approve'):'Approuver');
+	$question     = array();
+	$formconfirm  = $form->formconfirm($_SERVER["PHP_SELF"].'?'.ltrim($param,'&'), $titleconfirm, $langs->transnoentitiesnoconv("ConfirmApproveSelection"), 'confirm_mass_approve', $question, $arrayofselected, 0, 1);
+	print $formconfirm;
+}
+if ($massaction == 'mass_refuse') {
+	$titleconfirm = $langs->trans('Refuse');
+	$question     = array();
+	$formconfirm  = $form->formconfirm($_SERVER["PHP_SELF"].'?'.ltrim($param,'&'), $titleconfirm, $langs->transnoentitiesnoconv("ConfirmRefuseSelection"), 'confirm_mass_refuse', $question, $arrayofselected, 0, 1);
+	print $formconfirm;
+}
+
+// Confirm for delete mass action (standard template)
 $objecttmp = new TimesheetWeek($db);
 $trackid = 'tsw';
 include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
 
-// Build the column selector HTML (only once, to show in the header - left)
+// Column selector (rendered once in header)
 $varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
 $htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, 1);
 $selectedfields = $htmlofselectarray;
@@ -330,9 +327,9 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n";
 
-// Line: filters (loupe on left)
+// Line: filters
 print '<tr class="liste_titre_filter">';
-// Left column: loupe (no columns selector here anymore)
+// Left column: loupe + buttons
 print '<td class="liste_titre center maxwidthsearch">';
 print $form->showFilterButtons('left');
 print '</td>';
@@ -416,7 +413,7 @@ print '</tr>'."\n";
 
 // Titles
 print '<tr class="liste_titre">';
-// Left header cell: Select-all checkbox + column selector (only once here)
+// Left header cell: select-all + columns selector (rendered once)
 print '<th class="center maxwidthsearch">';
 print '<input type="checkbox" id="checkall" class="marginrightonly"> ';
 print $selectedfields;
