@@ -24,7 +24,6 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours(), ...
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
@@ -189,7 +188,7 @@ if ($action === 'add') {
 	}
 }
 
-// ----------------- Action: Save grid lines (UPSERT) -----------------
+// ----------------- Action: Save grid lines (UPSERT SQL direct) -----------------
 if ($action === 'save' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
@@ -205,32 +204,29 @@ if ($action === 'save' && $id > 0) {
 
 	$db->begin();
 
-	// Map jour -> offset
 	$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
-
 	$processed = 0;
 
-	// Balayage des inputs
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) {
-			$taskid = (int) $m[1];
-			$day    = $m[2];
-			$hoursStr  = trim((string) $val);
+			$taskid   = (int) $m[1];
+			$day      = $m[2];
+			$hoursStr = trim((string) $val);
 
 			// Parse HH:MM ou décimal
 			$h = 0.0;
 			if ($hoursStr !== '') {
 				if (strpos($hoursStr, ':') !== false) {
 					$tmp = explode(':', $hoursStr, 2);
-					$H = isset($tmp[0]) ? $tmp[0] : '0';
-					$M = isset($tmp[1]) ? $tmp[1] : '0';
-					$h = ((int)$H) + ((int)$M)/60.0;
+					$H = (int) ($tmp[0] ?? 0);
+					$M = (int) ($tmp[1] ?? 0);
+					$h = $H + ($M/60.0);
 				} else {
 					$h = (float) str_replace(',', '.', $hoursStr);
 				}
 			}
 
-			// Calcule date du jour ISO
+			// date Y-m-d du jour de la semaine
 			$dto = new DateTime();
 			$dto->setISODate((int)$object->year, (int)$object->week);
 			$dto->modify('+'.$map[$day].' day');
@@ -239,7 +235,7 @@ if ($action === 'save' && $id > 0) {
 			$zone = (int) GETPOST('zone_'.$day, 'int');
 			$meal = GETPOST('meal_'.$day) ? 1 : 0;
 
-			// Existe déjà ?
+			// On cherche une ligne existante
 			$sqlSel = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line 
 				WHERE fk_timesheet_week=".(int)$object->id." AND fk_task=".(int)$taskid." AND day_date='".$db->escape($datestr)."'";
 			$resSel = $db->query($sqlSel);
@@ -249,7 +245,7 @@ if ($action === 'save' && $id > 0) {
 				$existingId = (int) $o->rowid;
 			}
 
-			if ($h > 0) {
+			if ($h > 0 && $taskid > 0) {
 				if ($existingId > 0) {
 					// UPDATE
 					$sqlUpd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line 
@@ -262,26 +258,25 @@ if ($action === 'save' && $id > 0) {
 						exit;
 					}
 				} else {
-					// INSERT
-					$line = new TimesheetWeekLine($db);
-					$line->fk_timesheet_week = (int) $object->id;
-					$line->fk_task  = $taskid;
-					$line->day_date = $datestr;
-					$line->hours    = $h;
-					$line->zone     = $zone;
-					$line->meal     = $meal;
-
-					$res = $line->create($user);
-					if ($res < 0) {
+					// INSERT direct
+					$sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (fk_timesheet_week, fk_task, day_date, hours, zone, meal) VALUES (".
+						(int)$object->id.", ".
+						(int)$taskid.", ".
+						"'".$db->escape($datestr)."', ".
+						((float)$h).", ".
+						(int)$zone.", ".
+						(int)$meal.
+					")";
+					if (!$db->query($sqlIns)) {
 						$db->rollback();
-						setEventMessages($line->error, $line->errors, 'errors');
+						setEventMessages($db->lasterror(), null, 'errors');
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 						exit;
 					}
 				}
 				$processed++;
 			} else {
-				// 0 ou vide => DELETE si existe
+				// Pas d'heures => suppression d'une éventuelle ligne
 				if ($existingId > 0) {
 					$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId);
 					$processed++;
@@ -304,9 +299,9 @@ if ($action === 'save' && $id > 0) {
 	$contract = !empty($uEmp->weeklyhours) ? (float)$uEmp->weeklyhours : 35.0;
 	$overtime = max(0.0, $totalHours - $contract);
 
+	// Sauvegarde dans la fiche
 	$object->total_hours    = $totalHours;
 	$object->overtime_hours = $overtime;
-
 	$upd = $object->update($user);
 	if ($upd < 0) {
 		$db->rollback();
@@ -316,7 +311,7 @@ if ($action === 'save' && $id > 0) {
 	}
 
 	$db->commit();
-	setEventMessages($langs->trans("TimesheetSaved"), null, 'mesgs');
+	setEventMessages($langs->trans("TimesheetSaved").' ('.$processed.' '.$langs->trans("Lines").')', null, 'mesgs');
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 	exit;
 }
@@ -371,7 +366,6 @@ if ($action === 'setdraft' && $id > 0) {
 
 	$canEmployee = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 	$canValidator = false;
-	// Le validateur courant ou toute personne ayant droits de validation sur ce salarié
 	if ((int)$user->id === (int)$object->fk_user_valid && ($permValidate || $permValidateChild || $permValidateAll)) {
 		$canValidator = true;
 	} elseif (tw_can_validate_on_user($object->fk_user, $permValidate, $permValidateChild, $permValidateAll, $user)) {
@@ -637,7 +631,7 @@ JS;
 	$tasks = $object->getAssignedTasks($object->fk_user); // array de tâches assignées
 	$lines = $object->getLines(); // objets TimesheetWeekLine existants
 
-	// Indexer les heures existantes: hoursBy[taskid][Y-m-d] = décimal
+	// Indexer les heures existantes
 	$hoursBy = array();
 	$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
 	$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
@@ -757,7 +751,6 @@ JS;
 			}
 		}
 
-		// Totaux init
 		$grand = ($object->total_hours > 0 ? (float)$object->total_hours : $grandInit);
 
 		echo '<tr class="liste_total">';
