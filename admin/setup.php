@@ -1,106 +1,171 @@
 <?php
-/* Copyright (C)
+/* Copyright (C) 2025
+ * Pierre ARDOIN - Les Métiers du Bâtiment
+ *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU GPL v3 or later.
+ * it under the terms of the GNU General Public License...
  */
 
-// Load Dolibarr env (ALWAYS use require_once pattern)
+/**
+ *  \file       custom/timesheetweek/admin/setup.php
+ *  \ingroup    timesheetweek
+ *  \brief      Setup page for TimesheetWeek module (numbering, options...)
+ */
+
+// ============================
+// Bootstrap Dolibarr
+// ============================
 $res = 0;
-if (!$res && file_exists(__DIR__.'/../main.inc.php'))	$res = require_once __DIR__.'/../main.inc.php';
-if (!$res && file_exists(__DIR__.'/../../main.inc.php'))	$res = require_once __DIR__.'/../../main.inc.php';
-if (!$res && file_exists(__DIR__.'/../../../main.inc.php')) $res = require_once __DIR__.'/../../../main.inc.php';
+if (!$res && file_exists(__DIR__.'/../main.inc.php'))			$res = require_once __DIR__.'/../main.inc.php';
+if (!$res && file_exists(__DIR__.'/../../main.inc.php'))		$res = require_once __DIR__.'/../../main.inc.php';
+if (!$res && file_exists(__DIR__.'/../../../main.inc.php'))	$res = require_once __DIR__.'/../../../main.inc.php';
 if (!$res) die('Include of main fails');
 
+// ============================
+// Includes
+// ============================
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/html.formadmin.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 
-// Langs
-$langs->loadLangs(array('admin', 'timesheetweek@timesheetweek'));
+// ============================
+// Load langs
+// ============================
+$langs->loadLangs(array('admin', 'other', 'timesheetweek@timesheetweek'));
 
-// Security: admin only for setup pages
+// ============================
+// Security
+// ============================
 if (empty($user->admin)) accessforbidden();
 
+// ============================
 // Parameters
+// ============================
 $action = GETPOST('action', 'aZ09');
 
-// Actions: set constants
-if ($action == 'set') {
-	$error = 0;
-
-	$addon = GETPOST('TIMESHEETWEEK_ADDON', 'alpha');
-	if ($addon !== '') {
-		if (dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON', $addon, 'chaine', 0, '', $conf->entity) <= 0) {
-			$error++;
-		}
-	}
-
-	if (!$error) {
-		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+// ============================
+// Actions
+// ============================
+if ($action == 'setmodule' && $user->admin) {
+	$value = GETPOST('value', 'alpha');
+	$result = dolibarr_set_const($db, 'TIMESHEETWEEK_MYOBJECT_ADDON', $value, 'chaine', 0, '', $conf->entity);
+	if ($result > 0) {
+		setEventMessages($langs->trans("SetupSaved"), null, 'mesgs');
 	} else {
-		setEventMessages($langs->trans('Error'), null, 'errors');
+		setEventMessages($langs->trans("Error"), null, 'errors');
 	}
 }
 
-// Build list of available numbering modules
-$moddircore   = DOL_DOCUMENT_ROOT.'/timesheetweek/core/modules/timesheetweek';     // if module was installed into htdocs (rare)
-$moddircustom = DOL_DOCUMENT_ROOT.'/custom/timesheetweek/core/modules/timesheetweek';
+// ============================
+// View
+// ============================
+$form = new Form($db);
 
-$files = array();
-if (is_dir($moddircustom)) {
-	$tmp = dol_dir_list($moddircustom, 'files', 0, 'mod_.*\.php', '', 'name', SORT_ASC, 0, 1);
-	if (is_array($tmp)) $files = array_merge($files, $tmp);
-}
-if (is_dir($moddircore) && $moddircore != $moddircustom) {
-	$tmp = dol_dir_list($moddircore, 'files', 0, 'mod_.*\.php', '', 'name', SORT_ASC, 0, 1);
-	if (is_array($tmp)) $files = array_merge($files, $tmp);
-}
+$title   = $langs->trans("ModuleSetup", "TimesheetWeek");
+$helpurl = '';
 
-$current_addon = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_fhweekly');
+llxHeader('', $title, $helpurl);
 
-$title = $langs->trans("ModuleSetup", $langs->transnoentitiesnoconv("TimesheetWeek"));
-llxHeader('', $title);
+// Link-back to module list
+$linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?mainmenu=home">'.$langs->trans("BackToModuleList").'</a>';
+print load_fiche_titre($langs->trans("TimesheetWeekSetup"), '', 'bookcal@timesheetweek');
+print '<br>';
 
-$linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php">'.$langs->trans("BackToModuleList").'</a>';
-print load_fiche_titre($title, $linkback, 'bookcal');
-
-print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
+// ----------------------------
+// Numbering modules list
+// ----------------------------
+print '<form action="'.$_SERVER["PHP_SELF"].'" method="POST">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
-print '<input type="hidden" name="action" value="set">';
+print '<input type="hidden" name="action" value="setmodule">';
 
 print '<div class="div-table-responsive-no-min">';
 print '<table class="noborder centpercent">';
+
+// Title
 print '<tr class="liste_titre">';
-print '<td>'.$langs->trans("Parameter").'</td>';
-print '<td>'.$langs->trans("Value").'</td>';
-print '<td class="right">'.$langs->trans("Action").'</td>';
+print '<th>'.$langs->trans("Name").'</th>';
+print '<th>'.$langs->trans("Description").'</th>';
+print '<th class="center">'.$langs->trans("Status").'</th>';
 print '</tr>';
 
-// Numbering module choice
-print '<tr class="oddeven">';
-print '<td class="fieldrequired">'.$langs->trans("NumberingModule").'</td>';
-print '<td>';
+// Scan all models directories for numbering modules
+$dirmodels = array_merge(array('/'), (array) $conf->modules_parts['models']);
+$selected  = getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON', 'mod_timesheetweek_standard');
 
-if (empty($files)) {
-	// fallback — au minimum notre module FH weekly
-	print '<input type="text" class="flat minwidth200" name="TIMESHEETWEEK_ADDON" value="'.dol_escape_htmltag($current_addon).'">';
-	print '<div class="opacitymedium">'.$langs->trans("NoNumberingModuleFound").'</div>';
-} else {
-	print '<select name="TIMESHEETWEEK_ADDON" class="flat minwidth200">';
-	foreach ($files as $fileinfo) {
-		$file = $fileinfo['fullname'];
-		$classname = preg_replace('/\.php$/', '', $fileinfo['name']); // ex: mod_timesheetweek_fhweekly
-		print '<option value="'.$classname.'"'.($classname == $current_addon ? ' selected' : '').'>'.$classname.'</option>';
+$found = 0;
+foreach ($dirmodels as $reldir) {
+	$dir = dol_buildpath($reldir."core/modules/timesheetweek/");
+	if (!is_dir($dir)) continue;
+
+	$filelist = dol_dir_list($dir, 'files', 0, '^mod_.*\.php$');
+	foreach ($filelist as $fileinfo) {
+		$found++;
+		$file = $fileinfo['name'];
+		$classname = preg_replace('/\.php$/', '', $file);
+
+		// Include module file
+		@include_once $dir.$file;
+		if (!class_exists($classname)) continue;
+
+		// Instantiate
+		$object = null;
+		try {
+			$object = new $classname();
+		} catch (Throwable $e) {
+			// Some generators require $db in constructor, try with it
+			try {
+				$object = new $classname($db);
+			} catch (Throwable $e2) {
+				continue;
+			}
+		}
+
+		// Human label/desc
+		$label = (property_exists($object, 'name') && $object->name) ? $object->name : $classname;
+		$desc  = '';
+		if (method_exists($object, 'info')) {
+			$desc = $object->info();
+		} elseif (property_exists($object, 'desc')) {
+			$desc = $object->desc;
+		}
+
+		print '<tr class="oddeven">';
+		print '<td>';
+
+		$checked = ($selected == $classname) ? ' checked' : '';
+		print '<label>';
+		print '<input type="radio" class="flat" name="value" value="'.dol_escape_htmltag($classname).'"'.$checked.'> ';
+		print dol_escape_htmltag($label).' <span class="opacitymedium">('.dol_escape_htmltag($classname).')</span>';
+		print '</label>';
+
+		print '</td>';
+		print '<td class="small">'.($desc ? dol_escape_htmltag($desc) : '&nbsp;').'</td>';
+
+		print '<td class="center">';
+		if ($checked) {
+			print img_picto($langs->trans("Enabled"), 'status1');
+		} else {
+			print img_picto($langs->trans("Disabled"), 'status0');
+		}
+		print '</td>';
+
+		print '</tr>';
 	}
-	print '</select>';
 }
-print '</td>';
-print '<td class="right"><input type="submit" class="button small" value="'.$langs->trans("Modify").'"></td>';
-print '</tr>';
+
+if (!$found) {
+	print '<tr class="oddeven"><td colspan="3" class="opacitymedium">'.$langs->trans("NoRecordFound").'</td></tr>';
+}
 
 print '</table>';
 print '</div>';
 
+print '<div class="center margintoponly">';
+print '<input type="submit" class="button button-save" value="'.$langs->trans("Save").'">';
+print '</div>';
+
 print '</form>';
 
+// Footer
 llxFooter();
 $db->close();
