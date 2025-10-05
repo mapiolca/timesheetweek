@@ -47,9 +47,9 @@ $permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
 $permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
 
-$permCreate        = $user->hasRight('timesheetweek','timesheetweek','create');
-$permCreateChild   = $user->hasRight('timesheetweek','timesheetweek','createChild');
-$permCreateAll     = $user->hasRight('timesheetweek','timesheetweek','createAll');
+$permCreate        = $user->hasRight('timesheetweek','timesheetweek','write');
+$permCreateChild   = $user->hasRight('timesheetweek','timesheetweek','writeChild');
+$permCreateAll     = $user->hasRight('timesheetweek','timesheetweek','writeAll');
 
 $permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');       // pas utilisé ici
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');  // pas utilisé ici
