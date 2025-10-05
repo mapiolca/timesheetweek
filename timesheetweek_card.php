@@ -359,7 +359,7 @@ elseif ($id > 0 && $action != 'create') {
 		}
 		print '<td></td></tr>';
 
-		// regroupement projets
+		// regroupement projets (par id de projet)
 		$byproject = array();
 		foreach($tasks as $t){
 			if (!isset($byproject[$t['project_id']])) {
@@ -372,14 +372,29 @@ elseif ($id > 0 && $action != 'create') {
 			$byproject[$t['project_id']]['tasks'][] = $t;
 		}
 
-		foreach($byproject as $pid=>$pdata){
-			print '<tr class="trproject"><td class="bold">'.dol_escape_htmltag($pdata['ref'].' - '.$pdata['title']).'</td>';
-			foreach($days as $d) print '<td class="center">-</td>';
-			print '<td></td></tr>';
+		// Nombre total de colonnes pour la ligne projet : 1 (colonne libellé) + nb jours + 1 (total)
+		$projectRowColspan = 1 + count($days) + 1;
 
+		foreach($byproject as $pid=>$pdata){
+			// Ligne projet sur une seule cellule, style perweek
+			$proj = new Project($db);
+			$projlink = dol_escape_htmltag($pdata['ref'].' - '.$pdata['title']);
+			if ($proj->fetch((int) $pid) > 0) {
+				$projlink = $proj->getNomUrl(1);
+			}
+			print '<tr class="oddeven trforbreak nobold"><td colspan="'.$projectRowColspan.'">'.$projlink.'</td></tr>';
+
+			// Lignes tâches
 			foreach($pdata['tasks'] as $task){
+				$taskobj = new Task($db);
+				$tasklink = dol_escape_htmltag($task['task_label']);
+				if ($taskobj->fetch((int) $task['task_id']) > 0) {
+					$tasklink = $taskobj->getNomUrl(1);
+				}
+
 				print '<tr>';
-				print '<td class="paddingleft"><a href="'.DOL_URL_ROOT.'/projet/tasks/task.php?id='.$task['task_id'].'">'.dol_escape_htmltag($task['task_label']).'</a></td>';
+				print '<td class="paddingleft">'.$tasklink.'</td>';
+
 				$rowTotalDec = 0;
 				foreach($days as $d){
 					$daydate = $weekdates[$d];
