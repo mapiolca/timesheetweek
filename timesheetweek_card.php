@@ -38,17 +38,18 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // Permissions
-$permRead      = !empty($user->rights->timesheetweek->timesheetweek->read);
-$permReadAll   = !empty($user->rights->timesheetweek->timesheetweek->readall);
-$permReadChild = !empty($user->rights->timesheetweek->timesheetweek->readchild);
-$permWrite     = !empty($user->rights->timesheetweek->timesheetweek->write);
-$permDelete    = !empty($user->rights->timesheetweek->timesheetweek->delete);
+$permRead       = !empty($user->rights->timesheetweek->timesheetweek->read);
+$permReadAll    = !empty($user->rights->timesheetweek->timesheetweek->readall);
+$permReadChild  = !empty($user->rights->timesheetweek->timesheetweek->readchild);
+$permWrite      = !empty($user->rights->timesheetweek->timesheetweek->write);
+$permDelete     = !empty($user->rights->timesheetweek->timesheetweek->delete);
+// Nouveau : peut valider toutes les feuilles
+$permValidateAll = !empty($user->rights->timesheetweek->timesheetweek->validateall);
 
 if (!$permRead) accessforbidden();
 
 /**
  * Helper: retourne l'ID du responsable hiérarchique (si défini) d’un user donné.
- * Ici on s’appuie sur la propriété usuelle $user->fk_user (manager).
  */
 function tw_get_manager_id_for_user($db, $userid) {
 	$u = new User($db);
@@ -96,11 +97,16 @@ if ($action == 'add' && $permWrite) {
 	}
 }
 
-/* =================================
- * Actions: Inline update (pencil) while DRAFT
- * ================================= */
+// Safety: refetch $object if needed
 if ($id > 0 && $object->id <= 0) $object->fetch($id);
 
+// Helpers on ownership/validation
+$isOwner      = ($object->fk_user > 0 && $user->id == $object->fk_user);
+$isValidator  = ($object->fk_user_valid > 0 && $user->id == $object->fk_user_valid) || $permValidateAll;
+
+/* =================================
+ * Actions: Inline edit (pencils) only in DRAFT
+ * ================================= */
 $allowInlineEdit = ($permWrite && $object->status == TimesheetWeek::STATUS_DRAFT);
 
 if ($allowInlineEdit) {
@@ -109,7 +115,8 @@ if ($allowInlineEdit) {
 		$val = GETPOSTINT('fk_user');
 		if ($val > 0) {
 			$object->fk_user = $val;
-			$object->update($user);
+			// update direct
+			$db->query("UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user=".(int)$val." WHERE rowid=".(int)$object->id);
 		}
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
@@ -120,7 +127,7 @@ if ($allowInlineEdit) {
 		if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 			$object->year = (int) $m[1];
 			$object->week = (int) $m[2];
-			$object->update($user);
+			$db->query("UPDATE ".MAIN_DB_PREFIX."timesheet_week SET year=".(int)$object->year.", week=".(int)$object->week." WHERE rowid=".(int)$object->id);
 			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 			exit;
 		} else {
@@ -131,7 +138,7 @@ if ($allowInlineEdit) {
 	if ($action == 'set_fk_user_valid' && GETPOST('token') == $_SESSION['newtoken']) {
 		$val = GETPOSTINT('fk_user_valid');
 		$object->fk_user_valid = $val > 0 ? $val : null;
-		$object->update($user);
+		$db->query("UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_valid ".($val>0?"=".(int)$val:"= NULL")." WHERE rowid=".(int)$object->id);
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
@@ -139,7 +146,8 @@ if ($allowInlineEdit) {
 	if ($action == 'set_note' && GETPOST('token') == $_SESSION['newtoken']) {
 		$val = GETPOST('note_edit', 'restricthtml');
 		$object->note = $val;
-		$object->update($user);
+		$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET note='". $db->escape($val)."' WHERE rowid=".(int)$object->id;
+		$db->query($sql);
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
@@ -272,6 +280,77 @@ if ($action == 'save' && $permWrite && $id > 0) {
 }
 
 /* =================================
+ * Actions: Workflow Submit / Draft / Approve / Refuse (with confirm)
+ * ================================= */
+function tw_update_status($db, $object, $newstatus, $setdatevalidation = false, $setvalidatorifempty = false, $useridvalidator = 0) {
+	$now = dol_now();
+	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status=".(int)$newstatus;
+	if ($setdatevalidation) $sql .= ", date_validation='".$db->idate($now)."'";
+	if ($setvalidatorifempty && $useridvalidator > 0) {
+		$sql .= ", fk_user_valid = COALESCE(fk_user_valid,".(int)$useridvalidator.")";
+	}
+	$sql .= " WHERE rowid=".(int)$object->id;
+	return $db->query($sql) ? 1 : -1;
+}
+
+// Submit
+if ($action == 'confirm_submit' && $confirm === 'yes' && $id > 0) {
+	// Only owner can submit in our rule (can extend later)
+	if ($isOwner && $permWrite && $object->status == TimesheetWeek::STATUS_DRAFT) {
+		$res = tw_update_status($db, $object, TimesheetWeek::STATUS_SUBMITTED, false, false, 0);
+		if ($res > 0) {
+			setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
+		} else {
+			setEventMessages($db->lasterror(), null, 'errors');
+		}
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
+// Back to draft
+if ($action == 'confirm_setdraft' && $confirm === 'yes' && $id > 0) {
+	if (($isOwner || $isValidator) && in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED))) {
+		$res = tw_update_status($db, $object, TimesheetWeek::STATUS_DRAFT, false, false, 0);
+		if ($res > 0) {
+			setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
+		} else {
+			setEventMessages($db->lasterror(), null, 'errors');
+		}
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
+// Approve
+if ($action == 'confirm_approve' && $confirm === 'yes' && $id > 0) {
+	if ($isValidator && $object->status == TimesheetWeek::STATUS_SUBMITTED) {
+		$res = tw_update_status($db, $object, TimesheetWeek::STATUS_APPROVED, true, true, $user->id);
+		if ($res > 0) {
+			setEventMessages($langs->trans("Validated"), null, 'mesgs');
+		} else {
+			setEventMessages($db->lasterror(), null, 'errors');
+		}
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
+// Refuse
+if ($action == 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
+	if ($isValidator && $object->status == TimesheetWeek::STATUS_SUBMITTED) {
+		$res = tw_update_status($db, $object, TimesheetWeek::STATUS_REFUSED, false, true, $user->id);
+		if ($res > 0) {
+			setEventMessages($langs->trans("Refused"), null, 'mesgs');
+		} else {
+			setEventMessages($db->lasterror(), null, 'errors');
+		}
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+
+/* =================================
  * Actions: Delete (confirm)
  * ================================= */
 if ($action == 'confirm_delete' && $permDelete && $id > 0 && GETPOST('token') == $_SESSION['newtoken']) {
@@ -342,27 +421,63 @@ elseif ($id > 0 && $action != 'create') {
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head,'card',$langs->trans("TimesheetWeek"),-1,'time');
 
-	// Confirm popup (AJAX & non-AJAX) for delete
+	// Confirm popups
 	$formconfirm = '';
+	$useajax = !empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile);
+
 	if ($action == 'delete') {
-		$formconfirm = $form->formconfirm(
+		$formconfirm .= $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
 			$langs->trans('DeleteTimesheetWeek'),
 			$langs->trans('ConfirmDeleteObject'),
 			'confirm_delete',
 			array(),
-			0,
-			1
+			$useajax ? 1 : 0,
+			$useajax ? 'action-delete' : ''
 		);
-	} else {
-		$formconfirm = $form->formconfirm(
+	}
+	if ($action == 'ask_submit') {
+		$formconfirm .= $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans('DeleteTimesheetWeek'),
-			$langs->trans('ConfirmDeleteObject'),
-			'confirm_delete',
+			$langs->trans('Submit'),
+			$langs->trans('ConfirmSubmit', $object->ref),
+			'confirm_submit',
 			array(),
-			1,
-			'action-delete'
+			$useajax ? 1 : 0,
+			$useajax ? 'action-submit' : ''
+		);
+	}
+	if ($action == 'ask_setdraft') {
+		$formconfirm .= $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans('SetToDraft'),
+			$langs->trans('ConfirmSetToDraft', $object->ref),
+			'confirm_setdraft',
+			array(),
+			$useajax ? 1 : 0,
+			$useajax ? 'action-setdraft' : ''
+		);
+	}
+	if ($action == 'ask_approve') {
+		$formconfirm .= $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans('Validate'),
+			$langs->trans('ConfirmValidate', $object->ref),
+			'confirm_approve',
+			array(),
+			$useajax ? 1 : 0,
+			$useajax ? 'action-approve' : ''
+		);
+	}
+	if ($action == 'ask_refuse') {
+		$formconfirm .= $form->formconfirm(
+			$_SERVER["PHP_SELF"].'?id='.$object->id,
+			$langs->trans('Refuse'),
+			$langs->trans('ConfirmRefuse', $object->ref),
+			'confirm_refuse',
+			array(),
+			$useajax ? 1 : 0,
+			$useajax ? 'action-refuse' : ''
 		);
 	}
 	print $formconfirm;
@@ -504,7 +619,7 @@ elseif ($id > 0 && $action != 'create') {
 		$d = $L->day_date;
 		if (!isset($hoursMap[$t])) $hoursMap[$t] = array();
 		$hoursMap[$t][$d] = array('hours'=>(float)$L->hours,'zone'=>(int)$L->zone,'meal'=>(int)$L->meal);
-		if (!isset($dayMeta[$d])) $dayMeta[$d] = array('zone'=>(int)$L->zone,'meal'=>(int)$L->meal);
+		if (!isset($dayMeta[$d])) $dayMeta[$d] = array('zone'=>(int)$L->zone,'meal'=> (int)$L->meal);
 	}
 
 	if (empty($tasks)) {
@@ -651,13 +766,43 @@ elseif ($id > 0 && $action != 'create') {
 	if ($permWrite && $object->status != TimesheetWeek::STATUS_DRAFT) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
-	$useajax = !empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile);
+
+	// Workflow buttons
+	// Submit
+	if ($object->status == TimesheetWeek::STATUS_DRAFT && $isOwner && $permWrite) {
+		if ($useajax) {
+			print dolGetButtonAction('', $langs->trans('Submit'), 'default', '', 'action-submit', 1);
+		} else {
+			print dolGetButtonAction('', $langs->trans('Submit'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_submit', '', 1);
+		}
+	}
+	// Back to draft
+	if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && ($isOwner || $isValidator)) {
+		if ($useajax) {
+			print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', '', 'action-setdraft', 1);
+		} else {
+			print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_setdraft', '', 1);
+		}
+	}
+	// Approve / Refuse for validator or validateall
+	if ($object->status == TimesheetWeek::STATUS_SUBMITTED && $isValidator) {
+		if ($useajax) {
+			print dolGetButtonAction('', $langs->trans('Validate'), 'ok', '', 'action-approve', 1);
+			print dolGetButtonAction('', $langs->trans('Refuse'), 'danger', '', 'action-refuse', 1);
+		} else {
+			print dolGetButtonAction('', $langs->trans('Validate'), 'ok', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_approve', '', 1);
+			print dolGetButtonAction('', $langs->trans('Refuse'), 'danger', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse', '', 1);
+		}
+	}
+
+	// Delete
 	if ($useajax) {
 		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', '', 'action-delete', $permDelete);
 	} else {
 		$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken();
 		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $deleteUrl, '', $permDelete);
 	}
+
 	print '</div>';
 }
 
