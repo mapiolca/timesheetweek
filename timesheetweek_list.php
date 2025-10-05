@@ -53,12 +53,15 @@ $confirm     = GETPOST('confirm', 'alpha');
 $toselect    = GETPOST('toselect','array');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
 
+// Change selected columns like Dolibarr standard
+include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
+
 $search_all      = trim(GETPOST('search_all', 'alphanohtml'));
 $search_ref      = GETPOST('search_ref','alpha');
 $search_user     = GETPOST('search_user','intcomma');
 $search_year     = GETPOST('search_year','int');
 $search_week     = GETPOST('search_week','int');
-$search_status   = GETPOST('search_status','intcomma');
+$search_status   = GETPOST('search_status','alpha');  // keep alpha to allow '' easily
 $search_thours   = GETPOST('search_total_hours','alpha');
 $search_ohours   = GETPOST('search_overtime_hours','alpha');
 
@@ -84,70 +87,62 @@ if ($permReadAll) {
 	$filterUserIds = array($user->id);
 }
 
-// ---------------- Massactions ----------------
-if (!GETPOST('confirmmassaction','alpha') && $massaction != 'presend' && $massaction != 'confirm_presend') {
-	$massaction = '';
-}
-
-if ($action == 'delete' && $confirm == 'yes' && GETPOSTINT('id') > 0) {
-	// not used here; card handles delete
-}
-
-if ($massaction && GETPOST('token','alpha') == $_SESSION['newtoken']) {
+// ---------------- Massactions confirm handlers ----------------
+if ($action == 'mass_approve' && $confirm == 'yes' && GETPOST('token','alpha') == $_SESSION['newtoken']) {
 	$selected = is_array($toselect) ? $toselect : array();
-	if ($massaction == 'approve_selection' && $selected) {
-		foreach ($selected as $tid) {
-			$tw = new TimesheetWeek($db);
-			if ($tw->fetch((int) $tid) > 0) {
-				$can = false;
-				if (!empty($tw->fk_user_valid) && $tw->fk_user_valid == $user->id && $permValidate) $can = true;
-				if ($tw->fk_user == $user->id && $permValidateOwn) $can = true;
-				if (in_array($tw->fk_user, $childids) && $permValidateChild) $can = true;
-				if ($permValidateAll) $can = true;
+	foreach ($selected as $tid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int) $tid) > 0) {
+			$can = false;
+			if (!empty($tw->fk_user_valid) && $tw->fk_user_valid == $user->id && $permValidate) $can = true;
+			if ($tw->fk_user == $user->id && $permValidateOwn) $can = true;
+			if (in_array($tw->fk_user, $childids) && $permValidateChild) $can = true;
+			if ($permValidateAll) $can = true;
 
-				if ($can && $tw->status == TimesheetWeek::STATUS_SUBMITTED) {
-					if ((int)$tw->fk_user_valid !== (int)$user->id) { $tw->fk_user_valid = $user->id; }
-					$tw->status = TimesheetWeek::STATUS_APPROVED;
-					$tw->date_validation = dol_now();
-					$tw->update($user);
-				}
+			if ($can && $tw->status == TimesheetWeek::STATUS_SUBMITTED) {
+				if ((int)$tw->fk_user_valid !== (int)$user->id) { $tw->fk_user_valid = $user->id; }
+				$tw->status = TimesheetWeek::STATUS_APPROVED;
+				$tw->date_validation = dol_now();
+				$tw->update($user);
 			}
 		}
-		setEventMessages($langs->trans("TimesheetsApproved"), null, 'mesgs');
 	}
-	if ($massaction == 'refuse_selection' && $selected) {
-		foreach ($selected as $tid) {
-			$tw = new TimesheetWeek($db);
-			if ($tw->fetch((int) $tid) > 0) {
-				$can = false;
-				if (!empty($tw->fk_user_valid) && $tw->fk_user_valid == $user->id && $permValidate) $can = true;
-				if ($tw->fk_user == $user->id && $permValidateOwn) $can = true;
-				if (in_array($tw->fk_user, $childids) && $permValidateChild) $can = true;
-				if ($permValidateAll) $can = true;
+	setEventMessages($langs->trans("TimesheetsApproved"), null, 'mesgs');
+}
+if ($action == 'mass_refuse' && $confirm == 'yes' && GETPOST('token','alpha') == $_SESSION['newtoken']) {
+	$selected = is_array($toselect) ? $toselect : array();
+	foreach ($selected as $tid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int) $tid) > 0) {
+			$can = false;
+			if (!empty($tw->fk_user_valid) && $tw->fk_user_valid == $user->id && $permValidate) $can = true;
+			if ($tw->fk_user == $user->id && $permValidateOwn) $can = true;
+			if (in_array($tw->fk_user, $childids) && $permValidateChild) $can = true;
+			if ($permValidateAll) $can = true;
 
-				if ($can && $tw->status == TimesheetWeek::STATUS_SUBMITTED) {
-					if ((int)$tw->fk_user_valid !== (int)$user->id) { $tw->fk_user_valid = $user->id; }
-					$tw->status = TimesheetWeek::STATUS_REFUSED;
-					$tw->date_validation = dol_now();
-					$tw->update($user);
-				}
+			if ($can && $tw->status == TimesheetWeek::STATUS_SUBMITTED) {
+				if ((int)$tw->fk_user_valid !== (int)$user->id) { $tw->fk_user_valid = $user->id; }
+				$tw->status = TimesheetWeek::STATUS_REFUSED;
+				$tw->date_validation = dol_now();
+				$tw->update($user);
 			}
 		}
-		setEventMessages($langs->trans("TimesheetsRefused"), null, 'mesgs');
 	}
-	if ($massaction == 'delete_selection' && $selected) {
-		foreach ($selected as $tid) {
-			$tw = new TimesheetWeek($db);
-			if ($tw->fetch((int) $tid) > 0) {
-				$can = false;
-				if ($tw->fk_user == $user->id && $permDelete) $can = true;
-				if (in_array($tw->fk_user, $childids) && $permDeleteChild) $can = true;
-				if ($permDeleteAll) $can = true;
-				if ($can) $tw->delete($user);
-			}
+	setEventMessages($langs->trans("TimesheetsRefused"), null, 'mesgs');
+}
+if ($action == 'mass_delete' && $confirm == 'yes' && GETPOST('token','alpha') == $_SESSION['newtoken']) {
+	$selected = is_array($toselect) ? $toselect : array();
+	foreach ($selected as $tid) {
+		$tw = new TimesheetWeek($db);
+		if ($tw->fetch((int) $tid) > 0) {
+			$can = false;
+			if ($tw->fk_user == $user->id && $permDelete) $can = true;
+			if (in_array($tw->fk_user, $childids) && $permDeleteChild) $can = true;
+			if ($permDeleteAll) $can = true;
+			if ($can) $tw->delete($user);
 		}
-		setEventMessages($langs->trans("RecordsDeleted"), null, 'mesgs');
 	}
+	setEventMessages($langs->trans("RecordsDeleted"), null, 'mesgs');
 }
 
 // ---------------- SQL ----------------
@@ -158,19 +153,17 @@ $sql.= " v.rowid as vid, v.lastname as vlastname, v.firstname as vfirstname, v.l
 $sql.= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
-if ($db->DDLDescTable(MAIN_DB_PREFIX.'timesheet_week')) { // assume entity present
+if ($db->DDLDescTable(MAIN_DB_PREFIX.'timesheet_week')) {
 	$sql.= " WHERE t.entity IN (".getEntity('timesheetweek').")";
 } else {
 	$sql.= " WHERE 1=1";
 }
-if (!empty($search_all)) {
-	$sql.= natural_search(array('t.ref','u.lastname','u.firstname','u.login'), $search_all);
-}
+if (!empty($search_all))      $sql.= natural_search(array('t.ref','u.lastname','u.firstname','u.login'), $search_all);
 if (!empty($search_ref))      $sql.= natural_search('t.ref', $search_ref);
 if (!empty($search_year))     $sql.= " AND t.year = ".((int)$search_year);
 if (!empty($search_week))     $sql.= " AND t.week = ".((int)$search_week);
 if ($search_user !== '' && $search_user >= 0) $sql.= " AND t.fk_user IN (".$db->sanitize($search_user).")";
-if ($search_status !== '' && $search_status >= 0) $sql.= " AND t.status IN (".$db->sanitize($search_status).")";
+if ($search_status !== '' && $search_status !== null)   $sql.= " AND t.status IN (".$db->sanitize($search_status).")";
 if ($search_thours !== '')    $sql.= natural_search('t.total_hours', $search_thours, 1);
 if ($search_ohours !== '')    $sql.= natural_search('t.overtime_hours', $search_ohours, 1);
 
@@ -209,6 +202,7 @@ $formother = new FormOther($db);
 $title = $langs->trans("TimesheetWeek");
 llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist');
 
+// Params in URL
 $param = '';
 if ($search_all)      $param .= '&search_all='.urlencode($search_all);
 if ($search_ref)      $param .= '&search_ref='.urlencode($search_ref);
@@ -219,7 +213,7 @@ if ($search_status!=='') $param .= '&search_status='.urlencode($search_status);
 if ($search_thours!=='') $param .= '&search_total_hours='.urlencode($search_thours);
 if ($search_ohours!=='') $param .= '&search_overtime_hours='.urlencode($search_ohours);
 
-// Column chooser
+// Column chooser definition
 $arrayfields = array(
 	't.ref'            => array('label'=>$langs->trans("Ref"), 'checked'=>1),
 	'user'             => array('label'=>$langs->trans("User"), 'checked'=>1),
@@ -238,7 +232,6 @@ $newbutton = '';
 if ($permWrite) {
 	$newbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?action=create');
 }
-
 $massactions = array(
 	'approve_selection' => img_picto('', 'check', 'class="pictofixedwidth"').$langs->trans("ApproveSelection"),
 	'refuse_selection'  => img_picto('', 'error', 'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
@@ -263,10 +256,10 @@ print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n"
 
 // ---- Filter row
 print '<tr class="liste_titre_filter">';
-// Checkbox select-all (left)
-print '<td class="liste_titre center maxwidthsearch">';
-print $form->showFilterButtons('left');
-print '</td>';
+// Column selector + select all checkbox on left (one time)
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$selectedfieldshtml = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN'));
+print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('left').'</td>';
 
 // Ref
 if (!empty($arrayfields['t.ref']['checked'])) {
@@ -307,26 +300,23 @@ if (!empty($arrayfields['t.tms']['checked'])) { print '<td class="liste_titre">&
 // Status
 if (!empty($arrayfields['t.status']['checked'])) {
 	print '<td class="liste_titre center">';
-	// simple select (0..3)
 	print '<select class="flat" name="search_status">';
 	print '<option value=""></option>';
-	print '<option value="'.TimesheetWeek::STATUS_DRAFT.'"'.($search_status==='0'?' selected':'').'>'.$langs->trans("Draft").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_SUBMITTED.'"'.($search_status==='1'?' selected':'').'>'.$langs->trans("Submitted").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_APPROVED.'"'.($search_status==='2'?' selected':'').'>'.$langs->trans("Approved").'</option>';
-	print '<option value="'.TimesheetWeek::STATUS_REFUSED.'"'.($search_status==='3'?' selected':'').'>'.$langs->trans("Refused").'</option>';
+	print '<option value="'.TimesheetWeek::STATUS_DRAFT.'"'.(($search_status!=='') && (string)$search_status===(string)TimesheetWeek::STATUS_DRAFT?' selected':'').'>'.$langs->trans("Draft").'</option>';
+	print '<option value="'.TimesheetWeek::STATUS_SUBMITTED.'"'.(($search_status!=='') && (string)$search_status===(string)TimesheetWeek::STATUS_SUBMITTED?' selected':'').'>'.$langs->trans("Submitted").'</option>';
+	print '<option value="'.TimesheetWeek::STATUS_APPROVED.'"'.(($search_status!=='') && (string)$search_status===(string)TimesheetWeek::STATUS_APPROVED?' selected':'').'>'.$langs->trans("Approved").'</option>';
+	print '<option value="'.TimesheetWeek::STATUS_REFUSED.'"'.(($search_status!=='') && (string)$search_status===(string)TimesheetWeek::STATUS_REFUSED?' selected':'').'>'.$langs->trans("Refused").'</option>';
 	print '</select>';
 	print '</td>';
 }
 // Right filter buttons
-print '<td class="liste_titre center maxwidthsearch">';
-print $form->showFilterButtons();
-print '</td>';
+print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons().'</td>';
 
 print '</tr>';
 
 // ---- Title row
 print '<tr class="liste_titre">';
-print_liste_field_titre('', $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center '); // checkbox column
+print_liste_field_titre($selectedfieldshtml, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center '); // left cell with selector
 
 if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
 if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder);
@@ -392,10 +382,8 @@ while ($i < $imax) {
 		print '<td class="center">'.$timesheetstatic->getLibStatut(5).'</td>';
 	}
 
-	// right select box buttons cell
-	print '<td class="center">';
-	// nothing else here for now
-	print '</td>';
+	// right spacer
+	print '<td class="center"></td>';
 
 	print '</tr>';
 	$i++;
@@ -411,18 +399,26 @@ print '</table>';
 print '</div>';
 print '</form>';
 
-// Mass actions confirmation popups
-if ($massaction == 'approve_selection') {
-	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('ApproveSelection'), $langs->trans("ConfirmApprove"), 'approve_selection', array(), 0, 1);
-	print $formconfirm;
-}
-if ($massaction == 'refuse_selection') {
-	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('RefuseSelection'), $langs->trans("ConfirmRefuse"), 'refuse_selection', array(), 0, 1);
-	print $formconfirm;
-}
-if ($massaction == 'delete_selection') {
-	$formconfirm = $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('DeleteSelection'), $langs->trans("ConfirmDelete"), 'delete_selection', array(), 0, 1);
-	print $formconfirm;
+// Mass actions confirmation popups with selected IDs preserved
+if (in_array($massaction, array('approve_selection','refuse_selection','delete_selection'))) {
+	$formq = array(
+		array('type'=>'hidden','name'=>'token','value'=>newToken()),
+		array('type'=>'hidden','name'=>'confirm','value'=>'yes')
+	);
+	if (is_array($toselect)) {
+		foreach ($toselect as $selid) {
+			$formq[] = array('type'=>'hidden','name'=>'toselect[]','value'=>(int)$selid);
+		}
+	}
+	if ($massaction == 'approve_selection') {
+		print $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('ApproveSelection'), $langs->trans("ConfirmApprove"), 'mass_approve', $formq, 0, 1);
+	}
+	if ($massaction == 'refuse_selection') {
+		print $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('RefuseSelection'), $langs->trans("ConfirmRefuse"), 'mass_refuse', $formq, 0, 1);
+	}
+	if ($massaction == 'delete_selection') {
+		print $form->formconfirm($_SERVER["PHP_SELF"], $langs->trans('DeleteSelection'), $langs->trans("ConfirmDelete"), 'mass_delete', $formq, 0, 1);
+	}
 }
 
 llxFooter();
