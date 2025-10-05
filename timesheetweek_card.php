@@ -41,7 +41,7 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
-// ---- Permissions (nouveau modèle) ----
+// ---- Permissions (nouveau modèle, avec hasRight) ----
 $permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
 $permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
@@ -628,28 +628,75 @@ JS;
 
 	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
-	$tasks = $object->getAssignedTasks($object->fk_user); // array de tâches assignées
-	$lines = $object->getLines(); // objets TimesheetWeekLine existants
-
-	// Indexer les heures existantes
-	$hoursBy = array();
+	// 1) CHARGER LIGNES EXISTANTES (DIRECT SQL)
+	$hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
 	$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
 	$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
+	$taskIdsFromLines = array();
 
-	if (!empty($lines)) {
-		foreach ($lines as $L) {
-			$keydate = $L->day_date; // Y-m-d
-			$w = (int) date('N', strtotime($keydate));
+	$sqlLines = "SELECT fk_task, day_date, hours, zone, meal 
+		FROM ".MAIN_DB_PREFIX."timesheet_week_line
+		WHERE fk_timesheet_week=".(int)$object->id;
+	$resLines = $db->query($sqlLines);
+	if ($resLines) {
+		while ($o = $db->fetch_object($resLines)) {
+			$fk_task = (int)$o->fk_task;
+			$daydate = $o->day_date;
+			$hours   = (float)$o->hours;
+			$zone    = isset($o->zone) ? (int)$o->zone : null;
+			$meal    = (int)$o->meal;
+
+			if (!isset($hoursBy[$fk_task])) $hoursBy[$fk_task] = array();
+			$hoursBy[$fk_task][$daydate] = $hours;
+
+			$w = (int) date('N', strtotime($daydate));
 			$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
 
-			if (!isset($hoursBy[$L->fk_task])) $hoursBy[$L->fk_task] = array();
-			$hoursBy[$L->fk_task][$keydate] = (float) $L->hours;
+			if ($meal) $dayMeal[$dayName] = 1;
+			if ($zone !== null) $dayZone[$dayName] = $zone;
 
-			if ((int)$L->meal === 1) $dayMeal[$dayName] = 1;
-			if ($L->zone !== null && $L->zone !== '') $dayZone[$dayName] = (int)$L->zone;
+			$taskIdsFromLines[$fk_task] = 1;
 		}
 	}
 
+	// 2) RÉCUPÉRER LES TÂCHES ASSIGNÉES
+	$tasks = $object->getAssignedTasks($object->fk_user); // id, label, project_id, project_ref, project_title, task_ref?
+	$tasksById = array();
+	if (!empty($tasks)) {
+		foreach ($tasks as $t) {
+			$tasksById[(int)$t['task_id']] = $t;
+		}
+	}
+
+	// 3) COMPLÉTER AVEC TÂCHES PRÉSENTES DANS LES LIGNES MAIS PAS DANS LES ASSIGNATIONS
+	if (!empty($taskIdsFromLines)) {
+		$missing = array();
+		foreach (array_keys($taskIdsFromLines) as $tid) {
+			if (!isset($tasksById[$tid])) $missing[] = (int)$tid;
+		}
+		if (!empty($missing)) {
+			$sqlMiss = "SELECT t.rowid as task_id, t.label as task_label, t.ref as task_ref,
+							p.rowid as project_id, p.ref as project_ref, p.title as project_title
+						FROM ".MAIN_DB_PREFIX."projet_task t
+						INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet
+						WHERE t.rowid IN (".implode(',', array_map('intval',$missing)).")";
+			$resMiss = $db->query($sqlMiss);
+			if ($resMiss) {
+				while ($o = $db->fetch_object($resMiss)) {
+					$tasks[] = array(
+						'task_id'       => (int)$o->task_id,
+						'task_label'    => $o->task_label,
+						'task_ref'      => $o->task_ref,
+						'project_id'    => (int)$o->project_id,
+						'project_ref'   => $o->project_ref,
+						'project_title' => $o->project_title
+					);
+				}
+			}
+		}
+	}
+
+	// 4) AFFICHAGE
 	if (empty($tasks)) {
 		echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
@@ -678,7 +725,7 @@ JS;
 		echo '<th class="right">'.$langs->trans("Total").'</th>';
 		echo '</tr>';
 
-		// Ligne zone + panier (préfills)
+		// Ligne zone + panier (préfills depuis lignes)
 		echo '<tr class="liste_titre">';
 		echo '<td></td>';
 		foreach ($days as $d) {
@@ -699,7 +746,7 @@ JS;
 		// Regrouper par projet
 		$byproject = array();
 		foreach ($tasks as $t) {
-			$pid = $t['project_id'];
+			$pid = (int)$t['project_id'];
 			if (empty($byproject[$pid])) {
 				$byproject[$pid] = array(
 					'ref'   => $t['project_ref'],
@@ -739,9 +786,9 @@ JS;
 					$iname = 'hours_'.$task['task_id'].'_'.$d;
 					$val = '';
 					$keydate = $weekdates[$d];
-					if (isset($hoursBy[$task['task_id']][$keydate])) {
-						$val = formatHours($hoursBy[$task['task_id']][$keydate]);
-						$rowTotal += (float)$hoursBy[$task['task_id']][$keydate];
+					if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
+						$val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
+						$rowTotal += (float)$hoursBy[(int)$task['task_id']][$keydate];
 					}
 					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"></td>';
 				}
