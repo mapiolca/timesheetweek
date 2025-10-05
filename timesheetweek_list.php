@@ -30,7 +30,11 @@ $langs->loadLangs(array('timesheetweek@timesheetweek','other','projects'));
 $permRead      = !empty($user->rights->timesheetweek->timesheetweek->read);
 $permReadAll   = !empty($user->rights->timesheetweek->timesheetweek->readall);
 $permReadChild = !empty($user->rights->timesheetweek->timesheetweek->readchild);
+$permWrite     = !empty($user->rights->timesheetweek->timesheetweek->write);
 if (!$permRead) accessforbidden();
+
+// ----------------------------------------------------------------------------
+$hookmanager->initHooks(array('timesheetweeklist'));
 
 // ----------------------------------------------------------------------------
 // Parameters
@@ -46,28 +50,48 @@ $contextpage = GETPOST('contextpage', 'aZ') ?: 'timesheetweeklist';
 $action      = GETPOST('action', 'aZ09');
 
 // Search filters
-$search_ref      = trim(GETPOST('search_ref','alpha'));
-$search_user     = GETPOSTINT('search_user');
-$search_validator= GETPOSTINT('search_validator');
-$search_year     = GETPOSTINT('search_year');
-$search_week     = GETPOSTINT('search_week');
-$search_status   = GETPOST('search_status','alpha'); // may be '' or '0','1','2',...
-$search_note     = trim(GETPOST('search_note','alpha'));
+$search_ref       = trim(GETPOST('search_ref','alpha'));
+$search_user      = GETPOSTINT('search_user');
+$search_validator = GETPOSTINT('search_validator');
+$search_year      = GETPOSTINT('search_year');
+$search_week      = GETPOSTINT('search_week');
+$search_status    = GETPOST('search_status','alpha'); // may be '' or '0','1','2',...
+$search_note      = trim(GETPOST('search_note','alpha'));
 
-// Mass actions (not used but keep hook compatibility)
+// Mass actions (not used here)
 $massaction = GETPOST('massaction', 'alpha');
 
-// ----------------------------------------------------------------------------
-// Objects / Hooks
-// ----------------------------------------------------------------------------
-$form = new Form($db);
-$object = new TimesheetWeek($db);
-$hookmanager->initHooks(array('timesheetweeklist'));
+// Manage remove filters
+if (GETPOST('button_removefilter_x') || GETPOST('button_removefilter')) {
+	$search_ref = $search_note = '';
+	$search_user = $search_validator = $search_year = $search_week = 0;
+	$search_status = '';
+}
 
 // ----------------------------------------------------------------------------
-if (!isModEnabled('project')) {
-	// Not mandatory here, but module relies on tasks later
-}
+// Objects
+// ----------------------------------------------------------------------------
+$form   = new Form($db);
+$object = new TimesheetWeek($db);
+
+// ----------------------------------------------------------------------------
+// Arrayfields (columns visibility)
+// ----------------------------------------------------------------------------
+$arrayfields = array(
+	't.rowid'           => array('label'=>'TechnicalID',     'checked'=>0, 'position'=>10),
+	't.ref'             => array('label'=>'Ref',             'checked'=>1, 'position'=>20),
+	't.fk_user'         => array('label'=>'Employee',        'checked'=>1, 'position'=>30),
+	't.year'            => array('label'=>'Year',            'checked'=>1, 'position'=>40),
+	't.week'            => array('label'=>'Week',            'checked'=>1, 'position'=>50),
+	't.status'          => array('label'=>'Status',          'checked'=>1, 'position'=>60),
+	't.note'            => array('label'=>'Note',            'checked'=>0, 'position'=>70),
+	't.date_creation'   => array('label'=>'DateCreation',    'checked'=>1, 'position'=>80),
+	't.date_validation' => array('label'=>'DateValidation',  'checked'=>1, 'position'=>90),
+	't.fk_user_valid'   => array('label'=>'Validator',       'checked'=>1, 'position'=>100),
+	't.total_hours'     => array('label'=>'TotalHours',      'checked'=>1, 'position'=>110),
+	't.overtime_hours'  => array('label'=>'Overtime',        'checked'=>1, 'position'=>120),
+	't.tms'             => array('label'=>'DateModification','checked'=>0, 'position'=>130),
+);
 
 // ----------------------------------------------------------------------------
 // Build SQL
@@ -84,17 +108,14 @@ $sql .= " t.date_creation,";
 $sql .= " t.date_validation,";
 $sql .= " t.fk_user_valid,";
 $sql .= " t.tms,";
-$sql .= " ".($db->escape('total_hours') ? "t.total_hours" : "t.total_hours")." as total_hours,";
-$sql .= " ".($db->escape('overtime_hours') ? "t.overtime_hours" : "t.overtime_hours")." as overtime_hours,";
+$sql .= " t.total_hours,";
+$sql .= " t.overtime_hours,";
 $sql .= " u.login as user_login, u.firstname as user_firstname, u.lastname as user_lastname,";
 $sql .= " v.login as valid_login, v.firstname as valid_firstname, v.lastname as valid_lastname";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
 $sql .= " WHERE 1=1";
-
-// Entity filter (if you added entity field, adapt; if not, rely on users’ entity)
-$sql .= " AND t.rowid > 0"; // placeholder to append conditions
 
 // Permissions filter
 if (!$permReadAll && !$permReadChild) {
@@ -134,7 +155,7 @@ $resql = $db->query($sqlCount);
 if ($resql) { $obj = $db->fetch_object($resql); $totalnb = ($obj?$obj->nb:0); $db->free($resql); }
 
 // ----------------------------------------------------------------------------
-// List setup
+// Build param for links
 // ----------------------------------------------------------------------------
 $param = '';
 $param .= ($search_ref !== '' ? '&search_ref='.urlencode($search_ref) : '');
@@ -144,38 +165,12 @@ if ($search_validator > 0)  $param .= '&search_validator='.$search_validator;
 if ($search_year > 0)       $param .= '&search_year='.$search_year;
 if ($search_week > 0)       $param .= '&search_week='.$search_week;
 if ($search_status !== '' && $search_status !== '-1') $param .= '&search_status='.$search_status;
-
-$param .= '&sortfield='.$sortfield.'&sortorder='.$sortorder;
-
-$arrayfields = array(
-	't.rowid'           => array('label'=>'TechnicalID',     'checked'=>0, 'position'=>10),
-	't.ref'             => array('label'=>'Ref',             'checked'=>1, 'position'=>20),
-	't.fk_user'         => array('label'=>'Employee',        'checked'=>1, 'position'=>30),
-	't.year'            => array('label'=>'Year',            'checked'=>1, 'position'=>40),
-	't.week'            => array('label'=>'Week',            'checked'=>1, 'position'=>50),
-	't.status'          => array('label'=>'Status',          'checked'=>1, 'position'=>60),
-	't.note'            => array('label'=>'Note',            'checked'=>0, 'position'=>70),
-	't.date_creation'   => array('label'=>'DateCreation',    'checked'=>1, 'position'=>80),
-	't.date_validation' => array('label'=>'DateValidation',  'checked'=>1, 'position'=>90),
-	't.fk_user_valid'   => array('label'=>'Validator',       'checked'=>1, 'position'=>100),
-	't.total_hours'     => array('label'=>'TotalHours',      'checked'=>1, 'position'=>110),
-	't.overtime_hours'  => array('label'=>'Overtime',        'checked'=>1, 'position'=>120),
-	't.tms'             => array('label'=>'DateModification','checked'=>0, 'position'=>130),
-);
-
-// Apply show/hide columns from GET/SESSION (Dolibarr convention)
-if (isset($_GET['save_lastsearch_values'])) $page = 0;
-if (GETPOST('button_removefilter_x') || GETPOST('button_removefilter')) {
-	$search_ref = $search_note = '';
-	$search_user = $search_validator = $search_year = $search_week = 0;
-	$search_status = '';
-}
-$hookmanager->executeHooks('printFieldListSelect', array(), $object, $action);
+$param .= '&limit='.$limit;
 
 // ----------------------------------------------------------------------------
-// Output
+// Header
 // ----------------------------------------------------------------------------
-$title = $langs->trans("TimesheetWeek").' - '.$langs->trans("List");
+$title = $langs->trans("TimesheetWeekList");
 llxHeader('', $title);
 
 $newcardbutton = '';
@@ -203,34 +198,45 @@ print_barre_liste(
 	0,
 	'object_timesheetweek@timesheetweek',
 	0,
-	'',
+	$newcardbutton,
 	'',
 	$limit
 );
 
-// ---- Filters row
+// ----------------------------------------------------------------------------
+// Table start
+// ----------------------------------------------------------------------------
 print '<div class="div-table-responsive">';
-print '<table class="tagtable liste'.($moreforfilter ?? '').'">';
+print '<table class="tagtable liste">';
+
+// ---- Header row (sortable titles)
 print '<tr class="liste_titre">';
 
-// Row 1: headers
 foreach ($arrayfields as $key => $val) {
 	if (empty($val['checked'])) continue;
 	$align = (in_array($key, array('t.week','t.year','t.status','t.total_hours','t.overtime_hours')) ? 'right' : 'left');
-	print '<th class="'.$align.'">';
-	print getTitleFieldOfList($langs->trans($val['label']), 0, $_SERVER["PHP_SELF"], $key, '', $param, 'center ');
-	print '</th>';
+	print_liste_field_titre(
+		$langs->trans($val['label']),
+		$_SERVER["PHP_SELF"],
+		$key,
+		'',
+		$param,
+		'',
+		$align
+	);
 }
-print '<th class="center liste_titre">&nbsp;</th>';
+print_liste_field_titre('&nbsp;', $_SERVER["PHP_SELF"], '', '', $param, 'center', 'center');
 print '</tr>';
 
-// Row 2: search inputs
+// ---- Filter row
 print '<tr class="liste_titre">';
 
 foreach ($arrayfields as $key => $val) {
 	if (empty($val['checked'])) continue;
 
-	print '<td class="liste_titre'.(in_array($key,['t.week','t.year','t.status'])?' right':'').'">';
+	$tdclass = 'liste_titre';
+	if (in_array($key, array('t.week','t.year','t.status'))) $tdclass .= ' right';
+	print '<td class="'.$tdclass.'">';
 
 	if ($key === 't.ref') {
 		print '<input class="flat" type="text" size="8" name="search_ref" value="'.dol_escape_htmltag($search_ref).'">';
@@ -243,7 +249,6 @@ foreach ($arrayfields as $key => $val) {
 	} elseif ($key === 't.status') {
 		print '<select class="flat" name="search_status">';
 		print '<option value="-1">&nbsp;</option>';
-		// Map statuts connus (ajustez selon votre classe)
 		$st = array(
 			0 => $langs->trans('Draft'),
 			1 => $langs->trans('InProgress'),
@@ -262,7 +267,6 @@ foreach ($arrayfields as $key => $val) {
 	} elseif ($key === 't.fk_user_valid') {
 		print $form->select_dolusers($search_validator, 'search_validator', 1, '', 0, '', '', 0, 0, 0, '', 0, '', 'minwidth150 maxwidth200');
 	} else {
-		// No filter on date_creation/date_validation/total_hours/overtime_hours/tms/rowid by default
 		print '&nbsp;';
 	}
 
@@ -280,15 +284,14 @@ print '</tr>';
 // ----------------------------------------------------------------------------
 // Fetch & render rows
 // ----------------------------------------------------------------------------
-$sql .= $db->plimit($limit+1, $offset);
-$resql = $db->query($sql);
+$sqlList = $sql.$db->plimit($limit+1, $offset);
+$resql = $db->query($sqlList);
 if (!$resql) {
 	setEventMessages($db->lasterror(), null, 'errors');
 } else {
 	$num = $db->num_rows($resql);
 	$i = 0;
 
-	// Data rows
 	while ($i < min($num, $limit)) {
 		$obj = $db->fetch_object($resql);
 
@@ -306,7 +309,6 @@ if (!$resql) {
 					break;
 
 				case 't.ref':
-					// Lien vers la fiche
 					$link = dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?id='.(int)$obj->rowid;
 					print '<a href="'.$link.'">'.dol_escape_htmltag($obj->ref).'</a>';
 					break;
@@ -314,11 +316,8 @@ if (!$resql) {
 				case 't.fk_user':
 					if ((int) $obj->fk_user > 0) {
 						$u = new User($db);
-						if ($u->fetch((int)$obj->fk_user) > 0) {
-							print $u->getNomUrl(1);
-						} else {
-							print (int) $obj->fk_user;
-						}
+						if ($u->fetch((int)$obj->fk_user) > 0) print $u->getNomUrl(1);
+						else print (int) $obj->fk_user;
 					}
 					break;
 
@@ -331,7 +330,6 @@ if (!$resql) {
 					break;
 
 				case 't.status':
-					// Texte simple; pour un rendu picto, instancier un objet et utiliser getLibStatut
 					$map = array(
 						0 => $langs->trans('Draft'),
 						1 => $langs->trans('InProgress'),
@@ -358,22 +356,17 @@ if (!$resql) {
 				case 't.fk_user_valid':
 					if ((int) $obj->fk_user_valid > 0) {
 						$uv = new User($db);
-						if ($uv->fetch((int)$obj->fk_user_valid) > 0) {
-							print $uv->getNomUrl(1);
-						} else {
-							print (int) $obj->fk_user_valid;
-						}
+						if ($uv->fetch((int)$obj->fk_user_valid) > 0) print $uv->getNomUrl(1);
+						else print (int) $obj->fk_user_valid;
 					}
 					break;
 
 				case 't.total_hours':
-					$val = (float) $obj->total_hours;
-					print formatHours($val);
+					print formatHours((float)$obj->total_hours);
 					break;
 
 				case 't.overtime_hours':
-					$val = (float) $obj->overtime_hours;
-					print formatHours($val);
+					print formatHours((float)$obj->overtime_hours);
 					break;
 
 				case 't.tms':
@@ -387,7 +380,7 @@ if (!$resql) {
 			print '</td>';
 		}
 
-		// Action column (if needed, add buttons)
+		// Action column
 		print '<td class="center">';
 		$link = dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?id='.(int)$obj->rowid;
 		print '<a class="btn btn-link" href="'.$link.'">'.$langs->trans('Card').'</a>';
@@ -401,21 +394,19 @@ if (!$resql) {
 	print '</table>';
 	print '</div>'; // .div-table-responsive
 
-	print '<div class="pagination">';
-	print $form->showPagination($_SERVER["PHP_SELF"], $page, $limit, $totalnb, $param);
-	print '</div>';
-
 	$db->free($resql);
 }
 
+// Bottom line with pagination info is already handled by print_barre_liste() at top
+
 // Buttons (new)
 print '<div class="tabsAction">';
-if (!empty($newcardbutton)) print $newcardbutton;
+if ($permWrite) {
+	print '<a class="butActionNew" href="'.dol_buildpath('/timesheetweek/timesheetweek_card.php',1).'?action=create">'.$langs->trans("New").'</a>';
+}
 print '</div>';
 
-print '<br>';
-
-// End page
 print '</form>';
+
 llxFooter();
 $db->close();
