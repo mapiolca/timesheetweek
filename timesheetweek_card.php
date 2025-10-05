@@ -46,6 +46,18 @@ $permDelete    = !empty($user->rights->timesheetweek->timesheetweek->delete);
 
 if (!$permRead) accessforbidden();
 
+/**
+ * Helper: retourne l'ID du responsable hiérarchique (si défini) d’un user donné.
+ * Ici on s’appuie sur la propriété usuelle $user->fk_user (manager).
+ */
+function tw_get_manager_id_for_user($db, $userid) {
+	$u = new User($db);
+	if ($u->fetch((int) $userid) > 0) {
+		if (!empty($u->fk_user)) return (int) $u->fk_user;
+	}
+	return 0;
+}
+
 /* =================================
  * Actions: Create
  * ================================= */
@@ -55,11 +67,14 @@ if ($action == 'add' && $permWrite) {
 	$fk_user_valid  = GETPOSTINT('fk_user_valid');
 	$note           = GETPOST('note', 'restricthtml');
 
+	$effectiveFkUser = $fk_user > 0 ? $fk_user : $user->id;
+	$defaultValidatorId = tw_get_manager_id_for_user($db, $effectiveFkUser);
+
 	$object->ref            = '(PROV)';
-	$object->fk_user        = $fk_user > 0 ? $fk_user : $user->id;
+	$object->fk_user        = $effectiveFkUser;
 	$object->status         = TimesheetWeek::STATUS_DRAFT;
 	$object->note           = $note;
-	$object->fk_user_valid  = $fk_user_valid > 0 ? $fk_user_valid : null;
+	$object->fk_user_valid  = $fk_user_valid > 0 ? $fk_user_valid : ($defaultValidatorId ?: null);
 
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 		$object->year = (int) $m[1];
@@ -92,8 +107,10 @@ if ($allowInlineEdit) {
 	// Set fk_user
 	if ($action == 'set_fk_user' && GETPOST('token') == $_SESSION['newtoken']) {
 		$val = GETPOSTINT('fk_user');
-		$object->fk_user = $val > 0 ? $val : $object->fk_user;
-		$object->update($user);
+		if ($val > 0) {
+			$object->fk_user = $val;
+			$object->update($user);
+		}
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
@@ -283,16 +300,21 @@ llxHeader('', $title);
 if ($action == 'create') {
 	if (!$permWrite) accessforbidden();
 
-	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'object_timesheetweek@timesheetweek');
+	// Déterminer l'utilisateur concerné par défaut (user courant)
+	$prefUserId = GETPOSTINT('fk_user') ? GETPOSTINT('fk_user') : $user->id;
+	$defaultValidatorId = tw_get_manager_id_for_user($db, $prefUserId);
+
+	// Titre avec picto
+	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'time');
 
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="add">';
 
 	print '<table class="border centpercent">';
-	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id,'fk_user',1).'</td></tr>';
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($prefUserId,'fk_user',1).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Week").'</td><td>'.getWeekSelectorDolibarr($form,'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td></tr>';
-	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($user->id,'fk_user_valid',1).'</td></tr>';
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($defaultValidatorId,'fk_user_valid',1).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Note").'</td><td><textarea name="note" rows="3" class="quatrevingtpercent"></textarea></td></tr>';
 	print '</table>';
 
@@ -369,7 +391,7 @@ elseif ($id > 0 && $action != 'create') {
 			print $u->getNomUrl(1);
 		}
 		if ($allowInlineEdit) {
-			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user">'.img_edit($langs->trans("Edit"), 1).'</a>';
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user">'.img_edit($langs->trans("Edit"), 1).'</a>';
 		}
 	}
 	print '</td></tr>';
@@ -381,7 +403,6 @@ elseif ($id > 0 && $action != 'create') {
 		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		print '<input type="hidden" name="token" value="'.newToken().'">';
 		print '<input type="hidden" name="action" value="set_weekyear">';
-		// Try to pass preset
 		print getWeekSelectorDolibarr($form, 'weekyear_edit', $currentYW);
 		print ' <span id="weekrange_edit" class="opacitymedium small"></span>';
 		print '&nbsp;'.$form->buttonsSaveCancel("Save", "Cancel");
@@ -390,7 +411,7 @@ elseif ($id > 0 && $action != 'create') {
 	} else {
 		print $object->week.' / '.$object->year;
 		if ($allowInlineEdit) {
-			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_weekyear">'.img_edit($langs->trans("Edit"), 1).'</a>';
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_weekyear">'.img_edit($langs->trans("Edit"), 1).'</a>';
 		}
 	}
 	print '</td></tr>';
@@ -412,7 +433,7 @@ elseif ($id > 0 && $action != 'create') {
 			print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
 		}
 		if ($allowInlineEdit) {
-			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user_valid">'.img_edit($langs->trans("Edit"), 1).'</a>';
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user_valid">'.img_edit($langs->trans("Edit"), 1).'</a>';
 		}
 	}
 	print '</td></tr>';
@@ -442,7 +463,7 @@ elseif ($id > 0 && $action != 'create') {
 	} else {
 		print nl2br(dol_escape_htmltag($object->note));
 		if ($allowInlineEdit) {
-			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit($langs->trans("Edit"), 1).'</a>';
+			print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit($langs->trans("Edit"), 1).'</a>';
 		}
 	}
 	print '</td></tr>';
