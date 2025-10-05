@@ -27,9 +27,8 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // doit contenir f
 
 $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
 
-// ----------------- Helpers -----------------
 /**
- * Convertit un input "7.5" ou "07:30" en décimal (7.5)
+ * Convertit "7.5" ou "07:30" en décimal (7.5)
  * @param string $str
  * @return float
  */
@@ -102,7 +101,7 @@ if ($action == 'add' && $permWrite) {
 	}
 }
 
-// ----------------- Action: Save lines (UPSERT) -----------------
+// ----------------- Action: Save lines (UPSERT sur (week, task, day)) -----------------
 if ($action == 'save' && $permWrite && $id > 0) {
 	// reload to have week/year
 	$object->fetch($id);
@@ -111,71 +110,25 @@ if ($action == 'save' && $permWrite && $id > 0) {
 
 	$db->begin();
 
-	// 1) Sauvegarde des zones/paniers JOUR (on stocke avec fk_task = 0 pour attacher à la feuille/au jour)
-	foreach (array_keys($mapDayOffset) as $dayKey) {
-		$dto = new DateTime();
-		$dto->setISODate($object->year, $object->week);
-		$dto->modify('+'.$mapDayOffset[$dayKey].' day');
-		$daydate = $dto->format('Y-m-d');
-
-		$zone = GETPOST('zone_'.$dayKey, 'int');
-		$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
-
-		// On ne crée une ligne "jour" que si zone/meal sont renseignés
-		if ($zone || $meal) {
-			// Upsert sur (fk_timesheet_week, fk_task=0, day_date)
-			$sqlcheck = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-			$sqlcheck .= " WHERE fk_timesheet_week=".(int) $object->id." AND fk_task=0 AND day_date='".$db->escape($daydate)."'";
-
-			$rescheck = $db->query($sqlcheck);
-			if ($rescheck && $db->num_rows($rescheck) > 0) {
-				$obj = $db->fetch_object($rescheck);
-				$sqlu = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line SET";
-				$sqlu .= " zone=".(int) $zone.",";
-				$sqlu .= " meal=".(int) $meal;
-				$sqlu .= " WHERE rowid=".(int) $obj->rowid;
-				if (!$db->query($sqlu)) {
-					$db->rollback();
-					setEventMessages($db->lasterror(), null, 'errors');
-					header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-					exit;
-				}
-			} else {
-				$sqli = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(";
-				$sqli .= " fk_timesheet_week, fk_task, day_date, hours, zone, meal";
-				$sqli .= ") VALUES (";
-				$sqli .= (int) $object->id.", 0, '".$db->escape($daydate)."', 0, ".(int) $zone.", ".(int) $meal.")";
-				if (!$db->query($sqli)) {
-					$db->rollback();
-					setEventMessages($db->lasterror(), null, 'errors');
-					header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-					exit;
-				}
-			}
-		}
-	}
-
-	// 2) Sauvegarde des HEURES par tâche/jour
+	// Pas de lignes "jour" sans tâche. On copie Zone/Panier du header jour sur chaque ligne d'heure créée/mise à jour.
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)/', $key, $m)) {
 			$taskid = (int) $m[1];
 			$dayKey = $m[2];
 
 			$hoursDec = tw_parse_hours_to_decimal($val);
+			if ($hoursDec <= 0) continue; // on ne crée pas de ligne si pas d'heures
 
 			$dto = new DateTime();
 			$dto->setISODate($object->year, $object->week);
 			$dto->modify('+'.$mapDayOffset[$dayKey].' day');
 			$daydate = $dto->format('Y-m-d');
 
-			// Récup zone/meal jour (déjà envoyés) pour les copier sur chaque ligne d'heure
+			// Zone/Panier du header de la colonne
 			$zone = GETPOST('zone_'.$dayKey, 'int');
 			$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
 
-			// Si aucune saisie (0 heure + pas de zone/meal), on ignore
-			if ($hoursDec <= 0 && !$zone && !$meal) continue;
-
-			// Upsert sur (fk_timesheet_week, fk_task, day_date)
+			// Upsert (fk_timesheet_week, fk_task, day_date)
 			$sqlcheck = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
 			$sqlcheck .= " WHERE fk_timesheet_week=".(int) $object->id." AND fk_task=".(int) $taskid." AND day_date='".$db->escape($daydate)."'";
 
@@ -296,18 +249,31 @@ elseif ($id > 0 && $action != 'create') {
 
 	// ---- Chargement des tâches et lignes existantes ----
 	$tasks = $object->getAssignedTasks($object->fk_user); // Doit exister dans TimesheetWeek
-	$lines = $object->getLines(); // On attend un tableau indexé $lines[taskid][YYYY-mm-dd] = TimesheetWeekLine
+	$lines = $object->getLines(); // $lines[taskid][YYYY-mm-dd]
 
-	// On construit aussi les options jour (zone/meal) depuis les lignes "fk_task = 0"
-	$dayOptions = array(); // ['Y-m-d' => ['zone'=>x, 'meal'=>0|1]]
-	if (is_array($lines)) {
-		foreach ($lines as $taskid => $bydate) {
-			foreach ($bydate as $daydate => $lObj) {
-				if ((int) $taskid === 0) {
-					$dayOptions[$daydate] = array('zone' => (int) $lObj->zone, 'meal' => (int) $lObj->meal);
+	// Pré-remplir l’entête jour Zone/Panier à partir de la 1ère ligne d’heure existante (s'il y en a)
+	$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
+	$dto = new DateTime();
+	$dto->setISODate($object->year, $object->week);
+	$weekdates = array();
+	foreach($days as $d){ $weekdates[$d]=$dto->format('Y-m-d'); $dto->modify('+1 day'); }
+
+	$dayHeaderDefaults = array(); // ['Y-m-d' => ['zone'=>x,'meal'=>0|1]]
+	foreach ($weekdates as $dname => $ymd) {
+		$found = false;
+		if (is_array($lines)) {
+			foreach ($lines as $taskid => $bydate) {
+				if (!empty($bydate[$ymd])) {
+					$dayHeaderDefaults[$ymd] = array(
+						'zone' => (int) $bydate[$ymd]->zone,
+						'meal' => (int) $bydate[$ymd]->meal
+					);
+					$found = true;
+					break;
 				}
 			}
 		}
+		if (!$found) $dayHeaderDefaults[$ymd] = array('zone'=>1,'meal'=>0); // défaut visuel
 	}
 
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
@@ -319,11 +285,6 @@ elseif ($id > 0 && $action != 'create') {
 	if (empty($tasks)) {
 		print '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 	} else {
-		$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
-		$dto=new DateTime(); $dto->setISODate($object->year,$object->week);
-		$weekdates = array();
-		foreach($days as $d){ $weekdates[$d]=$dto->format('Y-m-d'); $dto->modify('+1 day'); }
-
 		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
 		$contractedHours = (!empty($userEmployee->weeklyhours) ? (float)$userEmployee->weeklyhours : 35.0);
 
@@ -337,12 +298,12 @@ elseif ($id > 0 && $action != 'create') {
 		}
 		print '<th>'.$langs->trans("Total").'</th></tr>';
 
-		// zone + meal (préremplissage depuis $dayOptions)
+		// zone + meal (préremplissage depuis $dayHeaderDefaults)
 		print '<tr class="liste_titre"><td></td>';
 		foreach($days as $d){
 			$daydate = $weekdates[$d];
-			$zoneVal = isset($dayOptions[$daydate]) ? (int) $dayOptions[$daydate]['zone'] : 0;
-			$mealVal = isset($dayOptions[$daydate]) ? (int) $dayOptions[$daydate]['meal'] : 0;
+			$zoneVal = (int) $dayHeaderDefaults[$daydate]['zone'];
+			$mealVal = (int) $dayHeaderDefaults[$daydate]['meal'];
 
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
@@ -419,7 +380,7 @@ function updateTotals(){
 	$('.task-total').text('00:00');
 	$('.day-total').text('00:00');
 
-	// Reset day totals
+	// reset totaux jour
 	var headTotalRow = $('tr.liste_total').first();
 	headTotalRow.find('td').each(function(i){ if(i>0 && $(this).hasClass('right')) $(this).text('00:00'); });
 
