@@ -276,7 +276,6 @@ elseif ($id > 0 && $action != 'create') {
 	// Confirm popup (AJAX & non-AJAX)
 	$formconfirm = '';
 	if ($action == 'delete') {
-		// Non-AJAX confirm (show immediately)
 		$formconfirm = $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
 			$langs->trans('DeleteTimesheetWeek'),
@@ -287,7 +286,6 @@ elseif ($id > 0 && $action != 'create') {
 			1
 		);
 	} else {
-		// AJAX confirm attached to #action-delete
 		$formconfirm = $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
 			$langs->trans('DeleteTimesheetWeek'),
@@ -304,9 +302,10 @@ elseif ($id > 0 && $action != 'create') {
 	dol_banner_tab($object,'ref');
 
 	print '<div class="fichecenter">';
+
+	// Left
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent">';
-
 	if ($object->fk_user > 0) {
 		$u = new User($db); $u->fetch($object->fk_user);
 		print '<tr><td>'.$langs->trans("Employee").'</td><td>'.$u->getNomUrl(1).'</td></tr>';
@@ -319,10 +318,10 @@ elseif ($id > 0 && $action != 'create') {
 	}
 	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.formatHours((float)$object->total_hours).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.formatHours((float)$object->overtime_hours).'</td></tr>';
-
 	print '</table>';
 	print '</div>';
 
+	// Right
 	print '<div class="fichehalfright">';
 	print '<table class="border centpercent">';
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
@@ -331,11 +330,13 @@ elseif ($id > 0 && $action != 'create') {
 	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
 	print '</table>';
 	print '</div>';
-	print '</div>';
 
+	// Close fichecenter & clear floats, then end fiche header
+	print '</div>'; // .fichecenter
+	print '<div class="clearboth"></div>';
 	print dol_get_fiche_end();
 
-	/* ===== Grid of hours ===== */
+	/* ===== Grid of hours (outside fiche head) ===== */
 	print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="save">';
@@ -427,7 +428,6 @@ elseif ($id > 0 && $action != 'create') {
 		$colspan = 1 + count($days) + 1;
 
 		foreach ($byproject as $pid => $pdata) {
-			// Fetch project to ensure proper getNomUrl
 			$projectstatic->fetch($pid);
 
 			print '<tr class="oddeven trforbreak nobold"><td colspan="'.$colspan.'">';
@@ -435,7 +435,7 @@ elseif ($id > 0 && $action != 'create') {
 			print '</td></tr>';
 
 			foreach ($pdata['tasks'] as $task) {
-				$taskstatic->fetch((int)$task['task_id']); // ensure getNomUrl() ok
+				$taskstatic->fetch((int)$task['task_id']);
 
 				print '<tr>';
 				print '<td class="paddingleft">'.$taskstatic->getNomUrl(1).'</td>';
@@ -505,18 +505,15 @@ elseif ($id > 0 && $action != 'create') {
 </script>", (float) $contractedHours);
 	}
 
-	// Action buttons
+	// Action buttons (outside fiche head)
 	print '<div class="tabsAction">';
 	if ($permWrite) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
-
 	$useajax = !empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile);
 	if ($useajax) {
-		// AJAX confirm attached to #action-delete
 		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', '', 'action-delete', $permDelete);
 	} else {
-		// Non-AJAX fallback
 		$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken();
 		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $deleteUrl, '', $permDelete);
 	}
