@@ -298,12 +298,6 @@ $arrayofmassactions = array(
 );
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
 
-// Column selector + buttons on LEFT like native
-$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
-$htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, 1);
-$selectedfields = $htmlofselectarray;
-$selectedfields .= $form->showCheckAddButtons('checkforselect', 1);
-
 // New button
 $newcardbutton = '';
 if ($user->hasRight('timesheetweek','timesheetweek','write') || $user->hasRight('timesheetweek','timesheetweek','writeChild') || $user->hasRight('timesheetweek','timesheetweek','writeAll')) {
@@ -317,6 +311,11 @@ print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sort
 $objecttmp = new TimesheetWeek($db);
 $trackid = 'tsw';
 include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
+
+// Build the column selector HTML (only once, to show in the header - left)
+$varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
+$htmlofselectarray = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, 1);
+$selectedfields = $htmlofselectarray;
 
 // Search/filter form
 print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
@@ -333,7 +332,7 @@ print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n"
 
 // Line: filters (loupe on left)
 print '<tr class="liste_titre_filter">';
-// Left column: loupe + selected fields (and mass action check add)
+// Left column: loupe (no columns selector here anymore)
 print '<td class="liste_titre center maxwidthsearch">';
 print $form->showFilterButtons('left');
 print '</td>';
@@ -399,8 +398,6 @@ if (!empty($arrayfields['t.tms']['checked'])) {
 // Status
 if (!empty($arrayfields['t.status']['checked'])) {
 	print '<td class="liste_titre center">';
-	// Simple select status
-	print '<select class="flat" name="search_status">';
 	$cur = ($search_status !== '' ? (int)$search_status : -1);
 	$statuses = array(
 		-1 => $langs->trans("All"),
@@ -409,22 +406,21 @@ if (!empty($arrayfields['t.status']['checked'])) {
 		tw_status('approved')  => ($langs->trans("Approved")!='Approved'?$langs->trans("Approved"):'Approuvée'),
 		tw_status('refused')   => $langs->trans("Refused"),
 	);
-	foreach ($statuses as $k=>$lab) {
-		print '<option value="'.$k.'"'.($cur===$k?' selected':'').'>'.$lab.'</option>';
-	}
+	print '<select class="flat" name="search_status">';
+	foreach ($statuses as $k=>$lab) print '<option value="'.$k.'"'.($cur===$k?' selected':'').'>'.$lab.'</option>';
 	print '</select>';
 	print '</td>';
 }
-// Right column for filters if checkbox not on left — but we keep left-only layout, so show column selector here
-print '<td class="liste_titre center maxwidthsearch">';
-print $selectedfields;
-print '</td>';
 
 print '</tr>'."\n";
 
 // Titles
 print '<tr class="liste_titre">';
-print_liste_field_titre('', $_SERVER["PHP_SELF"], "", '', '', '', $sortfield, $sortorder, 'maxwidthsearch center'); // left checkbox col
+// Left header cell: Select-all checkbox + column selector (only once here)
+print '<th class="center maxwidthsearch">';
+print '<input type="checkbox" id="checkall" class="marginrightonly"> ';
+print $selectedfields;
+print '</th>';
 
 if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
 if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder, 'left ');
@@ -438,7 +434,6 @@ if (!empty($arrayfields['t.date_validation']['checked']))print_liste_field_titre
 if (!empty($arrayfields['t.tms']['checked']))            print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", $param, '', '', $sortfield, $sortorder, 'center ');
 if (!empty($arrayfields['t.status']['checked']))         print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", $param, '', '', $sortfield, $sortorder, 'center ');
 
-print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', '', '', $sortfield, $sortorder, 'maxwidthsearch center ');
 print '</tr>'."\n";
 
 // Loop
@@ -523,15 +518,11 @@ while ($i < $imax) {
 	// Status
 	if (!empty($arrayfields['t.status']['checked'])) {
 		print '<td class="center nowrap">';
-		// Patch wording
 		$lib = $tswstatic->getLibStatut(5);
 		$lib = str_replace(array('Validée','Validated'), array('Approuvée','Approved'), $lib);
 		print $lib;
 		print '</td>';
 	}
-
-	// Right col: selected fields control already displayed on left. Here we just keep symmetrical cell.
-	print '<td class="center">&nbsp;</td>';
 
 	print '</tr>';
 
@@ -541,14 +532,12 @@ while ($i < $imax) {
 if ($num == 0) {
 	$colspan = 1; // checkbox col
 	foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
-	$colspan++; // right col
 	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
 
 // Totals line
 print '<tr class="liste_total">';
 print '<td class="right">'.$langs->trans("Total").'</td>';
-// Then for each column add cells or skip
 if (!empty($arrayfields['t.ref']['checked']))            print '<td></td>';
 if (!empty($arrayfields['user']['checked']))             print '<td></td>';
 if (!empty($arrayfields['t.year']['checked']))           print '<td></td>';
@@ -560,12 +549,20 @@ if (!empty($arrayfields['t.date_creation']['checked']))  print '<td></td>';
 if (!empty($arrayfields['t.date_validation']['checked']))print '<td></td>';
 if (!empty($arrayfields['t.tms']['checked']))            print '<td></td>';
 if (!empty($arrayfields['t.status']['checked']))         print '<td></td>';
-print '<td></td>';
 print '</tr>';
 
 print '</table>';
 print '</div>';
 print '</form>';
+
+// JS: select all rows checkbox
+print '<script>
+jQuery(function($){
+	$("#checkall").on("change", function(){
+		$(".checkforselect").prop("checked", this.checked);
+	});
+});
+</script>';
 
 llxFooter();
 $db->close();
