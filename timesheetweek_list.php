@@ -2,10 +2,14 @@
 /* Copyright (C)
  * 2025 - Pierre ARDOIN
  *
- * GPLv3
+  * GPLv3
  */
 
-require '../main.inc.php';
+// Load Dolibarr environment (robust include for custom/)
+$res = 0;
+if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
+if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
+if (!$res) die("Include of main fails");
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
