@@ -1150,40 +1150,138 @@ class TimesheetWeek extends CommonObject
 	}
 
 	/**
-	 * Retourne les lignes (heures, zone, panier) liées à la feuille d'heures
+ * Retourne les lignes (heures, zone, panier) liées à la feuille d'heures.
+ * Structure retournée :
+ *   $lines[task_id][YYYY-mm-dd] = (TimesheetWeekLine|stdClass)
+ * Note : Les lignes de "jour" (zone/panier sans heure) sont stockées avec fk_task = 0.
+ *
+ * @return array
+ */
+	public function getLines()
+	{
+		// Optionnel : si classe dédiée existe, on instancie des objets ; sinon stdClass
+		$useClass = class_exists('TimesheetWeekLine');
+	
+		$lines = array();
+	
+		$sql = "SELECT rowid, fk_task, day_date, hours, zone, meal";
+		$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+		$sql .= " WHERE fk_timesheet_week = ".((int) $this->id);
+	
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				if ($useClass) {
+					$line = new TimesheetWeekLine($this->db);
+					$line->id       = (int) $obj->rowid;
+					$line->fk_task  = (int) $obj->fk_task;
+					$line->day_date = $obj->day_date;
+					$line->hours    = (float) $obj->hours;
+					$line->zone     = isset($obj->zone) ? (int) $obj->zone : 0;
+					$line->meal     = isset($obj->meal) ? (int) $obj->meal : 0;
+				} else {
+					$line = new stdClass();
+					$line->id       = (int) $obj->rowid;
+					$line->fk_task  = (int) $obj->fk_task;
+					$line->day_date = $obj->day_date;
+					$line->hours    = (float) $obj->hours;
+					$line->zone     = isset($obj->zone) ? (int) $obj->zone : 0;
+					$line->meal     = isset($obj->meal) ? (int) $obj->meal : 0;
+				}
+	
+				if (!isset($lines[(int) $obj->fk_task])) {
+					$lines[(int) $obj->fk_task] = array();
+				}
+				$lines[(int) $obj->fk_task][$obj->day_date] = $line;
+			}
+			$this->db->free($resql);
+		}
+	
+		return $lines;
+	}
+	
+	
+	/**
+	 * Récupère toutes les tâches assignées à un utilisateur donné.
+	 * On utilise llx_element_contact + llx_c_type_contact (element='project_task').
+	 * Compatibilité schémas : essaie d'abord avec ec.fk_element, retombe sur ec.element_id si nécessaire.
 	 *
-	 * @return array Tableau d’objets TimesheetWeekLine indexés par [task_id][date]
+	 * Retour attendu (pour affichage groupé par projet) :
+	 *   [
+	 *     [
+	 *       'project_id'    => int,
+	 *       'project_ref'   => string,
+	 *       'project_title' => string,
+	 *       'task_id'       => int,
+	 *       'task_label'    => string
+	 *     ],
+	 *     ...
+	 *   ]
+	 *
+	 * @param int $userid
+	 * @return array
 	 */
-        public function getLines()
-        {
-                dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
-
-                $lines = array();
-                $sql = "SELECT rowid, fk_task, day_date, hours, zone, meal";
-                $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-                $sql .= " WHERE fk_timesheet_week = ".((int) $this->id);
-
-                $resql = $this->db->query($sql);
-                if ($resql) {
-                        while ($obj = $this->db->fetch_object($resql)) {
-                                $line = new TimesheetWeekLine($this->db);
-                                $line->id      = (int) $obj->rowid;
-                                $line->fk_task = (int) $obj->fk_task;
-
-                                // Normalise la date au format ISO (YYYY-MM-DD) pour assurer la correspondance avec la vue
-                                $dayDateIso = dol_print_date($this->db->jdate($obj->day_date), 'dayrfc');
-                                $line->day_date = $dayDateIso;
-
-                                $line->hours = (float) $obj->hours;
-                                $line->zone  = (int) $obj->zone;
-                                $line->meal  = (int) $obj->meal;
-
-                                // indexation par tâche et date pour lecture rapide
-                                $lines[$line->fk_task][$dayDateIso] = $line;
-                        }
-                }
-                return $lines;
-        }
+	public function getAssignedTasks($userid)
+	{
+		$userid = (int) $userid;
+		$tasks = array();
+	
+		if ($userid <= 0) return $tasks;
+	
+		// --- Première tentative avec ec.fk_element (schéma Dolibarr courant)
+		$sql = "SELECT t.rowid as task_id, t.label as task_label,";
+		$sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title";
+		$sql .= " FROM ".MAIN_DB_PREFIX."projet_task t";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."element_contact ec ON ec.fk_element = t.rowid";
+		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."c_type_contact ctc ON ctc.rowid = ec.fk_c_type_contact";
+		$sql .= " WHERE ctc.element = 'project_task'";
+		$sql .= " AND ec.fk_socpeople = ".$userid; // Dans ton instance, fk_socpeople pointe vers llx_user.rowid
+		$sql .= " AND p.entity IN (".getEntity('project').")";
+		$sql .= " GROUP BY t.rowid, p.rowid";
+		$sql .= " ORDER BY p.ref, t.label";
+	
+		dol_syslog(__METHOD__." try fk_element", LOG_DEBUG);
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$err = $this->db->lasterror();
+			// --- Si colonne fk_element inconnue -> fallback element_id ---
+			if (strpos($err, 'fk_element') !== false) {
+				$sql = "SELECT t.rowid as task_id, t.label as task_label,";
+				$sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title";
+				$sql .= " FROM ".MAIN_DB_PREFIX."projet_task t";
+				$sql .= " INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet";
+				$sql .= " INNER JOIN ".MAIN_DB_PREFIX."element_contact ec ON ec.element_id = t.rowid";
+				$sql .= " INNER JOIN ".MAIN_DB_PREFIX."c_type_contact ctc ON ctc.rowid = ec.fk_c_type_contact";
+				$sql .= " WHERE ctc.element = 'project_task'";
+				$sql .= " AND ec.fk_socpeople = ".$userid;
+				$sql .= " AND p.entity IN (".getEntity('project').")";
+				$sql .= " GROUP BY t.rowid, p.rowid";
+				$sql .= " ORDER BY p.ref, t.label";
+	
+				dol_syslog(__METHOD__." fallback element_id", LOG_DEBUG);
+				$resql = $this->db->query($sql);
+			}
+		}
+	
+		if ($resql) {
+			while ($obj = $this->db->fetch_object($resql)) {
+				$tasks[] = array(
+					'project_id'    => (int) $obj->project_id,
+					'project_ref'   => (string) $obj->project_ref,
+					'project_title' => (string) $obj->project_title,
+					'task_id'       => (int) $obj->task_id,
+					'task_label'    => (string) $obj->task_label,
+				);
+			}
+			$this->db->free($resql);
+		} else {
+			// On loggue mais on ne bloque pas l'UI
+			dol_syslog(__METHOD__.' SQL error: '.$this->db->lasterror(), LOG_WARNING);
+		}
+	
+		return $tasks;
+	}
 
 
 
