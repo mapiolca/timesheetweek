@@ -515,3 +515,69 @@ class TimesheetWeek extends CommonObject
 		return array('start'=>$start, 'end'=>$end);
 	}
 }
+// --- In class TimesheetWeek ---
+
+/**
+ * Approve the timesheet (status = APPROVED), set validator and date_validation
+ *
+ * @param User $user        Current user (for audit)
+ * @param int|null $validatorId If provided, force fk_user_valid to this user
+ * @return int              >0 if OK, <0 if KO
+ */
+public function approve(User $user, $validatorId = null)
+{
+	$this->db->begin();
+
+	// If a validator is provided (i.e. mass approval by someone else), update it
+	if (!empty($validatorId)) {
+		$this->fk_user_valid = (int) $validatorId;
+	}
+	$this->date_validation = dol_now();
+
+	// STATUS_APPROVED shim with STATUS_VALIDATED fallback
+	if (defined('self::STATUS_APPROVED')) {
+		$this->status = self::STATUS_APPROVED;
+	} elseif (defined('self::STATUS_VALIDATED')) {
+		$this->status = self::STATUS_VALIDATED;
+	} else {
+		$this->status = 2; // fallback
+	}
+
+	$res = $this->update($user);
+
+	if ($res > 0) {
+		$this->db->commit();
+		return $res;
+	} else {
+		$this->db->rollback();
+		return -1;
+	}
+}
+
+/**
+ * Refuse the timesheet (status = REFUSED), set validator and date_validation
+ *
+ * @param User $user        Current user (for audit)
+ * @param int|null $validatorId If provided, force fk_user_valid to this user
+ * @return int              >0 if OK, <0 if KO
+ */
+public function refuse(User $user, $validatorId = null)
+{
+	$this->db->begin();
+
+	if (!empty($validatorId)) {
+		$this->fk_user_valid = (int) $validatorId;
+	}
+	$this->date_validation = dol_now();
+	$this->status = defined('self::STATUS_REFUSED') ? self::STATUS_REFUSED : 3;
+
+	$res = $this->update($user);
+
+	if ($res > 0) {
+		$this->db->commit();
+		return $res;
+	} else {
+		$this->db->rollback();
+		return -1;
+	}
+}
