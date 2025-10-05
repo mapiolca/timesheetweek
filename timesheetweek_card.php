@@ -82,6 +82,53 @@ if ($action == 'add' && $permWrite) {
 }
 
 /* =================================
+ * Actions: Inline update (pencil) while DRAFT
+ * ================================= */
+if ($id > 0 && $object->id <= 0) $object->fetch($id);
+
+$allowInlineEdit = ($permWrite && $object->status == TimesheetWeek::STATUS_DRAFT);
+
+if ($allowInlineEdit) {
+	// Set fk_user
+	if ($action == 'set_fk_user' && GETPOST('token') == $_SESSION['newtoken']) {
+		$val = GETPOSTINT('fk_user');
+		$object->fk_user = $val > 0 ? $val : $object->fk_user;
+		$object->update($user);
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
+	// Set week/year
+	if ($action == 'set_weekyear' && GETPOST('token') == $_SESSION['newtoken']) {
+		$weekyear = GETPOST('weekyear_edit', 'alpha');
+		if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
+			$object->year = (int) $m[1];
+			$object->week = (int) $m[2];
+			$object->update($user);
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+			exit;
+		} else {
+			setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
+		}
+	}
+	// Set fk_user_valid
+	if ($action == 'set_fk_user_valid' && GETPOST('token') == $_SESSION['newtoken']) {
+		$val = GETPOSTINT('fk_user_valid');
+		$object->fk_user_valid = $val > 0 ? $val : null;
+		$object->update($user);
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
+	// Set note
+	if ($action == 'set_note' && GETPOST('token') == $_SESSION['newtoken']) {
+		$val = GETPOST('note_edit', 'restricthtml');
+		$object->note = $val;
+		$object->update($user);
+		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+		exit;
+	}
+}
+
+/* =================================
  * Actions: Save lines (UPSERT)
  * ================================= */
 if ($action == 'save' && $permWrite && $id > 0) {
@@ -273,7 +320,7 @@ elseif ($id > 0 && $action != 'create') {
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head,'card',$langs->trans("TimesheetWeek"),-1,'time');
 
-	// Confirm popup (AJAX & non-AJAX)
+	// Confirm popup (AJAX & non-AJAX) for delete
 	$formconfirm = '';
 	if ($action == 'delete') {
 		$formconfirm = $form->formconfirm(
@@ -303,35 +350,107 @@ elseif ($id > 0 && $action != 'create') {
 
 	print '<div class="fichecenter">';
 
-	// Left
+	/* Left block */
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent">';
-	if ($object->fk_user > 0) {
-		$u = new User($db); $u->fetch($object->fk_user);
-		print '<tr><td>'.$langs->trans("Employee").'</td><td>'.$u->getNomUrl(1).'</td></tr>';
+
+	// Employee
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+	if ($allowInlineEdit && $action == 'edit_fk_user') {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="set_fk_user">';
+		print $form->select_dolusers($object->fk_user, 'fk_user', 1);
+		print '&nbsp;'.$form->buttonsSaveCancel("Save", "Cancel");
+		print '</form>';
+	} else {
+		if ($object->fk_user > 0) {
+			$u = new User($db); $u->fetch($object->fk_user);
+			print $u->getNomUrl(1);
+		}
+		if ($allowInlineEdit) {
+			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user">'.img_edit($langs->trans("Edit"), 1).'</a>';
+		}
 	}
-	print '<tr><td>'.$langs->trans("Year").'</td><td>'.$object->year.'</td></tr>';
-	print '<tr><td>'.$langs->trans("Week").'</td><td>'.$object->week.'</td></tr>';
-	if ($object->fk_user_valid > 0) {
-		$uv = new User($db); $uv->fetch($object->fk_user_valid);
-		print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$uv->getNomUrl(1).'</td></tr>';
+	print '</td></tr>';
+
+	// Week / Year
+	print '<tr><td>'.$langs->trans("Week").'</td><td>';
+	if ($allowInlineEdit && $action == 'edit_weekyear') {
+		$currentYW = sprintf('%04d-W%02d', $object->year, $object->week);
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="set_weekyear">';
+		// Try to pass preset
+		print getWeekSelectorDolibarr($form, 'weekyear_edit', $currentYW);
+		print ' <span id="weekrange_edit" class="opacitymedium small"></span>';
+		print '&nbsp;'.$form->buttonsSaveCancel("Save", "Cancel");
+		print '</form>';
+		print '<script>(function($){$(function(){var v="'.dol_escape_js($currentYW).'"; if($("#weekyear_edit").length){ $("#weekyear_edit").val(v).trigger("change"); } });})(jQuery);</script>';
+	} else {
+		print $object->week.' / '.$object->year;
+		if ($allowInlineEdit) {
+			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_weekyear">'.img_edit($langs->trans("Edit"), 1).'</a>';
+		}
 	}
+	print '</td></tr>';
+
+	// Validator
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
+	if ($allowInlineEdit && $action == 'edit_fk_user_valid') {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="set_fk_user_valid">';
+		print $form->select_dolusers($object->fk_user_valid > 0 ? $object->fk_user_valid : 0, 'fk_user_valid', 1);
+		print '&nbsp;'.$form->buttonsSaveCancel("Save", "Cancel");
+		print '</form>';
+	} else {
+		if ($object->fk_user_valid > 0) {
+			$uv = new User($db); $uv->fetch($object->fk_user_valid);
+			print $uv->getNomUrl(1);
+		} else {
+			print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+		}
+		if ($allowInlineEdit) {
+			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user_valid">'.img_edit($langs->trans("Edit"), 1).'</a>';
+		}
+	}
+	print '</td></tr>';
+
+	// Totals (read-only)
 	print '<tr><td>'.$langs->trans("TotalHours").'</td><td>'.formatHours((float)$object->total_hours).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Overtime").'</td><td>'.formatHours((float)$object->overtime_hours).'</td></tr>';
+
 	print '</table>';
 	print '</div>';
 
-	// Right
+	/* Right block */
 	print '<div class="fichehalfright">';
 	print '<table class="border centpercent">';
-	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
+	print '<tr><td class="titlefield">'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation,'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms,'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation,'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
+	// Note (inline)
+	print '<tr><td>'.$langs->trans("Note").'</td><td>';
+	if ($allowInlineEdit && $action == 'edit_note') {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="set_note">';
+		print '<textarea name="note_edit" rows="3" class="quatrevingtpercent">'.dol_escape_htmltag($object->note).'</textarea>';
+		print '<br>'.$form->buttonsSaveCancel("Save", "Cancel");
+		print '</form>';
+	} else {
+		print nl2br(dol_escape_htmltag($object->note));
+		if ($allowInlineEdit) {
+			print ' <a href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit($langs->trans("Edit"), 1).'</a>';
+		}
+	}
+	print '</td></tr>';
+
 	print '</table>';
 	print '</div>';
 
-	// Close fichecenter & clear floats, then end fiche header
+	// Close fichecenter and clear
 	print '</div>'; // .fichecenter
 	print '<div class="clearboth"></div>';
 	print dol_get_fiche_end();
@@ -507,7 +626,8 @@ elseif ($id > 0 && $action != 'create') {
 
 	// Action buttons (outside fiche head)
 	print '<div class="tabsAction">';
-	if ($permWrite) {
+	// Hide Modify if DRAFT
+	if ($permWrite && $object->status != TimesheetWeek::STATUS_DRAFT) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
 	$useajax = !empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile);
@@ -529,8 +649,16 @@ print <<<'JS'
 	}
 	function isoWeekStart(y,w){var s=new Date(Date.UTC(y,0,1+(w-1)*7)),d=s.getUTCDay(),st=new Date(s);if(d>=1&&d<=4)st.setUTCDate(s.getUTCDate()-(d-1));else st.setUTCDate(s.getUTCDate()+(d===0?1:(8-d)));return st;}
 	function fmt(d){var dd=String(d.getUTCDate()).padStart(2,'0'),mm=String(d.getUTCMonth()+1).padStart(2,'0'),yy=d.getUTCFullYear();return dd+'/'+mm+'/'+yy;}
-	function updateWeekRange(){var v=$('#weekyear').val(),p=parseYearWeek(v);if(!p){$('#weekrange').text('');return;}var s=isoWeekStart(p.y,p.w),e=new Date(s);e.setUTCDate(s.getUTCDate()+6);$('#weekrange').text('du '+fmt(s)+' au '+fmt(e));}
-	$(function(){if($.fn.select2)$('#weekyear').select2({width:'resolve'});updateWeekRange();$('#weekyear').on('change',updateWeekRange);});
+	function updateWeekRange(){var v=$('#weekyear').val();var p=parseYearWeek(v);if(!p){$('#weekrange').text('');return;}var s=isoWeekStart(p.y,p.w),e=new Date(s);e.setUTCDate(s.getUTCDate()+6);$('#weekrange').text('du '+fmt(s)+' au '+fmt(e));}
+	function updateWeekRangeEdit(){var v=$('#weekyear_edit').val();var p=parseYearWeek(v);if(!p){$('#weekrange_edit').text('');return;}var s=isoWeekStart(p.y,p.w),e=new Date(s);e.setUTCDate(s.getUTCDate()+6);$('#weekrange_edit').text('du '+fmt(s)+' au '+fmt(e));}
+	$(function(){
+		if($.fn.select2) {
+			if($('#weekyear').length) $('#weekyear').select2({width:'resolve'});
+			if($('#weekyear_edit').length) $('#weekyear_edit').select2({width:'resolve'});
+		}
+		if($('#weekyear').length){updateWeekRange();$('#weekyear').on('change',updateWeekRange);}
+		if($('#weekyear_edit').length){updateWeekRangeEdit();$('#weekyear_edit').on('change',updateWeekRangeEdit);}
+	});
 })(jQuery);
 </script>
 JS;
