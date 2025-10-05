@@ -22,8 +22,6 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-// facultatif si vous avez une classe ligne dédiée
-// dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr() + formatHours()
 
 $langs->loadLangs(array('timesheetweek@timesheetweek', 'other', 'projects'));
@@ -39,7 +37,7 @@ $extrafields = new ExtraFields($db);
 $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
 // --- Load object ---
-include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php'; // set $object->id if found
+include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // --- Permissions ---
 $permRead      = !empty($user->rights->timesheetweek->timesheetweek->read);
@@ -47,7 +45,7 @@ $permReadAll   = !empty($user->rights->timesheetweek->timesheetweek->readall);
 $permReadChild = !empty($user->rights->timesheetweek->timesheetweek->readchild);
 $permWrite     = !empty($user->rights->timesheetweek->timesheetweek->write);
 $permDelete    = !empty($user->rights->timesheetweek->timesheetweek->delete);
-$permApproveAll= !empty($user->rights->timesheetweek->timesheetweek->approveall); // à créer dans droits module si besoin
+$permApproveAll= !empty($user->rights->timesheetweek->timesheetweek->approveall); // si vous avez ajouté ce droit
 
 if (!$permRead) accessforbidden();
 
@@ -55,23 +53,15 @@ $form = new Form($db);
 $useajax = !empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile);
 
 // ----------- Helpers -----------
-/**
- * Retourne l'id du valideur hiérarchique si défini, sinon null
- */
 function tw_get_default_validator($db, $fk_user)
 {
 	$u = new User($db);
 	if ($fk_user > 0 && $u->fetch($fk_user) > 0) {
-		// Champs souvent utilisés pour le n+1 : fk_user (Dolibarr vxx), ou fk_user_superior
 		if (!empty($u->fk_user)) return (int) $u->fk_user;
 		if (!empty($u->fk_user_superior)) return (int) $u->fk_user_superior;
 	}
 	return null;
 }
-
-/**
- * Retourne true si l'utilisateur $current peut voir la fiche $object selon droits
- */
 function tw_can_see($object, $current, $permRead, $permReadAll, $permReadChild)
 {
 	if (!$permRead) return false;
@@ -83,15 +73,11 @@ function tw_can_see($object, $current, $permRead, $permReadAll, $permReadChild)
 	}
 	return false;
 }
-
-/**
- * Formate un float heures en HH:MM (fallback si lib absent)
- */
 if (!function_exists('tw_formatHoursSafe')) {
 	function tw_formatHoursSafe($hoursFloat)
 	{
 		if (function_exists('formatHours')) return formatHours($hoursFloat);
-		if (is_null($hoursFloat) || $hoursFloat === '') return '00:00';
+		if ($hoursFloat === null || $hoursFloat === '') return '00:00';
 		$d = (float) $hoursFloat;
 		$h = floor($d);
 		$m = round(($d - $h) * 60);
@@ -99,10 +85,6 @@ if (!function_exists('tw_formatHoursSafe')) {
 		return str_pad((string) $h, 2, '0', STR_PAD_LEFT).':'.str_pad((string) $m, 2, '0', STR_PAD_LEFT);
 	}
 }
-
-/**
- * Convertit HH:MM ou décimal -> float heures
- */
 function tw_parse_hours_to_float($val)
 {
 	$val = trim((string) $val);
@@ -117,6 +99,10 @@ function tw_parse_hours_to_float($val)
 	if ($m < 0) $m = 0;
 	if ($m > 59) $m = 59;
 	return (float) ($h + ($m / 60));
+}
+function tw_weekyear($y, $w) {
+	$y = (int) $y; $w = (int) $w;
+	return sprintf('%04d-W%02d', $y, $w);
 }
 
 // ----------- Actions -----------
@@ -133,13 +119,8 @@ if ($action === 'add' && $permWrite) {
 	$object->status  = TimesheetWeek::STATUS_DRAFT;
 	$object->note    = $note;
 
-	// validator par défaut si vide
-	if ($fk_user_valid > 0) {
-		$object->fk_user_valid = $fk_user_valid;
-	} else {
-		$def = tw_get_default_validator($db, $object->fk_user);
-		$object->fk_user_valid = $def ?: null;
-	}
+	if ($fk_user_valid > 0) $object->fk_user_valid = $fk_user_valid;
+	else $object->fk_user_valid = tw_get_default_validator($db, $object->fk_user) ?: null;
 
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 		$object->year = (int) $m[1];
@@ -163,20 +144,17 @@ if ($action === 'add' && $permWrite) {
 
 // SAVE LINES (upsert)
 if ($action === 'save' && $permWrite && $object->id > 0) {
-	// Protection brouillon uniquement pour édition ? Vous pouvez lever la contrainte si besoin
 	if ($object->status != TimesheetWeek::STATUS_DRAFT) {
 		setEventMessages($langs->trans("ErrorRecordNotDraft"), null, 'errors');
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
-
 	$db->begin();
 
-	// Récupérer zones/paniers par jour (globaux à la feuille)
 	$days = array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');
 	$dto = new DateTime();
 	$dto->setISODate($object->year, $object->week);
-	$dayDates = array(); // 'Monday' => 'Y-m-d'
+	$dayDates = array();
 	foreach ($days as $d) {
 		$dayDates[$d] = $dto->format('Y-m-d');
 		$dto->modify('+1 day');
@@ -188,15 +166,12 @@ if ($action === 'save' && $permWrite && $object->id > 0) {
 		$mealByDate[$dayDates[$d]] = GETPOST('meal_'.$d) ? 1 : 0;
 	}
 
-	// Calcul des totaux
 	$grandTotal = 0.0;
 
-	// Pour chaque input hours_taskid_day
 	foreach ($_POST as $key => $val) {
 		if (!preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) continue;
 		$taskid = (int) $m[1];
-		$dayKey = $m[2]; // Monday, Tuesday, ...
-
+		$dayKey = $m[2];
 		if (empty($dayDates[$dayKey])) continue;
 		$thedate = $dayDates[$dayKey];
 
@@ -207,23 +182,16 @@ if ($action === 'save' && $permWrite && $object->id > 0) {
 		$zone = isset($zoneByDate[$thedate]) ? (int) $zoneByDate[$thedate] : null;
 		$meal = isset($mealByDate[$thedate]) ? (int) $mealByDate[$thedate] : 0;
 
-		// upsert dans llx_timesheet_week_line
 		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line
 				WHERE fk_timesheet_week = ".((int) $object->id)."
 				AND fk_task = ".((int) $taskid)."
 				AND day_date = '".$db->escape($thedate)."'";
 		$resql = $db->query($sql);
-		if (!$resql) {
-			$db->rollback();
-			setEventMessages($db->lasterror(), null, 'errors');
-			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-			exit;
-		}
+		if (!$resql) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 		$exists = ($db->num_rows($resql) > 0);
 		$db->free($resql);
 
 		if ($exists) {
-			// UPDATE (si 0h -> on garde la ligne et met à 0, sinon vous pouvez choisir de DELETE)
 			$sqlu = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line
 					SET hours = ".((float) $hours).",
 						zone = ".($zone !== null ? (int) $zone : "NULL").",
@@ -231,45 +199,27 @@ if ($action === 'save' && $permWrite && $object->id > 0) {
 					WHERE fk_timesheet_week = ".((int) $object->id)."
 					AND fk_task = ".((int) $taskid)."
 					AND day_date = '".$db->escape($thedate)."'";
-			if (!$db->query($sqlu)) {
-				$db->rollback();
-				setEventMessages($db->lasterror(), null, 'errors');
-				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-				exit;
-			}
+			if (!$db->query($sqlu)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 		} else {
-			// INSERT seulement si heures > 0 (sinon pas d'intérêt)
 			if ($hours > 0) {
 				$sqli = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line(fk_timesheet_week, fk_task, day_date, hours, zone, meal)
 						VALUES (".((int) $object->id).", ".((int) $taskid).", '".$db->escape($thedate)."', ".((float) $hours).", ".($zone !== null ? (int) $zone : "NULL").", ".((int) $meal).")";
-				if (!$db->query($sqli)) {
-					$db->rollback();
-					setEventMessages($db->lasterror(), null, 'errors');
-					header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-					exit;
-				}
+				if (!$db->query($sqli)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 			}
 		}
 	}
 
-	// Durée contractuelle (heures sup)
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contracted = !empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0;
 	$overtime = $grandTotal - $contracted;
 	if ($overtime < 0) $overtime = 0;
 
-	// Mise à jour totaux feuille
 	$sqlp = "UPDATE ".MAIN_DB_PREFIX."timesheet_week
 			SET total_hours = ".((float) $grandTotal).",
 				overtime_hours = ".((float) $overtime)."
 			WHERE rowid = ".((int) $object->id);
-	if (!$db->query($sqlp)) {
-		$db->rollback();
-		setEventMessages($db->lasterror(), null, 'errors');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+	if (!$db->query($sqlp)) { $db->rollback(); setEventMessages($db->lasterror(), null, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 
 	$db->commit();
 	setEventMessages($langs->trans("TimesheetSaved"), null, 'mesgs');
@@ -277,87 +227,98 @@ if ($action === 'save' && $permWrite && $object->id > 0) {
 	exit;
 }
 
-// SUBMIT (confirm)
-if ($action === 'confirm_submit' && $confirm === 'yes' && $permWrite && $object->id > 0) {
-	// Passage à soumis
-	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_SUBMITTED)." WHERE rowid = ".((int) $object->id);
-	if ($db->query($sql)) {
-		setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
-	} else {
-		setEventMessages($db->lasterror(), null, 'errors');
+// ---------- INLINE EDIT (pencils) ----------
+$canEditHeader = false;
+if ($object->id > 0 && $object->status == TimesheetWeek::STATUS_DRAFT && $permWrite) {
+	// Autoriser l'édition en brouillon au propriétaire (et aux super valisateurs si vous voulez)
+	$canEditHeader = ($object->fk_user == $user->id) || $permApproveAll;
+}
+
+// Update fk_user
+if ($action === 'update_fk_user' && $canEditHeader) {
+	$val = GETPOSTINT('new_fk_user');
+	if ($val > 0) {
+		$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user = ".((int) $val)." WHERE rowid = ".((int) $object->id);
+		if ($db->query($sql)) setEventMessages($langs->trans("Modified"), null, 'mesgs');
+		else setEventMessages($db->lasterror(), null, 'errors');
 	}
 	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 	exit;
 }
+// Update weekyear -> year/week
+if ($action === 'update_weekyear' && $canEditHeader) {
+	$weekyear = GETPOST('new_weekyear', 'alpha');
+	if (preg_match('/^(\d{4})-W(\d{1,2})$/', $weekyear, $m)) {
+		$y = (int) $m[1];
+		$w = (int) $m[2];
+		$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET year = ".$y.", week = ".$w." WHERE rowid = ".((int) $object->id);
+		if ($db->query($sql)) setEventMessages($langs->trans("Modified"), null, 'mesgs');
+		else setEventMessages($db->lasterror(), null, 'errors');
+	} else {
+		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
+	}
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+// Update validator
+if ($action === 'update_fk_user_valid' && $canEditHeader) {
+	$val = GETPOSTINT('new_fk_user_valid');
+	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_valid = ".($val>0?(int)$val:"NULL")." WHERE rowid = ".((int) $object->id);
+	if ($db->query($sql)) setEventMessages($langs->trans("Modified"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
+// Update note
+if ($action === 'update_note' && $canEditHeader) {
+	$val = GETPOST('new_note', 'restricthtml');
+	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET note = '".$db->escape($val)."' WHERE rowid = ".((int) $object->id);
+	if ($db->query($sql)) setEventMessages($langs->trans("Modified"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
+}
 
-// BACK TO DRAFT (confirm)
+// SUBMIT / BACK TO DRAFT / APPROVE / REFUSE / DELETE (confirm)
+if ($action === 'confirm_submit' && $confirm === 'yes' && $permWrite && $object->id > 0) {
+	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_SUBMITTED)." WHERE rowid = ".((int) $object->id);
+	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
+}
 if ($action === 'confirm_setdraft' && $confirm === 'yes' && $permWrite && $object->id > 0) {
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_DRAFT)." WHERE rowid = ".((int) $object->id);
-	if ($db->query($sql)) {
-		setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
-	} else {
-		setEventMessages($db->lasterror(), null, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($db->query($sql)) setEventMessages($langs->trans("SetToDraft"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
-
-// APPROVE (confirm)
 if ($action === 'confirm_approve' && $confirm === 'yes' && $object->id > 0) {
-	// Validation par valideur ou par droit global
 	$isValidator = ($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) || $permApproveAll;
 	if (!$isValidator) accessforbidden();
-
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_APPROVED).", date_validation = '".$db->idate(dol_now())."' WHERE rowid = ".((int) $object->id);
-	if ($db->query($sql)) {
-		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
-		// TODO: recopier les temps dans tâches projet (projet->fiche temps)
-	} else {
-		setEventMessages($db->lasterror(), null, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
-
-// REFUSE (confirm)
 if ($action === 'confirm_refuse' && $confirm === 'yes' && $object->id > 0) {
 	$isValidator = ($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) || $permApproveAll;
 	if (!$isValidator) accessforbidden();
-
 	$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET status = ".((int) TimesheetWeek::STATUS_REFUSED)." WHERE rowid = ".((int) $object->id);
-	if ($db->query($sql)) {
-		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
-	} else {
-		setEventMessages($db->lasterror(), null, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+	if ($db->query($sql)) setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+	else setEventMessages($db->lasterror(), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit;
 }
-
-// DELETE (confirm)
 if ($action === 'confirm_delete' && $confirm === 'yes' && $permDelete && $object->id > 0) {
 	$db->begin();
 	$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week = ".((int) $object->id));
 	$res = $object->delete($user);
-	if ($res > 0) {
-		$db->commit();
-		setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs');
-		header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php', 1));
-		exit;
-	} else {
-		$db->rollback();
-		setEventMessages($object->error, $object->errors, 'errors');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+	if ($res > 0) { $db->commit(); setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs'); header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php', 1)); exit; }
+	else { $db->rollback(); setEventMessages($object->error, $object->errors, 'errors'); header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id); exit; }
 }
 
 // ----------- View -----------
-$title = $langs->trans("TimesheetWeek");
-if ($action == 'create') $title = $langs->trans("NewTimesheetWeek");
-$help_url = '';
-
-llxHeader('', $title, $help_url);
+$title = ($action == 'create') ? $langs->trans("NewTimesheetWeek") : $langs->trans("TimesheetWeek");
+llxHeader('', $title, '');
 
 // MODE CREATE
 if ($action === 'create') {
@@ -370,29 +331,18 @@ if ($action === 'create') {
 	print '<input type="hidden" name="action" value="add">';
 
 	print '<table class="border centpercent">';
-
-	// Employé (pré-sélection utilisateur courant)
-	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
-	print $form->select_dolusers($user->id, 'fk_user', 1);
-	print '</td></tr>';
-
-	// Semaine (sélecteur Dolibarr-like)
+	// Employé
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td></tr>';
+	// Semaine
 	print '<tr><td>'.$langs->trans("Week").'</td><td>';
-	print getWeekSelectorDolibarr($form, 'weekyear'); // produit YYYY-Wxx
+	print getWeekSelectorDolibarr($form, 'weekyear');
 	print ' <div id="weekrange" class="opacitymedium paddingleft small"></div>';
 	print '</td></tr>';
-
-	// Valideur (par défaut hiérarchique)
+	// Valideur par défaut hiérarchique
 	$defaultValidator = tw_get_default_validator($db, $user->id);
-	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
-	print $form->select_dolusers($defaultValidator ?: $user->id, 'fk_user_valid', 1);
-	print '</td></tr>';
-
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($defaultValidator ?: $user->id, 'fk_user_valid', 1).'</td></tr>';
 	// Note
-	print '<tr><td>'.$langs->trans("Note").'</td><td>';
-	print '<textarea name="note" class="quatrevingtpercent" rows="3"></textarea>';
-	print '</td></tr>';
-
+	print '<tr><td>'.$langs->trans("Note").'</td><td><textarea name="note" class="quatrevingtpercent" rows="3"></textarea></td></tr>';
 	print '</table>';
 
 	print '<div class="center">';
@@ -416,134 +366,120 @@ if ($action === 'create') {
 JS;
 
 } elseif ($object->id > 0) {
-	// Contrôle d'accès
-	$cansee = tw_can_see($object, $user, $permRead, $permReadAll, $permReadChild);
-	if (!$cansee) accessforbidden();
+	// Accès
+	if (!tw_can_see($object, $user, $permRead, $permReadAll, $permReadChild)) accessforbidden();
 
-	// Contexte
 	$isOwner     = ($object->fk_user == $user->id);
 	$isValidator = ($object->fk_user_valid > 0 && $object->fk_user_valid == $user->id) || $permApproveAll;
 
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'time');
 
-	// ---- Confirm popups ----
+	// Confirm popups Ajax
 	$formconfirm = '';
 	if ($useajax) {
-		// Soumettre
 		if ($object->status == TimesheetWeek::STATUS_DRAFT && $isOwner && $permWrite) {
-			$formconfirm .= $form->formconfirm(
-				$_SERVER["PHP_SELF"].'?id='.$object->id,
-				$langs->trans('Submit'),
-				$langs->trans('ConfirmSubmit', $object->ref),
-				'confirm_submit',
-				array(),
-				1,
-				'action-submit'
-			);
+			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Submit'), $langs->trans('ConfirmSubmit', $object->ref), 'confirm_submit', array(), 1, 'action-submit');
 		}
-		// Retour brouillon
 		if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && ($isOwner || $isValidator)) {
-			$formconfirm .= $form->formconfirm(
-				$_SERVER["PHP_SELF"].'?id='.$object->id,
-				$langs->trans('SetToDraft'),
-				$langs->trans('ConfirmSetToDraft', $object->ref),
-				'confirm_setdraft',
-				array(),
-				1,
-				'action-setdraft'
-			);
+			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('SetToDraft'), $langs->trans('ConfirmSetToDraft', $object->ref), 'confirm_setdraft', array(), 1, 'action-setdraft');
 		}
-		// Approuver / Refuser
 		if ($object->status == TimesheetWeek::STATUS_SUBMITTED && $isValidator) {
-			$formconfirm .= $form->formconfirm(
-				$_SERVER["PHP_SELF"].'?id='.$object->id,
-				$langs->trans('Validate'),
-				$langs->trans('ConfirmValidate', $object->ref),
-				'confirm_approve',
-				array(),
-				1,
-				'action-approve'
-			);
-			$formconfirm .= $form->formconfirm(
-				$_SERVER["PHP_SELF"].'?id='.$object->id,
-				$langs->trans('Refuse'),
-				$langs->trans('ConfirmRefuse', $object->ref),
-				'confirm_refuse',
-				array(),
-				1,
-				'action-refuse'
-			);
+			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Validate'), $langs->trans('ConfirmValidate', $object->ref), 'confirm_approve', array(), 1, 'action-approve');
+			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Refuse'), $langs->trans('ConfirmRefuse', $object->ref), 'confirm_refuse', array(), 1, 'action-refuse');
 		}
-		// Supprimer
 		if ($permDelete) {
-			$formconfirm .= $form->formconfirm(
-				$_SERVER["PHP_SELF"].'?id='.$object->id,
-				$langs->trans('DeleteTimesheetWeek'),
-				$langs->trans('ConfirmDeleteObject'),
-				'confirm_delete',
-				array(),
-				1,
-				'action-delete'
-			);
-		}
-	} else {
-		// Non-Ajax : confirmation suite à ask_*
-		if ($action == 'ask_submit') {
-			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Submit'), $langs->trans('ConfirmSubmit', $object->ref), 'confirm_submit');
-		}
-		if ($action == 'ask_setdraft') {
-			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('SetToDraft'), $langs->trans('ConfirmSetToDraft', $object->ref), 'confirm_setdraft');
-		}
-		if ($action == 'ask_approve') {
-			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Validate'), $langs->trans('ConfirmValidate', $object->ref), 'confirm_approve');
-		}
-		if ($action == 'ask_refuse') {
-			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('Refuse'), $langs->trans('ConfirmRefuse', $object->ref), 'confirm_refuse');
-		}
-		if ($action == 'delete') {
-			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('DeleteTimesheetWeek'), $langs->trans('ConfirmDeleteObject'), 'confirm_delete');
+			$formconfirm .= $form->formconfirm($_SERVER["PHP_SELF"].'?id='.$object->id, $langs->trans('DeleteTimesheetWeek'), $langs->trans('ConfirmDeleteObject'), 'confirm_delete', array(), 1, 'action-delete');
 		}
 	}
 	print $formconfirm;
 
-	// Banner
+	// BANNER
 	dol_banner_tab($object, 'ref');
 
 	print '<div class="fichecenter">';
 	print '<div class="fichehalfleft">';
 	print '<table class="border centpercent tableforfield">';
 
-	// Employé
-	if ($object->fk_user > 0) {
-		$u = new User($db);
-		$u->fetch($object->fk_user);
-		print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$u->getNomUrl(1).'</td></tr>';
+	// Employé + crayon
+	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+	if ($action === 'edit_fk_user' && $canEditHeader) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update_fk_user">';
+		print $form->select_dolusers($object->fk_user, 'new_fk_user', 1);
+		print ' <input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print ' <a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
 	} else {
-		print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td></td></tr>';
+		if ($object->fk_user > 0) { $u = new User($db); $u->fetch($object->fk_user); print $u->getNomUrl(1); }
+		if ($canEditHeader) print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user">'.img_edit().'</a>';
 	}
-	// Année
-	print '<tr><td>'.$langs->trans("Year").'</td><td>'.dol_escape_htmltag($object->year).'</td></tr>';
-	// Semaine
-	print '<tr><td>'.$langs->trans("Week").'</td><td>'.dol_escape_htmltag($object->week).'</td></tr>';
-	// Validateur
-	if ($object->fk_user_valid > 0) {
-		$v = new User($db);
-		$v->fetch($object->fk_user_valid);
-		print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$v->getNomUrl(1).'</td></tr>';
+	print '</td></tr>';
+
+	// Semaine (Année/Semaine) + crayon
+	print '<tr><td>'.$langs->trans("Week").'</td><td>';
+	if ($action === 'edit_weekyear' && $canEditHeader) {
+		$currentWeek = tw_weekyear($object->year, $object->week);
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update_weekyear">';
+		print getWeekSelectorDolibarr($form, 'weekyear'); // sans présélection, on la force via JS juste après
+		print '<input type="hidden" name="new_weekyear" id="new_weekyear" value="'.$currentWeek.'">';
+		print ' <input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print ' <a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+		// Forcer sélection
+		print '<script>jQuery(function($){ $("#weekyear").val("'.dol_escape_js($currentWeek).'").trigger("change"); $("#weekyear").on("change", function(){ $("#new_weekyear").val($(this).val()); }); });</script>';
 	} else {
-		print '<tr><td>'.$langs->trans("Validator").'</td><td class="opacitymedium">'.$langs->trans("None").'</td></tr>';
+		print dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
+		if ($canEditHeader) print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_weekyear">'.img_edit().'</a>';
 	}
+	print '</td></tr>';
+
+	// Validateur + crayon
+	print '<tr><td>'.$langs->trans("Validator").'</td><td>';
+	if ($action === 'edit_fk_user_valid' && $canEditHeader) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update_fk_user_valid">';
+		print $form->select_dolusers($object->fk_user_valid, 'new_fk_user_valid', 1);
+		print ' <input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+		print ' <a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		if ($object->fk_user_valid > 0) { $v = new User($db); $v->fetch($object->fk_user_valid); print $v->getNomUrl(1); }
+		else print '<span class="opacitymedium">'.$langs->trans("None").'</span>';
+		if ($canEditHeader) print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_fk_user_valid">'.img_edit().'</a>';
+	}
+	print '</td></tr>';
 
 	print '</table>';
-	print '</div>';
+	print '</div>'; // left
 
 	print '<div class="fichehalfright">';
 	print '<table class="border centpercent tableforfield">';
+
+	// Dates
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("Note").'</td><td>'.nl2br(dol_escape_htmltag($object->note)).'</td></tr>';
+
+	// Note + crayon
+	print '<tr><td>'.$langs->trans("Note").'</td><td>';
+	if ($action === 'edit_note' && $canEditHeader) {
+		print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		print '<input type="hidden" name="token" value="'.newToken().'">';
+		print '<input type="hidden" name="action" value="update_note">';
+		print '<textarea name="new_note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
+		print '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'"> ';
+		print '<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+		print '</form>';
+	} else {
+		print nl2br(dol_escape_htmltag($object->note));
+		if ($canEditHeader) print ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit_note">'.img_edit().'</a>';
+	}
+	print '</td></tr>';
 
 	// Totaux (si stockés)
 	if (property_exists($object, 'total_hours')) {
@@ -554,26 +490,25 @@ JS;
 	}
 
 	print '</table>';
-	print '</div>'; // fichehalfright
+	print '</div>'; // right
 	print '</div>'; // fichecenter
 
 	print dol_get_fiche_end();
 
-	// ---- Tableau des temps par semaine (grille) ----
-	// Regroupement projet -> tâches affectées à l'utilisateur de la feuille
-	$tasks = $object->getAssignedTasks($object->fk_user); // array: project_id, project_ref, project_title, task_id, task_label
-	// Lignes existantes
-	$lines = $object->getLines(); // array d'objets (fk_task, day_date, hours, zone, meal)
+	// ======== SÉPARATION : CI-DESSOUS, TABLEAU DES TEMPS ========
+	print '<div class="fichecenter">';
 
-	// Indexation des valeurs pour pré-remplissage
-	$valByTaskDay = array();  // key "taskid|Y-m-d" => 'HH:MM'
-	$zoneByDate = array();    // 'Y-m-d' => int|null
-	$mealByDate = array();    // 'Y-m-d' => 0/1
+	// Grille temps
+	$tasks = $object->getAssignedTasks($object->fk_user);
+	$lines = $object->getLines();
+
+	$valByTaskDay = array();
+	$zoneByDate = array();
+	$mealByDate = array();
 	if (is_array($lines)) {
 		foreach ($lines as $l) {
 			$key = $l->fk_task.'|'.$l->day_date;
 			$valByTaskDay[$key] = tw_formatHoursSafe((float) $l->hours);
-			// on prend la dernière valeur pour zone/meal par date (portée jour)
 			if (!isset($zoneByDate[$l->day_date]) && $l->zone !== null) $zoneByDate[$l->day_date] = (int) $l->zone;
 			if (!isset($mealByDate[$l->day_date])) $mealByDate[$l->day_date] = (int) $l->meal;
 		}
@@ -591,11 +526,8 @@ JS;
 		$days = array('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday');
 		$dto = new DateTime();
 		$dto->setISODate($object->year, $object->week);
-		$weekdates = array(); // 'Monday' => 'Y-m-d'
-		foreach ($days as $d) {
-			$weekdates[$d] = $dto->format('Y-m-d');
-			$dto->modify('+1 day');
-		}
+		$weekdates = array();
+		foreach ($days as $d) { $weekdates[$d] = $dto->format('Y-m-d'); $dto->modify('+1 day'); }
 
 		$userEmployee = new User($db);
 		$userEmployee->fetch($object->fk_user);
@@ -604,7 +536,6 @@ JS;
 		print '<div class="div-table-responsive">';
 		print '<table class="noborder centpercent">';
 
-		// En-tête
 		print '<tr class="liste_titre">';
 		print '<th>'.$langs->trans("Project / Task").'</th>';
 		foreach ($days as $d) {
@@ -613,7 +544,7 @@ JS;
 		print '<th>'.$langs->trans("Total").'</th>';
 		print '</tr>';
 
-		// Ligne Zone + Panier
+		// Ligne Zone + Meal
 		print '<tr class="liste_titre">';
 		print '<td></td>';
 		foreach ($days as $d) {
@@ -624,9 +555,7 @@ JS;
 			print '<td class="center">';
 			print '<select name="zone_'.$d.'" class="flat">';
 			print '<option value=""></option>';
-			for ($z=1; $z<=5; $z++) {
-				print '<option value="'.$z.'"'.($curZone==$z?' selected':'').'>'.$z.'</option>';
-			}
+			for ($z=1; $z<=5; $z++) print '<option value="'.$z.'"'.($curZone==$z?' selected':'').'>'.$z.'</option>';
 			print '</select><br>';
 			print '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.($curMeal?' checked':'').'> '.$langs->trans("Meal").'</label>';
 			print '</td>';
@@ -634,17 +563,11 @@ JS;
 		print '<td></td>';
 		print '</tr>';
 
-		// Regrouper tâches par projet
-		$byproject = array(); // pid => ['ref'=>, 'title'=>, 'tasks'=>[]]
+		// Group by project
+		$byproject = array();
 		foreach ($tasks as $t) {
 			$pid = $t['project_id'];
-			if (empty($byproject[$pid])) {
-				$byproject[$pid] = array(
-					'ref'   => $t['project_ref'],
-					'title' => $t['project_title'],
-					'tasks' => array()
-				);
-			}
+			if (empty($byproject[$pid])) $byproject[$pid] = array('ref'=>$t['project_ref'], 'title'=>$t['project_title'], 'tasks'=>array());
 			$byproject[$pid]['tasks'][] = $t;
 		}
 
@@ -652,7 +575,6 @@ JS;
 		$taskstatic = new Task($db);
 
 		foreach ($byproject as $pid => $pdata) {
-			// Ligne projet (style perweek)
 			$projectstatic->id = $pid;
 			$projectstatic->ref = $pdata['ref'];
 			$projectstatic->title = $pdata['title'];
@@ -660,26 +582,17 @@ JS;
 			print '<tr class="oddeven trforbreak nobold">';
 			print '<td colspan="'.(count($days)+2).'" class="bold">';
 			print $projectstatic->getNomUrl(1, '', 0, '', 0, 0, '');
-			if (!empty($projectstatic->title)) {
-				print ' <span class="opacitymedium"> - '.dol_escape_htmltag($projectstatic->title).'</span>';
-			}
-			print '</td>';
-			print '</tr>';
+			if (!empty($projectstatic->title)) print ' <span class="opacitymedium"> - '.dol_escape_htmltag($projectstatic->title).'</span>';
+			print '</td></tr>';
 
-			// Lignes tâches
 			foreach ($pdata['tasks'] as $t) {
 				print '<tr>';
 				print '<td class="paddingleft">';
-
 				$taskstatic->id = $t['task_id'];
 				$taskstatic->label = $t['task_label'];
-				$taskstatic->ref = ''; // certaines versions n'ont pas de "ref" sur les tâches
+				$taskstatic->ref = '';
 				print $taskstatic->getNomUrl(1, 'project', 0, '', 0, 0, '');
-
-				if (empty($taskstatic->label) && !empty($t['task_label'])) {
-					print dol_escape_htmltag($t['task_label']);
-				}
-
+				if (empty($taskstatic->label) && !empty($t['task_label'])) print dol_escape_htmltag($t['task_label']);
 				print '</td>';
 
 				$rowTotal = 0.0;
@@ -690,9 +603,7 @@ JS;
 					$key = $t['task_id'].'|'.$thedate;
 					if (isset($valByTaskDay[$key])) $prefill = $valByTaskDay[$key];
 
-					print '<td class="center">';
-					print '<input type="text" class="flat hourinput" size="4" name="'.$name.'" value="'.dol_escape_htmltag($prefill).'" placeholder="00:00">';
-					print '</td>';
+					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$name.'" value="'.dol_escape_htmltag($prefill).'" placeholder="00:00" '.($object->status==TimesheetWeek::STATUS_DRAFT?'':'disabled').'></td>';
 
 					$rowTotal += tw_parse_hours_to_float($prefill);
 				}
@@ -701,79 +612,55 @@ JS;
 			}
 		}
 
-		// Totaux
-		print '<tr class="liste_total">';
-		print '<td class="right">'.$langs->trans("Total").'</td>';
+		print '<tr class="liste_total"><td class="right">'.$langs->trans("Total").'</td>';
 		foreach ($days as $d) print '<td class="right day-total">00:00</td>';
-		print '<td class="right grand-total">00:00</td>';
-		print '</tr>';
+		print '<td class="right grand-total">00:00</td></tr>';
 
-		print '<tr class="liste_total">';
-		print '<td class="right">'.$langs->trans("Meals").'</td>';
-		print '<td colspan="'.count($days).'" class="right meal-total">0</td>';
-		print '<td></td>';
-		print '</tr>';
-
-		print '<tr class="liste_total">';
-		print '<td class="right">'.$langs->trans("Overtime").' (>'.tw_formatHoursSafe($contractedHours).')</td>';
-		print '<td colspan="'.count($days).'" class="right overtime-total">00:00</td>';
-		print '<td></td>';
-		print '</tr>';
+		print '<tr class="liste_total"><td class="right">'.$langs->trans("Meals").'</td><td colspan="'.count($days).'" class="right meal-total">0</td><td></td></tr>';
+		print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.tw_formatHoursSafe($contractedHours).')</td><td colspan="'.count($days).'" class="right overtime-total">00:00</td><td></td></tr>';
 
 		print '</table>';
 		print '</div>';
 
-		// Bouton Sauver seulement en Brouillon
 		if ($object->status == TimesheetWeek::STATUS_DRAFT && $permWrite && $isOwner) {
 			print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		}
 
-		// JS totaux
 		print '<script>
 (function($){
 	function parseHours(v){ if(!v) return 0; v=(""+v).replace(",","."); if(v.indexOf(":")===-1) return parseFloat(v)||0;
 		var p=v.split(":"),h=parseInt(p[0],10)||0,m=parseInt(p[1],10)||0; if(m<0)m=0; if(m>59)m=59; return h+(m/60); }
 	function formatHours(d){ if(isNaN(d)) return "00:00"; var h=Math.floor(d), m=Math.round((d-h)*60); if(m===60){h++;m=0;} return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"); }
 	function updateTotals(){
-		var grand=0;
-		$(".task-total").text("00:00");
-		$(".day-total").text("00:00");
-
-		// indices colonnes jour -> cumul
+		var grand=0; $(".task-total").text("00:00"); $(".day-total").text("00:00");
 		var dayTotals = {};
 		$("table.noborder tr").each(function(){
 			var rowTotal=0;
 			$(this).find("input.hourinput").each(function(){
 				var v=parseHours($(this).val());
 				if(v>0){
-					rowTotal += v;
-					var idx = $(this).closest("td").index();
-					dayTotals[idx] = (dayTotals[idx]||0) + v;
-					grand += v;
+					rowTotal+=v;
+					var idx=$(this).closest("td").index();
+					dayTotals[idx]=(dayTotals[idx]||0)+v;
+					grand+=v;
 				}
 			});
 			if(rowTotal>0) $(this).find(".task-total").text(formatHours(rowTotal));
 		});
-		// write dayTotals
-		$("tr.liste_total:first td").each(function(i){
+		$("tr.liste_total:first td").each(function(){
 			if ($(this).hasClass("day-total")) {
-				var idx = $(this).index();
-				var v = dayTotals[idx]||0;
+				var idx=$(this).index();
+				var v=dayTotals[idx]||0;
 				$(this).text(formatHours(v));
 			}
 		});
 		$(".grand-total").text(formatHours(grand));
-
-		// meals
 		$(".meal-total").text($(".mealbox:checked").length);
-
-		// overtime
 		var contracted = '.((float) $contractedHours).';
-		var ot = grand - contracted; if (ot<0) ot=0;
+		var ot=grand-contracted; if(ot<0) ot=0;
 		$(".overtime-total").text(formatHours(ot));
 	}
 	$(function(){
-		// maj initiale au chargement
 		updateTotals();
 		$(document).on("input change","input.hourinput, input.mealbox, select[name^=zone_]", updateTotals);
 	});
@@ -782,34 +669,25 @@ JS;
 	}
 
 	print '</form>';
+	print '</div>'; // fichecenter (tableau des temps)
 
-	// --- Boutons d'action ---
+	// --- Boutons d’action ---
 	print '<div class="tabsAction">';
-
-	// Cacher "Modifier" si brouillon
+	// Masquer "Modifier" en brouillon
 	if ($permWrite && $object->status != TimesheetWeek::STATUS_DRAFT) {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
-
-	// Soumettre (brouillon -> soumis)
+	// Soumettre
 	if ($object->status == TimesheetWeek::STATUS_DRAFT && $isOwner && $permWrite) {
-		if ($useajax) {
-			print dolGetButtonAction('', $langs->trans('Submit'), 'default', '', 'action-submit', 1);
-		} else {
-			print dolGetButtonAction('', $langs->trans('Submit'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_submit', '', 1);
-		}
+		if ($useajax) print dolGetButtonAction('', $langs->trans('Submit'), 'default', '', 'action-submit', 1);
+		else print dolGetButtonAction('', $langs->trans('Submit'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_submit', '', 1);
 	}
-
-	// Retour à brouillon (si soumis/refusé) pour owner ou valideur
+	// Retour à brouillon
 	if (in_array($object->status, array(TimesheetWeek::STATUS_SUBMITTED, TimesheetWeek::STATUS_REFUSED)) && ($isOwner || $isValidator)) {
-		if ($useajax) {
-			print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', '', 'action-setdraft', 1);
-		} else {
-			print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_setdraft', '', 1);
-		}
+		if ($useajax) print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', '', 'action-setdraft', 1);
+		else print dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_setdraft', '', 1);
 	}
-
-	// Approuver / Refuser (si soumis) pour valideur
+	// Approuver / Refuser
 	if ($object->status == TimesheetWeek::STATUS_SUBMITTED && $isValidator) {
 		if ($useajax) {
 			print dolGetButtonAction('', $langs->trans('Validate'), 'ok', '', 'action-approve', 1);
@@ -819,14 +697,9 @@ JS;
 			print dolGetButtonAction('', $langs->trans('Refuse'), 'danger', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse', '', 1);
 		}
 	}
-
 	// Supprimer
-	if ($useajax) {
-		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', '', 'action-delete', $permDelete);
-	} else {
-		print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken(), '', $permDelete);
-	}
-
+	if ($useajax) print dolGetButtonAction('', $langs->trans("Delete"), 'delete', '', 'action-delete', $permDelete);
+	else print dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken(), '', $permDelete);
 	print '</div>';
 }
 
