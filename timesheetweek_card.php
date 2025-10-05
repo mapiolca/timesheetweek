@@ -96,9 +96,9 @@ if ($action === 'add') {
 	if ($fk_user_valid > 0) {
 		$object->fk_user_valid = $fk_user_valid;
 	} else {
-        $uTmp = new User($db);
-        $uTmp->fetch($targetUserId);
-        $object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
+		$uTmp = new User($db);
+		$uTmp->fetch($targetUserId);
+		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
 	}
 
 	// Parse semaine
@@ -122,7 +122,7 @@ if ($action === 'add') {
 	}
 }
 
-// ----------------- Action: Save grid lines -----------------
+// ----------------- Action: Save grid lines (UPSERT) -----------------
 if ($action === 'save' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 
@@ -133,10 +133,10 @@ if ($action === 'save' && $id > 0) {
 
 	$db->begin();
 
-	// Nettoie anciennes lignes
-	$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id);
+	// Map jour -> offset
+	$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 
-	// Balayage des inputs hours_taskid_day
+	// Boucle sur inputs
 	foreach ($_POST as $key => $val) {
 		if (preg_match('/^hours_(\d+)_(\w+)$/', $key, $m)) {
 			$taskid = (int) $m[1];
@@ -145,36 +145,70 @@ if ($action === 'save' && $id > 0) {
 
 			// Parse HH:MM ou décimal
 			$h = 0.0;
-			if (strpos($hoursStr, ':') !== false) {
-				$tmp = explode(':', $hoursStr, 2);
-				$H = isset($tmp[0]) ? $tmp[0] : '0';
-				$M = isset($tmp[1]) ? $tmp[1] : '0';
-				$h = ((int)$H) + ((int)$M)/60.0;
-			} else {
-				$h = (float) str_replace(',', '.', $hoursStr);
+			if ($hoursStr !== '') {
+				if (strpos($hoursStr, ':') !== false) {
+					$tmp = explode(':', $hoursStr, 2);
+					$H = isset($tmp[0]) ? $tmp[0] : '0';
+					$M = isset($tmp[1]) ? $tmp[1] : '0';
+					$h = ((int)$H) + ((int)$M)/60.0;
+				} else {
+					$h = (float) str_replace(',', '.', $hoursStr);
+				}
+			}
+
+			// Calcule date du jour ISO
+			$dto = new DateTime();
+			$dto->setISODate((int)$object->year, (int)$object->week);
+			$dto->modify('+'.$map[$day].' day');
+			$datestr = $dto->format('Y-m-d');
+
+			$zone = (int) GETPOST('zone_'.$day, 'int');
+			$meal = GETPOST('meal_'.$day) ? 1 : 0;
+
+			// Existe déjà ?
+			$sqlSel = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line 
+				WHERE fk_timesheet_week=".(int)$object->id." AND fk_task=".(int)$taskid." AND day_date='".$db->escape($datestr)."'";
+			$resSel = $db->query($sqlSel);
+			$existingId = 0;
+			if ($resSel && $db->num_rows($resSel) > 0) {
+				$o = $db->fetch_object($resSel);
+				$existingId = (int) $o->rowid;
 			}
 
 			if ($h > 0) {
-				// Date jour ISO
-				$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
-				$dto = new DateTime();
-				$dto->setISODate((int)$object->year, (int)$object->week);
-				$dto->modify('+'.$map[$day].' day');
+				if ($existingId > 0) {
+					// UPDATE
+					$sqlUpd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line 
+						SET hours=".((float)$h).", zone=".(int)$zone.", meal=".(int)$meal."
+						WHERE rowid=".$existingId;
+					if (!$db->query($sqlUpd)) {
+						$db->rollback();
+						setEventMessages($db->lasterror(), null, 'errors');
+						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+						exit;
+					}
+				} else {
+					// INSERT
+					$line = new TimesheetWeekLine($db);
+					$line->fk_timesheet_week = (int) $object->id;
+					$line->fk_task  = $taskid;
+					$line->day_date = $datestr;
+					$line->hours    = $h;
+					$line->zone     = $zone;
+					$line->meal     = $meal;
 
-				$line = new TimesheetWeekLine($db);
-				$line->fk_timesheet_week = (int) $object->id;
-				$line->fk_task  = $taskid;
-				$line->day_date = $dto->format('Y-m-d');
-				$line->hours    = $h;
-				$line->zone     = (int) GETPOST('zone_'.$day, 'int');
-				$line->meal     = GETPOST('meal_'.$day) ? 1 : 0;
-
-				$res = $line->create($user);
-				if ($res < 0) {
-					$db->rollback();
-					setEventMessages($line->error, $line->errors, 'errors');
-					header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-					exit;
+					$res = $line->create($user);
+					if ($res < 0) {
+						$db->rollback();
+						setEventMessages($line->error, $line->errors, 'errors');
+						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+						exit;
+					}
+				}
+			} else {
+				// 0 ou vide => DELETE si existe
+				if ($existingId > 0) {
+					$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId);
 				}
 			}
 		}
@@ -258,7 +292,7 @@ if ($action === 'create') {
 	print '<td>'.getWeekSelectorDolibarr($form, 'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td>';
 	print '</tr>';
 
-	// Validateur (par défaut = manager de l’employé courant s’il existe)
+	// Validateur (défaut = manager)
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	print '<tr>';
 	print '<td>'.$langs->trans("Validator").'</td>';
@@ -346,13 +380,30 @@ JS;
 	print '</table>';
 	print '</div>';
 
-	// Right block
+	// Right block (Totaux en entête)
+	// Recalcule affichage si null
+	$uEmpDisp = new User($db);
+	$uEmpDisp->fetch($object->fk_user);
+	$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours)?(float)$uEmpDisp->weeklyhours:35.0);
+	$th = (float) $object->total_hours;
+	$ot = (float) $object->overtime_hours;
+	if ($th <= 0) {
+		// Essai de calcul rapide si pas à jour
+		$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
+		$resSum = $db->query($sqlSum);
+		if ($resSum) {
+			$o = $db->fetch_object($resSum);
+			$th = (float) $o->sh;
+			$ot = max(0.0, $th - $contractedHoursDisp);
+		}
+	}
 	print '<div class="fichehalfright">';
 	print '<table class="border centpercent tableforfield">';
 	print '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
 	print '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-	print '<tr><td>'.$langs->trans("Status").'</td><td>'.$object->getLibStatut(5).'</td></tr>';
+	print '<tr><td>'.$langs->trans("TotalHours").'</td><td><span class="header-total-hours">'.formatHours($th).'</span></td></tr>';
+	print '<tr><td>'.$langs->trans("Overtime").' (>'.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
 	print '</table>';
 	print '</div>';
 
@@ -361,7 +412,7 @@ JS;
 	// >>> CLEARBOTH pour sortir des floats et replacer la grille sous l'entête <<<
 	print '<div class="clearboth"></div>';
 
-	// >>> IMPORTANT : on clôt la fiche AVANT la grille <<<
+	// >>> Clôt la fiche AVANT la grille <<<
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
@@ -454,6 +505,7 @@ JS;
 		}
 
 		// Lignes
+		$grandInit = 0.0;
 		foreach ($byproject as $pid => $pdata) {
 			// Ligne projet (style suivi du temps), cellule unique
 			print '<tr class="oddeven trforbreak nobold">';
@@ -468,7 +520,7 @@ JS;
 
 			// Tâches
 			foreach ($pdata['tasks'] as $task) {
-                print '<tr>';
+				print '<tr>';
 				print '<td class="paddingleft">';
 				$tsk = new Task($db);
 				$tsk->fetch((int)$task['task_id']);
@@ -487,13 +539,14 @@ JS;
 					}
 					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"></td>';
 				}
+				$grandInit += $rowTotal;
 				print '<td class="right task-total">'.formatHours($rowTotal).'</td>';
 				print '</tr>';
 			}
 		}
 
 		// Totaux init
-		$grand = (float)$object->total_hours;
+		$grand = ($object->total_hours > 0 ? (float)$object->total_hours : $grandInit);
 
 		print '<tr class="liste_total">';
 		print '<td class="right">'.$langs->trans("Total").'</td>';
@@ -510,7 +563,7 @@ JS;
 
 		print '<tr class="liste_total">';
 		print '<td class="right">'.$langs->trans("Overtime").' (>'.formatHours($contractedHours).')</td>';
-		$ot = (float)$object->overtime_hours;
+		$ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
 		print '<td colspan="'.count($days).'" class="right overtime-total">'.formatHours($ot).'</td>';
 		print '<td></td>';
 		print '</tr>';
@@ -520,7 +573,6 @@ JS;
 
 		// Bouton Save (si brouillon + droits d’écriture)
 		if ($object->status == TimesheetWeek::STATUS_DRAFT && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-			print '<input type="hidden" name="grand_total_hours" id="grand_total_hours" value="'.dol_escape_htmltag($grand).'">';
 			print '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
 		} else {
 			print '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
@@ -528,7 +580,7 @@ JS;
 
 		print '</form>';
 
-		// JS totaux
+		// JS totaux + mise à jour entête live
 		print '<script>
 (function($){
 	function parseHours(v){
@@ -565,7 +617,6 @@ JS;
 		});
 
 		$(".grand-total").text(formatHours(grand));
-		$("#grand_total_hours").val(grand.toFixed(2));
 
 		var meals = $(".mealbox:checked").length;
 		$(".meal-total").text(meals);
@@ -573,6 +624,10 @@ JS;
 		var weeklyContract = '.((float)$contractedHours).';
 		var ot = grand - weeklyContract; if (ot < 0) ot = 0;
 		$(".overtime-total").text(formatHours(ot));
+
+		// met à jour l\'entête
+		$(".header-total-hours").text(formatHours(grand));
+		$(".header-overtime").text(formatHours(ot));
 	}
 	$(function(){
 		updateTotals(); // au chargement
