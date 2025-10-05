@@ -22,67 +22,10 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/class/timesheetweekline.class.php'); // si vous avez séparé la classe ligne
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // doit contenir formatHours()
+dol_include_once('/timesheetweek/class/timesheetweekline.class.php'); // si séparée
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // contient getWeekSelectorDolibarr() et formatHours()
 
 $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
-
-// --------- Helpers ----------
-/**
- * Petit sélecteur de semaine "façon Dolibarr" (liste des 60 dernières/10 prochaines semaines)
- * Retourne un <select id="weekyear" name="weekyear"> avec valeurs YYYY-Wxx
- */
-function getWeekSelectorDolibarr(Form $form, $name, $selected = '')
-{
-	$out = '<select class="flat maxwidth200" id="'.dol_escape_htmltag($name).'" name="'.dol_escape_htmltag($name).'">';
-	$now = dol_now();
-	$cur = (int) dol_print_date($now, '%Y');
-	$curW = (int) dol_print_date($now, '%W'); // ISO week number (01..53)
-	// On propose ~70 semaines autour
-	$nbpast = 60;
-	$nbnext = 10;
-	$weeks = array();
-
-	// Crée une DateTime au lundi de la semaine courante
-	$dto = new DateTime();
-	$dto->setISODate($cur, $curW);
-
-	// Remonte $nbpast semaines
-	$start = clone $dto;
-	$start->modify('-'.$nbpast.' week');
-
-	$end = clone $dto;
-	$end->modify('+'.$nbnext.' week');
-
-	$iter = clone $start;
-	while ($iter <= $end) {
-		$y = (int) $iter->format('o'); // ISO YEAR
-		$w = (int) $iter->format('W');
-		$val = sprintf('%04d-W%02d', $y, $w);
-		// Label "Sxx - du jj/mm/aaaa au jj/mm/aaaa"
-		$weekStart = clone $iter;
-		$weekEnd = clone $iter;
-		$weekEnd->modify('+6 day');
-
-		$label = sprintf(
-			'%s %02d - %s %s %s',
-			$langs->trans("Week"),
-			$w,
-			$langs->trans("From"),
-			dol_print_date($weekStart->getTimestamp(), 'day'),
-			$langs->trans("to").' '.dol_print_date($weekEnd->getTimestamp(), 'day')
-		);
-
-		$weeks[$val] = $label;
-		$iter->modify('+1 week');
-	}
-
-	foreach ($weeks as $val => $lab) {
-		$out .= '<option value="'.dol_escape_htmltag($val).'"'.($selected == $val ? ' selected' : '').'>'.dol_escape_htmltag($lab).'</option>';
-	}
-	$out .= '</select>';
-	return $out;
-}
 
 // --------- Get parameters ----------
 $id      = GETPOSTINT('id');
@@ -154,7 +97,7 @@ if ($action == 'save' && $permWrite && $id > 0) {
 	// Map du décalage jour -> +N jours depuis lundi
 	$map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 
-	// Construit un index des lignes existantes pour upsert rapide
+	// Index des lignes existantes pour upsert rapide
 	$linesExisting = array(); // key "taskid|YYYY-MM-DD" => rowid
 	$resq = $db->query("SELECT rowid, fk_task, day_date FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id);
 	if ($resq) {
@@ -236,7 +179,7 @@ if ($action == 'save' && $permWrite && $id > 0) {
 					}
 				}
 			} else {
-				// Si heures = 0 et une ligne existait -> on supprime (comportement plus clean)
+				// Si heures = 0 et une ligne existait -> on supprime
 				if (!empty($linesExisting[$keyline])) {
 					$sqld = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid = ".((int)$linesExisting[$keyline]);
 					if (!$db->query($sqld)) {
@@ -250,7 +193,7 @@ if ($action == 'save' && $permWrite && $id > 0) {
 		}
 	}
 
-	// Met à jour total_hours et overtime_hours sur la feuille
+	// Met à jour total_hours et overtime_hours
 	$overtime = $totalPosted - $contractedHours;
 	if ($overtime < 0) $overtime = 0;
 
@@ -305,6 +248,7 @@ if ($action == 'create') {
 
 	print '<table class="border centpercent">';
 	print '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>'.$form->select_dolusers($user->id,'fk_user',1).'</td></tr>';
+	// Utilise la fonction du lib (plus de redéclaration locale)
 	print '<tr><td>'.$langs->trans("Week").'</td><td>'.getWeekSelectorDolibarr($form,'weekyear').'<div id="weekrange" class="opacitymedium paddingleft small"></div></td></tr>';
 	print '<tr><td>'.$langs->trans("Validator").'</td><td>'.$form->select_dolusers($user->id,'fk_user_valid',1).'</td></tr>';
 	print '<tr><td>'.$langs->trans("Note").'</td><td><textarea name="note" rows="3" class="quatrevingtpercent"></textarea></td></tr>';
@@ -334,7 +278,7 @@ elseif ($id > 0 && $action != 'create') {
 	$head = timesheetweekPrepareHead($object);
 	print dol_get_fiche_head($head,'card',$langs->trans("TimesheetWeek"),-1,'time');
 
-	// --- Preloaded confirm popup for delete (must be before banner) ---
+	// --- Preloaded confirm popup for delete ---
 	$formconfirm = '';
 	if ($action == 'delete') {
 		$formconfirm = $form->formconfirm(
@@ -399,7 +343,7 @@ elseif ($id > 0 && $action != 'create') {
 	$lines = $object->getLines(); // tableau d'objets/records
 	// Indexation des heures existantes par [task_id][YYYY-MM-DD] => ['hours'=>, 'zone'=>, 'meal'=>]
 	$hoursMap = array();
-	$dayMeta  = array(); // par date -> ['zone'=>, 'meal'=>] (on prend la première valeur rencontrée)
+	$dayMeta  = array(); // par date -> ['zone'=>, 'meal'=>]
 	if (!empty($lines)) {
 		foreach ($lines as $L) {
 			$t = (int) $L->fk_task;
@@ -490,14 +434,11 @@ elseif ($id > 0 && $action != 'create') {
 				print '<tr>';
 				print '<td class="paddingleft">'.$taskstatic->getNomUrl(1).'</td>';
 
-				$taskRowTotal = 0.0;
-
 				foreach($days as $d){
 					$curDate = $weekdates[$d];
 					$prefVal = '';
 					if (isset($hoursMap[(int)$task['task_id']][$curDate])) {
 						$prefHours = (float) $hoursMap[(int)$task['task_id']][$curDate]['hours'];
-						// Format HH:MM
 						$hh = floor($prefHours);
 						$mm = round(($prefHours - $hh)*60);
 						if ($mm === 60) { $hh++; $mm = 0; }
@@ -565,7 +506,7 @@ elseif ($id > 0 && $action != 'create') {
 		print dolGetButtonAction('', $langs->trans("Modify"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	}
 
-	// Delete button (Ajax confirm if available)
+	// Delete button (Ajax confirm si dispo)
 	$deleteUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.newToken();
 	$buttonId  = 'action-delete-no-ajax';
 	if (!empty($conf->use_javascript_ajax) && empty($conf->dol_use_jmobile)) {
