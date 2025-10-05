@@ -96,9 +96,9 @@ if ($action === 'add') {
 	if ($fk_user_valid > 0) {
 		$object->fk_user_valid = $fk_user_valid;
 	} else {
-		$uTmp = new User($db);
-		$uTmp->fetch($targetUserId);
-		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
+        $uTmp = new User($db);
+        $uTmp->fetch($targetUserId);
+        $object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
 	}
 
 	// Parse semaine
@@ -146,7 +146,7 @@ if ($action === 'save' && $id > 0) {
 			// Parse HH:MM ou décimal
 			$h = 0.0;
 			if (strpos($hoursStr, ':') !== false) {
-                $tmp = explode(':', $hoursStr, 2);
+				$tmp = explode(':', $hoursStr, 2);
 				$H = isset($tmp[0]) ? $tmp[0] : '0';
 				$M = isset($tmp[1]) ? $tmp[1] : '0';
 				$h = ((int)$H) + ((int)$M)/60.0;
@@ -358,6 +358,9 @@ JS;
 
 	print '</div>'; // fichecenter
 
+	// >>> CLEARBOTH pour sortir des floats et replacer la grille sous l'entête <<<
+	print '<div class="clearboth"></div>';
+
 	// >>> IMPORTANT : on clôt la fiche AVANT la grille <<<
 	print dol_get_fiche_end();
 
@@ -465,7 +468,7 @@ JS;
 
 			// Tâches
 			foreach ($pdata['tasks'] as $task) {
-				print '<tr>';
+                print '<tr>';
 				print '<td class="paddingleft">';
 				$tsk = new Task($db);
 				$tsk->fetch((int)$task['task_id']);
