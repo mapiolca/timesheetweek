@@ -13,20 +13,20 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek', 'projects', 'users'));
 
-// --- Permissions ---
-$permRead          = !empty($user->rights->timesheetweek->read);
-$permReadAll       = !empty($user->rights->timesheetweek->readAll);
-$permReadChild     = !empty($user->rights->timesheetweek->readChild);
-$permCreate        = !empty($user->rights->timesheetweek->create);
-$permCreateChild   = !empty($user->rights->timesheetweek->createChild);
-$permCreateAll     = !empty($user->rights->timesheetweek->createAll);
-$permValidate      = !empty($user->rights->timesheetweek->validate);
-$permValidateChild = !empty($user->rights->timesheetweek->validateChild);
-$permValidateAll   = !empty($user->rights->timesheetweek->validateAll);
-$permDelete        = !empty($user->rights->timesheetweek->delete);
-$permDeleteChild   = !empty($user->rights->timesheetweek->deleteChild);
-$permDeleteAll     = !empty($user->rights->timesheetweek->deleteAll);
-$permExport        = !empty($user->rights->timesheetweek->export);
+// --- Permissions (Dolibarr standard) ---
+$permRead          = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
+$permReadAll       = $user->hasRight('timesheetweek', 'timesheetweek', 'readAll');
+$permReadChild     = $user->hasRight('timesheetweek', 'timesheetweek', 'readChild');
+$permCreate        = $user->hasRight('timesheetweek', 'timesheetweek', 'create');
+$permCreateChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'createChild');
+$permCreateAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'createAll');
+$permValidate      = $user->hasRight('timesheetweek', 'timesheetweek', 'validate');
+$permValidateChild = $user->hasRight('timesheetweek', 'timesheetweek', 'validateChild');
+$permValidateAll   = $user->hasRight('timesheetweek', 'timesheetweek', 'validateAll');
+$permDelete        = $user->hasRight('timesheetweek', 'timesheetweek', 'delete');
+$permDeleteChild   = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteChild');
+$permDeleteAll     = $user->hasRight('timesheetweek', 'timesheetweek', 'deleteAll');
+$permExport        = $user->hasRight('timesheetweek', 'timesheetweek', 'export');
 
 if (!$permRead) accessforbidden();
 
@@ -132,21 +132,18 @@ if (!$permReadAll) {
 // Extrafields filters
 include DOL_DOCUMENT_ROOT.'/core/tpl/extrafields_list_search_sql.tpl.php';
 
+$sqlfields = $sql;
 $sql .= $db->order($sortfield, $sortorder);
 if (!empty($limit)) $sql .= $db->plimit($limit + 1, $offset);
 
 // Count
 $nbtotalofrecords = '';
 if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
-	$sqlcount = preg_replace('/SELECT .* FROM/i', 'SELECT COUNT(*) as nb FROM ', $sql);
+	$sqlcount = preg_replace('/^SELECT .* FROM/i', 'SELECT COUNT(*) as nb FROM', $sqlfields);
 	$sqlcount = preg_replace('/\sORDER BY .*$/i', '', $sqlcount);
 	$sqlcount = preg_replace('/\sLIMIT .*$/i', '', $sqlcount);
 	$resc = $db->query($sqlcount);
-	if ($resc) {
-		$obj = $db->fetch_object($resc);
-		$nbtotalofrecords = (int) $obj->nb;
-		$db->free($resc);
-	}
+	if ($resc) { $obj = $db->fetch_object($resc); $nbtotalofrecords = (int) $obj->nb; $db->free($resc); }
 }
 
 // Exec
@@ -290,28 +287,19 @@ while ($i < min($num, $limit)) {
 
 	print '<tr class="oddeven">';
 
-	// Ref
 	if (!empty($arrayfields['t.ref']['checked'])) {
 		print '<td>'.$timesheetstatic->getNomUrl(1).'</td>';
 	}
-	// Employee
 	if (!empty($arrayfields['u.user']['checked'])) {
 		$userstatic->id = $obj->uid; $userstatic->lastname = $obj->ulastname; $userstatic->firstname = $obj->ufirstname;
 		print '<td>'.$userstatic->getNomUrl(-1).'</td>';
 	}
-	// Year
 	if (!empty($arrayfields['t.year']['checked'])) print '<td class="center">'.dol_escape_htmltag($obj->year).'</td>';
-	// Week
 	if (!empty($arrayfields['t.week']['checked'])) print '<td class="center">'.dol_escape_htmltag($obj->week).'</td>';
-	// Total hours
 	if (!empty($arrayfields['t.total_hours']['checked'])) print '<td class="right">'.dol_escape_htmltag(number_format((float)$obj->total_hours, 2, ',', ' ')).'</td>';
-	// Overtime
 	if (!empty($arrayfields['t.overtime_hours']['checked'])) print '<td class="right">'.dol_escape_htmltag(number_format((float)$obj->overtime_hours, 2, ',', ' ')).'</td>';
-	// DateCreation
 	if (!empty($arrayfields['t.date_creation']['checked'])) print '<td class="center">'.dol_print_date($db->jdate($obj->date_creation), 'dayhour').'</td>';
-	// DateValidation
 	if (!empty($arrayfields['t.date_validation']['checked'])) print '<td class="center">'.dol_print_date($db->jdate($obj->date_validation), 'dayhour').'</td>';
-	// Validator
 	if (!empty($arrayfields['v.validator']['checked'])) {
 		if (!empty($obj->vid)) {
 			$userv = new User($db);
@@ -321,10 +309,8 @@ while ($i < min($num, $limit)) {
 			print '<td class="opacitymedium">'.$langs->trans("None").'</td>';
 		}
 	}
-	// Status
 	if (!empty($arrayfields['t.status']['checked'])) print '<td class="center">'.$timesheetstatic->getLibStatut(5).'</td>';
 
-	// Empty last column (actions mass or future)
 	print '<td class="center">&nbsp;</td>';
 
 	print '</tr>';
@@ -336,7 +322,7 @@ while ($i < min($num, $limit)) {
 if ($num == 0) {
 	$colspan = 1;
 	foreach ($arrayfields as $key => $val) {
-		if (!empty($val['checked'])) $colspan++;
+        if (!empty($val['checked'])) $colspan++;
 	}
 	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
