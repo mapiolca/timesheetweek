@@ -348,9 +348,9 @@ elseif ($id > 0 && $action != 'create') {
 					}
 					$rowTotalDec += $valDec;
 
-					// Affichage HH:MM
+					// Affichage HH:MM (placeholder "0:00")
 					$valDisp = ($valDec > 0 ? formatHours($valDec) : '');
-					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.$valDisp.'"></td>';
+					print '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.$valDisp.'" placeholder="0:00"></td>';
 				}
 				print '<td class="right task-total">'.formatHours($rowTotalDec).'</td>';
 				print '</tr>';
