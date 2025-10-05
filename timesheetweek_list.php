@@ -61,7 +61,7 @@ $search_ref      = GETPOST('search_ref','alpha');
 $search_user     = GETPOST('search_user','intcomma');
 $search_year     = GETPOST('search_year','int');
 $search_week     = GETPOST('search_week','int');
-$search_status   = GETPOST('search_status','alpha');  // keep alpha to allow '' easily
+$search_status   = GETPOST('search_status','alpha');
 $search_thours   = GETPOST('search_total_hours','alpha');
 $search_ohours   = GETPOST('search_overtime_hours','alpha');
 
@@ -153,7 +153,8 @@ $sql.= " v.rowid as vid, v.lastname as vlastname, v.firstname as vfirstname, v.l
 $sql.= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 $sql.= " LEFT JOIN ".MAIN_DB_PREFIX."user as v ON v.rowid = t.fk_user_valid";
-if ($db->DDLDescTable(MAIN_DB_PREFIX.'timesheet_week')) {
+
+if (function_exists('dol_column_exists') && dol_column_exists($db, MAIN_DB_PREFIX.'timesheet_week', 'entity')) {
 	$sql.= " WHERE t.entity IN (".getEntity('timesheetweek').")";
 } else {
 	$sql.= " WHERE 1=1";
@@ -239,7 +240,7 @@ $massactions = array(
 );
 $massactionbutton = $form->selectMassAction('', $massactions);
 
-// Barre liste
+// Barre liste (haut du tableau)
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newbutton, '', $limit, 0, 0, 1);
 
 // Form list
@@ -256,7 +257,7 @@ print '<table class="tagtable nobottomiftotal liste listwithfilterbefore">'."\n"
 
 // ---- Filter row
 print '<tr class="liste_titre_filter">';
-// Column selector + select all checkbox on left (one time)
+// Column selector + filter buttons at left
 $varpage = empty($contextpage) ? $_SERVER["PHP_SELF"] : $contextpage;
 $selectedfieldshtml = $form->multiSelectArrayWithCheckbox('selectedfields', $arrayfields, $varpage, getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN'));
 print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('left').'</td>';
@@ -316,7 +317,7 @@ print '</tr>';
 
 // ---- Title row
 print '<tr class="liste_titre">';
-print_liste_field_titre($selectedfieldshtml, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center '); // left cell with selector
+print_liste_field_titre($selectedfieldshtml, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'maxwidthsearch center ');
 
 if (!empty($arrayfields['t.ref']['checked']))            print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", $param, '', '', $sortfield, $sortorder);
 if (!empty($arrayfields['user']['checked']))             print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", $param, '', '', $sortfield, $sortorder);
@@ -379,7 +380,18 @@ while ($i < $imax) {
 	// status (badge)
 	if (!empty($arrayfields['t.status']['checked'])) {
 		$timesheetstatic->status = $obj->status;
-		print '<td class="center">'.$timesheetstatic->getLibStatut(5).'</td>';
+		$badge = $timesheetstatic->getLibStatut(5);
+		if (empty($badge)) {
+			// Fallback colored badges
+			$lab = '';
+			$cls = 'statusdraft';
+			if ((string)$obj->status === (string)TimesheetWeek::STATUS_DRAFT) { $lab=$langs->trans("Draft"); $cls='statusdraft'; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_SUBMITTED) { $lab=$langs->trans("Submitted"); $cls='status1'; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_APPROVED) { $lab=$langs->trans("Approved"); $cls='status4'; }
+			elseif ((string)$obj->status === (string)TimesheetWeek::STATUS_REFUSED) { $lab=$langs->trans("Refused"); $cls='status6'; }
+			$badge = '<span class="badge '.$cls.'">'.$lab.'</span>';
+		}
+		print '<td class="center">'.$badge.'</td>';
 	}
 
 	// right spacer
@@ -401,6 +413,7 @@ print '</form>';
 
 // Mass actions confirmation popups with selected IDs preserved
 if (in_array($massaction, array('approve_selection','refuse_selection','delete_selection'))) {
+	$form = new Form($db);
 	$formq = array(
 		array('type'=>'hidden','name'=>'token','value'=>newToken()),
 		array('type'=>'hidden','name'=>'confirm','value'=>'yes')
