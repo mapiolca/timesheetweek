@@ -78,7 +78,7 @@ print '<table class="tagtable liste">';
 
 // Filters
 print '<tr class="liste_titre_filter">';
-print '<td class="liste_titre right">';
+print '<td class="liste_titre left">';
 print $form->showFilterButtons();
 print '</td>';
 print '<td class="liste_titre">';
@@ -93,10 +93,11 @@ print '</td>';
 print '<td class="liste_titre center">';
 print '<input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" style="width:60px" min="1" max="53">';
 print '</td>';
+print '<td class="liste_titre center"></td>';
+print '<td class="liste_titre center"></td>';
 print '<td class="liste_titre center">';
 print '<input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2">';
 print '</td>';
-print '<td class="liste_titre center"></td>';
 print '</tr>';
 
 // Titles
