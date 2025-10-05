@@ -524,7 +524,7 @@ class TimesheetWeek extends CommonObject
  * @param int|null $validatorId If provided, force fk_user_valid to this user
  * @return int              >0 if OK, <0 if KO
  */
-public function approve(User $user, $validatorId = null)
+function approve(User $user, $validatorId = null)
 {
 	$this->db->begin();
 
@@ -561,7 +561,7 @@ public function approve(User $user, $validatorId = null)
  * @param int|null $validatorId If provided, force fk_user_valid to this user
  * @return int              >0 if OK, <0 if KO
  */
-public function refuse(User $user, $validatorId = null)
+function refuse(User $user, $validatorId = null)
 {
 	$this->db->begin();
 
