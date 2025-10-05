@@ -23,7 +23,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // doit contenir formatHours() si tu l’utilises côté PHP
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // si tu utilises des helpers côté PHP
 
 $langs->loadLangs(array("timesheetweek@timesheetweek", "other", "projects"));
 
@@ -100,14 +100,11 @@ if ($action == 'add' && $permWrite) {
 
 // ----------------- Action Save (UPSERT) -----------------
 if ($action == 'save' && $permWrite && $id > 0) {
-	// On doit avoir l’objet chargé (actions_fetchobject.inc.php l’a fait si id)
-	if ($object->id <= 0) {
-		$object->fetch($id);
-	}
+	if ($object->id <= 0) $object->fetch($id);
 
 	$db->begin();
 
-	// Construire map de lignes existantes pour faire des UPDATE si besoin
+	// Map des lignes existantes
 	$existing = array(); // [taskid][day_date] = rowid
 	$sqlsel = "SELECT rowid, fk_task, day_date FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id." AND entity=".(int) $conf->entity;
 	$resql = $db->query($sqlsel);
@@ -118,7 +115,6 @@ if ($action == 'save' && $permWrite && $id > 0) {
 		$db->free($resql);
 	}
 
-	// Balayage des inputs
 	$daysMap = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 
 	foreach ($_POST as $key => $val) {
@@ -126,19 +122,17 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$taskid = (int) $m[1];
 			$dayKey = $m[2];
 
-			// convertir 1.5 ou 01:30 vers décimal pour stockage
 			$val = trim($val);
 			$hours = 0.0;
 			if ($val !== '') {
-				if (strpos($val, ':') !== false) {
-					list($hh, $mm) = array_pad(explode(':', $val, 2), 2, '0');
-					$hours = ((int) $hh) + ((int) $mm)/60.0;
-				} else {
-					$hours = (float) str_replace(',', '.', $val);
-				}
-			}
+                if (strpos($val, ':') !== false) {
+                    list($hh, $mm) = array_pad(explode(':', $val, 2), 2, '0');
+                    $hours = ((int) $hh) + ((int) $mm)/60.0;
+                } else {
+                    $hours = (float) str_replace(',', '.', $val);
+                }
+            }
 
-			// Calcul de la date du jour ISO
 			if (!isset($daysMap[$dayKey])) continue;
 			$dto = new DateTime();
 			$dto->setISODate((int) $object->year, (int) $object->week);
@@ -148,12 +142,13 @@ if ($action == 'save' && $permWrite && $id > 0) {
 			$zone = (int) GETPOST('zone_'.$dayKey, 'int');
 			$meal = GETPOST('meal_'.$dayKey) ? 1 : 0;
 
-			// Si existant -> UPDATE / DELETE ; sinon -> INSERT si hours > 0
 			$existsRowId = isset($existing[$taskid][$day_date]) ? (int) $existing[$taskid][$day_date] : 0;
 
 			if ($existsRowId > 0) {
 				if ($hours > 0) {
-					$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line SET hours = ".((float) $hours).", zone = ".((int) $zone).", meal = ".((int) $meal).", tms = tms WHERE rowid = ".((int) $existsRowId);
+					$sql = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line
+					        SET hours = ".((float) $hours).", zone = ".((int) $zone).", meal = ".((int) $meal).", tms = tms
+					        WHERE rowid = ".((int) $existsRowId);
 					if (!$db->query($sql)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
@@ -161,7 +156,6 @@ if ($action == 'save' && $permWrite && $id > 0) {
 						exit;
 					}
 				} else {
-					// hours vides ou 0 -> on supprime la ligne
 					$sql = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid = ".((int) $existsRowId);
 					if (!$db->query($sql)) {
 						$db->rollback();
@@ -185,8 +179,7 @@ if ($action == 'save' && $permWrite && $id > 0) {
 		}
 	}
 
-	// Mettre à jour les totaux sur l’en-tête (total_hours, overtime_hours)
-	// Recalculer total de la semaine
+	// MAJ totaux en en-tête
 	$sqlsum = "SELECT SUM(hours) as th FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id." AND entity=".(int) $conf->entity;
 	$resql = $db->query($sqlsum);
 	$totalHours = 0;
@@ -195,7 +188,6 @@ if ($action == 'save' && $permWrite && $id > 0) {
 		if ($oo && $oo->th !== null) $totalHours = (float) $oo->th;
 		$db->free($resql);
 	}
-	// heures contractuelles
 	$userEmployee = new User($db);
 	$userEmployee->fetch($object->fk_user);
 	$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
@@ -297,6 +289,9 @@ elseif ($id > 0 && $action != 'create') {
 	print '</div>';
 	print '</div>';
 
+	// >>> important pour bloquer les flottants des 2 colonnes
+	print '<div class="clearboth"></div>';
+
 	print dol_get_fiche_end();
 
 	// ---- Grille des heures ----
@@ -309,7 +304,7 @@ elseif ($id > 0 && $action != 'create') {
 
 	// Charger les lignes déjà saisies (pour préremplir)
 	$hoursByTaskDay = array(); // [taskid][Y-m-d] = hours
-	$zoneByDay      = array(); // [Y-m-d] = zone (on prend la max rencontrée)
+	$zoneByDay      = array(); // [Y-m-d] = zone (max rencontrée)
 	$mealByDay      = array(); // [Y-m-d] = 1 si au moins une ligne a meal=1
 
 	$sqlLoad = "SELECT fk_task, day_date, hours, zone, meal
@@ -348,7 +343,7 @@ elseif ($id > 0 && $action != 'create') {
 		foreach($days as $d){ print '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]),'day').'</span></th>'; }
 		print '<th>'.$langs->trans("Total").'</th></tr>';
 
-		// zone + meal (pré-remplir depuis $zoneByDay / $mealByDay)
+		// zone + meal
 		print '<tr class="liste_titre"><td></td>';
 		foreach($days as $d){
 			$dateDay = $weekdates[$d];
@@ -366,27 +361,24 @@ elseif ($id > 0 && $action != 'create') {
 
 		// Regrouper les tâches par projet
 		$byproject=array();
-		if (!empty($tasks)) {
-			foreach ($tasks as $t) {
-				$pid = $t['project_id'];
-				if (empty($byproject[$pid])) {
-					$byproject[$pid] = array(
-						'project_id' => $t['project_id'],
-						'project_ref' => $t['project_ref'],
-						'project_title' => $t['project_title'],
-						'tasks' => array()
-					);
-				}
-				$byproject[$pid]['tasks'][] = $t;
+		foreach ($tasks as $t) {
+			$pid = $t['project_id'];
+			if (empty($byproject[$pid])) {
+				$byproject[$pid] = array(
+					'project_id' => $t['project_id'],
+					'project_ref' => $t['project_ref'],
+					'project_title' => $t['project_title'],
+					'tasks' => array()
+				);
 			}
+			$byproject[$pid]['tasks'][] = $t;
 		}
 
-		// Affichage par projet / tâches
 		$proj = new Project($db);
 		$taskObj = new Task($db);
 
 		foreach($byproject as $pid=>$pdata){
-			// ligne projet (style perweek)
+			// ligne projet style perweek
 			$proj->id = $pdata['project_id'];
 			$proj->ref = $pdata['project_ref'];
 			$proj->title = $pdata['project_title'];
@@ -430,10 +422,16 @@ elseif ($id > 0 && $action != 'create') {
 		print '<tr class="liste_total"><td class="right">'.$langs->trans("Overtime").' (>'.tw_format_hours_hhmm($contractedHours).')</td><td colspan="'.count($days).'" class="right overtime-total">00:00</td><td></td></tr>';
 
 		print '</table></div>';
-		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
-		print '</form>';
 
-		// JS
+		// bouton de sauvegarde
+		print '<div class="center"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
+	}
+
+	// fermer le formulaire **dans tous les cas**
+	print '</form>';
+
+	// JS de calcul des totaux
+	if (!empty($tasks)) {
 		print sprintf("
 <script>
 (function($){
@@ -444,12 +442,12 @@ $('tr').each(function(){var rowT=0;$(this).find('input.hourinput').each(function
 $('.grand-total').text(formatHours(grand));$('.meal-total').text($('.mealbox:checked').length);
 var ot=grand-".((float)$contractedHours).";if(ot<0)ot=0;$('.overtime-total').text(formatHours(ot));}
 $(document).on('input change','input.hourinput, input.mealbox',updateTotals);
-$(function(){ updateTotals(); }); // calcul au chargement
+$(function(){ updateTotals(); }); // au chargement
 })(jQuery);
 </script>");
 	}
 
-	// boutons
+	// boutons d’action de la fiche
 	print '<div class="tabsAction">';
 	if ($permWrite) print dolGetButtonAction('',$langs->trans("Modify"),'default',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=edit');
 	if ($permDelete) print dolGetButtonAction('',$langs->trans("Delete"),'delete',$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete');
