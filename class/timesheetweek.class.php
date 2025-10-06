@@ -728,6 +728,8 @@ class TimesheetWeek extends CommonObject
                $employee = $this->loadUserFromCache($this->fk_user);
                $validator = $this->loadUserFromCache($this->fk_user_valid);
 
+               // FR: Génère l'URL directe vers la fiche pour l'insérer dans le modèle d'e-mail.
+               // EN: Build the direct link to the card so it can be injected inside the e-mail template.
                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
 
                if (!is_array($this->context)) {
@@ -745,15 +747,9 @@ class TimesheetWeek extends CommonObject
                        'action_user_fullname' => $actionUser->getFullName($langs),
                );
 
-               $parameters = array(
-                       'timesheetweek' => $this,
-                       'employee' => $employee,
-                       'validator' => $validator,
-                       'actionuser' => $actionUser,
-                       'url' => $url,
-               );
-
-               $result = $this->fireNotificationTrigger($triggerCode, $actionUser, $parameters);
+               // FR: Les triggers accèdent aux informations via le contexte, inutile de dupliquer les paramètres.
+               // EN: Triggers read every detail from the context, no need to duplicate the payload locally.
+               $result = $this->fireNotificationTrigger($triggerCode, $actionUser);
                if ($result < 0) {
                        $this->errors[] = $langs->trans('TimesheetWeekNotificationTriggerError', $triggerCode);
                        dol_syslog(__METHOD__.': unable to execute trigger '.$triggerCode, LOG_ERR);
@@ -771,22 +767,47 @@ class TimesheetWeek extends CommonObject
         * @param array  $parameters
         * @return int
         */
-       protected function fireNotificationTrigger($triggerCode, User $actionUser, array $parameters)
+       protected function fireNotificationTrigger($triggerCode, User $actionUser)
        {
-               foreach (array('runTrigger', 'call_trigger') as $method) {
-                       if (!method_exists($this, $method)) {
-                               continue;
+               // FR: call_trigger est disponible sur toutes les versions récentes de CommonObject.
+               // EN: call_trigger exists on every recent CommonObject implementation.
+               if (method_exists($this, 'call_trigger')) {
+                       try {
+                               return $this->call_trigger($triggerCode, $actionUser);
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                               return -1;
+                       }
+               }
+
+               if (method_exists($this, 'runTrigger')) {
+                       try {
+                               $reflection = new \ReflectionMethod($this, 'runTrigger');
+                               $argCount = $reflection->getNumberOfParameters();
+                       } catch (\ReflectionException $e) {
+                               $argCount = 0;
                        }
 
                        try {
-                               return $this->{$method}($triggerCode, $actionUser, $parameters);
-                       } catch (\ArgumentCountError $e) {
-                               try {
-                                       return $this->{$method}($triggerCode, $actionUser);
-                               } catch (\Throwable $fallbackError) {
-                                       dol_syslog(__METHOD__.': '.$fallbackError->getMessage(), LOG_WARNING);
-                                       return -1;
+                               if ($argCount <= 2) {
+                                       // FR: Compatibilité avec les versions qui n'acceptent que l'action et l'utilisateur.
+                                       // EN: Backward compatibility when only action and user are accepted.
+                                       return $this->runTrigger($triggerCode, $actionUser);
                                }
+
+                               if ($argCount === 3) {
+                                       global $langs;
+
+                                       // FR: Certaines versions attendent aussi l'objet de traduction.
+                                       // EN: Some versions expect the translate handler as third parameter.
+                                       return $this->runTrigger($triggerCode, $actionUser, $langs);
+                               }
+
+                               global $langs, $conf;
+
+                               // FR: Signature complète classique action/utilisateur/langs/conf.
+                               // EN: Full signature action/user/langs/conf for standard releases.
+                               return $this->runTrigger($triggerCode, $actionUser, $langs, $conf);
                        } catch (\Throwable $error) {
                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
                                return -1;

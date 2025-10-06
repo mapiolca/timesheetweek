@@ -47,7 +47,9 @@ if (empty($user->admin)) {
 }
 
 $action = GETPOST('action', 'aZ09');
-$value = GETPOST('value', 'alpha');
+// FR: On accepte les caractères natifs des classes Dolibarr (underscore, chiffres...).
+// EN: Allow native Dolibarr class names with underscores and digits.
+$value = GETPOST('value', 'alphanohtml');
 
 if (!function_exists('timesheetweek_enable_document_model')) {
         /**
