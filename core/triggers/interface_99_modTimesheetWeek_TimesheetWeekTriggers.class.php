@@ -141,10 +141,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return 0;
                 }
 
-                dol_include_once('/core/lib/functions2.lib.php');
-                if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
+               dol_include_once('/core/lib/functions2.lib.php');
+               if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
                         dol_include_once('/core/class/cemailtemplates.class.php');
-                } else {
+                } elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
                         dol_include_once('/core/class/emailtemplates.class.php');
                 }
                 dol_include_once('/core/class/CMailFile.class.php');

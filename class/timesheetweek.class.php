@@ -794,52 +794,142 @@ class TimesheetWeek extends CommonObject
         */
        protected function fireNotificationTrigger($triggerCode, User $actionUser)
        {
-               // FR: call_trigger est disponible sur toutes les versions récentes de CommonObject.
-               // EN: call_trigger exists on every recent CommonObject implementation.
+               global $langs, $conf, $hookmanager;
+
+               $payload = $this->buildTriggerParameters($triggerCode, $actionUser);
+
+               // FR: Priorité à call_trigger lorsqu'il est disponible sur l'objet.
+               // EN: Give priority to call_trigger whenever it exists on the object.
                if (method_exists($this, 'call_trigger')) {
                        try {
-                               return $this->call_trigger($triggerCode, $actionUser);
+                               $method = new \ReflectionMethod($this, 'call_trigger');
+                               $arguments = $this->mapTriggerArguments($method->getParameters(), $payload);
+
+                               return $method->invokeArgs($this, $arguments);
                        } catch (\Throwable $error) {
                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-                               return -1;
                        }
                }
 
+               // FR: Compatibilité avec les anciennes versions qui exposent runTrigger directement sur l'objet.
+               // EN: Backward compatibility for legacy releases exposing runTrigger on the object.
                if (method_exists($this, 'runTrigger')) {
                        try {
-                               $reflection = new \ReflectionMethod($this, 'runTrigger');
-                               $argCount = $reflection->getNumberOfParameters();
-                       } catch (\ReflectionException $e) {
-                               $argCount = 0;
-                       }
+                               $method = new \ReflectionMethod($this, 'runTrigger');
+                               $arguments = $this->mapTriggerArguments($method->getParameters(), $payload, true);
 
-                       try {
-                               if ($argCount <= 2) {
-                                       // FR: Compatibilité avec les versions qui n'acceptent que l'action et l'utilisateur.
-                                       // EN: Backward compatibility when only action and user are accepted.
-                                       return $this->runTrigger($triggerCode, $actionUser);
-                               }
-
-                               if ($argCount === 3) {
-                                       global $langs;
-
-                                       // FR: Certaines versions attendent aussi l'objet de traduction.
-                                       // EN: Some versions expect the translate handler as third parameter.
-                                       return $this->runTrigger($triggerCode, $actionUser, $langs);
-                               }
-
-                               global $langs, $conf;
-
-                               // FR: Signature complète classique action/utilisateur/langs/conf.
-                               // EN: Full signature action/user/langs/conf for standard releases.
-                               return $this->runTrigger($triggerCode, $actionUser, $langs, $conf);
+                               return $method->invokeArgs($this, $arguments);
                        } catch (\Throwable $error) {
                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-                               return -1;
+                       }
+               }
+
+               // FR: Fallback ultime sur la fonction globale runTrigger si elle est disponible.
+               // EN: Ultimate fallback using the global runTrigger helper when available.
+               if (!function_exists('runTrigger')) {
+                       dol_include_once('/core/triggers/functions_triggers.inc.php');
+               }
+
+               if (function_exists('runTrigger')) {
+                       try {
+                               $function = new \ReflectionFunction('runTrigger');
+                               $arguments = $this->mapTriggerArguments($function->getParameters(), $payload, true);
+
+                               return $function->invokeArgs($arguments);
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
                        }
                }
 
                return 0;
+       }
+
+       /**
+        * Prépare le jeu de paramètres partagé entre toutes les signatures de triggers.
+        * Prepare the shared payload used by every trigger signature.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @return array
+        */
+       protected function buildTriggerParameters($triggerCode, User $actionUser)
+       {
+               global $langs, $conf, $hookmanager;
+
+               return array(
+                       'action' => $triggerCode,
+                       'trigger' => $triggerCode,
+                       'event' => $triggerCode,
+                       'actioncode' => $triggerCode,
+                       'user' => $actionUser,
+                       'actor' => $actionUser,
+                       'currentuser' => $actionUser,
+                       'langs' => $langs,
+                       'language' => $langs,
+                       'conf' => $conf,
+                       'config' => $conf,
+                       'hookmanager' => isset($hookmanager) ? $hookmanager : null,
+                       'hook' => isset($hookmanager) ? $hookmanager : null,
+                       'object' => $this,
+                       'obj' => $this,
+                       'objectsrc' => $this,
+                       'context' => $this->context,
+                       'parameters' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'params' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'moreparam' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'extrafields' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'extrafield' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'extraparams' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'parametersarray' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'actiontype' => $triggerCode,
+               );
+       }
+
+       /**
+        * Mappe la liste des paramètres attendus par une signature de trigger vers les valeurs connues.
+        * Map the expected parameter list of a trigger signature to the known values.
+        *
+        * @param \ReflectionParameter[] $signature
+        * @param array                  $payload
+        * @param bool                   $injectObjectWhenMissing
+        * @return array
+        */
+       protected function mapTriggerArguments(array $signature, array $payload, $injectObjectWhenMissing = false)
+       {
+               $arguments = array();
+
+               foreach ($signature as $parameter) {
+                       $name = $parameter->getName();
+
+                       if (isset($payload[$name])) {
+                               $arguments[] = $payload[$name];
+                               continue;
+                       }
+
+                       // FR: Quelques alias fréquents ne respectent pas la casse ou ajoutent un suffixe.
+                       // EN: Handle common aliases that differ by casing or suffixes.
+                       $lower = strtolower($name);
+                       if (isset($payload[$lower])) {
+                               $arguments[] = $payload[$lower];
+                               continue;
+                       }
+
+                       if ($lower === 'object' && $injectObjectWhenMissing) {
+                               $arguments[] = $this;
+                               continue;
+                       }
+
+                       if (strpos($lower, 'context') !== false) {
+                               $arguments[] = $payload['context'];
+                               continue;
+                       }
+
+                       // FR: Valeur neutre par défaut pour ne pas interrompre le déclenchement.
+                       // EN: Default neutral value so the trigger keeps running.
+                       $arguments[] = null;
+               }
+
+               return $arguments;
        }
 
        /**
