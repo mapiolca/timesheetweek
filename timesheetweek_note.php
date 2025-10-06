@@ -81,7 +81,7 @@ if (!$res) {
 }
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
  * @var Conf $conf

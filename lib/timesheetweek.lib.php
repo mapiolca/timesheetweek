@@ -183,9 +183,9 @@ function timesheetweekPrepareHead($object)
  */
 function getWeekSelector($htmlname, $selected = null, $year = null)
 {
-	global $langs;
+        global $langs;
 
-	if (empty($year)) $year = date('o'); // année ISO
+        if (empty($year)) $year = date('o'); // année ISO
 
 	if (empty($selected)) $selected = date('W'); // semaine courante
 
@@ -208,6 +208,45 @@ function getWeekSelector($htmlname, $selected = null, $year = null)
 	$out .= '</select>';
 
 	return $out;
+}
+
+if (!function_exists('timesheetweekRenderStatusBadgeCleanup')) {
+        /**
+         * Injecte un helper jQuery pour supprimer le texte doublon autour du badge de statut
+         * et harmoniser le vocabulaire en FR/EN.
+         *
+         * @return string
+         */
+        function timesheetweekRenderStatusBadgeCleanup()
+        {
+                return <<<'JS'
+<script>
+(function (factory) {
+    if (typeof jQuery !== 'undefined') {
+        factory(jQuery);
+    }
+})(function ($) {
+    $(function () {
+        $('.statusref').each(function () {
+            $(this).contents().filter(function () {
+                return this.nodeType === 3 && $.trim(this.nodeValue).length > 0;
+            }).remove();
+        });
+
+        $('.statusref .badge, .status .badge, .badgestatus, .badge-status').each(function () {
+            var text = $.trim($(this).text());
+            if (text === 'Validée') {
+                $(this).text('Approuvée');
+            }
+            if (text === 'Validated') {
+                $(this).text('Approved');
+            }
+        });
+    });
+});
+</script>
+JS;
+        }
 }
 
 /**

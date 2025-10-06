@@ -25,7 +25,6 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours(), ...
-dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
 

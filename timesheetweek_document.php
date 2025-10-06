@@ -84,7 +84,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/images.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
  * @var Conf $conf
