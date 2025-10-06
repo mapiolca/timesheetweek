@@ -314,7 +314,7 @@ class modTimesheetWeek extends DolibarrModules
 		$this->rights[$r][5] = 'readAll';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
+        $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'write';
 		$r++;
@@ -439,7 +439,7 @@ class modTimesheetWeek extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=hrm,fk_leftmenu=timesheetweek',
 			'type' => 'left',
-			'titre' => 'ListTimesheetWeek',
+			'titre' => 'TimesheetWeekList',
 			'mainmenu' => 'hrm',
 			'leftmenu' => 'timesheetweek_timesheetweek_list',
 			'url' => '/timesheetweek/timesheetweek_list.php',
@@ -454,7 +454,7 @@ class modTimesheetWeek extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=hrm,fk_leftmenu=timesheetweek',
 			'type' => 'left',
-			'titre' => 'NewTimesheetWeek',
+			'titre' => 'TimesheetWeekNew',
 			'mainmenu' => 'hrm',
 			'leftmenu' => 'timesheetweek_timesheetweek_new',
 			'url' => '/timesheetweek/timesheetweek_card.php?action=create',
