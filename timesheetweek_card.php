@@ -270,6 +270,17 @@ if ($action === 'send' && $id > 0 && !$canSendMail) {
         accessforbidden();
 }
 
+if ($action === 'send' && $id > 0) {
+        if ($object->id <= 0) {
+                $object->fetch($id);
+        }
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_SENTBYMAIL';
+        $object->context['timesheetweek_card_action'] = 'send';
+}
+
 if (in_array($action, array('presend', 'send'), true)) {
         $langs->load('mails');
 }
@@ -445,13 +456,13 @@ if ($action === 'save' && $id > 0) {
 
 // ----------------- Action: Submit -----------------
 if ($action === 'submit' && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
+        if ($object->id <= 0) $object->fetch($id);
 
-	if ($object->status != tw_status('draft')) {
-		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+        if (!in_array((int) $object->status, array((int) tw_status('draft'), (int) tw_status('refused')), true)) {
+                setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		accessforbidden();
 	}
@@ -468,6 +479,12 @@ if ($action === 'submit' && $id > 0) {
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
+
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_SUBMIT';
+        $object->context['timesheetweek_card_action'] = 'submit';
 
         $res = $object->submit($user);
         if ($res > 0) {
@@ -493,6 +510,11 @@ if ($action === 'setdraft' && $id > 0) {
 	$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
         $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 	if (!$canEmployee && !$canValidator) accessforbidden();
+
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['timesheetweek_card_action'] = 'setdraft';
 
         $res = $object->revertToDraft($user);
         if ($res > 0) {
@@ -529,6 +551,12 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		accessforbidden();
 	}
 
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
+        $object->context['timesheetweek_card_action'] = 'confirm_validate';
+
         $res = $object->approve($user);
         if ($res > 0) {
                 setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
@@ -551,6 +579,12 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
         if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
 		accessforbidden();
 	}
+
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
+        $object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
         $res = $object->refuse($user);
         if ($res > 0) {
