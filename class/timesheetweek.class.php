@@ -388,6 +388,7 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user);
                 return 1;
         }
 
@@ -475,6 +476,7 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user);
                 return 1;
         }
 
@@ -523,6 +525,7 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user);
                 return 1;
         }
 
@@ -672,13 +675,247 @@ class TimesheetWeek extends CommonObject
                 return $result;
         }
 
-	/**
-	 * Badge / labels
-	 */
-	public function getLibStatut($mode = 0)
-	{
-		return self::LibStatut($this->status, $mode);
-	}
+        /**
+         * Load user from cache
+         *
+         * @param int $userid
+         * @return User|null
+         */
+        protected function loadUserFromCache($userid)
+        {
+                $userid = (int) $userid;
+                if ($userid <= 0) {
+                        return null;
+                }
+
+                static $cache = array();
+                if (!array_key_exists($userid, $cache)) {
+                        $cache[$userid] = null;
+                        $tmp = new User($this->db);
+                        if ($tmp->fetch($userid) > 0) {
+                                $cache[$userid] = $tmp;
+                        }
+                }
+
+                return $cache[$userid];
+        }
+
+        /**
+         * Send automatic notification based on trigger code
+         *
+         * @param string $triggerCode
+         * @param User   $actionUser
+         * @return bool
+         */
+        protected function sendAutomaticNotification($triggerCode, User $actionUser)
+        {
+                global $conf, $langs;
+
+                $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+
+                $recipients = array();
+                $subjectKey = '';
+                $bodyKey = '';
+                $missingKey = '';
+
+                if ($triggerCode === 'TIMESHEETWEEK_SUBMITTED') {
+                        $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
+                        $bodyKey = 'TimesheetWeekNotificationSubmitBody';
+                        $missingKey = 'TimesheetWeekNotificationValidatorFallback';
+                        $target = $this->loadUserFromCache($this->fk_user_valid);
+                        if ($target) {
+                                $recipients[] = $target;
+                        }
+                } elseif ($triggerCode === 'TIMESHEETWEEK_APPROVED') {
+                        $subjectKey = 'TimesheetWeekNotificationApproveSubject';
+                        $bodyKey = 'TimesheetWeekNotificationApproveBody';
+                        $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
+                        $target = $this->loadUserFromCache($this->fk_user);
+                        if ($target) {
+                                $recipients[] = $target;
+                        }
+                } elseif ($triggerCode === 'TIMESHEETWEEK_REFUSED') {
+                        $subjectKey = 'TimesheetWeekNotificationRefuseSubject';
+                        $bodyKey = 'TimesheetWeekNotificationRefuseBody';
+                        $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
+                        $target = $this->loadUserFromCache($this->fk_user);
+                        if ($target) {
+                                $recipients[] = $target;
+                        }
+                } else {
+                        return true;
+                }
+
+                if (empty($recipients)) {
+                        $this->errors[] = $langs->trans('TimesheetWeekNotificationMissingRecipient', $langs->trans($missingKey));
+                        dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
+                        return false;
+                }
+
+                require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+                require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php';
+                require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
+
+                $employee = $this->loadUserFromCache($this->fk_user);
+                $validator = $this->loadUserFromCache($this->fk_user_valid);
+                $employeeName = $employee ? $employee->getFullName($langs) : '';
+                $validatorName = $validator ? $validator->getFullName($langs) : '';
+                $actionUserName = $actionUser->getFullName($langs);
+                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
+
+                $overallResult = true;
+
+                foreach ($recipients as $recipient) {
+                        if (empty($recipient->email)) {
+                                $this->errors[] = $langs->trans('TimesheetWeekNotificationNoEmail', $recipient->getFullName($langs));
+                                dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
+                                $overallResult = false;
+                                continue;
+                        }
+
+                        $substitutions = array(
+                                '__TIMESHEETWEEK_REF__' => $this->ref,
+                                '__TIMESHEETWEEK_WEEK__' => $this->week,
+                                '__TIMESHEETWEEK_YEAR__' => $this->year,
+                                '__TIMESHEETWEEK_URL__' => $url,
+                                '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
+                                '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
+                                '__ACTION_USER_FULLNAME__' => $actionUserName,
+                                '__RECIPIENT_FULLNAME__' => $recipient->getFullName($langs),
+                        );
+
+                        $template = new CEmailTemplates($this->db);
+                        $tplResult = $template->fetchByTrigger($triggerCode, $actionUser, $conf->entity);
+
+                        $subject = '';
+                        $message = '';
+                        $ccList = array();
+                        $bccList = array();
+                        $sendtoList = array($recipient->email);
+                        $emailFrom = $actionUser->email;
+                        if (empty($emailFrom) && !empty($conf->global->MAIN_MAIL_EMAIL_FROM)) {
+                                $emailFrom = $conf->global->MAIN_MAIL_EMAIL_FROM;
+                        }
+                        if (empty($emailFrom) && !empty($conf->global->MAIN_INFO_SOCIETE_MAIL)) {
+                                $emailFrom = $conf->global->MAIN_INFO_SOCIETE_MAIL;
+                        }
+
+                        if ($tplResult > 0) {
+                                $subjectTemplate = !empty($template->subject) ? $template->subject : $template->topic;
+                                $bodyTemplate = $template->content;
+
+                                $subject = make_substitutions($subjectTemplate, $substitutions);
+                                $message = make_substitutions($bodyTemplate, $substitutions);
+
+                                if (!empty($template->email_from)) {
+                                        $emailFrom = make_substitutions($template->email_from, $substitutions);
+                                }
+                                $templateTo = '';
+                                if (!empty($template->email_to)) {
+                                        $templateTo = $template->email_to;
+                                } elseif (!empty($template->email_to_list)) {
+                                        $templateTo = $template->email_to_list;
+                                }
+                                if (!empty($templateTo)) {
+                                        $templateTo = make_substitutions($templateTo, $substitutions);
+                                        foreach (preg_split('/[,;]+/', $templateTo) as $addr) {
+                                                $addr = trim($addr);
+                                                if ($addr && !in_array($addr, $sendtoList, true)) {
+                                                        $sendtoList[] = $addr;
+                                                }
+                                        }
+                                }
+
+                                $templateCc = '';
+                                if (!empty($template->email_cc)) {
+                                        $templateCc = $template->email_cc;
+                                } elseif (!empty($template->email_to_cc)) {
+                                        $templateCc = $template->email_to_cc;
+                                }
+                                if (!empty($templateCc)) {
+                                        $templateCc = make_substitutions($templateCc, $substitutions);
+                                        foreach (preg_split('/[,;]+/', $templateCc) as $addr) {
+                                                $addr = trim($addr);
+                                                if ($addr && !in_array($addr, $ccList, true)) {
+                                                        $ccList[] = $addr;
+                                                }
+                                        }
+                                }
+
+                                $templateBcc = '';
+                                if (!empty($template->email_bcc)) {
+                                        $templateBcc = $template->email_bcc;
+                                } elseif (!empty($template->email_to_bcc)) {
+                                        $templateBcc = $template->email_to_bcc;
+                                }
+                                if (!empty($templateBcc)) {
+                                        $templateBcc = make_substitutions($templateBcc, $substitutions);
+                                        foreach (preg_split('/[,;]+/', $templateBcc) as $addr) {
+                                                $addr = trim($addr);
+                                                if ($addr && !in_array($addr, $bccList, true)) {
+                                                        $bccList[] = $addr;
+                                                }
+                                        }
+                                }
+                        } else {
+                                $recipientName = $recipient->getFullName($langs);
+                                if ($triggerCode === 'TIMESHEETWEEK_SUBMITTED') {
+                                        $subject = $langs->trans($subjectKey, $this->ref);
+                                        $message = $langs->trans(
+                                                $bodyKey,
+                                                $recipientName,
+                                                $employeeName,
+                                                $this->ref,
+                                                $this->week,
+                                                $this->year,
+                                                $url,
+                                                $actionUserName
+                                        );
+                                } else {
+                                        $subject = $langs->trans($subjectKey, $this->ref);
+                                        $message = $langs->trans(
+                                                $bodyKey,
+                                                $recipientName,
+                                                $this->ref,
+                                                $this->week,
+                                                $this->year,
+                                                $actionUserName,
+                                                $url,
+                                                $actionUserName
+                                        );
+                                }
+                        }
+
+                        if (empty($subject) || empty($message)) {
+                                $this->errors[] = $langs->trans('TimesheetWeekNotificationMailError', 'Empty template');
+                                dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
+                                $overallResult = false;
+                                continue;
+                        }
+
+                        $sendto = implode(',', array_unique(array_filter($sendtoList)));
+                        $cc = implode(',', array_unique(array_filter($ccList)));
+                        $bcc = implode(',', array_unique(array_filter($bccList)));
+
+                        $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
+                        if (!$mail->sendfile()) {
+                                $errmsg = $mail->error ? $mail->error : 'Unknown error';
+                                $this->errors[] = $langs->trans('TimesheetWeekNotificationMailError', $errmsg);
+                                dol_syslog(__METHOD__.': '.$errmsg, LOG_WARNING);
+                                $overallResult = false;
+                        }
+                }
+
+                return $overallResult;
+        }
+
+        /**
+         * Badge / labels
+         */
+        public function getLibStatut($mode = 0)
+        {
+                return self::LibStatut($this->status, $mode);
+        }
 
         public static function LibStatut($status, $mode = 0)
         {

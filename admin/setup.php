@@ -37,6 +37,7 @@ if (!$res) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('admin', 'other', 'timesheetweek@timesheetweek'));
