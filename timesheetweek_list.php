@@ -70,11 +70,11 @@ $arrayfields = array(
 	'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
 	't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
 	't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
-	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 	't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
 	't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
 	't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
+	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
 
 // Update arrayfields from request (column selector)
@@ -200,18 +200,6 @@ if (!empty($arrayfields['t.year']['checked'])) {
 if (!empty($arrayfields['t.week']['checked'])) {
 	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
 }
-if (!empty($arrayfields['t.status']['checked'])) {
-        $statusOptions = array(
-                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
-                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
-                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
-                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
-        );
-
-        print '<td class="liste_titre center">';
-        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
-        print '</td>';
-}
 if (!empty($arrayfields['t.total_hours']['checked'])) {
 	print '<td class="liste_titre right">&nbsp;</td>';
 }
@@ -223,6 +211,18 @@ if (!empty($arrayfields['t.date_creation']['checked'])) {
 }
 if (!empty($arrayfields['t.tms']['checked'])) {
 	print '<td class="liste_titre center">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.status']['checked'])) {
+        $statusOptions = array(
+                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
+                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
+                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
+        );
+
+        print '<td class="liste_titre center">';
+        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+        print '</td>';
 }
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
         print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
@@ -248,9 +248,6 @@ if (!empty($arrayfields['t.year']['checked'])) {
 if (!empty($arrayfields['t.week']['checked'])) {
 	print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", "", $param, '', $sortfield, $sortorder, 'center ');
 }
-if (!empty($arrayfields['t.status']['checked'])) {
-	print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", "", $param, '', $sortfield, $sortorder, 'center ');
-}
 if (!empty($arrayfields['t.total_hours']['checked'])) {
 	print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", "", $param, '', $sortfield, $sortorder, 'right ');
 }
@@ -262,6 +259,9 @@ if (!empty($arrayfields['t.date_creation']['checked'])) {
 }
 if (!empty($arrayfields['t.tms']['checked'])) {
 	print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
+}
+if (!empty($arrayfields['t.status']['checked'])) {
+	print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'center maxwidthsearch ');
@@ -314,11 +314,6 @@ while ($i < $imax) {
 	if (!empty($arrayfields['t.week']['checked'])) {
 		print '<td class="center">'.(int)$obj->week.'</td>';
 	}
-	// Status (badge)
-	if (!empty($arrayfields['t.status']['checked'])) {
-		$tswstatic->status = $obj->status;
-		print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-	}
 	// Total hours
 	if (!empty($arrayfields['t.total_hours']['checked'])) {
 		$tot = (float) $obj->total_hours;
@@ -343,7 +338,11 @@ while ($i < $imax) {
 	if (!empty($arrayfields['t.tms']['checked'])) {
 		print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
 	}
-
+	// Status (badge)
+	if (!empty($arrayfields['t.status']['checked'])) {
+		$tswstatic->status = $obj->status;
+		print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+	}
 	// Right selection checkbox column (if setting to put it right)
 	if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 		print '<td class="nowrap center">';
