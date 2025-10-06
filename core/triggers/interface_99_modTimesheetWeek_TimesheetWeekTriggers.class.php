@@ -54,6 +54,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return 0;
                 }
 
+                if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
+                        return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
+                }
+
                 if (in_array($action, array('TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED'), true)) {
                         return $this->sendNotification($action, $object, $user, $langs, $conf);
                 }
@@ -82,6 +86,15 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $templateKeys = array();
                 $recipients = array();
 
+                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+                $employee = $meta['employee'];
+                $validator = $meta['validator'];
+                $employeeName = $meta['employee_name'];
+                $validatorName = $meta['validator_name'];
+                $actionUserName = $meta['action_user_name'];
+                $baseSubstitutions = $meta['base_substitutions'];
+                $url = $meta['url'];
+
                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
@@ -91,7 +104,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 'subject' => 'TimesheetWeekTemplateSubmitSubject',
                                 'body' => 'TimesheetWeekTemplateSubmitBody',
                         );
-                        $target = $this->fetchUser($timesheet->fk_user_valid);
+                        $target = $validator;
                         if ($target) {
                                 $recipients[] = $target;
                         }
@@ -104,7 +117,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 'subject' => 'TimesheetWeekTemplateApproveSubject',
                                 'body' => 'TimesheetWeekTemplateApproveBody',
                         );
-                        $target = $this->fetchUser($timesheet->fk_user);
+                        $target = $employee;
                         if ($target) {
                                 $recipients[] = $target;
                         }
@@ -117,7 +130,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 'subject' => 'TimesheetWeekTemplateRefuseSubject',
                                 'body' => 'TimesheetWeekTemplateRefuseBody',
                         );
-                        $target = $this->fetchUser($timesheet->fk_user);
+                        $target = $employee;
                         if ($target) {
                                 $recipients[] = $target;
                         }
@@ -143,13 +156,6 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         $templateClass = 'EmailTemplates';
                 }
 
-                $employee = $this->fetchUser($timesheet->fk_user);
-                $validator = $this->fetchUser($timesheet->fk_user_valid);
-                $employeeName = $employee ? $employee->getFullName($langs) : '';
-                $validatorName = $validator ? $validator->getFullName($langs) : '';
-                $actionUserName = $actionUser->getFullName($langs);
-                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $timesheet->id;
-
                 $sent = 0;
 
                 foreach ($recipients as $recipient) {
@@ -158,16 +164,8 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 continue;
                         }
 
-                        $substitutions = array(
-                                '__TIMESHEETWEEK_REF__' => $timesheet->ref,
-                                '__TIMESHEETWEEK_WEEK__' => $timesheet->week,
-                                '__TIMESHEETWEEK_YEAR__' => $timesheet->year,
-                                '__TIMESHEETWEEK_URL__' => $url,
-                                '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
-                                '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
-                                '__ACTION_USER_FULLNAME__' => $actionUserName,
-                                '__RECIPIENT_FULLNAME__' => $recipient->getFullName($langs),
-                        );
+                        $substitutions = $baseSubstitutions;
+                        $substitutions['__RECIPIENT_FULLNAME__'] = $recipient->getFullName($langs);
 
                         $template = null;
                         $tplResult = 0;
@@ -304,6 +302,131 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
         }
 
         /**
+         * Dispatch business notifications relying on Dolibarr's Notification module.
+         *
+         * FR : Déclenche les notifications métier en s'appuyant sur le module Notification natif.
+         * EN : Dispatch business notifications using Dolibarr's native Notification module.
+         *
+         * @param string        $action
+         * @param TimesheetWeek $timesheet
+         * @param User          $actionUser
+         * @param Translate     $langs
+         * @param Conf          $conf
+         * @return int
+         */
+        protected function dispatchBusinessNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
+        {
+                if (empty($conf->notification->enabled)) {
+                        return 0;
+                }
+
+                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+                $baseSubstitutions = $meta['base_substitutions'];
+
+                if (!is_array($timesheet->context)) {
+                        $timesheet->context = array();
+                }
+
+                // FR : Fournit les substitutions communes pour les modèles Notification.
+                // EN : Provide shared substitutions for Notification templates.
+                $timesheet->context['mail_substitutions'] = $baseSubstitutions;
+
+                $result = 0;
+
+                $notifyLib = DOL_DOCUMENT_ROOT.'/core/lib/notify.lib.php';
+                if (is_readable($notifyLib)) {
+                        require_once $notifyLib;
+
+                        if (function_exists('notify_by_object')) {
+                                try {
+                                        $function = new \ReflectionFunction('notify_by_object');
+                                        $argCount = $function->getNumberOfParameters();
+                                        $params = array($this->db, $timesheet, $action, $actionUser);
+
+                                        if ($argCount >= 5) {
+                                                $params[] = $langs;
+                                        }
+                                        if ($argCount >= 6) {
+                                                $params[] = $conf;
+                                        }
+                                        if ($argCount >= 7) {
+                                                $params[] = '';
+                                        }
+                                        if ($argCount >= 8) {
+                                                $params[] = '';
+                                        }
+                                        if ($argCount >= 9) {
+                                                $params[] = $baseSubstitutions;
+                                        }
+
+                                        $result = (int) call_user_func_array('notify_by_object', $params);
+                                } catch (\Throwable $error) {
+                                        dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                                }
+                        }
+                }
+
+                if ($result !== 0) {
+                        return $result;
+                }
+
+                $notifyClass = DOL_DOCUMENT_ROOT.'/core/class/notify.class.php';
+                if (is_readable($notifyClass)) {
+                        require_once $notifyClass;
+
+                        if (class_exists('Notify')) {
+                                $notify = new Notify($this->db);
+
+                                if (method_exists($notify, 'sendObjectNotification')) {
+                                        try {
+                                                return (int) $notify->sendObjectNotification($timesheet, $action, $actionUser, $baseSubstitutions);
+                                        } catch (\Throwable $error) {
+                                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                                        }
+                                } elseif (method_exists($notify, 'send')) {
+                                        try {
+                                                $method = new \ReflectionMethod($notify, 'send');
+                                                $argCount = $method->getNumberOfParameters();
+                                                $callArgs = array();
+                                                $thirdparty = property_exists($timesheet, 'thirdparty') ? $timesheet->thirdparty : null;
+
+                                                if ($argCount >= 1) {
+                                                        $callArgs[] = $thirdparty;
+                                                }
+                                                if ($argCount >= 2) {
+                                                        $callArgs[] = $timesheet;
+                                                }
+                                                if ($argCount >= 3) {
+                                                        $callArgs[] = $action;
+                                                }
+                                                if ($argCount >= 4) {
+                                                        $callArgs[] = $actionUser;
+                                                }
+                                                if ($argCount >= 5) {
+                                                        $callArgs[] = $langs;
+                                                }
+                                                if ($argCount >= 6) {
+                                                        $callArgs[] = $conf;
+                                                }
+                                                if ($argCount >= 7) {
+                                                        $callArgs[] = array();
+                                                }
+                                                if ($argCount >= 8) {
+                                                        $callArgs[] = $baseSubstitutions;
+                                                }
+
+                                                return (int) $method->invokeArgs($notify, $callArgs);
+                                        } catch (\Throwable $error) {
+                                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                                        }
+                                }
+                        }
+                }
+
+                return 0;
+        }
+
+        /**
          * Fetch user helper
          *
          * @param int $userId
@@ -414,5 +537,48 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
                 return null;
+        }
+
+        /**
+         * Build common notification metadata reused across automatic e-mails and business notifications.
+         *
+         * FR : Construit les métadonnées partagées par les e-mails automatiques et les notifications métiers.
+         * EN : Build the metadata shared by automatic e-mails and business notifications.
+         *
+         * @param TimesheetWeek $timesheet
+         * @param User          $actionUser
+         * @param Translate     $langs
+         * @return array
+         */
+        protected function buildNotificationData(TimesheetWeek $timesheet, User $actionUser, $langs)
+        {
+                $employee = $this->fetchUser($timesheet->fk_user);
+                $validator = $this->fetchUser($timesheet->fk_user_valid);
+
+                $employeeName = $employee ? $employee->getFullName($langs) : '';
+                $validatorName = $validator ? $validator->getFullName($langs) : '';
+                $actionUserName = $actionUser->getFullName($langs);
+                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $timesheet->id;
+
+                $baseSubstitutions = array(
+                        '__TIMESHEETWEEK_REF__' => $timesheet->ref,
+                        '__TIMESHEETWEEK_WEEK__' => $timesheet->week,
+                        '__TIMESHEETWEEK_YEAR__' => $timesheet->year,
+                        '__TIMESHEETWEEK_URL__' => $url,
+                        '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
+                        '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
+                        '__ACTION_USER_FULLNAME__' => $actionUserName,
+                        '__RECIPIENT_FULLNAME__' => '',
+                );
+
+                return array(
+                        'employee' => $employee,
+                        'validator' => $validator,
+                        'employee_name' => $employeeName,
+                        'validator_name' => $validatorName,
+                        'action_user_name' => $actionUserName,
+                        'url' => $url,
+                        'base_substitutions' => $baseSubstitutions,
+                );
         }
 }

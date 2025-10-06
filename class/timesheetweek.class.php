@@ -735,6 +735,23 @@ class TimesheetWeek extends CommonObject
                // EN: Build the direct link to the card so it can be injected inside the e-mail template.
                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
 
+               $employeeName = $employee ? $employee->getFullName($langs) : '';
+               $validatorName = $validator ? $validator->getFullName($langs) : '';
+               $actionUserName = $actionUser->getFullName($langs);
+
+               // FR: Base des substitutions partagées entre notifications automatiques et métier.
+               // EN: Base substitution array shared between automatic and business notifications.
+               $baseSubstitutions = array(
+                       '__TIMESHEETWEEK_REF__' => $this->ref,
+                       '__TIMESHEETWEEK_WEEK__' => $this->week,
+                       '__TIMESHEETWEEK_YEAR__' => $this->year,
+                       '__TIMESHEETWEEK_URL__' => $url,
+                       '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
+                       '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
+                       '__ACTION_USER_FULLNAME__' => $actionUserName,
+                       '__RECIPIENT_FULLNAME__' => '',
+               );
+
                if (!is_array($this->context)) {
                        $this->context = array();
                }
@@ -745,10 +762,15 @@ class TimesheetWeek extends CommonObject
                        'employee_id' => $employee ? (int) $employee->id : 0,
                        'validator_id' => $validator ? (int) $validator->id : 0,
                        'action_user_id' => (int) $actionUser->id,
-                       'employee_fullname' => $employee ? $employee->getFullName($langs) : '',
-                       'validator_fullname' => $validator ? $validator->getFullName($langs) : '',
-                       'action_user_fullname' => $actionUser->getFullName($langs),
+                       'employee_fullname' => $employeeName,
+                       'validator_fullname' => $validatorName,
+                       'action_user_fullname' => $actionUserName,
+                       'base_substitutions' => $baseSubstitutions,
                );
+
+               // FR: Conserve les substitutions pour les triggers Notification natifs.
+               // EN: Keep substitutions handy for native Notification triggers.
+               $this->context['mail_substitutions'] = $baseSubstitutions;
 
                // FR: Les triggers accèdent aux informations via le contexte, inutile de dupliquer les paramètres.
                // EN: Triggers read every detail from the context, no need to duplicate the payload locally.
@@ -839,6 +861,12 @@ class TimesheetWeek extends CommonObject
                // FR: Marqueur spécifique pour les triggers du module Notification.
                // EN: Specific flag for the Notification module triggers.
                $this->context['timesheetweek_business_notification'] = 1;
+
+               if (!empty($this->context['timesheetweek_notification']['base_substitutions'])) {
+                       // FR: Garantit que les notifications métier récupèrent les mêmes substitutions que les e-mails automatiques.
+                       // EN: Ensure business notifications reuse the same substitutions as automatic e-mails.
+                       $this->context['mail_substitutions'] = $this->context['timesheetweek_notification']['base_substitutions'];
+               }
 
                return $this->fireNotificationTrigger($triggerCode, $actionUser);
        }

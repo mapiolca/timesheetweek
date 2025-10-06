@@ -71,6 +71,8 @@ Draft = Brouillon
 Submitted = Soumise
 Approved = Approuvée
 Refused = Refusée
+ConfirmValidate = Confirmez-vous l'approbation de cette feuille de temps ?
+ConfirmRefuse = Confirmez-vous le refus de cette feuille de temps ?
 TimesheetWeekStatusDraft = Brouillon
 TimesheetWeekStatusSubmitted = Soumise
 TimesheetWeekStatusApproved = Approuvée
@@ -125,3 +127,20 @@ TimesheetWeekPDFModels = Modèles PDF TimesheetWeek
 ModelEnabled = Modèle %s activé
 
 ModelDisabled = Modèle %s désactivé
+
+#
+# Permissions
+#
+TimesheetWeekRightReadOwn = Lire ses propres feuilles de temps
+TimesheetWeekRightReadChild = Lire les feuilles de ses subordonnés
+TimesheetWeekRightReadAll = Lire toutes les feuilles de temps
+TimesheetWeekRightWriteOwn = Créer/Mettre à jour ses propres feuilles
+TimesheetWeekRightWriteChild = Créer/Mettre à jour les feuilles des subordonnés
+TimesheetWeekRightWriteAll = Créer/Mettre à jour toutes les feuilles
+TimesheetWeekRightDeleteOwn = Supprimer ses propres feuilles de temps
+TimesheetWeekRightDeleteChild = Supprimer les feuilles des subordonnés
+TimesheetWeekRightDeleteAll = Supprimer toutes les feuilles de temps
+TimesheetWeekRightValidateGeneric = Valider les feuilles de temps (générique)
+TimesheetWeekRightValidateOwn = Valider ses propres feuilles de temps
+TimesheetWeekRightValidateChild = Valider les feuilles des subordonnés
+TimesheetWeekRightValidateAll = Valider toutes les feuilles de temps

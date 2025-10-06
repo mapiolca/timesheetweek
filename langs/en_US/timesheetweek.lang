@@ -71,6 +71,8 @@ Draft = Draft
 Submitted = Submitted
 Approved = Approved
 Refused = Refused
+ConfirmValidate = Do you confirm the approval of this timesheet?
+ConfirmRefuse = Do you confirm the refusal of this timesheet?
 TimesheetWeekStatusDraft = Draft
 TimesheetWeekStatusSubmitted = Submitted
 TimesheetWeekStatusApproved = Approved
@@ -125,3 +127,20 @@ TimesheetWeekPDFModels = TimesheetWeek PDF templates
 ModelEnabled = Model %s enabled
 
 ModelDisabled = Model %s disabled
+
+#
+# Permissions
+#
+TimesheetWeekRightReadOwn = Read his own timesheets
+TimesheetWeekRightReadChild = Read subordinates' timesheets
+TimesheetWeekRightReadAll = Read all timesheets
+TimesheetWeekRightWriteOwn = Create/Update own timesheets
+TimesheetWeekRightWriteChild = Create/Update subordinates' timesheets
+TimesheetWeekRightWriteAll = Create/Update all timesheets
+TimesheetWeekRightDeleteOwn = Delete own timesheets
+TimesheetWeekRightDeleteChild = Delete subordinates' timesheets
+TimesheetWeekRightDeleteAll = Delete all timesheets
+TimesheetWeekRightValidateGeneric = Validate timesheets (generic)
+TimesheetWeekRightValidateOwn = Validate own timesheets
+TimesheetWeekRightValidateChild = Validate subordinates' timesheets
+TimesheetWeekRightValidateAll = Validate all timesheets
