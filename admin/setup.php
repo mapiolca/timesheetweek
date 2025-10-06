@@ -47,10 +47,65 @@ if (empty($user->admin)) {
 }
 
 $action = GETPOST('action', 'aZ09');
+$value = GETPOST('value', 'alpha');
 
-if ($action === 'setmodule') {
-        $value = GETPOST('value', 'alpha');
-        $result = dolibarr_set_const($db, 'TIMESHEETWEEK_MYOBJECT_ADDON', $value, 'chaine', 0, '', $conf->entity);
+if (!function_exists('timesheetweek_enable_document_model')) {
+        /**
+         * Enable a document model for TimesheetWeek.
+         *
+         * @param string $model
+         * @return int
+         */
+        function timesheetweek_enable_document_model($model)
+        {
+                global $db, $conf;
+
+                if (empty($model)) {
+                        return 0;
+                }
+
+                $sql = 'INSERT INTO '.MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES ('".$db->escape($model)."', 'timesheetweek', ".((int) $conf->entity).')';
+                $resql = $db->query($sql);
+                if ($resql) {
+                        return 1;
+                }
+
+                // Ignore duplicate errors silently (model already enabled)
+                if ($db->lasterrno() && strpos($db->lasterror(), 'Duplicate') !== false) {
+                        return 1;
+                }
+
+                return -1;
+        }
+}
+
+if (!function_exists('timesheetweek_disable_document_model')) {
+        /**
+         * Disable a document model for TimesheetWeek.
+         *
+         * @param string $model
+         * @return int
+         */
+        function timesheetweek_disable_document_model($model)
+        {
+                global $db, $conf;
+
+                if (empty($model)) {
+                        return 0;
+                }
+
+                $sql = 'DELETE FROM '.MAIN_DB_PREFIX."document_model WHERE nom='".$db->escape($model)."' AND type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
+                $resql = $db->query($sql);
+                if ($resql) {
+                        return ($db->affected_rows($resql) >= 0) ? 1 : 0;
+                }
+
+                return -1;
+        }
+}
+
+if ($action === 'setmodule' && !empty($value)) {
+        $result = dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON', $value, 'chaine', 0, '', $conf->entity);
         if ($result > 0) {
                 setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
         } else {
@@ -58,7 +113,41 @@ if ($action === 'setmodule') {
         }
 }
 
-$selected = getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON', 'mod_timesheetweek_standard');
+if ($action === 'setdoc' && !empty($value)) {
+        $res = timesheetweek_enable_document_model($value);
+        if ($res > 0) {
+                $res = dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON_PDF', $value, 'chaine', 0, '', $conf->entity);
+        }
+        if ($res > 0) {
+                setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+        } else {
+                setEventMessages($langs->trans('Error'), null, 'errors');
+        }
+}
+
+if ($action === 'setdocmodel' && !empty($value)) {
+        $res = timesheetweek_enable_document_model($value);
+        if ($res > 0) {
+                setEventMessages($langs->trans('ModelEnabled', $value), null, 'mesgs');
+        } else {
+                setEventMessages($langs->trans('Error'), null, 'errors');
+        }
+}
+
+if ($action === 'delmodel' && !empty($value)) {
+        $res = timesheetweek_disable_document_model($value);
+        if ($res > 0) {
+                if ($value === getDolGlobalString('TIMESHEETWEEK_ADDON_PDF')) {
+                        dolibarr_del_const($db, 'TIMESHEETWEEK_ADDON_PDF', $conf->entity);
+                }
+                setEventMessages($langs->trans('ModelDisabled', $value), null, 'mesgs');
+        } else {
+                setEventMessages($langs->trans('Error'), null, 'errors');
+        }
+}
+
+$selected = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
+$defaultpdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
 $dirmodels = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 $title = $langs->trans('ModuleSetup', 'TimesheetWeek');
@@ -74,7 +163,8 @@ print '<div class="opacitymedium">'.$langs->trans('TimesheetWeekSetupPage').'</d
 print '<br>';
 
 print '<form action="'.$_SERVER['PHP_SELF'].'" method="POST">';
-print '<input type="hidden" name="token" value="'.newToken().'">';
+$formToken = newToken();
+print '<input type="hidden" name="token" value="'.$formToken.'">';
 print '<input type="hidden" name="action" value="setmodule">';
 
 print '<div class="div-table-responsive-no-min">';
@@ -168,6 +258,102 @@ print '<input type="submit" class="button button-save" value="'.$langs->trans('S
 print '</div>';
 
 print '</form>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekPDFModels'), '', 'pdf');
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Type').'</th>';
+print '<th class="center">'.$langs->trans('Status').'</th>';
+print '<th class="center">'.$langs->trans('Default').'</th>';
+print '</tr>';
+
+$enabledModels = array();
+$sql = 'SELECT nom FROM '.MAIN_DB_PREFIX."document_model WHERE type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
+$resql = $db->query($sql);
+if ($resql) {
+        while ($obj = $db->fetch_object($resql)) {
+                $enabledModels[$obj->nom] = 1;
+        }
+        $db->free($resql);
+}
+
+$found = 0;
+$docToken = newToken();
+foreach ($dirmodels as $reldir) {
+        $dir = dol_buildpath($reldir.'core/modules/timesheetweek/doc/');
+        if (!is_dir($dir)) {
+                continue;
+        }
+
+        $filelist = dol_dir_list($dir, 'files', 0, '^[a-z0-9_]+\.php$');
+        foreach ($filelist as $fileinfo) {
+                $file = $fileinfo['name'];
+                $classname = preg_replace('/\.php$/', '', $file);
+
+                require_once $dir.$file;
+                if (!class_exists($classname)) {
+                        continue;
+                }
+
+                try {
+                        $module = new $classname($db);
+                } catch (Throwable $e) {
+                        continue;
+                }
+
+                if (!property_exists($module, 'type') || $module->type !== 'pdf') {
+                        continue;
+                }
+
+                $found++;
+                $name = $module->name ?: $classname;
+                $desc = !empty($module->description) ? $module->description : '';
+                if ($desc && $langs->transnoentitiesnoconv($desc) !== $desc) {
+                        $desc = $langs->trans($desc);
+                }
+                $isEnabled = !empty($enabledModels[$name]);
+                $isDefault = ($defaultpdf === $name);
+
+                print '<tr class="oddeven">';
+                print '<td class="nowraponall">'.dol_escape_htmltag($name).'</td>';
+                print '<td class="small">'.(!empty($desc) ? dol_escape_htmltag($desc) : '&nbsp;').'</td>';
+                print '<td class="center">'.dol_escape_htmltag($module->type).'</td>';
+                print '<td class="center">';
+                if ($isEnabled) {
+                        $url = $_SERVER['PHP_SELF'].'?action=delmodel&value='.urlencode($name).'&token='.$docToken;
+                        print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disable'), 'switch_on').'</a>';
+                } else {
+                        $url = $_SERVER['PHP_SELF'].'?action=setdocmodel&value='.urlencode($name).'&token='.$docToken;
+                        print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Activate'), 'switch_off').'</a>';
+                }
+                print '</td>';
+
+                print '<td class="center">';
+                if ($isDefault) {
+                        print img_picto($langs->trans('Enabled'), 'on');
+                } elseif ($isEnabled) {
+                        $url = $_SERVER['PHP_SELF'].'?action=setdoc&value='.urlencode($name).'&token='.$docToken;
+                        print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('SetDefault'), 'switch_on').'</a>';
+                } else {
+                        print '&nbsp;';
+                }
+                print '</td>';
+                print '</tr>';
+        }
+}
+
+if (!$found) {
+        print '<tr class="oddeven"><td colspan="5" class="opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';
+}
+
+print '</table>';
+print '</div>';
 
 print dol_get_fiche_end();
 

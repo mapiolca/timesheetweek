@@ -104,3 +104,9 @@ TimesheetWeekNotificationMailError = Unable to send notification email: %s
 TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
 TimesheetWeekNotificationValidatorFallback = Validator
 TimesheetWeekNotificationEmployeeFallback = Employee
+
+TimesheetWeekPDFModels = TimesheetWeek PDF templates
+
+ModelEnabled = Model %s enabled
+
+ModelDisabled = Model %s disabled

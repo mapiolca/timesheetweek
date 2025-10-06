@@ -104,3 +104,9 @@ TimesheetWeekNotificationMailError = Impossible d'envoyer la notification e-mail
 TimesheetWeekNotificationNoEmail = Le destinataire %s n'a pas d'adresse e-mail.
 TimesheetWeekNotificationValidatorFallback = Validateur
 TimesheetWeekNotificationEmployeeFallback = Salarié
+
+TimesheetWeekPDFModels = Modèles PDF TimesheetWeek
+
+ModelEnabled = Modèle %s activé
+
+ModelDisabled = Modèle %s désactivé

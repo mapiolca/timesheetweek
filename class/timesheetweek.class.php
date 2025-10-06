@@ -20,6 +20,10 @@ class TimesheetWeek extends CommonObject
 	public $table_element = 'timesheet_week';
 	public $picto = 'bookcal';
 	public $ismultientitymanaged = 1;	// There is an entity field
+	public $modulepart = 'timesheetweek';
+	public $hasFiles = 1;
+	public $hasDocModel = 1;
+	public $dir_output = 'timesheetweek';
 
 	// Status
 	const STATUS_DRAFT     = 0;
@@ -55,8 +59,16 @@ class TimesheetWeek extends CommonObject
 	 */
 	public function __construct($db)
 	{
+		global $conf;
+
 		$this->db = $db;
 		$this->status = self::STATUS_DRAFT;
+
+		if (!empty($conf->timesheetweek->dir_output)) {
+			$this->dir_output = $conf->timesheetweek->dir_output;
+		} elseif (defined('DOL_DATA_ROOT')) {
+			$this->dir_output = DOL_DATA_ROOT.'/timesheetweek';
+		}
 	}
 
 	/**

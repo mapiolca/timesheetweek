@@ -137,7 +137,7 @@ class modTimesheetWeek extends DolibarrModules
 
 		// Data directories to create when module is enabled.
 		// Example: this->dirs = array("/timesheetweek/temp","/timesheetweek/subdir");
-		$this->dirs = array("/timesheetweek/temp");
+		$this->dirs = array("/timesheetweek", "/timesheetweek/temp");
 
 		// Config pages. Put here list of php page, stored into timesheetweek/admin directory, to use to setup module.
 		$this->config_page_url = array("setup.php@timesheetweek");
@@ -541,8 +541,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->import_convertvalue_array[$r] = array(
 			't.ref' => array(
 				'rule'=>'getrefifauto',
-				'class'=>(!getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON')),
-				'path'=>"/core/modules/timesheetweek/".(!getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON')).'.php',
+				'class'=>(!getDolGlobalString('TIMESHEETWEEK_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_ADDON')),
+				'path'=>"/core/modules/timesheetweek/".(!getDolGlobalString('TIMESHEETWEEK_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_ADDON')).'.php',
 				'classobject'=>'TimesheetWeek',
 				'pathobject'=>'/timesheetweek/class/timesheetweek.class.php',
 			),
@@ -592,10 +592,10 @@ class modTimesheetWeek extends DolibarrModules
 		// Document templates
 		$moduledir = dol_sanitizeFileName('timesheetweek');
 		$myTmpObjects = array();
-		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 0);
+		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 1);
 
 		foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
-			if ($myTmpObjectArray['includerefgeneration']) {
+			if (!empty($myTmpObjectArray['includerefgeneration']) || !empty($myTmpObjectArray['includedocgeneration'])) {
 				$src = DOL_DOCUMENT_ROOT.'/install/doctemplates/'.$moduledir.'/template_timesheetweek.odt';
 				$dirodt = DOL_DATA_ROOT.($conf->entity > 1 ? '/'.$conf->entity : '').'/doctemplates/'.$moduledir;
 				$dest = $dirodt.'/template_timesheetweek.odt';
