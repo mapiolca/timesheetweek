@@ -484,7 +484,6 @@ if ($object->id > 0) {
 
                         print '<div class="div-table-responsive">';
                         $actionTypeOptions = array();
-                        $actionTypeOptions['0'] = $langs->trans('All');
                         $sqlActionType = "SELECT code, label FROM ".MAIN_DB_PREFIX."c_actioncomm WHERE active = 1 ORDER BY label";
                         $resActionType = $db->query($sqlActionType);
                         if ($resActionType) {
@@ -495,7 +494,7 @@ if ($object->id > 0) {
                                 $db->free($resActionType);
                         }
 
-                        $selectedActionCodes = !empty($actioncode) ? $actioncode : array('0');
+                        $selectedActionCodes = !empty($actioncode) ? $actioncode : array();
 
                         print '<table class="noborder centpercent">';
 
@@ -503,12 +502,7 @@ if ($object->id > 0) {
                         print '<td class="liste_titre"><input type="text" class="flat" name="search_rowid" value="'.dol_escape_htmltag($search_rowid).'"></td>';
                         print '<td class="liste_titre"><input type="text" class="flat minwidth200" name="search_agenda_label" value="'.dol_escape_htmltag($search_agenda_label).'"></td>';
                         print '<td class="liste_titre">';
-                        print '<select class="flat minwidth200 maxwidth300" name="actioncode[]" multiple data-placeholder="'.dol_escape_htmltag($langs->trans('Type')).'">';
-                        foreach ($actionTypeOptions as $code => $label) {
-                                $selectedAttr = in_array($code, $selectedActionCodes, true) ? ' selected' : '';
-                                print '<option value="'.dol_escape_htmltag($code).'"'.$selectedAttr.'>'.dol_escape_htmltag($label).'</option>';
-                        }
-                        print '</select>';
+                        print $form->multiselectarray('actioncode', $actionTypeOptions, $selectedActionCodes, 0, 0, 'minwidth200 maxwidth300', 0, 0, '', '', '', '', '', 1);
                         print '</td>';
                         print '<td class="liste_titre"></td>';
                         print '<td class="liste_titre"></td>';

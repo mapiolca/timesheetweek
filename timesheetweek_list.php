@@ -77,6 +77,9 @@ $arrayfields = array(
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
 );
 
+// Update arrayfields from request (column selector)
+include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
+
 /**
  * Mass actions (UI)
  */
@@ -199,23 +202,14 @@ if (!empty($arrayfields['t.week']['checked'])) {
 }
 if (!empty($arrayfields['t.status']['checked'])) {
         $statusOptions = array(
-                TimesheetWeek::STATUS_DRAFT    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
-                TimesheetWeek::STATUS_SUBMITTED=> TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
-                TimesheetWeek::STATUS_APPROVED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
-                TimesheetWeek::STATUS_REFUSED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
+                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
+                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
+                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
         );
 
-        $selectedStatus = !empty($search_status) ? $search_status : array('');
-
         print '<td class="liste_titre center">';
-        print '<select class="flat minwidth150 maxwidth200" name="search_status[]" multiple data-placeholder="'.dol_escape_htmltag($langs->trans('Status')).'">';
-        $selectedAll = in_array('', $selectedStatus, true);
-        print '<option value=""'.($selectedAll ? ' selected' : '').'>'.$langs->trans('All').'</option>';
-        foreach ($statusOptions as $statusKey => $statusLabel) {
-                $selectedAttr = in_array((string) $statusKey, $selectedStatus, true) ? ' selected' : '';
-                print '<option value="'.(int) $statusKey.'"'.$selectedAttr.'>'.dol_escape_htmltag($statusLabel).'</option>';
-        }
-        print '</select>';
+        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
         print '</td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {

@@ -629,20 +629,48 @@ class TimesheetWeek extends CommonObject
 	 * @param string $morecss
 	 * @return string
 	 */
-	public function getNomUrl($withpicto = 0, $option = '', $notooltip = 0, $morecss = '')
-	{
-		$label = $this->ref;
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $this->id;
-		$link = '<a href="'.$url.'"'.($morecss ? ' class="'.$morecss.'"' : '').'>';
-		$linkend = '</a>';
+        public function getNomUrl($withpicto = 0, $option = '', $notooltip = 0, $morecss = '')
+        {
+                global $langs;
 
-		$p = '';
-		if ($withpicto) $p = img_object('', $this->picto);
+                $label = dol_escape_htmltag($this->ref);
+                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $this->id;
 
-		if ($withpicto == 2) return $link.$p.$linkend.' '.$link.dol_escape_htmltag($label).$linkend;
-		if ($withpicto == 1) return $link.$p.$linkend;
-		return $link.dol_escape_htmltag($label).$linkend;
-	}
+                $linkstart = '';
+                $linkend = '';
+                $labeltooltip = $langs->trans('ShowTimesheetWeek', $this->ref);
+
+                if ($option !== 'nolink') {
+                        $linkstart = '<a href="'.$url.'"';
+                        if ($morecss) {
+                                $linkstart .= ' class="'.$morecss.'"';
+                        }
+                        if (empty($notooltip)) {
+                                $linkstart .= ' title="'.dol_escape_htmltag($labeltooltip).'"';
+                        }
+                        $linkstart .= '>';
+                        $linkend = '</a>';
+                } elseif ($morecss) {
+                        $linkstart = '<span class="'.$morecss.'">';
+                        $linkend = '</span>';
+                }
+
+                $result = '';
+                if ($withpicto) {
+                        $tooltip = empty($notooltip) ? $labeltooltip : '';
+                        $picto = img_object($tooltip, $this->picto);
+                        $result .= $linkstart.$picto.$linkend;
+                        if ($withpicto != 1) {
+                                $result .= ' ';
+                        }
+                }
+
+                if ($withpicto != 1 || $option === 'ref' || !$withpicto) {
+                        $result .= $linkstart.$label.$linkend;
+                }
+
+                return $result;
+        }
 
 	/**
 	 * Badge / labels
