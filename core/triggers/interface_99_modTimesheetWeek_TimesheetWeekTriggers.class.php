@@ -18,6 +18,9 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 {
+        private const TEMPLATE_PROBE_SIZE = 16;
+        private const TEMPLATE_TOKEN_PREFIX = '__TSWK_PLACEHOLDER';
+
         /**
          * Constructor
          *
@@ -377,14 +380,28 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                         );
                                 }
 
-                                $messageTemplate = $langs->transnoentitiesnoconv($bodyKey);
-                                if ($messageTemplate === $bodyKey) {
-                                        $messageTemplate = $langs->trans($bodyKey);
+                                list($messageTemplate, $placeholderCount) = $this->resolveNotificationTemplate($langs, $bodyKey, count($messageArgs));
+
+                                if ($placeholderCount > count($messageArgs)) {
+                                        dol_syslog(
+                                                __METHOD__.': '.$langs->trans(
+                                                        'TimesheetWeekNotificationMailError',
+                                                        'Not enough values provided for mail template placeholders'
+                                                ),
+                                                LOG_WARNING
+                                        );
+                                        $messageArgs = array_pad($messageArgs, $placeholderCount, '');
                                 }
 
                                 $message = @vsprintf($messageTemplate, $messageArgs);
                                 if ($message === false) {
-                                        dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Invalid mail template placeholders'), LOG_WARNING);
+                                        dol_syslog(
+                                                __METHOD__.': '.$langs->trans(
+                                                        'TimesheetWeekNotificationMailError',
+                                                        'Invalid mail template placeholders'
+                                                ),
+                                                LOG_WARNING
+                                        );
                                         $message = $messageTemplate;
                                 }
                         }
@@ -556,6 +573,52 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
                 return 0;
+        }
+
+        /**
+         * Resolve a translation template without triggering sprintf errors.
+         *
+         * @param Translate $langs
+         * @param string    $key
+         * @param int       $expectedPlaceholders
+         *
+         * @return array{0:string,1:int}
+         */
+        protected function resolveNotificationTemplate($langs, $key, $expectedPlaceholders)
+        {
+                $maxPlaceholders = max((int) $expectedPlaceholders, self::TEMPLATE_PROBE_SIZE);
+                $probeArgs = array();
+
+                for ($i = 0; $i < $maxPlaceholders; $i++) {
+                        $probeArgs[] = self::TEMPLATE_TOKEN_PREFIX.$i.'__';
+                }
+
+                $methods = array('transnoentitiesnoconv', 'trans');
+                foreach ($methods as $method) {
+                        if (!method_exists($langs, $method)) {
+                                continue;
+                        }
+
+                        $result = call_user_func_array(array($langs, $method), array_merge(array($key), $probeArgs));
+                        if (!is_string($result) || $result === $key) {
+                                continue;
+                        }
+
+                        $template = $result;
+                        $placeholderCount = 0;
+
+                        for ($i = 0; $i < $maxPlaceholders; $i++) {
+                                $token = self::TEMPLATE_TOKEN_PREFIX.$i.'__';
+                                if (strpos($template, $token) !== false) {
+                                        $placeholderCount = $i + 1;
+                                        $template = str_replace($token, '%s', $template);
+                                }
+                        }
+
+                        return array($template, $placeholderCount);
+                }
+
+                return array($key, 0);
         }
 
         /**
