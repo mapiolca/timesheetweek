@@ -359,14 +359,19 @@ if ($object->id > 0) {
                                         $list[] = "'".$db->escape($code)."'";
                                 }
                                 if (count($list)) {
-                                        $sqlWhere .= " AND a.type_code IN (".implode(',', $list).")";
+                                        $sqlWhere .= " AND COALESCE(a.code, ca.code) IN (".implode(',', $list).")";
                                 }
                         } else {
-                                $sqlWhere .= " AND a.type_code='".$db->escape($actioncode)."'";
+                                $sqlWhere .= " AND COALESCE(a.code, ca.code)='".$db->escape($actioncode)."'";
                         }
                 }
 
-                $sqlCount = "SELECT COUNT(a.id) as nb FROM ".MAIN_DB_PREFIX."actioncomm as a".$sqlWhere;
+                $sqlFrom = " FROM ".MAIN_DB_PREFIX."actioncomm as a"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."c_actioncomm as ca ON (ca.id = a.fk_action OR ca.code = a.code)"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as ua ON ua.rowid = a.userownerid"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as creator ON creator.rowid = a.fk_user_author";
+
+                $sqlCount = "SELECT COUNT(a.id) as nb".$sqlFrom.$sqlWhere;
                 $nbEvent = 0;
                 $resCount = $db->query($sqlCount);
                 if ($resCount) {
@@ -377,14 +382,11 @@ if ($object->id > 0) {
                         $db->free($resCount);
                 }
 
-                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, a.type_code, a.code, a.userownerid,"
-                        ." a.fk_user_author, ca.label as action_label, ua.lastname as assigned_lastname, ua.firstname as assigned_firstname,"
-                        ." ua.login as assigned_login, ua.rowid as assigned_id, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
-                        ." creator.login as creator_login, creator.rowid as creator_id"
-                        ." FROM ".MAIN_DB_PREFIX."actioncomm as a"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."c_actioncomm as ca ON ca.code = a.type_code"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as ua ON ua.rowid = a.userownerid"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as creator ON creator.rowid = a.fk_user_author"
+                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, COALESCE(a.code, ca.code) as type_code, a.code, a.userownerid," 
+                        ." a.fk_user_author, ca.label as action_label, ua.lastname as assigned_lastname, ua.firstname as assigned_firstname," 
+                        ." ua.login as assigned_login, ua.rowid as assigned_id, creator.lastname as creator_lastname, creator.firstname as creator_firstname," 
+                        ." creator.login as creator_login, creator.rowid as creator_id" 
+                        .$sqlFrom
                         .$sqlWhere;
                 if (!empty($sortfield)) {
                         $sql .= $db->order($sortfield, $sortorder);
@@ -422,7 +424,7 @@ if ($object->id > 0) {
                         print '<tr class="liste_titre">';
                         print_liste_field_titre($langs->trans('Ref'), $_SERVER["PHP_SELF"], 'a.id', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('Label'), $_SERVER["PHP_SELF"], 'a.label', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('Type'), $_SERVER["PHP_SELF"], 'a.type_code', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('Type'), $_SERVER["PHP_SELF"], 'a.code', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('DateStart'), $_SERVER["PHP_SELF"], 'a.datep', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('DateEnd'), $_SERVER["PHP_SELF"], 'a.datep2', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], 'a.userownerid', $param, '', '', $sortfield, $sortorder);
