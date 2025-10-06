@@ -280,22 +280,45 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         }
 
-                        if (empty($subject) || empty($message)) {
-                                dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
-                                continue;
-                        }
+                       if (empty($subject) || empty($message)) {
+                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
+                               continue;
+                       }
 
-                        $sendto = implode(',', array_unique(array_filter($sendtoList)));
-                        $cc = implode(',', array_unique(array_filter($ccList)));
-                        $bcc = implode(',', array_unique(array_filter($bccList)));
+                       $sendto = implode(',', array_unique(array_filter($sendtoList)));
+                       $cc = implode(',', array_unique(array_filter($ccList)));
+                       $bcc = implode(',', array_unique(array_filter($bccList)));
 
-                        $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
-                        if ($mail->sendfile()) {
-                                $sent++;
-                        } else {
-                                $errmsg = $mail->error ? $mail->error : 'Unknown error';
-                                dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
-                        }
+                       $nativeResult = $timesheet->sendNativeMailNotification(
+                               $action,
+                               $actionUser,
+                               $recipient,
+                               $langs,
+                               $conf,
+                               $substitutions,
+                               array(
+                                       'subject' => $subject,
+                                       'message' => $message,
+                                       'sendto' => $sendto,
+                                       'cc' => $cc,
+                                       'bcc' => $bcc,
+                                       'replyto' => $emailFrom,
+                                       'trackid' => 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0),
+                               )
+                       );
+
+                       if ($nativeResult > 0) {
+                               $sent += $nativeResult;
+                               continue;
+                       }
+
+                       $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
+                       if ($mail->sendfile()) {
+                               $sent++;
+                       } else {
+                               $errmsg = $mail->error ? $mail->error : 'Unknown error';
+                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
+                       }
                 }
 
                 return $sent;
