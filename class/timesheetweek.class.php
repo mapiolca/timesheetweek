@@ -329,137 +329,167 @@ class TimesheetWeek extends CommonObject
 	 * @param User $user
 	 * @return int
 	 */
-	public function submit($user)
-	{
-		if ($this->status != self::STATUS_DRAFT && $this->status != self::STATUS_REFUSED) {
-			$this->error = 'BadStatusForSubmit';
-			return -1;
-		}
-		if (!$this->hasAtLeastOneLine()) {
-			$this->error = 'NoLineToSubmit';
-			return -2;
-		}
+        public function submit($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if (!in_array((int) $this->status, array(self::STATUS_DRAFT, self::STATUS_REFUSED), true)) {
+                        $this->error = 'BadStatusForSubmit';
+                        return -1;
+                }
+                if (!$this->hasAtLeastOneLine()) {
+                        $this->error = 'NoLineToSubmit';
+                        return -2;
+                }
 
-		// Set definitive ref if provisional
-		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
-			$newref = $this->generateDefinitiveRef();
-			if (empty($newref)) {
-				$this->db->rollback();
-				$this->error = 'RefGenerationFailed';
-				return -1;
-			}
-			$this->ref = $newref;
-			$upref = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
-			if (!$this->db->query($upref)) {
-				$this->db->rollback();
-				$this->error = $this->db->lasterror();
-				return -1;
-			}
-		}
+                $this->db->begin();
 
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($up)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                // Set definitive ref if provisional
+                if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
+                        $newref = $this->generateDefinitiveRef();
+                        if (empty($newref)) {
+                                $this->db->rollback();
+                                $this->error = 'RefGenerationFailed';
+                                return -1;
+                        }
+                        $this->ref = $newref;
+                        $upref = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
+                        if (!$this->db->query($upref)) {
+                                $this->db->rollback();
+                                $this->error = $this->db->lasterror();
+                                return -1;
+                        }
+                }
 
-		$this->status = self::STATUS_SUBMITTED;
+                $up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                if (!$this->db->query($up)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_SUBMITTED;
+                $this->tms = $now;
+                $this->date_validation = null;
+
+                $this->db->commit();
+                return 1;
+        }
 
 	/**
 	 * Revert to draft
 	 * @param User $user
 	 * @return int
 	 */
-	public function revertToDraft($user)
-	{
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_DRAFT." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($up)) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		$this->status = self::STATUS_DRAFT;
-		return 1;
-	}
+        public function revertToDraft($user)
+        {
+                $now = dol_now();
+
+                if ((int) $this->status === self::STATUS_DRAFT) {
+                        $this->error = 'AlreadyDraft';
+                        return 0;
+                }
+
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
+                        " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                if (!$this->db->query($sql)) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                $this->status = self::STATUS_DRAFT;
+                $this->tms = $now;
+                $this->date_validation = null;
+
+                return 1;
+        }
 
 	/**
 	 * Approve
 	 * @param User $user
 	 * @return int
 	 */
-	public function approve($user)
-	{
-		$now = dol_now();
+        public function approve($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if ((int) $this->status !== self::STATUS_SUBMITTED) {
+                        $this->error = 'BadStatusForApprove';
+                        return -1;
+                }
 
-		// Set validator if different
-		$setvalid = '';
-		if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
-			$setvalid = ", fk_user_valid=".(int) $user->id;
-			$this->fk_user_valid = (int) $user->id;
-		}
+                $this->db->begin();
 
-		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
-		$sql .= " status=".(int) self::STATUS_APPROVED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
-		$sql .= $setvalid;
-		$sql .= " WHERE rowid=".(int) $this->id;
+                // Set validator if different
+                $setvalid = '';
+                if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
+                        $setvalid = ", fk_user_valid=".(int) $user->id;
+                        $this->fk_user_valid = (int) $user->id;
+                }
 
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_APPROVED;
+                $sql .= ", date_validation='".$this->db->idate($now)."'";
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= $setvalid;
+                $sql .= " WHERE rowid=".(int) $this->id;
 
-		$this->status = self::STATUS_APPROVED;
-		$this->date_validation = $now;
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_APPROVED;
+                $this->date_validation = $now;
+                $this->tms = $now;
+
+                $this->db->commit();
+                return 1;
+        }
 
 	/**
 	 * Refuse
 	 * @param User $user
 	 * @return int
 	 */
-	public function refuse($user)
-	{
-		$now = dol_now();
+        public function refuse($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if ((int) $this->status !== self::STATUS_SUBMITTED) {
+                        $this->error = 'BadStatusForRefuse';
+                        return -1;
+                }
 
-		$setvalid = '';
-		if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
-			$setvalid = ", fk_user_valid=".(int) $user->id;
-			$this->fk_user_valid = (int) $user->id;
-		}
+                $this->db->begin();
 
-		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
-		$sql .= " status=".(int) self::STATUS_REFUSED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
-		$sql .= $setvalid;
-		$sql .= " WHERE rowid=".(int) $this->id;
+                $setvalid = '';
+                if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
+                        $setvalid = ", fk_user_valid=".(int) $user->id;
+                        $this->fk_user_valid = (int) $user->id;
+                }
 
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_REFUSED;
+                $sql .= ", date_validation='".$this->db->idate($now)."'";
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= $setvalid;
+                $sql .= " WHERE rowid=".(int) $this->id;
 
-		$this->status = self::STATUS_REFUSED;
-		$this->date_validation = $now;
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_REFUSED;
+                $this->date_validation = $now;
+                $this->tms = $now;
+
+                $this->db->commit();
+                return 1;
+        }
 
 	/**
 	 * Generate definitive reference using addon in conf TIMESHEETWEEK_ADDON
