@@ -34,11 +34,11 @@ TimesheetWeekAboutPage = Page à propos de TimesheetWeek
 #
 TimesheetWeekArea = Accueil TimesheetWeek
 TimesheetWeek = Feuille de temps hebdomadaire
-TimesheetWeekList = Feuilles de temps hebdomadaires
+# TimesheetWeekList = Feuilles de temps hebdomadaires
 ListTimesheetWeek = Feuilles de temps hebdomadaires
 NewTimesheetWeek = Nouvelle feuille de temps hebdomadaire
-List TimesheetWeek = Liste des feuilles de temps
-New TimesheetWeek = Nouvelle feuille de temps
+TimesheetWeekList = Liste des feuilles de temps
+TimesheetWeekNew = Nouvelle feuille de temps
 ShowTimesheetWeek = Afficher la feuille de temps %s
 MyPageName = Nom de ma page
 
