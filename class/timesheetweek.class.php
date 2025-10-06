@@ -400,8 +400,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_SUBMIT', $user);
                 return 1;
         }
 
@@ -489,8 +487,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_APPROVE', $user);
                 return 1;
         }
 
@@ -539,8 +535,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_REFUSE', $user);
                 return 1;
         }
 

@@ -33,28 +33,32 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $this->picto = 'bookcal@timesheetweek';
         }
 
-        /**
-         * Execute trigger
-         *
-         * @param string        $action
-         * @param CommonObject  $object
-         * @param User          $user
-         * @param Translate     $langs
-         * @param Conf          $conf
-         *
-         * @return int
-         */
-        public function runTrigger($action, $object, $user, $langs, $conf)
-        {
-                if (empty($conf->timesheetweek->enabled)) {
-                        return 0;
-                }
+       /**
+        * Execute trigger
+        *
+        * @param string        $action
+        * @param CommonObject  $object
+        * @param User          $user
+        * @param Translate     $langs
+        * @param Conf          $conf
+        *
+        * @return int
+        */
+       public function runTrigger($action, $object, $user, $langs, $conf)
+       {
+               if (empty($conf->timesheetweek->enabled)) {
+                       return 0;
+               }
 
-                if (!($object instanceof TimesheetWeek)) {
-                        return 0;
-                }
+               if ($action === 'ACTION_CREATE') {
+                       return $this->handleActionCreateNotification($object, $user, $langs, $conf);
+               }
 
-                if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
+               if (!($object instanceof TimesheetWeek)) {
+                       return 0;
+               }
+
+               if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
                         return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
                 }
 
@@ -62,20 +66,116 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return $this->sendNotification($action, $object, $user, $langs, $conf);
                 }
 
-                return 0;
-        }
+               return 0;
+       }
 
-        /**
-         * Send notification email for TimesheetWeek events
-         *
-         * @param string        $action
-         * @param TimesheetWeek $timesheet
-         * @param User          $actionUser
-         * @param Translate     $langs
-         * @param Conf          $conf
-         *
-         * @return int
-         */
+       /**
+        * Handle ACTION_CREATE events generated while creating agenda entries.
+        *
+        * FR : Traite les événements ACTION_CREATE générés lors de la création d'une action d'agenda.
+        * EN : Handle ACTION_CREATE events emitted when an agenda action is created.
+        *
+        * @param ActionComm|CommonObject $event
+        * @param User                   $actionUser
+        * @param Translate              $langs
+        * @param Conf                   $conf
+        * @return int
+        */
+       protected function handleActionCreateNotification($event, User $actionUser, $langs, $conf)
+       {
+               if (!is_object($event) || empty($event->elementtype) || $event->elementtype !== 'timesheetweek') {
+                       return 0;
+               }
+
+               $timesheetId = !empty($event->fk_element) ? (int) $event->fk_element : 0;
+               if ($timesheetId <= 0) {
+                       return 0;
+               }
+
+               $code = !empty($event->code) ? strtoupper($event->code) : '';
+               $mapping = array(
+                       'TSWK_SUBMIT' => array(
+                               'automatic' => 'TIMESHEETWEEK_SUBMITTED',
+                               'business' => 'TIMESHEETWEEK_SUBMIT',
+                       ),
+                       'TSWK_APPROVE' => array(
+                               'automatic' => 'TIMESHEETWEEK_APPROVED',
+                               'business' => 'TIMESHEETWEEK_APPROVE',
+                       ),
+                       'TSWK_REFUSE' => array(
+                               'automatic' => 'TIMESHEETWEEK_REFUSED',
+                               'business' => 'TIMESHEETWEEK_REFUSE',
+                       ),
+               );
+
+               if (empty($mapping[$code])) {
+                       return 0;
+               }
+
+               $timesheet = new TimesheetWeek($this->db);
+               if ($timesheet->fetch($timesheetId) <= 0) {
+                       return 0;
+               }
+
+               $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+               $baseSubstitutions = $meta['base_substitutions'];
+
+               if (!is_array($timesheet->context)) {
+                       $timesheet->context = array();
+               }
+
+               $timesheet->context['mail_substitutions'] = $baseSubstitutions;
+               $timesheet->context['timesheetweek_notification'] = array(
+                       'trigger_code' => $mapping[$code]['automatic'],
+                       'url' => $meta['url'],
+                       'employee_id' => !empty($meta['employee']) ? (int) $meta['employee']->id : 0,
+                       'validator_id' => !empty($meta['validator']) ? (int) $meta['validator']->id : 0,
+                       'action_user_id' => !empty($actionUser->id) ? (int) $actionUser->id : 0,
+                       'employee_fullname' => $meta['employee_name'],
+                       'validator_fullname' => $meta['validator_name'],
+                       'action_user_fullname' => $meta['action_user_name'],
+                       'base_substitutions' => $baseSubstitutions,
+                       'native_options' => array(
+                               'employee' => $meta['employee'],
+                               'validator' => $meta['validator'],
+                               'base_substitutions' => $baseSubstitutions,
+                       ),
+               );
+
+               $result = 0;
+
+               $automaticCode = $mapping[$code]['automatic'];
+               if (!empty($automaticCode)) {
+                       $autoResult = $this->sendNotification($automaticCode, $timesheet, $actionUser, $langs, $conf);
+                       if ($autoResult < 0) {
+                               return $autoResult;
+                       }
+                       $result += (int) $autoResult;
+               }
+
+               $businessCode = $mapping[$code]['business'];
+               if (!empty($businessCode)) {
+                       $businessResult = $this->dispatchBusinessNotification($businessCode, $timesheet, $actionUser, $langs, $conf);
+                       if ($businessResult < 0) {
+                               return $businessResult;
+                       }
+                       $result += (int) $businessResult;
+               }
+
+               return $result;
+       }
+
+       /**
+        * Send notification email for TimesheetWeek events
+        *
+        * @param string        $action
+        * @param TimesheetWeek $timesheet
+        * @param User          $actionUser
+        * @param Translate     $langs
+        * @param Conf          $conf
+        *
+        * @return int
+        */
         protected function sendNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
         {
                 $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
