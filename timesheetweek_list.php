@@ -135,7 +135,7 @@ $num = $resql ? $db->num_rows($resql) : 0;
  * Header
  */
 $title = $langs->trans("TimesheetWeekList");
-llxHeader('bookcal', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist');
+llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist mod-bookcal page-list');
 
 /**
  * Build param for pagination links
