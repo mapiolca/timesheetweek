@@ -41,14 +41,22 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
-// ---- SHIM STATUTS (si constantes manquantes dans la classe) ----
+// ---- SHIM STATUTS (mappe vers les constantes de la classe, avec fallback) ----
 function tw_status($name) {
 	static $map = null;
 	if ($map === null) {
+		$approved = null;
+		if (defined('TimesheetWeek::STATUS_APPROVED')) {
+			$approved = TimesheetWeek::STATUS_APPROVED;
+		} elseif (defined('TimesheetWeek::STATUS_VALIDATED')) {
+			$approved = TimesheetWeek::STATUS_VALIDATED;
+		} else {
+			$approved = 2;
+		}
 		$map = array(
 			'draft'     => defined('TimesheetWeek::STATUS_DRAFT')     ? TimesheetWeek::STATUS_DRAFT     : 0,
 			'submitted' => defined('TimesheetWeek::STATUS_SUBMITTED') ? TimesheetWeek::STATUS_SUBMITTED : 1,
-			'validated' => defined('TimesheetWeek::STATUS_VALIDATED') ? TimesheetWeek::STATUS_VALIDATED : 2, // "Approuvée"
+			'approved'  => $approved, // <— Approuvée
 			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
 		);
 	}
@@ -381,9 +389,8 @@ if ($action === 'setdraft' && $id > 0) {
 	exit;
 }
 
-// ----------------- Action: ASK VALIDATE / REFUSE (confirm popups) -----------------
+// ----------------- Action: ASK APPROVE / REFUSE (confirm popups) -----------------
 if ($action === 'ask_validate' && $id > 0) {
-	// Security: check right before showing confirm
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) accessforbidden();
 	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
@@ -394,7 +401,7 @@ if ($action === 'ask_refuse' && $id > 0) {
 	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
 }
 
-// ----------------- Action: CONFIRM VALIDATE (Approuver) -----------------
+// ----------------- Action: CONFIRM APPROVE (Approuver) -----------------
 if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) {
@@ -406,10 +413,10 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur + date même si différent
+	// Mettre à jour validateur + date (même si différent)
 	$object->fk_user_valid = (int)$user->id;
 	$object->date_validation = dol_now();
-	$object->status = tw_status('validated'); // "Approuvée"
+	$object->status = tw_status('approved'); // <— Approuvée
 
 	$res = $object->update($user);
 	if ($res > 0) {
@@ -433,7 +440,7 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur même si différent
+	// Mettre à jour validateur + date
 	$object->fk_user_valid = (int)$user->id;
 	$object->date_validation = dol_now();
 	$object->status = tw_status('refused');
