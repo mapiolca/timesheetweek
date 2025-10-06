@@ -122,44 +122,40 @@ function tw_can_validate_timesheet(
         $permWriteChild = false,
         $permWriteAll = false
 ) {
-        $rightsNode = null;
-        if (isset($user->rights->timesheetweek) && isset($user->rights->timesheetweek->timesheetweek)) {
-                $rightsNode = $user->rights->timesheetweek->timesheetweek;
+        $hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
+
+        if (!empty($user->admin)) {
+                $permValidateAll = true;
+                $hasExplicitValidation = true;
         }
 
-        $validateRightsDefined = (
-                is_object($rightsNode)
-                && (property_exists($rightsNode, 'validate')
-                        || property_exists($rightsNode, 'validateOwn')
-                        || property_exists($rightsNode, 'validateChild')
-                        || property_exists($rightsNode, 'validateAll'))
-        );
-
-        if (!$validateRightsDefined) {
-                // Fall back to legacy behaviour where validation relied on write permissions
-                if (!$permValidateAll && ($permWriteAll || !empty($user->admin))) {
+        if (!$hasExplicitValidation) {
+                // Aucun droit de validation explicite : on retombe sur l'ancien comportement basé sur l'écriture
+                if ($permWriteAll) {
                         $permValidateAll = true;
                 }
-                if (!$permValidateChild && $permWriteChild) {
+                if ($permWriteChild) {
                         $permValidateChild = true;
                 }
-                if (!$permValidate && (
-                        $permValidateAll
-                        || $permValidateChild
-                        || ((int)$o->fk_user_valid === (int)$user->id && ($permWrite || $permWriteChild || $permWriteAll))
-                )) {
-                        $permValidate = true;
-                }
-        } else {
-                if (!empty($user->admin)) {
-                        $permValidateAll = true;
+
+                if ($permWrite || $permWriteChild || $permWriteAll) {
+                        // Autorise la validation lorsque l'utilisateur est désigné validateur
+                        if ((int) $o->fk_user_valid === (int) $user->id) {
+                                $permValidate = true;
+                        }
+
+                        // Ancien comportement : les managers pouvaient valider via writeChild
+                        if (!$permValidateChild && $permWriteChild) {
+                                $permValidateChild = true;
+                        }
                 }
         }
 
         if ($permValidateAll) return true;
         if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
-        if ($permValidateOwn && ((int)$user->id === (int)$o->fk_user)) return true;
-        if ($permValidate && ((int)$user->id === (int)$o->fk_user_valid)) return true;
+        if ($permValidateOwn && ((int) $user->id === (int) $o->fk_user)) return true;
+        if ($permValidate && ((int) $user->id === (int) $o->fk_user_valid)) return true;
+
         return false;
 }
 
