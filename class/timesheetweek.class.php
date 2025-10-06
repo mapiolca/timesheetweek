@@ -764,9 +764,26 @@ class TimesheetWeek extends CommonObject
                         return false;
                 }
 
-                require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
-                require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php';
-                require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
+                dol_include_once('/core/lib/functions2.lib.php');
+                if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
+                        dol_include_once('/core/class/cemailtemplates.class.php');
+                } else {
+                        dol_include_once('/core/class/emailtemplates.class.php');
+                }
+                dol_include_once('/core/class/CMailFile.class.php');
+
+                $templateClass = '';
+                if (class_exists('CEmailTemplates')) {
+                        $templateClass = 'CEmailTemplates';
+                } elseif (class_exists('EmailTemplates')) {
+                        $templateClass = 'EmailTemplates';
+                }
+
+                if (empty($templateClass)) {
+                        $this->errors[] = $langs->trans('ErrorFailedToLoadEmailTemplateClass');
+                        dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_ERR);
+                        return false;
+                }
 
                 $employee = $this->loadUserFromCache($this->fk_user);
                 $validator = $this->loadUserFromCache($this->fk_user_valid);
@@ -796,7 +813,7 @@ class TimesheetWeek extends CommonObject
                                 '__RECIPIENT_FULLNAME__' => $recipient->getFullName($langs),
                         );
 
-                        $template = new CEmailTemplates($this->db);
+                        $template = new $templateClass($this->db);
                         $tplResult = $template->fetchByTrigger($triggerCode, $actionUser, $conf->entity);
 
                         $subject = '';
