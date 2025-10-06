@@ -79,6 +79,7 @@ if (!$res) {
 
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/agenda.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
@@ -150,14 +151,30 @@ $cancel = GETPOST('cancel', 'aZ09');
 $contextpage = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : str_replace('_', '', basename(dirname(__FILE__)).basename(__FILE__, '.php')); // To manage different context of search
 $backtopage = GETPOST('backtopage', 'alpha');
 
-if (GETPOST('actioncode', 'array')) {
-	$actioncode = GETPOST('actioncode', 'array', 3);
-	if (!count($actioncode)) {
-		$actioncode = '0';
-	}
-} else {
-	$actioncode = GETPOST("actioncode", "alpha", 3) ? GETPOST("actioncode", "alpha", 3) : (GETPOST("actioncode") == '0' ? '0' : getDolGlobalString('AGENDA_DEFAULT_FILTER_TYPE_FOR_OBJECT'));
+$actioncodeRaw = GETPOST('actioncode', 'array', 3);
+$actioncodeRaw = is_array($actioncodeRaw) ? $actioncodeRaw : array();
+$hasActioncodeRequest = function_exists('GETPOSTISSET') ? GETPOSTISSET('actioncode') : (isset($_GET['actioncode']) || isset($_POST['actioncode']));
+if (!$hasActioncodeRequest) {
+        $singleActioncode = GETPOST('actioncode', 'alpha', 3);
+        if (!empty($singleActioncode)) {
+                $actioncodeRaw = array_map('trim', explode(',', $singleActioncode));
+        }
 }
+$actioncode = array();
+foreach ($actioncodeRaw as $code) {
+        $code = trim((string) $code);
+        if ($code === '' || $code === '0') {
+                continue;
+        }
+        $actioncode[] = $code;
+}
+if (!$hasActioncodeRequest) {
+        $defaultActioncode = getDolGlobalString('AGENDA_DEFAULT_FILTER_TYPE_FOR_OBJECT');
+        if (!empty($defaultActioncode) && $defaultActioncode !== '0') {
+                $actioncode = array($defaultActioncode);
+        }
+}
+$actioncode = array_values(array_unique($actioncode));
 $search_rowid = GETPOST('search_rowid');
 $search_agenda_label = GETPOST('search_agenda_label');
 
@@ -234,10 +251,11 @@ if (empty($reshook)) {
 	}
 
 	// Purge search criteria
-	if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) { // All tests are required to be compatible with all browsers
-		$actioncode = '';
-		$search_agenda_label = '';
-	}
+        if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) { // All tests are required to be compatible with all browsers
+                $actioncode = array();
+                $search_rowid = '';
+                $search_agenda_label = '';
+        }
 }
 
 
@@ -378,6 +396,11 @@ if ($object->id > 0) {
                 if (!empty($search_agenda_label)) {
                         $param .= '&search_agenda_label='.urlencode($search_agenda_label);
                 }
+                if (!empty($actioncode)) {
+                        foreach ($actioncode as $code) {
+                                $param .= '&actioncode[]='.urlencode($code);
+                        }
+                }
                 if (!empty($sortfield)) {
                         $param .= '&sortfield='.urlencode($sortfield);
                 }
@@ -396,18 +419,13 @@ if ($object->id > 0) {
                         $sqlWhere .= " AND (a.label LIKE '%".$db->escape($search_agenda_label)."%'"
                                 ." OR a.note LIKE '%".$db->escape($search_agenda_label)."%')";
                 }
-                if (!empty($actioncode) && $actioncode !== '0') {
-                        if (is_array($actioncode)) {
-                                $list = array();
-                                foreach ($actioncode as $code) {
-                                        if ($code === '0') continue;
-                                        $list[] = "'".$db->escape($code)."'";
-                                }
-                                if (count($list)) {
-                                        $sqlWhere .= " AND COALESCE(a.code, ca.code) IN (".implode(',', $list).")";
-                                }
-                        } else {
-                                $sqlWhere .= " AND COALESCE(a.code, ca.code)='".$db->escape($actioncode)."'";
+                if (!empty($actioncode)) {
+                        $list = array();
+                        foreach ($actioncode as $code) {
+                                $list[] = "'".$db->escape($code)."'";
+                        }
+                        if (!empty($list)) {
+                                $sqlWhere .= ' AND COALESCE(a.code, ca.code) IN ('.implode(',', $list).')';
                         }
                 }
 
@@ -460,16 +478,44 @@ if ($object->id > 0) {
                         print '<input type="hidden" name="limit" value="'.$limit.'">';
                         print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
                         print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
-                        if (is_array($actioncode)) {
-                                foreach ($actioncode as $code) {
-                                        print '<input type="hidden" name="actioncode[]" value="'.dol_escape_htmltag($code).'">';
-                                }
-                        } else {
-                                print '<input type="hidden" name="actioncode" value="'.dol_escape_htmltag($actioncode).'">';
+                        foreach ($actioncode as $code) {
+                                print '<input type="hidden" name="actioncode[]" value="'.dol_escape_htmltag($code).'">';
                         }
 
                         print '<div class="div-table-responsive">';
+                        $actionTypeOptions = array();
+                        $actionTypeOptions['0'] = $langs->trans('All');
+                        $sqlActionType = "SELECT code, label FROM ".MAIN_DB_PREFIX."c_actioncomm WHERE active = 1 ORDER BY label";
+                        $resActionType = $db->query($sqlActionType);
+                        if ($resActionType) {
+                                while ($objType = $db->fetch_object($resActionType)) {
+                                        $label = !empty($objType->label) ? $langs->trans($objType->label) : $objType->code;
+                                        $actionTypeOptions[$objType->code] = $label;
+                                }
+                                $db->free($resActionType);
+                        }
+
+                        $selectedActionCodes = !empty($actioncode) ? $actioncode : array('0');
+
                         print '<table class="noborder centpercent">';
+
+                        print '<tr class="liste_titre_filter">';
+                        print '<td class="liste_titre"><input type="text" class="flat" name="search_rowid" value="'.dol_escape_htmltag($search_rowid).'"></td>';
+                        print '<td class="liste_titre"><input type="text" class="flat minwidth200" name="search_agenda_label" value="'.dol_escape_htmltag($search_agenda_label).'"></td>';
+                        print '<td class="liste_titre">';
+                        print '<select class="flat minwidth200 maxwidth300" name="actioncode[]" multiple data-placeholder="'.dol_escape_htmltag($langs->trans('Type')).'">';
+                        foreach ($actionTypeOptions as $code => $label) {
+                                $selectedAttr = in_array($code, $selectedActionCodes, true) ? ' selected' : '';
+                                print '<option value="'.dol_escape_htmltag($code).'"'.$selectedAttr.'>'.dol_escape_htmltag($label).'</option>';
+                        }
+                        print '</select>';
+                        print '</td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre right">'.$form->showFilterButtons('right').'</td>';
+                        print '</tr>';
 
                         print '<tr class="liste_titre">';
                         print_liste_field_titre($langs->trans('Ref'), $_SERVER["PHP_SELF"], 'a.id', $param, '', '', $sortfield, $sortorder);
@@ -480,21 +526,6 @@ if ($object->id > 0) {
                         print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], '', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('Author'), $_SERVER["PHP_SELF"], 'a.fk_user_author', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('Status'), $_SERVER["PHP_SELF"], 'a.percent', $param, '', '', $sortfield, $sortorder, 'right');
-                        print '</tr>';
-
-                        print '<tr class="liste_titre">';
-                        print '<td class="liste_titre"><input type="text" class="flat" name="search_rowid" value="'.dol_escape_htmltag($search_rowid).'"></td>';
-                        print '<td class="liste_titre"><input type="text" class="flat" name="search_agenda_label" value="'.dol_escape_htmltag($search_agenda_label).'"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre right">';
-                        print '<button type="submit" class="button small" name="button_search" value="1">'.$langs->trans('Search').'</button>';
-                        print '&nbsp;';
-                        print '<button type="submit" class="button small" name="button_removefilter" value="1">'.$langs->trans('RemoveFilter').'</button>';
-                        print '</td>';
                         print '</tr>';
 
                         if ($num > 0) {
