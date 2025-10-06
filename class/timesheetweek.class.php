@@ -113,8 +113,13 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 
-		$this->db->commit();
-		return $this->id;
+                if (!$this->createAgendaEvent($user, 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                return $this->id;
 	}
 
 	/**
@@ -259,15 +264,20 @@ class TimesheetWeek extends CommonObject
 		}
 
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX.$this->table_element." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                return 1;
+        }
 
 	/**
 	 * Compute totals and save into object (not DB)
@@ -372,6 +382,11 @@ class TimesheetWeek extends CommonObject
                 $this->tms = $now;
                 $this->date_validation = null;
 
+                if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->db->commit();
                 return 1;
         }
@@ -390,9 +405,12 @@ class TimesheetWeek extends CommonObject
                         return 0;
                 }
 
+                $this->db->begin();
+
                 $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
                         " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
                 if (!$this->db->query($sql)) {
+                        $this->db->rollback();
                         $this->error = $this->db->lasterror();
                         return -1;
                 }
@@ -400,6 +418,13 @@ class TimesheetWeek extends CommonObject
                 $this->status = self::STATUS_DRAFT;
                 $this->tms = $now;
                 $this->date_validation = null;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
 
                 return 1;
         }
@@ -444,6 +469,11 @@ class TimesheetWeek extends CommonObject
                 $this->date_validation = $now;
                 $this->tms = $now;
 
+                if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->db->commit();
                 return 1;
         }
@@ -486,6 +516,11 @@ class TimesheetWeek extends CommonObject
                 $this->status = self::STATUS_REFUSED;
                 $this->date_validation = $now;
                 $this->tms = $now;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
 
                 $this->db->commit();
                 return 1;
@@ -617,10 +652,10 @@ class TimesheetWeek extends CommonObject
 		return self::LibStatut($this->status, $mode);
 	}
 
-	public static function LibStatut($status, $mode = 0)
-	{
-		global $langs;
-		$langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+        public static function LibStatut($status, $mode = 0)
+        {
+                global $langs;
+                $langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
 
                 $statusInfo = array(
                         self::STATUS_DRAFT => array(
@@ -661,5 +696,77 @@ class TimesheetWeek extends CommonObject
                 if ((int) $mode === 2) return $picto.' '.$info['label'];
                 if ((int) $mode === 3) return $info['label'].' '.$picto;
                 return $info['label'];
-	}
+        }
+
+        /**
+         * Create an agenda event for this timesheet action
+         *
+         * @param User   $user
+         * @param string $code       Internal agenda code (ex: TSWK_SUBMIT)
+         * @param string $labelKey   Translation key for event label
+         * @param array  $labelParams Parameters passed to translation
+         * @param bool   $linkToObject Whether to create an object link
+         *
+         * @return bool
+         */
+        protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true)
+        {
+                global $conf, $langs;
+
+                if (!function_exists('isModEnabled') || !isModEnabled('agenda')) {
+                        return true;
+                }
+
+                $langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
+
+                dol_include_once('/comm/action/class/actioncomm.class.php');
+
+                $args = array_merge(array($labelKey), $labelParams);
+                $label = call_user_func_array(array($langs, 'trans'), $args);
+                if ($label === $labelKey) {
+                        $label = $langs->trans('TimesheetWeekAgendaDefaultLabel', $this->ref);
+                }
+
+                $now = dol_now();
+
+                $event = new ActionComm($this->db);
+                $event->type_code = 'AC_OTH_AUTO';
+                $event->code = $code;
+                $event->label = $label;
+                $event->note_private = $label;
+                $event->fk_user_author = (int) $user->id;
+                $event->fk_user_mod = (int) $user->id;
+                $event->datep = $now;
+                $event->datef = $now;
+                $event->percentage = -1;
+                $event->priority = 0;
+                $event->fulldayevent = 0;
+                $event->entity = !empty($this->entity) ? (int) $this->entity : (int) $conf->entity;
+
+                if (!empty($this->fk_user)) {
+                        $event->userassigned = array(
+                                (int) $this->fk_user => array('id' => (int) $this->fk_user),
+                        );
+                }
+
+                if ($linkToObject) {
+                        $event->elementtype = $this->element;
+                        $event->fk_element = (int) $this->id;
+                }
+
+                $res = $event->create($user);
+                if ($res <= 0) {
+                        $this->error = !empty($event->error) ? $event->error : 'AgendaEventCreationFailed';
+                        if (!empty($event->errors)) {
+                                $this->errors = array_merge($this->errors, $event->errors);
+                        }
+                        return false;
+                }
+
+                if ($linkToObject && method_exists($event, 'add_object_linked')) {
+                        $event->add_object_linked($this->element, (int) $this->id);
+                }
+
+                return true;
+        }
 }

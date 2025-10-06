@@ -593,11 +593,15 @@ JS;
 	}
 
 	// Head + banner
-	$head = timesheetweekPrepareHead($object);
-	print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
+        $head = timesheetweekPrepareHead($object);
+        print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
-	$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
-	dol_banner_tab($object, 'ref', $linkback);
+        $linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
+        $morehtmlright = '';
+        if (!empty($object->id)) {
+                $morehtmlright = $object->getLibStatut(5);
+        }
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', 0, '', $morehtmlright);
 
 	// Confirm modals
 	if ($action === 'delete') {
@@ -645,11 +649,8 @@ JS;
 	echo '<div class="fichehalfleft">';
 	echo '<table class="border centpercent tableforfield">';
 
-        // Statut
-        echo '<tr><td class="titlefield">'.$langs->trans("Status").'</td><td>'.$object->getLibStatut(5).'</td></tr>';
-
         // Employé
-        echo '<tr><td>'.$langs->trans("Employee").'</td><td>';
+        echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
 	if ($action === 'editfk_user' && $canEditInline) {
 		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
