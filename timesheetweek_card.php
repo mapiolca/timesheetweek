@@ -598,10 +598,11 @@ JS;
 
         $linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
         $morehtmlright = '';
+        $morehtmlstatus = '';
         if (!empty($object->id)) {
-                $morehtmlright = $object->getLibStatut(5);
+                $morehtmlstatus = $object->getLibStatut(5);
         }
-        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', 0, '', $morehtmlright);
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', $morehtmlright, '', $morehtmlstatus);
 
 	// Confirm modals
 	if ($action === 'delete') {
@@ -866,7 +867,7 @@ JS;
 
 		// Header jours
 		echo '<tr class="liste_titre">';
-		echo '<th>'.$langs->trans("Project / Task").'</th>';
+                echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
 		foreach ($days as $d) {
 			echo '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
 		}

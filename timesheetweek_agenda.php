@@ -256,10 +256,14 @@ if ($object->id > 0) {
 			}
 		}
 	}*/
-	$morehtmlref .= '</div>';
+        $morehtmlref .= '</div>';
 
+        $morehtmlstatus = '';
+        if (!empty($object->id)) {
+                $morehtmlstatus = $object->getLibStatut(5);
+        }
 
-	dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref);
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', '', '', $morehtmlstatus);
 
 	print '<div class="fichecenter">';
 	print '<div class="underbanner clearboth"></div>';

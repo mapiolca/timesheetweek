@@ -220,7 +220,12 @@ if ($id > 0 || !empty($ref)) {
 	$morehtmlref .= '</div>';
 
 
-	dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref);
+        $morehtmlstatus = '';
+        if (!empty($object->id)) {
+                $morehtmlstatus = $object->getLibStatut(5);
+        }
+
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', '', '', $morehtmlstatus);
 
 
 	print '<div class="fichecenter">';

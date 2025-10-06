@@ -736,6 +736,7 @@ class TimesheetWeek extends CommonObject
                 $event->note_private = $label;
                 $event->fk_user_author = (int) $user->id;
                 $event->fk_user_mod = (int) $user->id;
+                $event->userownerid = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));
                 $event->datep = $now;
                 $event->datef = $now;
                 $event->percentage = -1;
