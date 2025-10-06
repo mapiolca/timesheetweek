@@ -401,6 +401,7 @@ class TimesheetWeek extends CommonObject
 
                 $this->db->commit();
                 $this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_SUBMIT', $user);
                 return 1;
         }
 
@@ -489,6 +490,7 @@ class TimesheetWeek extends CommonObject
 
                 $this->db->commit();
                 $this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_APPROVE', $user);
                 return 1;
         }
 
@@ -538,6 +540,7 @@ class TimesheetWeek extends CommonObject
 
                 $this->db->commit();
                 $this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_REFUSE', $user);
                 return 1;
         }
 
@@ -815,6 +818,29 @@ class TimesheetWeek extends CommonObject
                }
 
                return 0;
+       }
+
+       /**
+        * Fire Dolibarr business notifications (module Notification) for status changes.
+        *
+        * FR: Déclenche les notifications métiers standards de Dolibarr (module Notification) lors des changements d'état.
+        * EN: Fire standard Dolibarr business notifications (Notification module) when the status changes.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @return int
+        */
+       protected function triggerBusinessNotification($triggerCode, User $actionUser)
+       {
+               if (!is_array($this->context)) {
+                       $this->context = array();
+               }
+
+               // FR: Marqueur spécifique pour les triggers du module Notification.
+               // EN: Specific flag for the Notification module triggers.
+               $this->context['timesheetweek_business_notification'] = 1;
+
+               return $this->fireNotificationTrigger($triggerCode, $actionUser);
        }
 
         /**

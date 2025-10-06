@@ -105,6 +105,9 @@ TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
 TimesheetWeekNotificationValidatorFallback = Validator
 TimesheetWeekNotificationEmployeeFallback = Employee
 TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %s.
+Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
+Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
+Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 
 TimesheetWeekTemplateSubmitLabel = Timesheet submission notification

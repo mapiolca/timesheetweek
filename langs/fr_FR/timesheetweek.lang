@@ -105,6 +105,9 @@ TimesheetWeekNotificationNoEmail = Le destinataire %s n'a pas d'adresse e-mail.
 TimesheetWeekNotificationValidatorFallback = Validateur
 TimesheetWeekNotificationEmployeeFallback = Salarié
 TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur de notification %s.
+Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
+Notify_TIMESHEETWEEK_APPROVE = Feuille de temps approuvée
+Notify_TIMESHEETWEEK_REFUSE = Feuille de temps refusée
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
 
 TimesheetWeekTemplateSubmitLabel = Notification de soumission de feuille de temps
