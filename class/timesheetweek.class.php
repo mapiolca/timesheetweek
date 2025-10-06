@@ -622,40 +622,44 @@ class TimesheetWeek extends CommonObject
 		global $langs;
 		$langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
 
-		$label = '';
-		$clsnum = 0;
+                $statusInfo = array(
+                        self::STATUS_DRAFT => array(
+                                'label' => $langs->trans('Draft'),
+                                'picto' => 'statut0',
+                                'class' => 'badge badge-status badge-status0',
+                        ),
+                        self::STATUS_SUBMITTED => array(
+                                'label' => $langs->trans('Submitted'),
+                                'picto' => 'statut1',
+                                'class' => 'badge badge-status badge-status1',
+                        ),
+                        self::STATUS_APPROVED => array(
+                                'label' => $langs->trans('Approved'),
+                                'picto' => 'statut4',
+                                'class' => 'badge badge-status badge-status4',
+                        ),
+                        self::STATUS_REFUSED => array(
+                                'label' => $langs->trans('Refused'),
+                                'picto' => 'statut6',
+                                'class' => 'badge badge-status badge-status6',
+                        ),
+                );
 
-		switch ((int) $status) {
-			case self::STATUS_DRAFT:
-				$label = $langs->trans("Draft");
-				$clsnum = 0;
-				break;
-			case self::STATUS_SUBMITTED:
-				$label = $langs->trans("Submitted");
-				$clsnum = 1;
-				break;
-			case self::STATUS_APPROVED:
-				$label = $langs->trans("Approved"); // "Approuvée"
-				$clsnum = 4;
-				break;
-			case self::STATUS_REFUSED:
-				$label = $langs->trans("Refused");
-				$clsnum = 6;
-				break;
-			default:
-				$label = $langs->trans("Unknown");
-				$clsnum = 0;
-		}
+                $info = $statusInfo[$status] ?? array(
+                        'label' => $langs->trans('Unknown'),
+                        'picto' => 'statut0',
+                        'class' => 'badge badge-status badge-status0',
+                );
 
-		if ((int) $mode === 5) {
-			return '<span class="badge badge-status'.$clsnum.' badge-status" title="'.dol_escape_htmltag($label).'">'
-				.dol_escape_htmltag($label).'</span>';
-		}
+                if ((int) $mode === 5) {
+                        return '<span class="'.$info['class'].'" title="'.dol_escape_htmltag($info['label']).'">'
+                                .dol_escape_htmltag($info['label']).'</span>';
+                }
 
-		$picto = img_picto($label, 'statut'.$clsnum);
+                $picto = img_picto($info['label'], $info['picto']);
 		if ((int) $mode === 1) return $picto;
-		if ((int) $mode === 2) return $picto.' '.$label;
-		if ((int) $mode === 3) return $label.' '.$picto;
-		return $label;
+                if ((int) $mode === 2) return $picto.' '.$info['label'];
+                if ((int) $mode === 3) return $info['label'].' '.$picto;
+                return $info['label'];
 	}
 }

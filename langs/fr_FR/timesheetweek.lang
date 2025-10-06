@@ -1,0 +1,52 @@
+# Fichier de traduction
+
+#
+# Générique
+#
+
+# Libellé du module 'ModuleTimesheetWeekName'
+ModuleTimesheetWeekName = TimesheetWeek
+# Description du module 'ModuleTimesheetWeekDesc'
+ModuleTimesheetWeekDesc = Description du module TimesheetWeek
+
+#
+# Page d'administration
+#
+TimesheetWeekSetup = Paramétrage TimesheetWeek
+Settings = Paramètres
+TimesheetWeekSetupPage = Page de configuration TimesheetWeek
+NewSection=Nouvelle section
+TIMESHEETWEEK_MYPARAM1 = Mon paramètre 1
+TIMESHEETWEEK_MYPARAM1Tooltip = Info-bulle de mon paramètre 1
+TIMESHEETWEEK_MYPARAM2=Mon paramètre 2
+TIMESHEETWEEK_MYPARAM2Tooltip=Info-bulle de mon paramètre 2
+
+
+#
+# Page À propos
+#
+About = À propos
+TimesheetWeekAbout = À propos de TimesheetWeek
+TimesheetWeekAboutPage = Page à propos de TimesheetWeek
+
+#
+# Page d'exemple
+#
+TimesheetWeekArea = Accueil TimesheetWeek
+MyPageName = Nom de ma page
+
+#
+# Widget d'exemple
+#
+MyWidget = Mon widget
+MyWidgetDescription = Description de mon widget
+
+#
+# Erreurs et changements de statut
+#
+BadStatusForSubmit = Cette feuille de temps ne peut pas être soumise depuis son statut actuel.
+NoLineToSubmit = Aucune ligne à soumettre sur cette feuille de temps.
+RefGenerationFailed = Impossible de générer une référence définitive pour la feuille de temps.
+BadStatusForApprove = Seules les feuilles de temps soumises peuvent être approuvées.
+BadStatusForRefuse = Seules les feuilles de temps soumises peuvent être refusées.
+AlreadyDraft = Cette feuille de temps est déjà au statut brouillon.
