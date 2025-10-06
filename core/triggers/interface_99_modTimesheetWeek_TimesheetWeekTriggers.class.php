@@ -18,8 +18,6 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 {
-        private const TEMPLATE_PROBE_SIZE = 16;
-        private const TEMPLATE_TOKEN_PREFIX = '__TSWK_PLACEHOLDER';
 
         /**
          * Constructor
@@ -586,39 +584,61 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
          */
         protected function resolveNotificationTemplate($langs, $key, $expectedPlaceholders)
         {
-                $maxPlaceholders = max((int) $expectedPlaceholders, self::TEMPLATE_PROBE_SIZE);
-                $probeArgs = array();
-
-                for ($i = 0; $i < $maxPlaceholders; $i++) {
-                        $probeArgs[] = self::TEMPLATE_TOKEN_PREFIX.$i.'__';
+                $template = $this->extractTranslationTemplate($langs, $key);
+                if ($template === '') {
+                        return array($key, (int) $expectedPlaceholders);
                 }
 
-                $methods = array('transnoentitiesnoconv', 'trans');
-                foreach ($methods as $method) {
-                        if (!method_exists($langs, $method)) {
-                                continue;
-                        }
+                $placeholderCount = 0;
+                if (preg_match_all('/(?<!%)%(?:\d+\$)?[bcdeEfFgGosuxX]/', $template, $matches)) {
+                        $placeholderCount = count($matches[0]);
+                }
 
-                        $result = call_user_func_array(array($langs, $method), array_merge(array($key), $probeArgs));
-                        if (!is_string($result) || $result === $key) {
-                                continue;
-                        }
+                return array($template, max($placeholderCount, (int) $expectedPlaceholders));
+        }
 
-                        $template = $result;
-                        $placeholderCount = 0;
+        /**
+         * Safely extract a translation value while preserving escaped characters.
+         *
+         * @param Translate $langs
+         * @param string    $key
+         *
+         * @return string
+         */
+        protected function extractTranslationTemplate($langs, $key)
+        {
+                if (!is_object($langs) || empty($key)) {
+                        return '';
+                }
 
-                        for ($i = 0; $i < $maxPlaceholders; $i++) {
-                                $token = self::TEMPLATE_TOKEN_PREFIX.$i.'__';
-                                if (strpos($template, $token) !== false) {
-                                        $placeholderCount = $i + 1;
-                                        $template = str_replace($token, '%s', $template);
+                $value = '';
+                if (property_exists($langs, 'tab_translate') && is_array($langs->tab_translate)) {
+                        $lookupKeys = array($key, strtoupper($key));
+                        foreach ($lookupKeys as $lookupKey) {
+                                if (array_key_exists($lookupKey, $langs->tab_translate)) {
+                                        $candidate = $langs->tab_translate[$lookupKey];
+                                        if (is_string($candidate) && $candidate !== '') {
+                                                $value = $candidate;
+                                                break;
+                                        }
                                 }
                         }
-
-                        return array($template, $placeholderCount);
                 }
 
-                return array($key, 0);
+                if ($value === '') {
+                        return '';
+                }
+
+                $value = strtr(
+                        $value,
+                        array(
+                                '\\n' => "\n",
+                                '\\r' => "\r",
+                                '\\t' => "\t",
+                        )
+                );
+
+                return str_replace('\\\\', '\\', $value);
         }
 
         /**
