@@ -18,6 +18,7 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 {
+
         /**
          * Constructor
          *
@@ -33,28 +34,32 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $this->picto = 'bookcal@timesheetweek';
         }
 
-        /**
-         * Execute trigger
-         *
-         * @param string        $action
-         * @param CommonObject  $object
-         * @param User          $user
-         * @param Translate     $langs
-         * @param Conf          $conf
-         *
-         * @return int
-         */
-        public function runTrigger($action, $object, $user, $langs, $conf)
-        {
-                if (empty($conf->timesheetweek->enabled)) {
-                        return 0;
-                }
+       /**
+        * Execute trigger
+        *
+        * @param string        $action
+        * @param CommonObject  $object
+        * @param User          $user
+        * @param Translate     $langs
+        * @param Conf          $conf
+        *
+        * @return int
+        */
+       public function runTrigger($action, $object, $user, $langs, $conf)
+       {
+               if (empty($conf->timesheetweek->enabled)) {
+                       return 0;
+               }
 
-                if (!($object instanceof TimesheetWeek)) {
-                        return 0;
-                }
+               if ($action === 'ACTION_CREATE') {
+                       return $this->handleActionCreateNotification($object, $user, $langs, $conf);
+               }
 
-                if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
+               if (!($object instanceof TimesheetWeek)) {
+                       return 0;
+               }
+
+               if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
                         return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
                 }
 
@@ -62,20 +67,116 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return $this->sendNotification($action, $object, $user, $langs, $conf);
                 }
 
-                return 0;
-        }
+               return 0;
+       }
 
-        /**
-         * Send notification email for TimesheetWeek events
-         *
-         * @param string        $action
-         * @param TimesheetWeek $timesheet
-         * @param User          $actionUser
-         * @param Translate     $langs
-         * @param Conf          $conf
-         *
-         * @return int
-         */
+       /**
+        * Handle ACTION_CREATE events generated while creating agenda entries.
+        *
+        * FR : Traite les événements ACTION_CREATE générés lors de la création d'une action d'agenda.
+        * EN : Handle ACTION_CREATE events emitted when an agenda action is created.
+        *
+        * @param ActionComm|CommonObject $event
+        * @param User                   $actionUser
+        * @param Translate              $langs
+        * @param Conf                   $conf
+        * @return int
+        */
+       protected function handleActionCreateNotification($event, User $actionUser, $langs, $conf)
+       {
+               if (!is_object($event) || empty($event->elementtype) || $event->elementtype !== 'timesheetweek') {
+                       return 0;
+               }
+
+               $timesheetId = !empty($event->fk_element) ? (int) $event->fk_element : 0;
+               if ($timesheetId <= 0) {
+                       return 0;
+               }
+
+               $code = !empty($event->code) ? strtoupper($event->code) : '';
+               $mapping = array(
+                       'TSWK_SUBMIT' => array(
+                               'automatic' => 'TIMESHEETWEEK_SUBMITTED',
+                               'business' => 'TIMESHEETWEEK_SUBMIT',
+                       ),
+                       'TSWK_APPROVE' => array(
+                               'automatic' => 'TIMESHEETWEEK_APPROVED',
+                               'business' => 'TIMESHEETWEEK_APPROVE',
+                       ),
+                       'TSWK_REFUSE' => array(
+                               'automatic' => 'TIMESHEETWEEK_REFUSED',
+                               'business' => 'TIMESHEETWEEK_REFUSE',
+                       ),
+               );
+
+               if (empty($mapping[$code])) {
+                       return 0;
+               }
+
+               $timesheet = new TimesheetWeek($this->db);
+               if ($timesheet->fetch($timesheetId) <= 0) {
+                       return 0;
+               }
+
+               $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+               $baseSubstitutions = $meta['base_substitutions'];
+
+               if (!is_array($timesheet->context)) {
+                       $timesheet->context = array();
+               }
+
+               $timesheet->context['mail_substitutions'] = $baseSubstitutions;
+               $timesheet->context['timesheetweek_notification'] = array(
+                       'trigger_code' => $mapping[$code]['automatic'],
+                       'url' => $meta['url'],
+                       'employee_id' => !empty($meta['employee']) ? (int) $meta['employee']->id : 0,
+                       'validator_id' => !empty($meta['validator']) ? (int) $meta['validator']->id : 0,
+                       'action_user_id' => !empty($actionUser->id) ? (int) $actionUser->id : 0,
+                       'employee_fullname' => $meta['employee_name'],
+                       'validator_fullname' => $meta['validator_name'],
+                       'action_user_fullname' => $meta['action_user_name'],
+                       'base_substitutions' => $baseSubstitutions,
+                       'native_options' => array(
+                               'employee' => $meta['employee'],
+                               'validator' => $meta['validator'],
+                               'base_substitutions' => $baseSubstitutions,
+                       ),
+               );
+
+               $result = 0;
+
+               $automaticCode = $mapping[$code]['automatic'];
+               if (!empty($automaticCode)) {
+                       $autoResult = $this->sendNotification($automaticCode, $timesheet, $actionUser, $langs, $conf);
+                       if ($autoResult < 0) {
+                               return $autoResult;
+                       }
+                       $result += (int) $autoResult;
+               }
+
+               $businessCode = $mapping[$code]['business'];
+               if (!empty($businessCode)) {
+                       $businessResult = $this->dispatchBusinessNotification($businessCode, $timesheet, $actionUser, $langs, $conf);
+                       if ($businessResult < 0) {
+                               return $businessResult;
+                       }
+                       $result += (int) $businessResult;
+               }
+
+               return $result;
+       }
+
+       /**
+        * Send notification email for TimesheetWeek events
+        *
+        * @param string        $action
+        * @param TimesheetWeek $timesheet
+        * @param User          $actionUser
+        * @param Translate     $langs
+        * @param Conf          $conf
+        *
+        * @return int
+        */
         protected function sendNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
         {
                 $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
@@ -253,49 +354,95 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         } else {
                                 $recipientName = $recipient->getFullName($langs);
+                                $subject = $langs->trans($subjectKey, $timesheet->ref);
+
                                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
-                                        $subject = $langs->trans($subjectKey, $timesheet->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
+                                        $messageArgs = array(
                                                 $recipientName,
                                                 $employeeName,
                                                 $timesheet->ref,
                                                 $timesheet->week,
                                                 $timesheet->year,
                                                 $url,
-                                                $actionUserName
+                                                $actionUserName,
                                         );
                                 } else {
-                                        $subject = $langs->trans($subjectKey, $timesheet->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
+                                        $messageArgs = array(
                                                 $recipientName,
                                                 $timesheet->ref,
                                                 $timesheet->week,
                                                 $timesheet->year,
                                                 $actionUserName,
                                                 $url,
-                                                $actionUserName
+                                                $actionUserName,
                                         );
+                                }
+
+                                list($messageTemplate, $placeholderCount) = $this->resolveNotificationTemplate($langs, $bodyKey, count($messageArgs));
+
+                                if ($placeholderCount > count($messageArgs)) {
+                                        dol_syslog(
+                                                __METHOD__.': '.$langs->trans(
+                                                        'TimesheetWeekNotificationMailError',
+                                                        'Not enough values provided for mail template placeholders'
+                                                ),
+                                                LOG_WARNING
+                                        );
+                                        $messageArgs = array_pad($messageArgs, $placeholderCount, '');
+                                }
+
+                                $message = @vsprintf($messageTemplate, $messageArgs);
+                                if ($message === false) {
+                                        dol_syslog(
+                                                __METHOD__.': '.$langs->trans(
+                                                        'TimesheetWeekNotificationMailError',
+                                                        'Invalid mail template placeholders'
+                                                ),
+                                                LOG_WARNING
+                                        );
+                                        $message = $messageTemplate;
                                 }
                         }
 
-                        if (empty($subject) || empty($message)) {
-                                dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
-                                continue;
-                        }
+                       if (empty($subject) || empty($message)) {
+                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
+                               continue;
+                       }
 
-                        $sendto = implode(',', array_unique(array_filter($sendtoList)));
-                        $cc = implode(',', array_unique(array_filter($ccList)));
-                        $bcc = implode(',', array_unique(array_filter($bccList)));
+                       $sendto = implode(',', array_unique(array_filter($sendtoList)));
+                       $cc = implode(',', array_unique(array_filter($ccList)));
+                       $bcc = implode(',', array_unique(array_filter($bccList)));
 
-                        $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
-                        if ($mail->sendfile()) {
-                                $sent++;
-                        } else {
-                                $errmsg = $mail->error ? $mail->error : 'Unknown error';
-                                dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
-                        }
+                       $nativeResult = $timesheet->sendNativeMailNotification(
+                               $action,
+                               $actionUser,
+                               $recipient,
+                               $langs,
+                               $conf,
+                               $substitutions,
+                               array(
+                                       'subject' => $subject,
+                                       'message' => $message,
+                                       'sendto' => $sendto,
+                                       'cc' => $cc,
+                                       'bcc' => $bcc,
+                                       'replyto' => $emailFrom,
+                                       'trackid' => 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0),
+                               )
+                       );
+
+                       if ($nativeResult > 0) {
+                               $sent += $nativeResult;
+                               continue;
+                       }
+
+                       $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
+                       if ($mail->sendfile()) {
+                               $sent++;
+                       } else {
+                               $errmsg = $mail->error ? $mail->error : 'Unknown error';
+                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
+                       }
                 }
 
                 return $sent;
@@ -424,6 +571,74 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
                 return 0;
+        }
+
+        /**
+         * Resolve a translation template without triggering sprintf errors.
+         *
+         * @param Translate $langs
+         * @param string    $key
+         * @param int       $expectedPlaceholders
+         *
+         * @return array{0:string,1:int}
+         */
+        protected function resolveNotificationTemplate($langs, $key, $expectedPlaceholders)
+        {
+                $template = $this->extractTranslationTemplate($langs, $key);
+                if ($template === '') {
+                        return array($key, (int) $expectedPlaceholders);
+                }
+
+                $placeholderCount = 0;
+                if (preg_match_all('/(?<!%)%(?:\d+\$)?[bcdeEfFgGosuxX]/', $template, $matches)) {
+                        $placeholderCount = count($matches[0]);
+                }
+
+                return array($template, max($placeholderCount, (int) $expectedPlaceholders));
+        }
+
+        /**
+         * Safely extract a translation value while preserving escaped characters.
+         *
+         * @param Translate $langs
+         * @param string    $key
+         *
+         * @return string
+         */
+        protected function extractTranslationTemplate($langs, $key)
+        {
+                if (!is_object($langs) || empty($key)) {
+                        return '';
+                }
+
+                $value = '';
+                if (property_exists($langs, 'tab_translate') && is_array($langs->tab_translate)) {
+                        $lookupKeys = array($key, strtoupper($key));
+                        foreach ($lookupKeys as $lookupKey) {
+                                if (array_key_exists($lookupKey, $langs->tab_translate)) {
+                                        $candidate = $langs->tab_translate[$lookupKey];
+                                        if (is_string($candidate) && $candidate !== '') {
+                                                $value = $candidate;
+                                                break;
+                                        }
+                                }
+                        }
+                }
+
+                if ($value === '') {
+                        return '';
+                }
+
+                $value = strtr(
+                        $value,
+                        array(
+                                '\\n' => "\n",
+                                '\\r' => "\r",
+                                '\\t' => "\t",
+                        )
+                );
+
+                return str_replace('\\\\', '\\', $value);
         }
 
         /**

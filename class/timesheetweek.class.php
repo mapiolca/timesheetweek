@@ -400,8 +400,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_SUBMIT', $user);
                 return 1;
         }
 
@@ -489,8 +487,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_APPROVE', $user);
                 return 1;
         }
 
@@ -539,8 +535,6 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
-                $this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user);
-                $this->triggerBusinessNotification('TIMESHEETWEEK_REFUSE', $user);
                 return 1;
         }
 
@@ -772,6 +766,14 @@ class TimesheetWeek extends CommonObject
                // EN: Keep substitutions handy for native Notification triggers.
                $this->context['mail_substitutions'] = $baseSubstitutions;
 
+               // FR: Permet aux implémentations natives de récupérer toutes les informations utiles.
+               // EN: Allow native helpers to access every useful metadata while sending e-mails.
+               $this->context['timesheetweek_notification']['native_options'] = array(
+                       'employee' => $employee,
+                       'validator' => $validator,
+                       'base_substitutions' => $baseSubstitutions,
+               );
+
                // FR: Les triggers accèdent aux informations via le contexte, inutile de dupliquer les paramètres.
                // EN: Triggers read every detail from the context, no need to duplicate the payload locally.
                $result = $this->fireNotificationTrigger($triggerCode, $actionUser);
@@ -927,6 +929,200 @@ class TimesheetWeek extends CommonObject
                        // FR: Valeur neutre par défaut pour ne pas interrompre le déclenchement.
                        // EN: Default neutral value so the trigger keeps running.
                        $arguments[] = null;
+               }
+
+               return $arguments;
+       }
+
+       /**
+        * Try to send an e-mail notification relying on Dolibarr native helpers.
+        *
+        * FR: Tente d'envoyer un e-mail de notification en s'appuyant sur les outils natifs de Dolibarr.
+        * EN: Try sending the notification e-mail using Dolibarr's native helpers.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @param User   $recipient
+        * @param mixed  $langs
+        * @param mixed  $conf
+        * @param array  $substitutions
+        * @param array  $options
+        * @return int                    >0 success, 0 unsupported, <0 failure
+        */
+       public function sendNativeMailNotification($triggerCode, User $actionUser, $recipient, $langs, $conf, array $substitutions, array $options = array())
+       {
+               $sendto = isset($options['sendto']) ? trim((string) $options['sendto']) : '';
+               if ($sendto === '') {
+                       return 0;
+               }
+
+               $methods = array('sendEmailsFromTemplate', 'sendEmailsCommon', 'sendEmailsFromModel', 'sendEmails', 'sendMails');
+
+               $payload = array(
+                       'trigger' => $triggerCode,
+                       'action' => $triggerCode,
+                       'code' => $triggerCode,
+                       'event' => $triggerCode,
+                       'user' => $actionUser,
+                       'actionuser' => $actionUser,
+                       'actor' => $actionUser,
+                       'currentuser' => $actionUser,
+                       'langs' => $langs,
+                       'language' => $langs,
+                       'conf' => $conf,
+                       'subject' => isset($options['subject']) ? (string) $options['subject'] : '',
+                       'message' => isset($options['message']) ? (string) $options['message'] : '',
+                       'content' => isset($options['message']) ? (string) $options['message'] : '',
+                       'body' => isset($options['message']) ? (string) $options['message'] : '',
+                       'sendto' => $sendto,
+                       'emailto' => $sendto,
+                       'email_to' => $sendto,
+                       'sendtolist' => $sendto,
+                       'sendtocc' => isset($options['cc']) ? (string) $options['cc'] : '',
+                       'emailcc' => isset($options['cc']) ? (string) $options['cc'] : '',
+                       'sendtobcc' => isset($options['bcc']) ? (string) $options['bcc'] : '',
+                       'emailbcc' => isset($options['bcc']) ? (string) $options['bcc'] : '',
+                       'replyto' => isset($options['replyto']) ? (string) $options['replyto'] : '',
+                       'emailreplyto' => isset($options['replyto']) ? (string) $options['replyto'] : '',
+                       'deliveryreceipt' => !empty($options['deliveryreceipt']) ? 1 : 0,
+                       'trackid' => !empty($options['trackid']) ? (string) $options['trackid'] : 'timesheetweek-'.$this->id.'-'.$triggerCode,
+                       'substitutions' => $substitutions,
+                       'substitutionarray' => $substitutions,
+                       'mail_substitutions' => $substitutions,
+                       'array_substitutions' => $substitutions,
+                       'files' => isset($options['files']) && is_array($options['files']) ? $options['files'] : array(),
+                       'filearray' => isset($options['files']) && is_array($options['files']) ? $options['files'] : array(),
+                       'filename' => isset($options['filenames']) && is_array($options['filenames']) ? $options['filenames'] : array(),
+                       'filenameList' => isset($options['filenames']) && is_array($options['filenames']) ? $options['filenames'] : array(),
+                       'mimetype' => isset($options['mimetypes']) && is_array($options['mimetypes']) ? $options['mimetypes'] : array(),
+                       'mimetypeList' => isset($options['mimetypes']) && is_array($options['mimetypes']) ? $options['mimetypes'] : array(),
+                       'joinfiles' => isset($options['files']) && is_array($options['files']) ? $options['files'] : array(),
+                       'mode' => 'email',
+                       'recipient' => $recipient,
+                       'email' => $sendto,
+                       'context' => $this->context,
+                       'moreinval' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'params' => isset($options['params']) && is_array($options['params']) ? $options['params'] : array(),
+                       'options' => $options,
+               );
+
+               foreach ($methods as $methodName) {
+                       if (!method_exists($this, $methodName)) {
+                               continue;
+                       }
+
+                       try {
+                               $method = new \ReflectionMethod($this, $methodName);
+                               $arguments = $this->mapMailMethodArguments($method->getParameters(), $payload);
+                               $result = $method->invokeArgs($this, $arguments);
+
+                               if ($result === false) {
+                                       continue;
+                               }
+
+                               if (is_numeric($result)) {
+                                       if ((int) $result > 0) {
+                                               return (int) $result;
+                                       }
+
+                                       continue;
+                               }
+
+                               return 1;
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                       }
+               }
+
+               return 0;
+       }
+
+       /**
+        * Map native mail helper signature to known payload values.
+        *
+        * FR: Associe la signature d'une méthode d'envoi d'e-mail aux valeurs connues.
+        * EN: Map the parameter list of a mail helper to the known payload values.
+        *
+        * @param \ReflectionParameter[] $signature
+        * @param array                  $payload
+        * @return array
+        */
+       protected function mapMailMethodArguments(array $signature, array $payload)
+       {
+               $arguments = array();
+
+               foreach ($signature as $parameter) {
+                       $value = null;
+                       $name = $parameter->getName();
+                       $lower = strtolower($name);
+
+                       if (isset($payload[$name])) {
+                               $value = $payload[$name];
+                       } elseif (isset($payload[$lower])) {
+                               $value = $payload[$lower];
+                       } else {
+                               if ($parameter->hasType()) {
+                                       $type = $parameter->getType();
+                                       if ($type && !$type->isBuiltin()) {
+                                               $typeName = ltrim($type->getName(), '\\');
+                                               if ($typeName === 'User') {
+                                                       $value = isset($payload['user']) ? $payload['user'] : null;
+                                               } elseif ($typeName === 'Translate') {
+                                                       $value = isset($payload['langs']) ? $payload['langs'] : null;
+                                               } elseif ($typeName === 'Conf') {
+                                                       $value = isset($payload['conf']) ? $payload['conf'] : null;
+                                               } elseif ($typeName === 'TimesheetWeek' || is_a($this, $typeName)) {
+                                                       $value = $this;
+                                               }
+                                       }
+                               }
+
+                               if ($value === null) {
+                                       if (strpos($lower, 'substit') !== false && isset($payload['substitutions'])) {
+                                               $value = $payload['substitutions'];
+                                       } elseif (strpos($lower, 'sendto') !== false && isset($payload['sendto'])) {
+                                               $value = $payload['sendto'];
+                                       } elseif (strpos($lower, 'subject') !== false && isset($payload['subject'])) {
+                                               $value = $payload['subject'];
+                                       } elseif ((strpos($lower, 'message') !== false || strpos($lower, 'content') !== false || strpos($lower, 'body') !== false) && isset($payload['message'])) {
+                                               $value = $payload['message'];
+                                       } elseif (strpos($lower, 'reply') !== false && isset($payload['replyto'])) {
+                                               $value = $payload['replyto'];
+                                       } elseif (strpos($lower, 'cc') !== false && isset($payload['sendtocc'])) {
+                                               $value = $payload['sendtocc'];
+                                       } elseif (strpos($lower, 'bcc') !== false && isset($payload['sendtobcc'])) {
+                                               $value = $payload['sendtobcc'];
+                                       } elseif (strpos($lower, 'user') !== false && isset($payload['user'])) {
+                                               $value = $payload['user'];
+                                       } elseif (strpos($lower, 'lang') !== false && isset($payload['langs'])) {
+                                               $value = $payload['langs'];
+                                       } elseif (strpos($lower, 'conf') !== false && isset($payload['conf'])) {
+                                               $value = $payload['conf'];
+                                       } elseif (strpos($lower, 'context') !== false && isset($payload['context'])) {
+                                               $value = $payload['context'];
+                                       } elseif (strpos($lower, 'track') !== false && isset($payload['trackid'])) {
+                                               $value = $payload['trackid'];
+                                       } elseif (strpos($lower, 'recipient') !== false && isset($payload['recipient'])) {
+                                               $value = $payload['recipient'];
+                                       } elseif (strpos($lower, 'files') !== false && isset($payload['files'])) {
+                                               $value = $payload['files'];
+                                       } elseif (strpos($lower, 'filename') !== false && isset($payload['filename'])) {
+                                               $value = $payload['filename'];
+                                       } elseif (strpos($lower, 'mimetype') !== false && isset($payload['mimetype'])) {
+                                               $value = $payload['mimetype'];
+                                       } elseif (strpos($lower, 'moreinval') !== false && isset($payload['moreinval'])) {
+                                               $value = $payload['moreinval'];
+                                       } elseif (strpos($lower, 'params') !== false && isset($payload['params'])) {
+                                               $value = $payload['params'];
+                                       }
+                               }
+                       }
+
+                       if ($value === null && $parameter->isDefaultValueAvailable()) {
+                               $value = $parameter->getDefaultValue();
+                       }
+
+                       $arguments[] = $value;
                }
 
                return $arguments;
