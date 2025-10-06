@@ -719,224 +719,82 @@ class TimesheetWeek extends CommonObject
          * @param User   $actionUser
          * @return bool
          */
-        protected function sendAutomaticNotification($triggerCode, User $actionUser)
-        {
-                global $conf, $langs;
+       protected function sendAutomaticNotification($triggerCode, User $actionUser)
+       {
+               global $langs;
 
-                $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+               $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
 
-                $recipients = array();
-                $subjectKey = '';
-                $bodyKey = '';
-                $missingKey = '';
+               $employee = $this->loadUserFromCache($this->fk_user);
+               $validator = $this->loadUserFromCache($this->fk_user_valid);
 
-                if ($triggerCode === 'TIMESHEETWEEK_SUBMITTED') {
-                        $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
-                        $bodyKey = 'TimesheetWeekNotificationSubmitBody';
-                        $missingKey = 'TimesheetWeekNotificationValidatorFallback';
-                        $target = $this->loadUserFromCache($this->fk_user_valid);
-                        if ($target) {
-                                $recipients[] = $target;
-                        }
-                } elseif ($triggerCode === 'TIMESHEETWEEK_APPROVED') {
-                        $subjectKey = 'TimesheetWeekNotificationApproveSubject';
-                        $bodyKey = 'TimesheetWeekNotificationApproveBody';
-                        $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
-                        $target = $this->loadUserFromCache($this->fk_user);
-                        if ($target) {
-                                $recipients[] = $target;
-                        }
-                } elseif ($triggerCode === 'TIMESHEETWEEK_REFUSED') {
-                        $subjectKey = 'TimesheetWeekNotificationRefuseSubject';
-                        $bodyKey = 'TimesheetWeekNotificationRefuseBody';
-                        $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
-                        $target = $this->loadUserFromCache($this->fk_user);
-                        if ($target) {
-                                $recipients[] = $target;
-                        }
-                } else {
-                        return true;
-                }
+               $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
 
-                if (empty($recipients)) {
-                        $this->errors[] = $langs->trans('TimesheetWeekNotificationMissingRecipient', $langs->trans($missingKey));
-                        dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
-                        return false;
-                }
+               if (!is_array($this->context)) {
+                       $this->context = array();
+               }
 
-                dol_include_once('/core/lib/functions2.lib.php');
-                if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
-                        dol_include_once('/core/class/cemailtemplates.class.php');
-                } else {
-                        dol_include_once('/core/class/emailtemplates.class.php');
-                }
-                dol_include_once('/core/class/CMailFile.class.php');
+               $this->context['timesheetweek_notification'] = array(
+                       'trigger_code' => $triggerCode,
+                       'url' => $url,
+                       'employee_id' => $employee ? (int) $employee->id : 0,
+                       'validator_id' => $validator ? (int) $validator->id : 0,
+                       'action_user_id' => (int) $actionUser->id,
+                       'employee_fullname' => $employee ? $employee->getFullName($langs) : '',
+                       'validator_fullname' => $validator ? $validator->getFullName($langs) : '',
+                       'action_user_fullname' => $actionUser->getFullName($langs),
+               );
 
-                $templateClass = '';
-                if (class_exists('CEmailTemplates')) {
-                        $templateClass = 'CEmailTemplates';
-                } elseif (class_exists('EmailTemplates')) {
-                        $templateClass = 'EmailTemplates';
-                }
+               $parameters = array(
+                       'timesheetweek' => $this,
+                       'employee' => $employee,
+                       'validator' => $validator,
+                       'actionuser' => $actionUser,
+                       'url' => $url,
+               );
 
-                if (empty($templateClass)) {
-                        $this->errors[] = $langs->trans('ErrorFailedToLoadEmailTemplateClass');
-                        dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_ERR);
-                        return false;
-                }
+               $result = $this->fireNotificationTrigger($triggerCode, $actionUser, $parameters);
+               if ($result < 0) {
+                       $this->errors[] = $langs->trans('TimesheetWeekNotificationTriggerError', $triggerCode);
+                       dol_syslog(__METHOD__.': unable to execute trigger '.$triggerCode, LOG_ERR);
+                       return false;
+               }
 
-                $employee = $this->loadUserFromCache($this->fk_user);
-                $validator = $this->loadUserFromCache($this->fk_user_valid);
-                $employeeName = $employee ? $employee->getFullName($langs) : '';
-                $validatorName = $validator ? $validator->getFullName($langs) : '';
-                $actionUserName = $actionUser->getFullName($langs);
-                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
+               return true;
+       }
 
-                $overallResult = true;
+       /**
+        * Execute Dolibarr triggers when notifications must be sent.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @param array  $parameters
+        * @return int
+        */
+       protected function fireNotificationTrigger($triggerCode, User $actionUser, array $parameters)
+       {
+               foreach (array('runTrigger', 'call_trigger') as $method) {
+                       if (!method_exists($this, $method)) {
+                               continue;
+                       }
 
-                foreach ($recipients as $recipient) {
-                        if (empty($recipient->email)) {
-                                $this->errors[] = $langs->trans('TimesheetWeekNotificationNoEmail', $recipient->getFullName($langs));
-                                dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
-                                $overallResult = false;
-                                continue;
-                        }
+                       try {
+                               return $this->{$method}($triggerCode, $actionUser, $parameters);
+                       } catch (\ArgumentCountError $e) {
+                               try {
+                                       return $this->{$method}($triggerCode, $actionUser);
+                               } catch (\Throwable $fallbackError) {
+                                       dol_syslog(__METHOD__.': '.$fallbackError->getMessage(), LOG_WARNING);
+                                       return -1;
+                               }
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                               return -1;
+                       }
+               }
 
-                        $substitutions = array(
-                                '__TIMESHEETWEEK_REF__' => $this->ref,
-                                '__TIMESHEETWEEK_WEEK__' => $this->week,
-                                '__TIMESHEETWEEK_YEAR__' => $this->year,
-                                '__TIMESHEETWEEK_URL__' => $url,
-                                '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
-                                '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
-                                '__ACTION_USER_FULLNAME__' => $actionUserName,
-                                '__RECIPIENT_FULLNAME__' => $recipient->getFullName($langs),
-                        );
-
-                        $template = new $templateClass($this->db);
-                        $tplResult = $template->fetchByTrigger($triggerCode, $actionUser, $conf->entity);
-
-                        $subject = '';
-                        $message = '';
-                        $ccList = array();
-                        $bccList = array();
-                        $sendtoList = array($recipient->email);
-                        $emailFrom = $actionUser->email;
-                        if (empty($emailFrom) && !empty($conf->global->MAIN_MAIL_EMAIL_FROM)) {
-                                $emailFrom = $conf->global->MAIN_MAIL_EMAIL_FROM;
-                        }
-                        if (empty($emailFrom) && !empty($conf->global->MAIN_INFO_SOCIETE_MAIL)) {
-                                $emailFrom = $conf->global->MAIN_INFO_SOCIETE_MAIL;
-                        }
-
-                        if ($tplResult > 0) {
-                                $subjectTemplate = !empty($template->subject) ? $template->subject : $template->topic;
-                                $bodyTemplate = $template->content;
-
-                                $subject = make_substitutions($subjectTemplate, $substitutions);
-                                $message = make_substitutions($bodyTemplate, $substitutions);
-
-                                if (!empty($template->email_from)) {
-                                        $emailFrom = make_substitutions($template->email_from, $substitutions);
-                                }
-                                $templateTo = '';
-                                if (!empty($template->email_to)) {
-                                        $templateTo = $template->email_to;
-                                } elseif (!empty($template->email_to_list)) {
-                                        $templateTo = $template->email_to_list;
-                                }
-                                if (!empty($templateTo)) {
-                                        $templateTo = make_substitutions($templateTo, $substitutions);
-                                        foreach (preg_split('/[,;]+/', $templateTo) as $addr) {
-                                                $addr = trim($addr);
-                                                if ($addr && !in_array($addr, $sendtoList, true)) {
-                                                        $sendtoList[] = $addr;
-                                                }
-                                        }
-                                }
-
-                                $templateCc = '';
-                                if (!empty($template->email_cc)) {
-                                        $templateCc = $template->email_cc;
-                                } elseif (!empty($template->email_to_cc)) {
-                                        $templateCc = $template->email_to_cc;
-                                }
-                                if (!empty($templateCc)) {
-                                        $templateCc = make_substitutions($templateCc, $substitutions);
-                                        foreach (preg_split('/[,;]+/', $templateCc) as $addr) {
-                                                $addr = trim($addr);
-                                                if ($addr && !in_array($addr, $ccList, true)) {
-                                                        $ccList[] = $addr;
-                                                }
-                                        }
-                                }
-
-                                $templateBcc = '';
-                                if (!empty($template->email_bcc)) {
-                                        $templateBcc = $template->email_bcc;
-                                } elseif (!empty($template->email_to_bcc)) {
-                                        $templateBcc = $template->email_to_bcc;
-                                }
-                                if (!empty($templateBcc)) {
-                                        $templateBcc = make_substitutions($templateBcc, $substitutions);
-                                        foreach (preg_split('/[,;]+/', $templateBcc) as $addr) {
-                                                $addr = trim($addr);
-                                                if ($addr && !in_array($addr, $bccList, true)) {
-                                                        $bccList[] = $addr;
-                                                }
-                                        }
-                                }
-                        } else {
-                                $recipientName = $recipient->getFullName($langs);
-                                if ($triggerCode === 'TIMESHEETWEEK_SUBMITTED') {
-                                        $subject = $langs->trans($subjectKey, $this->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
-                                                $recipientName,
-                                                $employeeName,
-                                                $this->ref,
-                                                $this->week,
-                                                $this->year,
-                                                $url,
-                                                $actionUserName
-                                        );
-                                } else {
-                                        $subject = $langs->trans($subjectKey, $this->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
-                                                $recipientName,
-                                                $this->ref,
-                                                $this->week,
-                                                $this->year,
-                                                $actionUserName,
-                                                $url,
-                                                $actionUserName
-                                        );
-                                }
-                        }
-
-                        if (empty($subject) || empty($message)) {
-                                $this->errors[] = $langs->trans('TimesheetWeekNotificationMailError', 'Empty template');
-                                dol_syslog(__METHOD__.': '.$this->errors[count($this->errors) - 1], LOG_WARNING);
-                                $overallResult = false;
-                                continue;
-                        }
-
-                        $sendto = implode(',', array_unique(array_filter($sendtoList)));
-                        $cc = implode(',', array_unique(array_filter($ccList)));
-                        $bcc = implode(',', array_unique(array_filter($bccList)));
-
-                        $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
-                        if (!$mail->sendfile()) {
-                                $errmsg = $mail->error ? $mail->error : 'Unknown error';
-                                $this->errors[] = $langs->trans('TimesheetWeekNotificationMailError', $errmsg);
-                                dol_syslog(__METHOD__.': '.$errmsg, LOG_WARNING);
-                                $overallResult = false;
-                        }
-                }
-
-                return $overallResult;
-        }
+               return 0;
+       }
 
         /**
          * Badge / labels

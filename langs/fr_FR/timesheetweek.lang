@@ -104,7 +104,18 @@ TimesheetWeekNotificationMailError = Impossible d'envoyer la notification e-mail
 TimesheetWeekNotificationNoEmail = Le destinataire %s n'a pas d'adresse e-mail.
 TimesheetWeekNotificationValidatorFallback = Validateur
 TimesheetWeekNotificationEmployeeFallback = Salarié
+TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur de notification %s.
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
+
+TimesheetWeekTemplateSubmitLabel = Notification de soumission de feuille de temps
+TimesheetWeekTemplateSubmitSubject = Feuille de temps __TIMESHEETWEEK_REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveLabel = Notification d'approbation de feuille de temps
+TimesheetWeekTemplateApproveSubject = Feuille de temps __TIMESHEETWEEK_REF__ approuvée
+TimesheetWeekTemplateApproveBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateRefuseLabel = Notification de refus de feuille de temps
+TimesheetWeekTemplateRefuseSubject = Feuille de temps __TIMESHEETWEEK_REF__ refusée
+TimesheetWeekTemplateRefuseBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
 
 TimesheetWeekPDFModels = Modèles PDF TimesheetWeek
 

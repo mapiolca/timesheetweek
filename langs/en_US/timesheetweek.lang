@@ -104,7 +104,18 @@ TimesheetWeekNotificationMailError = Unable to send notification email: %s
 TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
 TimesheetWeekNotificationValidatorFallback = Validator
 TimesheetWeekNotificationEmployeeFallback = Employee
+TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %s.
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
+
+TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
+TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveLabel = Timesheet approval notification
+TimesheetWeekTemplateApproveSubject = Timesheet __TIMESHEETWEEK_REF__ approved
+TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateRefuseLabel = Timesheet refusal notification
+TimesheetWeekTemplateRefuseSubject = Timesheet __TIMESHEETWEEK_REF__ refused
+TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
 
 TimesheetWeekPDFModels = TimesheetWeek PDF templates
 
