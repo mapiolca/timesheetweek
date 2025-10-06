@@ -96,7 +96,7 @@ function timesheetweekPrepareHead($object)
 
 	$langs->load("timesheetweek@timesheetweek");
 
-	$showtabofpagecontact = 1;
+        $showtabofpagecontact = 0;
 	$showtabofpagenote = 1;
 	$showtabofpagedocument = 1;
 	$showtabofpageagenda = 1;
@@ -109,14 +109,7 @@ function timesheetweekPrepareHead($object)
 	$head[$h][2] = 'card';
 	$h++;
 
-	if ($showtabofpagecontact) {
-		$head[$h][0] = dol_buildpath("/timesheetweek/timesheetweek_contact.php", 1).'?id='.$object->id;
-		$head[$h][1] = $langs->trans("Contacts");
-		$head[$h][2] = 'contact';
-		$h++;
-	}
-
-	if ($showtabofpagenote) {
+        if ($showtabofpagenote) {
 		if (isset($object->fields['note_public']) || isset($object->fields['note_private'])) {
 			$nbNote = 0;
 			if (!empty($object->note_private)) {
@@ -169,7 +162,77 @@ function timesheetweekPrepareHead($object)
 
 	complete_head_from_modules($conf, $langs, $object, $head, $h, 'timesheetweek@timesheetweek', 'remove');
 
-	return $head;
+        return $head;
+}
+
+/**
+ * Replace the inner text of an HTML anchor with the provided label
+ *
+ * @param string $linkHtml
+ * @param string $label
+ * @return string
+ */
+function tw_replace_anchor_text($linkHtml, $label)
+{
+        $escaped = dol_escape_htmltag($label);
+        if (empty($linkHtml)) {
+                return $escaped;
+        }
+
+        return preg_replace('/>([^<]*)</u', '>'.$escaped.'<', $linkHtml, 1);
+}
+
+/**
+ * Return the project link formatted as "Ref - Label"
+ *
+ * @param Project $project
+ * @param int     $withpicto
+ * @return string
+ */
+function tw_get_project_nomurl(Project $project, $withpicto = 0)
+{
+        $text = $project->ref;
+        if (!empty($project->title)) {
+                $text .= ' - '.$project->title;
+        } elseif (!empty($project->label)) {
+                $text .= ' - '.$project->label;
+        }
+
+        $anchor = $project->getNomUrl(0);
+        $anchor = tw_replace_anchor_text($anchor, $text);
+
+        if ($withpicto) {
+                $picto = img_object('', !empty($project->picto) ? $project->picto : 'project');
+                return $picto.' '.$anchor;
+        }
+
+        return $anchor;
+}
+
+/**
+ * Return the task link formatted as "Ref - Label"
+ *
+ * @param Task $task
+ * @param int  $withpicto
+ * @param bool $withproject
+ * @return string
+ */
+function tw_get_task_nomurl(Task $task, $withpicto = 0, $withproject = false)
+{
+        $text = $task->ref;
+        if (!empty($task->label)) {
+                $text .= ' - '.$task->label;
+        }
+
+        $anchor = $task->getNomUrl(0, $withproject ? 'withproject' : '');
+        $anchor = tw_replace_anchor_text($anchor, $text);
+
+        if ($withpicto) {
+                $picto = img_object('', !empty($task->picto) ? $task->picto : 'projecttask');
+                return $picto.' '.$anchor;
+        }
+
+        return $anchor;
 }
 
 /**

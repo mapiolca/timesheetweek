@@ -19,6 +19,7 @@ if (!$res) die("Include of main fails");
 
 // ---- Requires ----
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -196,10 +197,10 @@ if ($action === 'setnote' && $object->id > 0 && $object->status == tw_status('dr
 }
 
 if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status('draft')) {
-	$weekyear = GETPOST('weekyear', 'alpha');
-	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
-	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
-		$object->year = (int) $m[1];
+        $weekyear = GETPOST('weekyear', 'alpha');
+        if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+        if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
+                $object->year = (int) $m[1];
 		$object->week = (int) $m[2];
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -207,7 +208,112 @@ if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status
 	} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 	}
-	$action = '';
+        $action = '';
+}
+
+// ----------------- Action: prepare send mail -----------------
+if ($action === 'presend' && $id > 0) {
+        if ($object->id <= 0) $object->fetch($id);
+        $canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+        if (!$canSendMail) accessforbidden();
+}
+
+// ----------------- Action: send mail -----------------
+if ($action === 'sendmail' && $id > 0) {
+        if ($object->id <= 0) {
+                $object->fetch($id);
+        }
+
+        $canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+        if (!$canSendMail) accessforbidden();
+
+        if (!dol_verifyToken(GETPOST('token'))) accessforbidden();
+
+        $langs->load('mails');
+
+        $sendtoRaw = trim(GETPOST('sendto', 'none'));
+        $subject = trim(GETPOST('subject', 'restricthtml'));
+        $message = GETPOST('message', 'restricthtml');
+        $replytoRaw = trim(GETPOST('replyto', 'none'));
+
+        $sendtoList = array();
+        if ($sendtoRaw !== '') {
+                foreach (preg_split('/[,;]+/', $sendtoRaw) as $addr) {
+                        $addr = trim($addr);
+                        if ($addr !== '') {
+                                $sendtoList[] = $addr;
+                        }
+                }
+        }
+
+        $errors = array();
+        if (empty($sendtoList)) {
+                $errors[] = $langs->trans('ErrorFieldRequired', $langs->transnoentities('MailTo'));
+        }
+
+        foreach ($sendtoList as $addr) {
+                if (filter_var($addr, FILTER_VALIDATE_EMAIL) === false) {
+                        $errors[] = $langs->trans('ErrorBadEmail', dol_escape_htmltag($addr));
+                }
+        }
+
+        $replyto = '';
+        if ($replytoRaw !== '') {
+                if (filter_var($replytoRaw, FILTER_VALIDATE_EMAIL) === false) {
+                        $errors[] = $langs->trans('ErrorBadEmail', dol_escape_htmltag($replytoRaw));
+                } else {
+                        $replyto = $replytoRaw;
+                }
+        }
+
+        if ($subject === '') {
+                $errors[] = $langs->trans('ErrorFieldRequired', $langs->transnoentities('MailTopic'));
+        }
+
+        if (count($errors)) {
+                setEventMessages('', $errors, 'errors');
+                $action = 'presend';
+        } else {
+                $from = $replyto ?: $user->email;
+                if (empty($from)) {
+                        $from = getDolGlobalString('MAIN_INFO_SOCIETE_MAIL');
+                }
+
+                $trackid = 'timesheetweek'.$object->id;
+                $mailfile = new CMailFile(
+                        $subject,
+                        implode(', ', $sendtoList),
+                        $from,
+                        $message,
+                        array(),
+                        array(),
+                        array(),
+                        '',
+                        0,
+                        '',
+                        '',
+                        '',
+                        '',
+                        $trackid,
+                        $replyto
+                );
+
+                if ($mailfile->error) {
+                        setEventMessages($mailfile->error, $mailfile->errors, 'errors');
+                        $action = 'presend';
+                } else {
+                        $result = $mailfile->sendfile();
+                        if ($result) {
+                                setEventMessages($langs->trans('MailSuccessfulySent', implode(', ', $sendtoList)), null, 'mesgs');
+                                $action = '';
+                        } else {
+                                setEventMessages($mailfile->error, $mailfile->errors, 'errors');
+                                $action = 'presend';
+                        }
+                }
+        }
 }
 
 // ----------------- Action: Create (add) -----------------
@@ -917,7 +1023,7 @@ JS;
 			$proj = new Project($db);
 			$proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
-			echo $proj->getNomUrl(1);
+                        echo tw_get_project_nomurl($proj, 1);
 			echo '</td>';
 			echo '</tr>';
 
@@ -928,7 +1034,7 @@ JS;
 				$tsk = new Task($db);
 				$tsk->fetch((int)$task['task_id']);
 				if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-				echo $tsk->getNomUrl(1, 'withproject');
+                                echo tw_get_task_nomurl($tsk, 1);
 				echo '</td>';
 
 				$rowTotal = 0.0;
@@ -1044,12 +1150,18 @@ JS;
 	}
 
 	// ---- Boutons d’action (barre) ----
-	echo '<div class="tabsAction">';
+        echo '<div class="tabsAction">';
 
-	$token = newToken();
+        $token = newToken();
 
-	// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-	if ($object->status == tw_status('draft')) {
+        $canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+        if ($canSendMail) {
+                echo dolGetButtonAction('', $langs->trans('SendByEMail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&token='.$token);
+        }
+
+        // Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
+        if ($object->status == tw_status('draft')) {
 		// Compter les lignes
 		$nbLines = 0;
 		$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
@@ -1084,7 +1196,75 @@ JS;
 		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 	}
 
-	echo '</div>';
+        echo '</div>';
+
+        if ($action === 'presend') {
+                $langs->load('mails');
+
+                $defaultRecipients = array();
+                if ($object->fk_user > 0) {
+                        $tmpMailUser = new User($db);
+                        if ($tmpMailUser->fetch($object->fk_user) > 0 && !empty($tmpMailUser->email)) {
+                                $defaultRecipients[] = $tmpMailUser->email;
+                        }
+                }
+                if ($object->fk_user_valid > 0) {
+                        $tmpMailValidator = new User($db);
+                        if ($tmpMailValidator->fetch($object->fk_user_valid) > 0 && !empty($tmpMailValidator->email)) {
+                                $defaultRecipients[] = $tmpMailValidator->email;
+                        }
+                }
+                $defaultRecipients = array_unique($defaultRecipients);
+
+                $prefillSendto = trim(GETPOST('sendto', 'none'));
+                if ($prefillSendto === '') {
+                        $prefillSendto = implode(', ', $defaultRecipients);
+                }
+
+                $prefillSubject = trim(GETPOST('subject', 'restricthtml'));
+                if ($prefillSubject === '') {
+                        $prefillSubject = $langs->trans('TimesheetWeekMailDefaultSubject', $object->ref);
+                }
+
+                $prefillMessage = GETPOST('message', 'restricthtml');
+                if ($prefillMessage === '') {
+                        $prefillMessage = $langs->trans('TimesheetWeekMailDefaultBody', $object->ref, $object->week, $object->year);
+                }
+
+                $prefillReply = trim(GETPOST('replyto', 'none'));
+                if ($prefillReply === '') {
+                        $prefillReply = $user->email;
+                }
+
+                $tokenMail = newToken();
+
+                print '<br>';
+                print '<div class="fichecenter">';
+                print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'" class="limitwidth" autocomplete="off">';
+                print '<input type="hidden" name="token" value="'.$tokenMail.'">';
+                print '<input type="hidden" name="id" value="'.$object->id.'">';
+                print '<input type="hidden" name="action" value="sendmail">';
+
+                print load_fiche_titre($langs->trans('SendByEMail'));
+
+                print '<table class="border centpercent">';
+                print '<tr><td class="titlefield">'.$langs->trans('MailTo').'</td><td><input type="text" name="sendto" class="quatrevingtpercent" value="'.dol_escape_htmltag($prefillSendto).'">';
+                print '<br><span class="opacitymedium">'.$langs->trans('TimesheetWeekMailSendToHelp').'</span>';
+                print '</td></tr>';
+                print '<tr><td>'.$langs->trans('MailFrom').'</td><td>'.dol_escape_htmltag(!empty($user->email) ? $user->email : getDolGlobalString('MAIN_INFO_SOCIETE_MAIL')).'</td></tr>';
+                print '<tr><td>'.$langs->trans('MailReply').'</td><td><input type="text" name="replyto" class="quatrevingtpercent" value="'.dol_escape_htmltag($prefillReply).'"></td></tr>';
+                print '<tr><td>'.$langs->trans('MailTopic').'</td><td><input type="text" name="subject" class="quatrevingtpercent" value="'.dol_escape_htmltag($prefillSubject).'"></td></tr>';
+                print '<tr><td valign="top">'.$langs->trans('MailText').'</td><td><textarea name="message" class="quatrevingtpercent" rows="8">'.dol_escape_htmltag($prefillMessage, 1).'</textarea></td></tr>';
+                print '</table>';
+
+                print '<div class="center">';
+                print '<input type="submit" class="button" value="'.$langs->trans('SendByEMail').'">';
+                print '&nbsp;<a class="button button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans('Cancel').'</a>';
+                print '</div>';
+
+                print '</form>';
+                print '</div>';
+        }
 
 }
 

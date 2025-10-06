@@ -78,6 +78,7 @@ if (!$res) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/agenda.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
@@ -250,9 +251,9 @@ if ($object->id > 0) {
 			}
 		} else {
 			if (!empty($object->fk_project)) {
-				$proj = new Project($db);
-				$proj->fetch($object->fk_project);
-				$morehtmlref .= ': '.$proj->getNomUrl();
+                                $proj = new Project($db);
+                                $proj->fetch($object->fk_project);
+                                $morehtmlref .= ': '.tw_get_project_nomurl($proj);
 			} else {
 				$morehtmlref .= '';
 			}
@@ -316,26 +317,57 @@ if ($object->id > 0) {
 	}
 
 
-	if (isModEnabled('agenda') && ($user->hasRight('agenda', 'myactions', 'read') || $user->hasRight('agenda', 'allactions', 'read'))) {
-		print '<br>';
+        if (isModEnabled('agenda') && ($user->hasRight('agenda', 'myactions', 'read') || $user->hasRight('agenda', 'allactions', 'read'))) {
+                print '<br>';
 
-		$param = '&id='.$object->id.(!empty($socid) ? '&socid='.$socid : '');
-		if (!empty($contextpage) && $contextpage != $_SERVER["PHP_SELF"]) {
-			$param .= '&contextpage='.urlencode($contextpage);
-		}
-		if ($limit > 0 && $limit != $conf->liste_limit) {
-			$param .= '&limit='.((int) $limit);
-		}
+                $param = '&id='.$object->id;
+                if (!empty($contextpage) && $contextpage != $_SERVER["PHP_SELF"]) {
+                        $param .= '&contextpage='.urlencode($contextpage);
+                }
+                if ($limit > 0 && $limit != $conf->liste_limit) {
+                        $param .= '&limit='.((int) $limit);
+                }
+                if (!empty($search_rowid)) {
+                        $param .= '&search_rowid='.urlencode($search_rowid);
+                }
+                if (!empty($search_agenda_label)) {
+                        $param .= '&search_agenda_label='.urlencode($search_agenda_label);
+                }
+                if (!empty($sortfield)) {
+                        $param .= '&sortfield='.urlencode($sortfield);
+                }
+                if (!empty($sortorder)) {
+                        $param .= '&sortorder='.urlencode($sortorder);
+                }
 
-		// Try to know count of actioncomm from cache
-		$nbEvent = 0;
-                //require_once DOL_DOCUMENT_ROOT.'/core/lib/memory.lib.php';
-                //$cachekey = 'count_events_timesheetweek_'.$object->id;
-                //$nbEvent = dol_getcache($cachekey);
-                $sqlCount = "SELECT COUNT(a.id) as nb"
-                        ." FROM ".MAIN_DB_PREFIX."actioncomm as a"
-                        ." WHERE a.elementtype='".$db->escape($object->element)."'"
+                $sqlWhere = " WHERE a.entity IN (".getEntity('actioncomm', 1).")"
+                        ." AND a.elementtype='".$db->escape($object->element)."'"
                         ." AND a.fk_element=".(int) $object->id;
+
+                if (!empty($search_rowid)) {
+                        $sqlWhere .= " AND a.id=".(int) $search_rowid;
+                }
+                if (!empty($search_agenda_label)) {
+                        $sqlWhere .= " AND (a.label LIKE '%".$db->escape($search_agenda_label)."%'"
+                                ." OR a.note LIKE '%".$db->escape($search_agenda_label)."%')";
+                }
+                if (!empty($actioncode) && $actioncode !== '0') {
+                        if (is_array($actioncode)) {
+                                $list = array();
+                                foreach ($actioncode as $code) {
+                                        if ($code === '0') continue;
+                                        $list[] = "'".$db->escape($code)."'";
+                                }
+                                if (count($list)) {
+                                        $sqlWhere .= " AND a.type_code IN (".implode(',', $list).")";
+                                }
+                        } else {
+                                $sqlWhere .= " AND a.type_code='".$db->escape($actioncode)."'";
+                        }
+                }
+
+                $sqlCount = "SELECT COUNT(a.id) as nb FROM ".MAIN_DB_PREFIX."actioncomm as a".$sqlWhere;
+                $nbEvent = 0;
                 $resCount = $db->query($sqlCount);
                 if ($resCount) {
                         $objCount = $db->fetch_object($resCount);
@@ -344,23 +376,125 @@ if ($object->id > 0) {
                         }
                         $db->free($resCount);
                 }
-		$titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
-		if (!empty($conf->dol_optimize_smallscreen)) {
-			$titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
-		}
 
-		print_barre_liste($titlelist, 0, $_SERVER["PHP_SELF"], '', $sortfield, $sortorder, '', 0, -1, '', 0, $morehtmlright, '', 0, 1, 0);
+                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, a.type_code, a.code, a.userownerid,"
+                        ." a.fk_user_author, ca.label as action_label, ua.lastname as assigned_lastname, ua.firstname as assigned_firstname,"
+                        ." ua.login as assigned_login, ua.rowid as assigned_id, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
+                        ." creator.login as creator_login, creator.rowid as creator_id"
+                        ." FROM ".MAIN_DB_PREFIX."actioncomm as a"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."c_actioncomm as ca ON ca.code = a.type_code"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as ua ON ua.rowid = a.userownerid"
+                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as creator ON creator.rowid = a.fk_user_author"
+                        .$sqlWhere;
+                if (!empty($sortfield)) {
+                        $sql .= $db->order($sortfield, $sortorder);
+                }
+                if (!empty($limit)) {
+                        $sql .= $db->plimit($limit, $offset);
+                }
 
-		// List of all actions
-                $filters = array();
-                $filters['search_agenda_label'] = $search_agenda_label;
-                $filters['search_rowid'] = $search_rowid;
-                $filters['search_fk_element'] = $object->id;
-                $filters['search_elementtype'] = $object->element;
+                $resql = $db->query($sql);
+                if (!$resql) {
+                        dol_print_error($db);
+                } else {
+                        $num = $db->num_rows($resql);
 
-		// TODO Replace this with same code than into list.php
-		show_actions_done($conf, $langs, $db, $object, null, 0, $actioncode, '', $filters, $sortfield, $sortorder, property_exists($object, 'module') ? $object->module : '');
-	}
+                        $titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
+                        print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
+
+                        print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
+                        print '<input type="hidden" name="token" value="'.newToken().'">';
+                        print '<input type="hidden" name="id" value="'.$object->id.'">';
+                        print '<input type="hidden" name="limit" value="'.$limit.'">';
+                        print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
+                        print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
+                        if (is_array($actioncode)) {
+                                foreach ($actioncode as $code) {
+                                        print '<input type="hidden" name="actioncode[]" value="'.dol_escape_htmltag($code).'">';
+                                }
+                        } else {
+                                print '<input type="hidden" name="actioncode" value="'.dol_escape_htmltag($actioncode).'">';
+                        }
+
+                        print '<div class="div-table-responsive">';
+                        print '<table class="noborder centpercent">';
+
+                        print '<tr class="liste_titre">';
+                        print_liste_field_titre($langs->trans('Ref'), $_SERVER["PHP_SELF"], 'a.id', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('Label'), $_SERVER["PHP_SELF"], 'a.label', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('Type'), $_SERVER["PHP_SELF"], 'a.type_code', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('DateStart'), $_SERVER["PHP_SELF"], 'a.datep', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('DateEnd'), $_SERVER["PHP_SELF"], 'a.datep2', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], 'a.userownerid', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('Author'), $_SERVER["PHP_SELF"], 'a.fk_user_author', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('Status'), $_SERVER["PHP_SELF"], 'a.percent', $param, '', '', $sortfield, $sortorder, 'right');
+                        print '</tr>';
+
+                        print '<tr class="liste_titre">';
+                        print '<td class="liste_titre"><input type="text" class="flat" name="search_rowid" value="'.dol_escape_htmltag($search_rowid).'"></td>';
+                        print '<td class="liste_titre"><input type="text" class="flat" name="search_agenda_label" value="'.dol_escape_htmltag($search_agenda_label).'"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre"></td>';
+                        print '<td class="liste_titre right">';
+                        print '<button type="submit" class="button small" name="button_search" value="1">'.$langs->trans('Search').'</button>';
+                        print '&nbsp;';
+                        print '<button type="submit" class="button small" name="button_removefilter" value="1">'.$langs->trans('RemoveFilter').'</button>';
+                        print '</td>';
+                        print '</tr>';
+
+                        if ($num > 0) {
+                                $actionstatic = new ActionComm($db);
+                                $userstatic = new User($db);
+                                $creatorstatic = new User($db);
+
+                                while ($obj = $db->fetch_object($resql)) {
+                                        $actionstatic->fetch($obj->id);
+
+                                        $userstatic->id = (int) $obj->assigned_id;
+                                        $userstatic->lastname = $obj->assigned_lastname;
+                                        $userstatic->firstname = $obj->assigned_firstname;
+                                        $userstatic->login = $obj->assigned_login;
+
+                                        $creatorstatic->id = (int) $obj->creator_id;
+                                        $creatorstatic->lastname = $obj->creator_lastname;
+                                        $creatorstatic->firstname = $obj->creator_firstname;
+                                        $creatorstatic->login = $obj->creator_login;
+
+                                        $typeLabel = '';
+                                        if (!empty($obj->action_label)) {
+                                                $typeLabel = $langs->trans($obj->action_label);
+                                        } elseif (!empty($obj->type_code)) {
+                                                $typeLabel = $langs->trans($obj->type_code);
+                                        }
+                                        if (empty($typeLabel)) {
+                                                $typeLabel = $obj->type_code;
+                                        }
+
+                                        print '<tr class="oddeven">';
+                                        print '<td>'.$actionstatic->getNomUrl(1, '', 0, 'classfortooltip').'</td>';
+                                        print '<td>'.dol_escape_htmltag($actionstatic->label).'</td>';
+                                        print '<td>'.dol_escape_htmltag($typeLabel).'</td>';
+                                        print '<td>'.dol_print_date($actionstatic->datep, 'dayhour').'</td>';
+                                        print '<td>'.dol_print_date($actionstatic->datef, 'dayhour').'</td>';
+                                        print '<td>'.($userstatic->id > 0 ? $userstatic->getNomUrl(1) : '').'</td>';
+                                        print '<td>'.($creatorstatic->id > 0 ? $creatorstatic->getNomUrl(1) : '').'</td>';
+                                        print '<td class="right">'.$actionstatic->getLibStatut(5).'</td>';
+                                        print '</tr>';
+                                }
+                        } else {
+                                print '<tr class="oddeven"><td colspan="8" class="opacitymedium center">'.$langs->trans('NoEvent').'</td></tr>';
+                        }
+
+                        print '</table>';
+                        print '</div>';
+                        print '</form>';
+
+                        $db->free($resql);
+                }
+        }
 }
 
 // End of page
