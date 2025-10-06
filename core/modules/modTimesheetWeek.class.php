@@ -334,13 +334,41 @@ class modTimesheetWeek extends DolibarrModules
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'deleteChild';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
-		$this->rights[$r][1] = 'Delete TimesheetWeek for all';
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'deleteAll';
-		$r++;
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
+                $this->rights[$r][1] = 'Delete TimesheetWeek for all';
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'deleteAll';
+                $r++;
+                // EN: Legacy validation permission kept for backward compatibility
+                // FR : Droit de validation générique conservé pour compatibilité ascendante
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
+                $this->rights[$r][1] = 'Validate TimesheetWeek (generic)';
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validate';
+                $r++;
+                // EN: Allow managers to validate their own timesheets only
+                // FR : Autorise un utilisateur à valider uniquement ses propres feuilles
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
+                $this->rights[$r][1] = 'Validate his own TimesheetWeek';
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateOwn';
+                $r++;
+                // EN: Allow validation on subordinate timesheets
+                // FR : Autorise la validation des feuilles des subordonnés
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
+                $this->rights[$r][1] = 'Validate TimesheetWeek for subordinates';
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateChild';
+                $r++;
+                // EN: Allow global validation on all employee timesheets
+                // FR : Autorise la validation de toutes les feuilles de temps
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+                $this->rights[$r][1] = 'Validate TimesheetWeek for all';
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateAll';
+                $r++;
 
-		/* END MODULEBUILDER PERMISSIONS */
+                /* END MODULEBUILDER PERMISSIONS */
 
 
 		// Main menu entries to add
