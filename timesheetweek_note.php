@@ -81,7 +81,7 @@ if (!$res) {
 }
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
  * @var Conf $conf
@@ -209,9 +209,9 @@ if ($id > 0 || !empty($ref)) {
 	 }
 	 } else {
 	 if (!empty($object->fk_project)) {
-	 $proj = new Project($db);
-	 $proj->fetch($object->fk_project);
-	 $morehtmlref .= ': '.$proj->getNomUrl();
+                $proj = new Project($db);
+                $proj->fetch($object->fk_project);
+                $morehtmlref .= ': '.tw_get_project_nomurl($proj);
 	 } else {
 	 $morehtmlref .= '';
 	 }
@@ -220,7 +220,13 @@ if ($id > 0 || !empty($ref)) {
 	$morehtmlref .= '</div>';
 
 
-	dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref);
+        $morehtmlstatus = '';
+        if (!empty($object->id)) {
+                $morehtmlstatus = $object->getLibStatut(5);
+        }
+
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', '', '', $morehtmlstatus);
+        print timesheetweekRenderStatusBadgeCleanup();
 
 
 	print '<div class="fichecenter">';

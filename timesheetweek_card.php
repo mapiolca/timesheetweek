@@ -19,6 +19,7 @@ if (!$res) die("Include of main fails");
 
 // ---- Requires ----
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -43,8 +44,8 @@ include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // ---- SHIM STATUTS (mappe vers les constantes de la classe, avec fallback) ----
 function tw_status($name) {
-	static $map = null;
-	if ($map === null) {
+        static $map = null;
+        if ($map === null) {
 		$approved = null;
 		if (defined('TimesheetWeek::STATUS_APPROVED')) {
 			$approved = TimesheetWeek::STATUS_APPROVED;
@@ -59,8 +60,20 @@ function tw_status($name) {
 			'approved'  => $approved, // <— Approuvée
 			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
 		);
-	}
-	return $map[$name];
+        }
+        return $map[$name];
+}
+
+function tw_translate_error($errorKey, $langs)
+{
+        if (empty($errorKey)) {
+                return $langs->trans("Error");
+        }
+        $msg = $langs->trans($errorKey);
+        if ($msg === $errorKey) {
+                $msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
+        }
+        return $msg;
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -99,16 +112,62 @@ function tw_is_manager_of($userid, User $user) {
 	$subs = $user->getAllChildIds(1);
 	return (is_array($subs) && in_array((int)$userid, $subs, true));
 }
-function tw_can_validate_timesheet(TimesheetWeek $o, User $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll) {
-	if ($permValidateAll) return true;
-	if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
-	if ($permValidateOwn && ((int)$user->id === (int)$o->fk_user)) return true;
-	if ($permValidate && ((int)$user->id === (int)$o->fk_user_valid)) return true;
-	return false;
+function tw_can_validate_timesheet(
+        TimesheetWeek $o,
+        User $user,
+        $permValidate,
+        $permValidateOwn,
+        $permValidateChild,
+        $permValidateAll,
+        $permWrite = false,
+        $permWriteChild = false,
+        $permWriteAll = false
+) {
+        $hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
+
+        if (!empty($user->admin)) {
+                $permValidateAll = true;
+                $hasExplicitValidation = true;
+        }
+
+        if (!$hasExplicitValidation) {
+                // Aucun droit de validation explicite : on retombe sur l'ancien comportement basé sur l'écriture
+                if ($permWriteAll) {
+                        $permValidateAll = true;
+                }
+                if ($permWriteChild) {
+                        $permValidateChild = true;
+                }
+
+                if ($permWrite || $permWriteChild || $permWriteAll) {
+                        // Autorise la validation lorsque l'utilisateur est désigné validateur
+                        if ((int) $o->fk_user_valid === (int) $user->id) {
+                                $permValidate = true;
+                        }
+
+                        // Ancien comportement : les managers pouvaient valider via writeChild
+                        if (!$permValidateChild && $permWriteChild) {
+                                $permValidateChild = true;
+                        }
+                }
+        }
+
+        if ($permValidateAll) return true;
+        if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
+        if ($permValidateOwn && ((int) $user->id === (int) $o->fk_user)) return true;
+        if ($permValidate && ((int) $user->id === (int) $o->fk_user_valid)) return true;
+
+        return false;
 }
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
+
+$canSendMail = false;
+if ($object->id > 0) {
+        $canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+}
 
 // ----------------- Inline edits (crayons) -----------------
 if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status('draft')) {
@@ -144,10 +203,10 @@ if ($action === 'setnote' && $object->id > 0 && $object->status == tw_status('dr
 }
 
 if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status('draft')) {
-	$weekyear = GETPOST('weekyear', 'alpha');
-	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
-	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
-		$object->year = (int) $m[1];
+        $weekyear = GETPOST('weekyear', 'alpha');
+        if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+        if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
+                $object->year = (int) $m[1];
 		$object->week = (int) $m[2];
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -155,7 +214,75 @@ if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status
 	} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 	}
-	$action = '';
+        $action = '';
+}
+
+// ----------------- Action: prepare send mail -----------------
+if ($action === 'presend' && $id > 0) {
+        if ($object->id <= 0) {
+                $object->fetch($id);
+        }
+
+        $canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+        if (!$canSendMail) {
+                accessforbidden();
+        }
+
+        if (GETPOST('mode', 'aZ09') === 'init') {
+                $langs->load('mails');
+
+                $defaultRecipients = array();
+                if ($object->fk_user > 0) {
+                        $tmpMailUser = new User($db);
+                        if ($tmpMailUser->fetch($object->fk_user) > 0 && !empty($tmpMailUser->email)) {
+                                $defaultRecipients[] = $tmpMailUser->email;
+                        }
+                }
+                if ($object->fk_user_valid > 0) {
+                        $tmpMailValidator = new User($db);
+                        if ($tmpMailValidator->fetch($object->fk_user_valid) > 0 && !empty($tmpMailValidator->email)) {
+                                $defaultRecipients[] = $tmpMailValidator->email;
+                        }
+                }
+                $defaultRecipients = array_unique($defaultRecipients);
+
+                if (empty(GETPOST('sendto', 'none'))) {
+                        $_POST['sendto'] = implode(', ', $defaultRecipients);
+                }
+
+                $defaultFrom = !empty($user->email) ? $user->email : getDolGlobalString('MAIN_INFO_SOCIETE_MAIL');
+                if (empty(GETPOST('replyto', 'none')) && !empty($defaultFrom)) {
+                        $_POST['replyto'] = $defaultFrom;
+                }
+
+                if (empty(GETPOST('subject', 'restricthtml'))) {
+                        $_POST['subject'] = $langs->trans('TimesheetWeekMailDefaultSubject', $object->ref);
+                }
+
+                if (empty(GETPOST('message', 'restricthtml'))) {
+                        $_POST['message'] = $langs->trans('TimesheetWeekMailDefaultBody', $object->ref, $object->week, $object->year);
+                }
+        }
+}
+
+if ($action === 'send' && $id > 0 && !$canSendMail) {
+        accessforbidden();
+}
+
+if ($action === 'send' && $id > 0) {
+        if ($object->id <= 0) {
+                $object->fetch($id);
+        }
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_SENTBYMAIL';
+        $object->context['timesheetweek_card_action'] = 'send';
+}
+
+if (in_array($action, array('presend', 'send'), true)) {
+        $langs->load('mails');
 }
 
 // ----------------- Action: Create (add) -----------------
@@ -329,13 +456,13 @@ if ($action === 'save' && $id > 0) {
 
 // ----------------- Action: Submit -----------------
 if ($action === 'submit' && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
+        if ($object->id <= 0) $object->fetch($id);
 
-	if ($object->status != tw_status('draft')) {
-		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+        if (!in_array((int) $object->status, array((int) tw_status('draft'), (int) tw_status('refused')), true)) {
+                setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
 		accessforbidden();
 	}
@@ -353,15 +480,21 @@ if ($action === 'submit' && $id > 0) {
 		exit;
 	}
 
-	$object->status = tw_status('submitted');
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_SUBMIT';
+        $object->context['timesheetweek_card_action'] = 'submit';
+
+        $res = $object->submit($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: Back to draft -----------------
@@ -375,30 +508,35 @@ if ($action === 'setdraft' && $id > 0) {
 	}
 
 	$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-	$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+        $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 	if (!$canEmployee && !$canValidator) accessforbidden();
 
-	$object->status = tw_status('draft');
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("StatusSetToDraft"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['timesheetweek_card_action'] = 'setdraft';
+
+        $res = $object->revertToDraft($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("StatusSetToDraft"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: ASK APPROVE / REFUSE (confirm popups) -----------------
 if ($action === 'ask_validate' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) accessforbidden();
-	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
+        if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) accessforbidden();
 }
 if ($action === 'ask_refuse' && $id > 0) {
 	if ($object->id <= 0) $object->fetch($id);
 	if ($object->status != tw_status('submitted')) accessforbidden();
-	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) accessforbidden();
+        if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) accessforbidden();
 }
 
 // ----------------- Action: CONFIRM APPROVE (Approuver) -----------------
@@ -409,23 +547,25 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
-	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) {
+        if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur + date (même si différent)
-	$object->fk_user_valid = (int)$user->id;
-	$object->date_validation = dol_now();
-	$object->status = tw_status('approved'); // <— Approuvée
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
+        $object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->approve($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: CONFIRM REFUSE (Refuser) -----------------
@@ -436,44 +576,87 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 		exit;
 	}
-	if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll)) {
+        if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur + date
-	$object->fk_user_valid = (int)$user->id;
-	$object->date_validation = dol_now();
-	$object->status = tw_status('refused');
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        $object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
+        $object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->refuse($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: Delete -----------------
 if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
+        if ($object->id <= 0) $object->fetch($id);
 
-	// On autorise la suppression si l'utilisateur a les droits (own/child/all),
-	// ou s'il a des droits validate* (validateur), quelque soit le statut
-	$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+        // On autorise la suppression si l'utilisateur a les droits (own/child/all),
+        // ou s'il a des droits validate* (validateur), quelque soit le statut
+        $canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 
-	if (!$canDelete) accessforbidden();
+        if (!$canDelete) accessforbidden();
 
-	$res = $object->delete($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs');
-		header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php',1));
-		exit;
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
+        $res = $object->delete($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("RecordDeleted"), null, 'mesgs');
+                header("Location: ".dol_buildpath('/timesheetweek/timesheetweek_list.php',1));
+                exit;
+        } else {
+                setEventMessages($object->error, $object->errors, 'errors');
+        }
+}
+
+if ($object->id > 0) {
+        $modelmail = 'timesheetweek';
+        $defaulttopic = $langs->trans('TimesheetWeekMailDefaultSubject', $object->ref);
+        $defaultmessage = $langs->trans('TimesheetWeekMailDefaultBody', $object->ref, $object->week, $object->year);
+        $triggersendname = 'TIMESHEETWEEK_SENTBYMAIL';
+        $trackid = 'timesheetweek'.$object->id;
+        $permissiontosend = $canSendMail;
+        $diroutput = isset($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : (defined('DOL_DATA_ROOT') ? DOL_DATA_ROOT.'/timesheetweek' : '');
+
+        $moresubstit = array(
+                '__TIMESHEETWEEK_REF__' => $object->ref,
+                '__TIMESHEETWEEK_WEEK__' => $object->week,
+                '__TIMESHEETWEEK_YEAR__' => $object->year,
+                '__TIMESHEETWEEK_STATUS__' => $object->getLibStatut(0),
+        );
+
+        if ($object->fk_user > 0) {
+                $employee = new User($db);
+                if ($employee->fetch($object->fk_user) > 0) {
+                        $moresubstit['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'] = $employee->getFullName($langs);
+                        $moresubstit['__TIMESHEETWEEK_EMPLOYEE_EMAIL__'] = $employee->email;
+                }
+        }
+        if ($object->fk_user_valid > 0) {
+                $validator = new User($db);
+                if ($validator->fetch($object->fk_user_valid) > 0) {
+                        $moresubstit['__TIMESHEETWEEK_VALIDATOR_FULLNAME__'] = $validator->getFullName($langs);
+                        $moresubstit['__TIMESHEETWEEK_VALIDATOR_EMAIL__'] = $validator->email;
+                }
+        }
+
+        $param = array(
+                'sendcontext' => 'timesheetweek',
+                'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
+                'models' => $modelmail,
+                'trackid' => $trackid,
+        );
+
+        include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
 }
 
 // ----------------- View -----------------
@@ -549,11 +732,17 @@ JS;
 	}
 
 	// Head + banner
-	$head = timesheetweekPrepareHead($object);
-	print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
+        $head = timesheetweekPrepareHead($object);
+        print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
-	$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
-	dol_banner_tab($object, 'ref', $linkback);
+        $linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
+        $morehtmlright = '';
+        $morehtmlstatus = '';
+        if (!empty($object->id)) {
+                $morehtmlstatus = $object->getLibStatut(5);
+        }
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', $morehtmlright, '', $morehtmlstatus);
+        print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
 	if ($action === 'delete') {
@@ -601,8 +790,8 @@ JS;
 	echo '<div class="fichehalfleft">';
 	echo '<table class="border centpercent tableforfield">';
 
-	// Employé
-	echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
+        // Employé
+        echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
 	if ($action === 'editfk_user' && $canEditInline) {
 		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
@@ -818,7 +1007,7 @@ JS;
 
 		// Header jours
 		echo '<tr class="liste_titre">';
-		echo '<th>'.$langs->trans("Project / Task").'</th>';
+                echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
 		foreach ($days as $d) {
 			echo '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
 		}
@@ -867,7 +1056,7 @@ JS;
 			$proj = new Project($db);
 			$proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
-			echo $proj->getNomUrl(1);
+                        echo tw_get_project_nomurl($proj, 1);
 			echo '</td>';
 			echo '</tr>';
 
@@ -878,7 +1067,7 @@ JS;
 				$tsk = new Task($db);
 				$tsk->fetch((int)$task['task_id']);
 				if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-				echo $tsk->getNomUrl(1, 'withproject');
+                                echo tw_get_task_nomurl($tsk, 1);
 				echo '</td>';
 
 				$rowTotal = 0.0;
@@ -994,12 +1183,16 @@ JS;
 	}
 
 	// ---- Boutons d’action (barre) ----
-	echo '<div class="tabsAction">';
+        echo '<div class="tabsAction">';
 
-	$token = newToken();
+        $token = newToken();
 
-	// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-	if ($object->status == tw_status('draft')) {
+        if ($canSendMail) {
+                echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+        }
+
+        // Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
+        if ($object->status == tw_status('draft')) {
 		// Compter les lignes
 		$nbLines = 0;
 		$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
@@ -1012,7 +1205,7 @@ JS;
 	// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
 	if ($object->status != tw_status('draft')) {
 		$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+                $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 		if ($canEmployee || $canValidator) {
 			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
 		}
@@ -1020,7 +1213,7 @@ JS;
 
 	// Approuver / Refuser quand soumis (validateur/manager/all/own)
 	if ($object->status == tw_status('submitted')) {
-		$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+                $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 		if ($canValidator) {
 			echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
 			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
@@ -1028,29 +1221,52 @@ JS;
 	}
 
 	// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
-	$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
+        $canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 	if ($canDelete) {
 		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 	}
 
-	echo '</div>';
+        echo '</div>';
 
-	// --- Patch d’affichage : remplacer "Validée/Validated" par "Approuvée/Approved" ---
-	$jsStatusPatch = <<<'JS'
-<script>
-(function($){
-	$(function(){
-		$('.status, .statusbadge, .badge, .badgestatus').each(function(){
-			var t = $(this).text().trim();
-			if (t === 'Validée') $(this).text('Approuvée');
-			if (t === 'Validated') $(this).text('Approved');
-		});
-	});
-})(jQuery);
-</script>
-JS;
-	echo $jsStatusPatch;
+        if ($action === 'presend') {
+                $formmail = new FormMail($db);
+                $formmail->showform = 1;
+                $formmail->withfrom = 1;
+                $formmail->fromtype = 'user';
+                $formmail->fromid = $user->id;
+                $formmail->fromname = $user->getFullName($langs);
+                $formmail->frommail = !empty($user->email) ? $user->email : getDolGlobalString('MAIN_INFO_SOCIETE_MAIL');
+                $formmail->withreplyto = 1;
+                $formmail->replyto = GETPOST('replyto', 'none');
+                $formmail->withto = 1;
+                $formmail->withtofree = 1;
+                $formmail->withtocc = 1;
+                $formmail->withbcc = 1;
+                $formmail->withtopic = 1;
+                $formmail->withfile = 2;
+                $formmail->withmaindocfile = 1;
+                $formmail->withdeliveryreceipt = 1;
+                $formmail->withtpl = 1;
+                $formmail->withsubstit = 1;
+                $formmail->withcancel = 1;
+                $formmail->modelmail = $modelmail;
+                $formmail->trackid = $trackid;
+                $formmail->subject = GETPOST('subject', 'restricthtml');
+                $formmail->topic = $formmail->subject;
+                $formmail->content = GETPOST('message', 'restricthtml');
+                $formmail->message = $formmail->content;
+                $formmail->sendto = GETPOST('sendto', 'none');
+                $formmail->substit = $moresubstit;
+                $formmail->param = array_merge($param, array(
+                        'id' => $object->id,
+                        'action' => 'send',
+                ));
+                $formmail->langcode = $langs->defaultlang;
+
+                include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
+        }
+
 }
 
 // End of page

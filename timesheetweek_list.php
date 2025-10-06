@@ -36,7 +36,19 @@ $search_ref   = trim(GETPOST('search_ref','alphanohtml'));
 $search_user  = GETPOSTINT('search_user');
 $search_year  = GETPOSTINT('search_year');
 $search_week  = GETPOSTINT('search_week');
-$search_status= GETPOST('search_status','alpha'); // allow "0,1,2"
+$search_status = GETPOST('search_status', 'array', 2);
+$search_status = is_array($search_status) ? $search_status : array();
+$hasStatusRequest = function_exists('GETPOSTISSET') ? GETPOSTISSET('search_status') : (isset($_GET['search_status']) || isset($_POST['search_status']));
+if (!$hasStatusRequest) {
+    $rawStatus = GETPOST('search_status', 'alpha');
+    if (!empty($rawStatus)) {
+        $search_status = array_map('trim', explode(',', $rawStatus));
+    }
+}
+$search_status = array_values(array_unique(array_filter($search_status, function ($value) {
+    return $value !== '' && $value !== '-1';
+})));
+$search_status = array_map('strval', $search_status);
 
 /**
  * Security
@@ -65,6 +77,9 @@ $arrayfields = array(
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
 );
 
+// Update arrayfields from request (column selector)
+include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
+
 /**
  * Mass actions (UI)
  */
@@ -76,6 +91,14 @@ $arrayofmassactions = array(
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
 
 $arrayofselected = is_array($toselect) ? $toselect : array();
+
+if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
+    $search_ref = '';
+    $search_user = 0;
+    $search_year = 0;
+    $search_week = 0;
+    $search_status = array();
+}
 
 /**
  * SQL
@@ -90,7 +113,15 @@ if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
 if ($search_week > 0)       $sql .= " AND t.week = ".((int)$search_week);
-if ($search_status !== '' && $search_status !== '-1') $sql .= " AND t.status IN (".$db->sanitize($search_status).")";
+if (!empty($search_status)) {
+    $statusFilter = array();
+    foreach ($search_status as $statusValue) {
+        $statusFilter[] = (int) $statusValue;
+    }
+    if (!empty($statusFilter)) {
+        $sql .= ' AND t.status IN ('.implode(',', $statusFilter).')';
+    }
+}
 if (!$sortfield) $sortfield = "t.rowid";
 if (!$sortorder) $sortorder = "DESC";
 $sql .= $db->order($sortfield, $sortorder);
@@ -114,7 +145,11 @@ if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
 if ($search_user)  $param .= '&search_user='.(int)$search_user;
 if ($search_year)  $param .= '&search_year='.(int)$search_year;
 if ($search_week)  $param .= '&search_week='.(int)$search_week;
-if ($search_status !== '') $param .= '&search_status='.urlencode($search_status);
+if (!empty($search_status)) {
+    foreach ($search_status as $statusValue) {
+        $param .= '&search_status[]='.(int) $statusValue;
+    }
+}
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
@@ -147,9 +182,9 @@ print '<table class="tagtable nobottomiftotal liste">'."\n";
  */
 print '<tr class="liste_titre_filter">';
 if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-	print '<td class="liste_titre center maxwidthsearch">';
-	print $form->showFilterButtons('left');
-	print '</td>';
+        print '<td class="liste_titre center maxwidthsearch">';
+        print $form->showFilterButtons('left');
+        print '</td>';
 }
 if (!empty($arrayfields['t.ref']['checked'])) {
 	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
@@ -166,7 +201,16 @@ if (!empty($arrayfields['t.week']['checked'])) {
 	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
 }
 if (!empty($arrayfields['t.status']['checked'])) {
-	print '<td class="liste_titre center"><input class="flat" type="text" name="search_status" value="'.dol_escape_htmltag($search_status).'" size="6" placeholder="0,1,2,3"></td>';
+        $statusOptions = array(
+                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
+                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
+                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
+        );
+
+        print '<td class="liste_titre center">';
+        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+        print '</td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {
 	print '<td class="liste_titre right">&nbsp;</td>';
@@ -181,7 +225,7 @@ if (!empty($arrayfields['t.tms']['checked'])) {
 	print '<td class="liste_titre center">&nbsp;</td>';
 }
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-	print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons().'</td>';
+        print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
 }
 print '</tr>'."\n";
 

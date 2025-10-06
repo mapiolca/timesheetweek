@@ -20,6 +20,10 @@ class TimesheetWeek extends CommonObject
 	public $table_element = 'timesheet_week';
 	public $picto = 'bookcal';
 	public $ismultientitymanaged = 1;	// There is an entity field
+	public $modulepart = 'timesheetweek';
+	public $hasFiles = 1;
+	public $hasDocModel = 1;
+	public $dir_output = 'timesheetweek';
 
 	// Status
 	const STATUS_DRAFT     = 0;
@@ -55,8 +59,16 @@ class TimesheetWeek extends CommonObject
 	 */
 	public function __construct($db)
 	{
+		global $conf;
+
 		$this->db = $db;
 		$this->status = self::STATUS_DRAFT;
+
+		if (!empty($conf->timesheetweek->dir_output)) {
+			$this->dir_output = $conf->timesheetweek->dir_output;
+		} elseif (defined('DOL_DATA_ROOT')) {
+			$this->dir_output = DOL_DATA_ROOT.'/timesheetweek';
+		}
 	}
 
 	/**
@@ -113,8 +125,13 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 
-		$this->db->commit();
-		return $this->id;
+                if (!$this->createAgendaEvent($user, 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                return $this->id;
 	}
 
 	/**
@@ -259,15 +276,20 @@ class TimesheetWeek extends CommonObject
 		}
 
 		$sql = "DELETE FROM ".MAIN_DB_PREFIX.$this->table_element." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                return 1;
+        }
 
 	/**
 	 * Compute totals and save into object (not DB)
@@ -329,137 +351,198 @@ class TimesheetWeek extends CommonObject
 	 * @param User $user
 	 * @return int
 	 */
-	public function submit($user)
-	{
-		if ($this->status != self::STATUS_DRAFT && $this->status != self::STATUS_REFUSED) {
-			$this->error = 'BadStatusForSubmit';
-			return -1;
-		}
-		if (!$this->hasAtLeastOneLine()) {
-			$this->error = 'NoLineToSubmit';
-			return -2;
-		}
+        public function submit($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if (!in_array((int) $this->status, array(self::STATUS_DRAFT, self::STATUS_REFUSED), true)) {
+                        $this->error = 'BadStatusForSubmit';
+                        return -1;
+                }
+                if (!$this->hasAtLeastOneLine()) {
+                        $this->error = 'NoLineToSubmit';
+                        return -2;
+                }
 
-		// Set definitive ref if provisional
-		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
-			$newref = $this->generateDefinitiveRef();
-			if (empty($newref)) {
-				$this->db->rollback();
-				$this->error = 'RefGenerationFailed';
-				return -1;
-			}
-			$this->ref = $newref;
-			$upref = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
-			if (!$this->db->query($upref)) {
-				$this->db->rollback();
-				$this->error = $this->db->lasterror();
-				return -1;
-			}
-		}
+                $this->db->begin();
 
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($up)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                // Set definitive ref if provisional
+                if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
+                        $newref = $this->generateDefinitiveRef();
+                        if (empty($newref)) {
+                                $this->db->rollback();
+                                $this->error = 'RefGenerationFailed';
+                                return -1;
+                        }
+                        $this->ref = $newref;
+                        $upref = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
+                        if (!$this->db->query($upref)) {
+                                $this->db->rollback();
+                                $this->error = $this->db->lasterror();
+                                return -1;
+                        }
+                }
 
-		$this->status = self::STATUS_SUBMITTED;
+                $up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                if (!$this->db->query($up)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_SUBMITTED;
+                $this->tms = $now;
+                $this->date_validation = null;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_SUBMIT', $user);
+                return 1;
+        }
 
 	/**
 	 * Revert to draft
 	 * @param User $user
 	 * @return int
 	 */
-	public function revertToDraft($user)
-	{
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_DRAFT." WHERE rowid=".(int) $this->id;
-		if (!$this->db->query($up)) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		$this->status = self::STATUS_DRAFT;
-		return 1;
-	}
+        public function revertToDraft($user)
+        {
+                $now = dol_now();
+
+                if ((int) $this->status === self::STATUS_DRAFT) {
+                        $this->error = 'AlreadyDraft';
+                        return 0;
+                }
+
+                $this->db->begin();
+
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
+                        " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                $this->status = self::STATUS_DRAFT;
+                $this->tms = $now;
+                $this->date_validation = null;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+
+                return 1;
+        }
 
 	/**
 	 * Approve
 	 * @param User $user
 	 * @return int
 	 */
-	public function approve($user)
-	{
-		$now = dol_now();
+        public function approve($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if ((int) $this->status !== self::STATUS_SUBMITTED) {
+                        $this->error = 'BadStatusForApprove';
+                        return -1;
+                }
 
-		// Set validator if different
-		$setvalid = '';
-		if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
-			$setvalid = ", fk_user_valid=".(int) $user->id;
-			$this->fk_user_valid = (int) $user->id;
-		}
+                $this->db->begin();
 
-		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
-		$sql .= " status=".(int) self::STATUS_APPROVED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
-		$sql .= $setvalid;
-		$sql .= " WHERE rowid=".(int) $this->id;
+                // Set validator if different
+                $setvalid = '';
+                if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
+                        $setvalid = ", fk_user_valid=".(int) $user->id;
+                        $this->fk_user_valid = (int) $user->id;
+                }
 
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_APPROVED;
+                $sql .= ", date_validation='".$this->db->idate($now)."'";
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= $setvalid;
+                $sql .= " WHERE rowid=".(int) $this->id;
 
-		$this->status = self::STATUS_APPROVED;
-		$this->date_validation = $now;
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_APPROVED;
+                $this->date_validation = $now;
+                $this->tms = $now;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_APPROVE', $user);
+                return 1;
+        }
 
 	/**
 	 * Refuse
 	 * @param User $user
 	 * @return int
 	 */
-	public function refuse($user)
-	{
-		$now = dol_now();
+        public function refuse($user)
+        {
+                $now = dol_now();
 
-		$this->db->begin();
+                if ((int) $this->status !== self::STATUS_SUBMITTED) {
+                        $this->error = 'BadStatusForRefuse';
+                        return -1;
+                }
 
-		$setvalid = '';
-		if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
-			$setvalid = ", fk_user_valid=".(int) $user->id;
-			$this->fk_user_valid = (int) $user->id;
-		}
+                $this->db->begin();
 
-		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
-		$sql .= " status=".(int) self::STATUS_REFUSED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
-		$sql .= $setvalid;
-		$sql .= " WHERE rowid=".(int) $this->id;
+                $setvalid = '';
+                if (empty($this->fk_user_valid) || (int) $this->fk_user_valid !== (int) $user->id) {
+                        $setvalid = ", fk_user_valid=".(int) $user->id;
+                        $this->fk_user_valid = (int) $user->id;
+                }
 
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_REFUSED;
+                $sql .= ", date_validation='".$this->db->idate($now)."'";
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= $setvalid;
+                $sql .= " WHERE rowid=".(int) $this->id;
 
-		$this->status = self::STATUS_REFUSED;
-		$this->date_validation = $now;
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		$this->db->commit();
-		return 1;
-	}
+                $this->status = self::STATUS_REFUSED;
+                $this->date_validation = $now;
+                $this->tms = $now;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+                $this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user);
+                $this->triggerBusinessNotification('TIMESHEETWEEK_REFUSE', $user);
+                return 1;
+        }
 
 	/**
 	 * Generate definitive reference using addon in conf TIMESHEETWEEK_ADDON
@@ -564,68 +647,448 @@ class TimesheetWeek extends CommonObject
 	 * @param string $morecss
 	 * @return string
 	 */
-	public function getNomUrl($withpicto = 0, $option = '', $notooltip = 0, $morecss = '')
-	{
-		$label = $this->ref;
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $this->id;
-		$link = '<a href="'.$url.'"'.($morecss ? ' class="'.$morecss.'"' : '').'>';
-		$linkend = '</a>';
+        public function getNomUrl($withpicto = 0, $option = '', $notooltip = 0, $morecss = '')
+        {
+                global $langs;
 
-		$p = '';
-		if ($withpicto) $p = img_object('', $this->picto);
+                $label = dol_escape_htmltag($this->ref);
+                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $this->id;
 
-		if ($withpicto == 2) return $link.$p.$linkend.' '.$link.dol_escape_htmltag($label).$linkend;
-		if ($withpicto == 1) return $link.$p.$linkend;
-		return $link.dol_escape_htmltag($label).$linkend;
-	}
+                $linkstart = '';
+                $linkend = '';
+                $labeltooltip = $langs->trans('ShowTimesheetWeek', $this->ref);
 
-	/**
-	 * Badge / labels
-	 */
-	public function getLibStatut($mode = 0)
-	{
-		return self::LibStatut($this->status, $mode);
-	}
+                if ($option !== 'nolink') {
+                        $linkstart = '<a href="'.$url.'"';
+                        if ($morecss) {
+                                $linkstart .= ' class="'.$morecss.'"';
+                        }
+                        if (empty($notooltip)) {
+                                $linkstart .= ' title="'.dol_escape_htmltag($labeltooltip).'"';
+                        }
+                        $linkstart .= '>';
+                        $linkend = '</a>';
+                } elseif ($morecss) {
+                        $linkstart = '<span class="'.$morecss.'">';
+                        $linkend = '</span>';
+                }
 
-	public static function LibStatut($status, $mode = 0)
-	{
-		global $langs;
-		$langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+                $result = '';
+                if ($withpicto) {
+                        $tooltip = empty($notooltip) ? $labeltooltip : '';
+                        $picto = img_object($tooltip, $this->picto);
+                        $result .= $linkstart.$picto.$linkend;
+                        if ($withpicto != 1) {
+                                $result .= ' ';
+                        }
+                }
 
-		$label = '';
-		$clsnum = 0;
+                if ($withpicto != 1 || $option === 'ref' || !$withpicto) {
+                        $result .= $linkstart.$label.$linkend;
+                }
 
-		switch ((int) $status) {
-			case self::STATUS_DRAFT:
-				$label = $langs->trans("Draft");
-				$clsnum = 0;
-				break;
-			case self::STATUS_SUBMITTED:
-				$label = $langs->trans("Submitted");
-				$clsnum = 1;
-				break;
-			case self::STATUS_APPROVED:
-				$label = $langs->trans("Approved"); // "Approuvée"
-				$clsnum = 4;
-				break;
-			case self::STATUS_REFUSED:
-				$label = $langs->trans("Refused");
-				$clsnum = 6;
-				break;
-			default:
-				$label = $langs->trans("Unknown");
-				$clsnum = 0;
-		}
+                return $result;
+        }
 
-		if ((int) $mode === 5) {
-			return '<span class="badge badge-status'.$clsnum.' badge-status" title="'.dol_escape_htmltag($label).'">'
-				.dol_escape_htmltag($label).'</span>';
-		}
+        /**
+         * Load user from cache
+         *
+         * @param int $userid
+         * @return User|null
+         */
+        protected function loadUserFromCache($userid)
+        {
+                $userid = (int) $userid;
+                if ($userid <= 0) {
+                        return null;
+                }
 
-		$picto = img_picto($label, 'statut'.$clsnum);
+                static $cache = array();
+                if (!array_key_exists($userid, $cache)) {
+                        $cache[$userid] = null;
+                        $tmp = new User($this->db);
+                        if ($tmp->fetch($userid) > 0) {
+                                $cache[$userid] = $tmp;
+                        }
+                }
+
+                return $cache[$userid];
+        }
+
+        /**
+         * Send automatic notification based on trigger code
+         *
+         * @param string $triggerCode
+         * @param User   $actionUser
+         * @return bool
+         */
+       protected function sendAutomaticNotification($triggerCode, User $actionUser)
+       {
+               global $langs;
+
+               $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+
+               $employee = $this->loadUserFromCache($this->fk_user);
+               $validator = $this->loadUserFromCache($this->fk_user_valid);
+
+               // FR: Génère l'URL directe vers la fiche pour l'insérer dans le modèle d'e-mail.
+               // EN: Build the direct link to the card so it can be injected inside the e-mail template.
+               $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
+
+               $employeeName = $employee ? $employee->getFullName($langs) : '';
+               $validatorName = $validator ? $validator->getFullName($langs) : '';
+               $actionUserName = $actionUser->getFullName($langs);
+
+               // FR: Base des substitutions partagées entre notifications automatiques et métier.
+               // EN: Base substitution array shared between automatic and business notifications.
+               $baseSubstitutions = array(
+                       '__TIMESHEETWEEK_REF__' => $this->ref,
+                       '__TIMESHEETWEEK_WEEK__' => $this->week,
+                       '__TIMESHEETWEEK_YEAR__' => $this->year,
+                       '__TIMESHEETWEEK_URL__' => $url,
+                       '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
+                       '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
+                       '__ACTION_USER_FULLNAME__' => $actionUserName,
+                       '__RECIPIENT_FULLNAME__' => '',
+               );
+
+               if (!is_array($this->context)) {
+                       $this->context = array();
+               }
+
+               $this->context['timesheetweek_notification'] = array(
+                       'trigger_code' => $triggerCode,
+                       'url' => $url,
+                       'employee_id' => $employee ? (int) $employee->id : 0,
+                       'validator_id' => $validator ? (int) $validator->id : 0,
+                       'action_user_id' => (int) $actionUser->id,
+                       'employee_fullname' => $employeeName,
+                       'validator_fullname' => $validatorName,
+                       'action_user_fullname' => $actionUserName,
+                       'base_substitutions' => $baseSubstitutions,
+               );
+
+               // FR: Conserve les substitutions pour les triggers Notification natifs.
+               // EN: Keep substitutions handy for native Notification triggers.
+               $this->context['mail_substitutions'] = $baseSubstitutions;
+
+               // FR: Les triggers accèdent aux informations via le contexte, inutile de dupliquer les paramètres.
+               // EN: Triggers read every detail from the context, no need to duplicate the payload locally.
+               $result = $this->fireNotificationTrigger($triggerCode, $actionUser);
+               if ($result < 0) {
+                       $this->errors[] = $langs->trans('TimesheetWeekNotificationTriggerError', $triggerCode);
+                       dol_syslog(__METHOD__.': unable to execute trigger '.$triggerCode, LOG_ERR);
+                       return false;
+               }
+
+               return true;
+       }
+
+       /**
+        * Execute Dolibarr triggers when notifications must be sent.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @param array  $parameters
+        * @return int
+        */
+       protected function fireNotificationTrigger($triggerCode, User $actionUser)
+       {
+               global $langs, $conf, $hookmanager;
+
+               $payload = $this->buildTriggerParameters($triggerCode, $actionUser);
+
+               // FR: Priorité à call_trigger lorsqu'il est disponible sur l'objet.
+               // EN: Give priority to call_trigger whenever it exists on the object.
+               if (method_exists($this, 'call_trigger')) {
+                       try {
+                               $method = new \ReflectionMethod($this, 'call_trigger');
+                               $arguments = $this->mapTriggerArguments($method->getParameters(), $payload);
+
+                               return $method->invokeArgs($this, $arguments);
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                       }
+               }
+
+               // FR: Compatibilité avec les anciennes versions qui exposent runTrigger directement sur l'objet.
+               // EN: Backward compatibility for legacy releases exposing runTrigger on the object.
+               if (method_exists($this, 'runTrigger')) {
+                       try {
+                               $method = new \ReflectionMethod($this, 'runTrigger');
+                               $arguments = $this->mapTriggerArguments($method->getParameters(), $payload, true);
+
+                               return $method->invokeArgs($this, $arguments);
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                       }
+               }
+
+               // FR: Fallback ultime sur la fonction globale runTrigger si elle est disponible.
+               // EN: Ultimate fallback using the global runTrigger helper when available.
+               if (!function_exists('runTrigger')) {
+                       dol_include_once('/core/triggers/functions_triggers.inc.php');
+               }
+
+               if (function_exists('runTrigger')) {
+                       try {
+                               $function = new \ReflectionFunction('runTrigger');
+                               $arguments = $this->mapTriggerArguments($function->getParameters(), $payload, true);
+
+                               return $function->invokeArgs($arguments);
+                       } catch (\Throwable $error) {
+                               dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+                       }
+               }
+
+               return 0;
+       }
+
+       /**
+        * Prépare le jeu de paramètres partagé entre toutes les signatures de triggers.
+        * Prepare the shared payload used by every trigger signature.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @return array
+        */
+       protected function buildTriggerParameters($triggerCode, User $actionUser)
+       {
+               global $langs, $conf, $hookmanager;
+
+               return array(
+                       'action' => $triggerCode,
+                       'trigger' => $triggerCode,
+                       'event' => $triggerCode,
+                       'actioncode' => $triggerCode,
+                       'user' => $actionUser,
+                       'actor' => $actionUser,
+                       'currentuser' => $actionUser,
+                       'langs' => $langs,
+                       'language' => $langs,
+                       'conf' => $conf,
+                       'config' => $conf,
+                       'hookmanager' => isset($hookmanager) ? $hookmanager : null,
+                       'hook' => isset($hookmanager) ? $hookmanager : null,
+                       'object' => $this,
+                       'obj' => $this,
+                       'objectsrc' => $this,
+                       'context' => $this->context,
+                       'parameters' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'params' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'moreparam' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'extrafields' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'extrafield' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'extraparams' => property_exists($this, 'extrafields') ? $this->extrafields : null,
+                       'parametersarray' => array('context' => $this->context, 'timesheetweek' => $this),
+                       'actiontype' => $triggerCode,
+               );
+       }
+
+       /**
+        * Mappe la liste des paramètres attendus par une signature de trigger vers les valeurs connues.
+        * Map the expected parameter list of a trigger signature to the known values.
+        *
+        * @param \ReflectionParameter[] $signature
+        * @param array                  $payload
+        * @param bool                   $injectObjectWhenMissing
+        * @return array
+        */
+       protected function mapTriggerArguments(array $signature, array $payload, $injectObjectWhenMissing = false)
+       {
+               $arguments = array();
+
+               foreach ($signature as $parameter) {
+                       $name = $parameter->getName();
+
+                       if (isset($payload[$name])) {
+                               $arguments[] = $payload[$name];
+                               continue;
+                       }
+
+                       // FR: Quelques alias fréquents ne respectent pas la casse ou ajoutent un suffixe.
+                       // EN: Handle common aliases that differ by casing or suffixes.
+                       $lower = strtolower($name);
+                       if (isset($payload[$lower])) {
+                               $arguments[] = $payload[$lower];
+                               continue;
+                       }
+
+                       if ($lower === 'object' && $injectObjectWhenMissing) {
+                               $arguments[] = $this;
+                               continue;
+                       }
+
+                       if (strpos($lower, 'context') !== false) {
+                               $arguments[] = $payload['context'];
+                               continue;
+                       }
+
+                       // FR: Valeur neutre par défaut pour ne pas interrompre le déclenchement.
+                       // EN: Default neutral value so the trigger keeps running.
+                       $arguments[] = null;
+               }
+
+               return $arguments;
+       }
+
+       /**
+        * Fire Dolibarr business notifications (module Notification) for status changes.
+        *
+        * FR: Déclenche les notifications métiers standards de Dolibarr (module Notification) lors des changements d'état.
+        * EN: Fire standard Dolibarr business notifications (Notification module) when the status changes.
+        *
+        * @param string $triggerCode
+        * @param User   $actionUser
+        * @return int
+        */
+       protected function triggerBusinessNotification($triggerCode, User $actionUser)
+       {
+               if (!is_array($this->context)) {
+                       $this->context = array();
+               }
+
+               // FR: Marqueur spécifique pour les triggers du module Notification.
+               // EN: Specific flag for the Notification module triggers.
+               $this->context['timesheetweek_business_notification'] = 1;
+
+               if (!empty($this->context['timesheetweek_notification']['base_substitutions'])) {
+                       // FR: Garantit que les notifications métier récupèrent les mêmes substitutions que les e-mails automatiques.
+                       // EN: Ensure business notifications reuse the same substitutions as automatic e-mails.
+                       $this->context['mail_substitutions'] = $this->context['timesheetweek_notification']['base_substitutions'];
+               }
+
+               return $this->fireNotificationTrigger($triggerCode, $actionUser);
+       }
+
+        /**
+         * Badge / labels
+         */
+        public function getLibStatut($mode = 0)
+        {
+                return self::LibStatut($this->status, $mode);
+        }
+
+        public static function LibStatut($status, $mode = 0)
+        {
+                global $langs;
+                $langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+
+                $statusInfo = array(
+                        self::STATUS_DRAFT => array(
+                                'label' => $langs->trans('TimesheetWeekStatusDraft'),
+                                'picto' => 'statut0',
+                                'class' => 'badge badge-status badge-status0',
+                        ),
+                        self::STATUS_SUBMITTED => array(
+                                'label' => $langs->trans('TimesheetWeekStatusSubmitted'),
+                                'picto' => 'statut1',
+                                'class' => 'badge badge-status badge-status1',
+                        ),
+                        self::STATUS_APPROVED => array(
+                                'label' => $langs->trans('TimesheetWeekStatusApproved'),
+                                'picto' => 'statut4',
+                                'class' => 'badge badge-status badge-status4',
+                        ),
+                        self::STATUS_REFUSED => array(
+                                'label' => $langs->trans('TimesheetWeekStatusRefused'),
+                                'picto' => 'statut6',
+                                'class' => 'badge badge-status badge-status6',
+                        ),
+                );
+
+                $info = $statusInfo[$status] ?? array(
+                        'label' => $langs->trans('Unknown'),
+                        'picto' => 'statut0',
+                        'class' => 'badge badge-status badge-status0',
+                );
+
+                if ((int) $mode === 5) {
+                        return '<span class="'.$info['class'].'" title="'.dol_escape_htmltag($info['label']).'">'
+                                .dol_escape_htmltag($info['label']).'</span>';
+                }
+
+                $picto = img_picto($info['label'], $info['picto']);
 		if ((int) $mode === 1) return $picto;
-		if ((int) $mode === 2) return $picto.' '.$label;
-		if ((int) $mode === 3) return $label.' '.$picto;
-		return $label;
-	}
+                if ((int) $mode === 2) return $picto.' '.$info['label'];
+                if ((int) $mode === 3) return $info['label'].' '.$picto;
+                return $info['label'];
+        }
+
+        /**
+         * Create an agenda event for this timesheet action
+         *
+         * @param User   $user
+         * @param string $code       Internal agenda code (ex: TSWK_SUBMIT)
+         * @param string $labelKey   Translation key for event label
+         * @param array  $labelParams Parameters passed to translation
+         * @param bool   $linkToObject Whether to create an object link
+         *
+         * @return bool
+         */
+        protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true)
+        {
+                global $conf, $langs;
+
+                if (!function_exists('isModEnabled') || !isModEnabled('agenda')) {
+                        return true;
+                }
+
+                $langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
+
+                dol_include_once('/comm/action/class/actioncomm.class.php');
+
+                $args = array_merge(array($labelKey), $labelParams);
+                $label = call_user_func_array(array($langs, 'trans'), $args);
+                if ($label === $labelKey) {
+                        $label = $langs->trans('TimesheetWeekAgendaDefaultLabel', $this->ref);
+                }
+
+                $now = dol_now();
+
+                $event = new ActionComm($this->db);
+                $event->type_code = 'AC_OTH_AUTO';
+                $event->code = $code;
+                $event->label = $label;
+                $event->note_private = $label;
+                $event->fk_user_author = (int) $user->id;
+                $event->fk_user_mod = (int) $user->id;
+                $ownerId = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));
+                $event->userownerid = $ownerId;
+                if (property_exists($event, 'fk_user_action')) {
+                        $event->fk_user_action = $ownerId;
+                }
+                $event->datep = $now;
+                $event->datef = $now;
+                $event->percentage = -1;
+                $event->priority = 0;
+                $event->fulldayevent = 0;
+                $event->entity = !empty($this->entity) ? (int) $this->entity : (int) $conf->entity;
+
+                if (!empty($this->fk_user)) {
+                        $event->userassigned = array(
+                                (int) $this->fk_user => array('id' => (int) $this->fk_user),
+                        );
+                }
+
+                if ($linkToObject) {
+                        $event->elementtype = $this->element;
+                        $event->fk_element = (int) $this->id;
+                }
+
+                $res = $event->create($user);
+                if ($res <= 0) {
+                        $this->error = !empty($event->error) ? $event->error : 'AgendaEventCreationFailed';
+                        if (!empty($event->errors)) {
+                                $this->errors = array_merge($this->errors, $event->errors);
+                        }
+                        return false;
+                }
+
+                if ($linkToObject && method_exists($event, 'add_object_linked')) {
+                        $event->add_object_linked($this->element, (int) $this->id);
+                }
+
+                return true;
+        }
 }

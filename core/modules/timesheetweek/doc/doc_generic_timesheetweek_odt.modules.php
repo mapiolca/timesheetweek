@@ -75,7 +75,7 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 		$this->db = $db;
 		$this->name = "ODT templates";
 		$this->description = $langs->trans("DocumentModelOdt");
-		$this->scandir = 'TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH'; // Name of constant that is used to save list of directories to scan
+		$this->scandir = 'TIMESHEETWEEK_ADDON_PDF_ODT_PATH'; // Name of constant that is used to save list of directories to scan
 
 		// Page size for A4 format
 		$this->type = 'odt';
@@ -125,14 +125,14 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 
 		$form = new Form($this->db);
 
-		$odtPath = trim(getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH'));
+		$odtPath = trim(getDolGlobalString('TIMESHEETWEEK_ADDON_PDF_ODT_PATH'));
 
 		$texte = $this->description.".<br>\n";
 		$texte .= '<form action="'.$_SERVER["PHP_SELF"].'" method="POST" enctype="multipart/form-data">';
 		$texte .= '<input type="hidden" name="token" value="'.newToken().'">';
 		$texte .= '<input type="hidden" name="page_y" value="">';
 		$texte .= '<input type="hidden" name="action" value="setModuleOptions">';
-		$texte .= '<input type="hidden" name="param1" value="TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH">';
+		$texte .= '<input type="hidden" name="param1" value="TIMESHEETWEEK_ADDON_PDF_ODT_PATH">';
 
 		$texte .= '<table class="nobordernopadding centpercent">';
 
@@ -178,7 +178,7 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 			// Show list of found files
 			foreach ($listoffiles as $file) {
 				$texte .= '- '.$file['name'].' <a href="'.DOL_URL_ROOT.'/document.php?modulepart=doctemplates&file=timesheetweek_timesheetweek/'.urlencode(basename($file['name'])).'">'.img_picto('', 'listlight').'</a>';
-				$texte .= ' &nbsp; <a class="reposition" href="'.$_SERVER["PHP_SELF"].'?modulepart=doctemplates&keyforuploaddir=TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH&action=deletefile&token='.newToken().'&file='.urlencode(basename($file['name'])).'">'.img_picto('', 'delete').'</a>';
+				$texte .= ' &nbsp; <a class="reposition" href="'.$_SERVER["PHP_SELF"].'?modulepart=doctemplates&keyforuploaddir=TIMESHEETWEEK_ADDON_PDF_ODT_PATH&action=deletefile&token='.newToken().'&file='.urlencode(basename($file['name'])).'">'.img_picto('', 'delete').'</a>';
 				$texte .= '<br>';
 			}
 			$texte .= '</div>';
@@ -196,7 +196,7 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 			$texte .= '<br></div></div>';
 		} else {
 			$texte .= '<br>';
-			$texte .= '<input type="hidden" name="value1" value="TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH">';
+			$texte .= '<input type="hidden" name="value1" value="TIMESHEETWEEK_ADDON_PDF_ODT_PATH">';
 		}
 
 		// Add input to upload a new template file.
@@ -207,7 +207,7 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 			$texte .= '<input type="hidden" name="MAX_FILE_SIZE" value="'.($maxmin * 1024).'">';	// MAX_FILE_SIZE must precede the field type=file
 		}
 		$texte .= ' <input type="file" name="uploadfile">';
-		$texte .= '<input type="hidden" value="TIMESHEETWEEK_MYOBJECT_ADDON_PDF_ODT_PATH" name="keyforuploaddir">';
+		$texte .= '<input type="hidden" value="TIMESHEETWEEK_ADDON_PDF_ODT_PATH" name="keyforuploaddir">';
 		$texte .= '<input type="submit" class="button smallpaddingimp reposition" value="'.dol_escape_htmltag($langs->trans("Upload")).'" name="upload">';
 		$texte .= '</div>';
 
@@ -362,7 +362,7 @@ class doc_generic_timesheetweek_odt extends ModelePDFTimesheetWeek
 
 				// Line of free text
 				$newfreetext = '';
-				$paramfreetext = 'TIMESHEETWEEK_MYOBJECT_FREE_TEXT';
+				$paramfreetext = 'TIMESHEETWEEK_FREE_TEXT';
 				if (getDolGlobalString($paramfreetext)) {
 					$newfreetext = make_substitutions(getDolGlobalString($paramfreetext), $substitutionarray);
 				}

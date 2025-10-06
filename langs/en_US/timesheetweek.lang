@@ -33,6 +33,13 @@ TimesheetWeekAboutPage = TimesheetWeek about page
 # Sample page
 #
 TimesheetWeekArea = Home TimesheetWeek
+TimesheetWeek = Timesheet week
+TimesheetWeekList = Timesheet weeks
+ListTimesheetWeek = Timesheet weeks
+NewTimesheetWeek = New timesheet week
+List TimesheetWeek = Timesheet weeks
+New TimesheetWeek = New timesheet week
+ShowTimesheetWeek = Show timesheet week %s
 MyPageName = My page name
 
 #
@@ -40,3 +47,100 @@ MyPageName = My page name
 #
 MyWidget = My widget
 MyWidgetDescription = My widget description
+
+#
+# Errors & status changes
+#
+BadStatusForSubmit = This timesheet cannot be submitted from its current status.
+NoLineToSubmit = No lines to submit on this timesheet.
+RefGenerationFailed = Unable to generate a definitive reference for the timesheet.
+BadStatusForApprove = Only submitted timesheets can be approved.
+BadStatusForRefuse = Only submitted timesheets can be refused.
+AlreadyDraft = This timesheet is already in draft status.
+TimesheetSaved = Timesheet saved.
+Lines = lines
+InvalidWeekFormat = Invalid week format (expected YYYY-Www).
+TimesheetIsNotEditable = This timesheet cannot be edited in its current status.
+NoHoursToSubmit = No hours have been recorded on this timesheet.
+TimesheetSubmitted = Timesheet submitted.
+TimesheetApproved = Timesheet approved.
+TimesheetRefused = Timesheet refused.
+StatusSetToDraft = Timesheet set back to draft status.
+ActionNotAllowedOnThisStatus = This action is not allowed on the current status.
+Draft = Draft
+Submitted = Submitted
+Approved = Approved
+Refused = Refused
+ConfirmValidate = Do you confirm the approval of this timesheet?
+ConfirmRefuse = Do you confirm the refusal of this timesheet?
+TimesheetWeekStatusDraft = Draft
+TimesheetWeekStatusSubmitted = Submitted
+TimesheetWeekStatusApproved = Approved
+TimesheetWeekStatusRefused = Refused
+TimesheetWeekAgendaCreated = Timesheet %s created.
+TimesheetWeekAgendaSubmitted = Timesheet %s submitted.
+TimesheetWeekAgendaApproved = Timesheet %s approved.
+TimesheetWeekAgendaRefused = Timesheet %s refused.
+TimesheetWeekAgendaReopened = Timesheet %s reopened to draft.
+TimesheetWeekAgendaDeleted = Timesheet %s deleted.
+TimesheetWeekAgendaDefaultLabel = Timesheet %s activity.
+AgendaEventCreationFailed = Unable to create the agenda event linked to this timesheet.
+AssignedTasks = Assigned tasks
+NoTasksAssigned = No tasks are assigned for this week.
+ProjectTaskColumn = Project / Task
+Meal = Meal
+TotalHours = Total hours
+Overtime = Overtime
+TimesheetWeekMailDefaultSubject = Timesheet %s
+TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
+TimesheetWeekMailSendToHelp = Separate email addresses with commas.
+Sendbymail = Send by mail
+TimesheetWeekNotificationSubmitSubject = Timesheet %s submitted
+TimesheetWeekNotificationSubmitBody = Hello %s,\n\nThe employee %s submitted the timesheet %s for week %s/%s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationApproveSubject = Timesheet %s approved
+TimesheetWeekNotificationApproveBody = Hello %s,\n\nYour timesheet %s for week %s/%s was approved by %s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationRefuseSubject = Timesheet %s refused
+TimesheetWeekNotificationRefuseBody = Hello %s,\n\nYour timesheet %s for week %s/%s was refused by %s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationMissingRecipient = No recipient available for notification (%s).
+TimesheetWeekNotificationMailError = Unable to send notification email: %s
+TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
+TimesheetWeekNotificationValidatorFallback = Validator
+TimesheetWeekNotificationEmployeeFallback = Employee
+TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %s.
+Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
+Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
+Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
+
+TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
+TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveLabel = Timesheet approval notification
+TimesheetWeekTemplateApproveSubject = Timesheet __TIMESHEETWEEK_REF__ approved
+TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateRefuseLabel = Timesheet refusal notification
+TimesheetWeekTemplateRefuseSubject = Timesheet __TIMESHEETWEEK_REF__ refused
+TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+
+TimesheetWeekPDFModels = TimesheetWeek PDF templates
+
+ModelEnabled = Model %s enabled
+
+ModelDisabled = Model %s disabled
+
+#
+# Permissions
+#
+TimesheetWeekRightReadOwn = Read his own timesheets
+TimesheetWeekRightReadChild = Read subordinates' timesheets
+TimesheetWeekRightReadAll = Read all timesheets
+TimesheetWeekRightWriteOwn = Create/Update own timesheets
+TimesheetWeekRightWriteChild = Create/Update subordinates' timesheets
+TimesheetWeekRightWriteAll = Create/Update all timesheets
+TimesheetWeekRightDeleteOwn = Delete own timesheets
+TimesheetWeekRightDeleteChild = Delete subordinates' timesheets
+TimesheetWeekRightDeleteAll = Delete all timesheets
+TimesheetWeekRightValidateGeneric = Validate timesheets (generic)
+TimesheetWeekRightValidateOwn = Validate own timesheets
+TimesheetWeekRightValidateChild = Validate subordinates' timesheets
+TimesheetWeekRightValidateAll = Validate all timesheets

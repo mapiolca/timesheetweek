@@ -43,9 +43,13 @@ class modTimesheetWeek extends DolibarrModules
 	{
 		global $conf, $langs;
 
-		$this->db = $db;
+                $this->db = $db;
 
-		// Id for module (must be unique).
+                if (is_object($langs)) {
+                        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+                }
+
+                // Id for module (must be unique).
 		// Use here a free id (See in Home -> System information -> Dolibarr for list of used modules id).
 		$this->numero = 450003; // TODO Go on page https://wiki.dolibarr.org/index.php/List_of_modules_id to reserve an id number for your module
 
@@ -92,7 +96,7 @@ class modTimesheetWeek extends DolibarrModules
 		// Define some features supported by module (triggers, login, substitutions, menus, css, etc...)
 		$this->module_parts = array(
 			// Set this to 1 if module has its own trigger directory (core/triggers)
-			'triggers' => 0,
+                        'triggers' => 1,
 			// Set this to 1 if module has its own login method file (core/login)
 			'login' => 0,
 			// Set this to 1 if module has its own substitution function file (core/substitutions)
@@ -137,7 +141,7 @@ class modTimesheetWeek extends DolibarrModules
 
 		// Data directories to create when module is enabled.
 		// Example: this->dirs = array("/timesheetweek/temp","/timesheetweek/subdir");
-		$this->dirs = array("/timesheetweek/temp");
+		$this->dirs = array("/timesheetweek", "/timesheetweek/temp");
 
 		// Config pages. Put here list of php page, stored into timesheetweek/admin directory, to use to setup module.
 		$this->config_page_url = array("setup.php@timesheetweek");
@@ -295,52 +299,80 @@ class modTimesheetWeek extends DolibarrModules
 		// Add here entries to declare new permissions
 		/* BEGIN MODULEBUILDER PERMISSIONS */
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 0 + 1);
-		$this->rights[$r][1] = 'Read his own TimesheetWeek';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadOwn');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'read';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 1 + 1);
-		$this->rights[$r][1] = 'Read Subordonate\'s TimesheetWeek';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadChild');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'readChild';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
-		$this->rights[$r][1] = 'Read All TimesheetWeek';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadAll');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'readAll';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
-		$this->rights[$r][1] = 'Create/Update TimesheetWeek for him';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'write';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 4 + 1);
-		$this->rights[$r][1] = 'Create/Update TimesheetWeek for his subordonnates';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteChild');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'writeChild';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 5 + 1);
-		$this->rights[$r][1] = 'Create/Update TimesheetWeek for all';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteAll');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'writeAll';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 6 + 1);
-		$this->rights[$r][1] = 'Delete His own TimesheetWeek';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteOwn');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'delete';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 7 + 1);
-		$this->rights[$r][1] = 'Delete TimesheetWeek for his subordonnates';
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteChild');
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'deleteChild';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
-		$this->rights[$r][1] = 'Delete TimesheetWeek for all';
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'deleteAll';
-		$r++;
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteAll');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'deleteAll';
+                $r++;
+                // EN: Legacy validation permission kept for backward compatibility
+                // FR : Droit de validation générique conservé pour compatibilité ascendante
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateGeneric');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validate';
+                $r++;
+                // EN: Allow managers to validate their own timesheets only
+                // FR : Autorise un utilisateur à valider uniquement ses propres feuilles
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateOwn');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateOwn';
+                $r++;
+                // EN: Allow validation on subordinate timesheets
+                // FR : Autorise la validation des feuilles des subordonnés
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateChild');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateChild';
+                $r++;
+                // EN: Allow global validation on all employee timesheets
+                // FR : Autorise la validation de toutes les feuilles de temps
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateAll';
+                $r++;
 
-		/* END MODULEBUILDER PERMISSIONS */
+                /* END MODULEBUILDER PERMISSIONS */
 
 
 		// Main menu entries to add
@@ -541,8 +573,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->import_convertvalue_array[$r] = array(
 			't.ref' => array(
 				'rule'=>'getrefifauto',
-				'class'=>(!getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON')),
-				'path'=>"/core/modules/timesheetweek/".(!getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_MYOBJECT_ADDON')).'.php',
+				'class'=>(!getDolGlobalString('TIMESHEETWEEK_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_ADDON')),
+				'path'=>"/core/modules/timesheetweek/".(!getDolGlobalString('TIMESHEETWEEK_ADDON') ? 'mod_timesheetweek_standard' : getDolGlobalString('TIMESHEETWEEK_ADDON')).'.php',
 				'classobject'=>'TimesheetWeek',
 				'pathobject'=>'/timesheetweek/class/timesheetweek.class.php',
 			),
@@ -592,10 +624,10 @@ class modTimesheetWeek extends DolibarrModules
 		// Document templates
 		$moduledir = dol_sanitizeFileName('timesheetweek');
 		$myTmpObjects = array();
-		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 0);
+		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 1);
 
 		foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
-			if ($myTmpObjectArray['includerefgeneration']) {
+			if (!empty($myTmpObjectArray['includerefgeneration']) || !empty($myTmpObjectArray['includedocgeneration'])) {
 				$src = DOL_DOCUMENT_ROOT.'/install/doctemplates/'.$moduledir.'/template_timesheetweek.odt';
 				$dirodt = DOL_DATA_ROOT.($conf->entity > 1 ? '/'.$conf->entity : '').'/doctemplates/'.$moduledir;
 				$dest = $dirodt.'/template_timesheetweek.odt';
