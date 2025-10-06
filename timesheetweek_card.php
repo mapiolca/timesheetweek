@@ -43,8 +43,8 @@ include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
 // ---- SHIM STATUTS (mappe vers les constantes de la classe, avec fallback) ----
 function tw_status($name) {
-	static $map = null;
-	if ($map === null) {
+        static $map = null;
+        if ($map === null) {
 		$approved = null;
 		if (defined('TimesheetWeek::STATUS_APPROVED')) {
 			$approved = TimesheetWeek::STATUS_APPROVED;
@@ -59,8 +59,20 @@ function tw_status($name) {
 			'approved'  => $approved, // <— Approuvée
 			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
 		);
-	}
-	return $map[$name];
+        }
+        return $map[$name];
+}
+
+function tw_translate_error($errorKey, $langs)
+{
+        if (empty($errorKey)) {
+                return $langs->trans("Error");
+        }
+        $msg = $langs->trans($errorKey);
+        if ($msg === $errorKey) {
+                $msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
+        }
+        return $msg;
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -353,15 +365,15 @@ if ($action === 'submit' && $id > 0) {
 		exit;
 	}
 
-	$object->status = tw_status('submitted');
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->submit($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetSubmitted"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: Back to draft -----------------
@@ -378,15 +390,15 @@ if ($action === 'setdraft' && $id > 0) {
 	$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll);
 	if (!$canEmployee && !$canValidator) accessforbidden();
 
-	$object->status = tw_status('draft');
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("StatusSetToDraft"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->revertToDraft($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("StatusSetToDraft"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: ASK APPROVE / REFUSE (confirm popups) -----------------
@@ -413,19 +425,15 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur + date (même si différent)
-	$object->fk_user_valid = (int)$user->id;
-	$object->date_validation = dol_now();
-	$object->status = tw_status('approved'); // <— Approuvée
-
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->approve($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: CONFIRM REFUSE (Refuser) -----------------
@@ -440,19 +448,15 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		accessforbidden();
 	}
 
-	// Mettre à jour validateur + date
-	$object->fk_user_valid = (int)$user->id;
-	$object->date_validation = dol_now();
-	$object->status = tw_status('refused');
-
-	$res = $object->update($user);
-	if ($res > 0) {
-		setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
-	} else {
-		setEventMessages($object->error, $object->errors, 'errors');
-	}
-	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-	exit;
+        $res = $object->refuse($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
 }
 
 // ----------------- Action: Delete -----------------

@@ -40,3 +40,13 @@ MyPageName = My page name
 #
 MyWidget = My widget
 MyWidgetDescription = My widget description
+
+#
+# Errors & status changes
+#
+BadStatusForSubmit = This timesheet cannot be submitted from its current status.
+NoLineToSubmit = No lines to submit on this timesheet.
+RefGenerationFailed = Unable to generate a definitive reference for the timesheet.
+BadStatusForApprove = Only submitted timesheets can be approved.
+BadStatusForRefuse = Only submitted timesheets can be refused.
+AlreadyDraft = This timesheet is already in draft status.
