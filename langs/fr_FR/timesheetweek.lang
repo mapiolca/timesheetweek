@@ -37,6 +37,8 @@ TimesheetWeek = Feuille de temps hebdomadaire
 TimesheetWeekList = Feuilles de temps hebdomadaires
 ListTimesheetWeek = Feuilles de temps hebdomadaires
 NewTimesheetWeek = Nouvelle feuille de temps hebdomadaire
+List TimesheetWeek = Liste des feuilles de temps
+New TimesheetWeek = Nouvelle feuille de temps
 ShowTimesheetWeek = Afficher la feuille de temps %s
 MyPageName = Nom de ma page
 
@@ -90,3 +92,4 @@ Overtime = Heures supplémentaires
 TimesheetWeekMailDefaultSubject = Feuille de temps %s
 TimesheetWeekMailDefaultBody = Bonjour,\n\nVeuillez trouver la feuille de temps %s (semaine %s / %s).\n\nCordialement,
 TimesheetWeekMailSendToHelp = Séparez les adresses e-mail par des virgules.
+Sendbymail = Envoyer par mail

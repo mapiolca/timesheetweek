@@ -37,6 +37,8 @@ TimesheetWeek = Timesheet week
 TimesheetWeekList = Timesheet weeks
 ListTimesheetWeek = Timesheet weeks
 NewTimesheetWeek = New timesheet week
+List TimesheetWeek = Timesheet weeks
+New TimesheetWeek = New timesheet week
 ShowTimesheetWeek = Show timesheet week %s
 MyPageName = My page name
 
@@ -90,3 +92,4 @@ Overtime = Overtime
 TimesheetWeekMailDefaultSubject = Timesheet %s
 TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
 TimesheetWeekMailSendToHelp = Separate email addresses with commas.
+Sendbymail = Send by mail
