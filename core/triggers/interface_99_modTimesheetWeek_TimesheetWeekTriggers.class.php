@@ -353,30 +353,39 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         } else {
                                 $recipientName = $recipient->getFullName($langs);
+                                $subject = $langs->trans($subjectKey, $timesheet->ref);
+
                                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
-                                        $subject = $langs->trans($subjectKey, $timesheet->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
+                                        $messageArgs = array(
                                                 $recipientName,
                                                 $employeeName,
                                                 $timesheet->ref,
                                                 $timesheet->week,
                                                 $timesheet->year,
                                                 $url,
-                                                $actionUserName
+                                                $actionUserName,
                                         );
                                 } else {
-                                        $subject = $langs->trans($subjectKey, $timesheet->ref);
-                                        $message = $langs->trans(
-                                                $bodyKey,
+                                        $messageArgs = array(
                                                 $recipientName,
                                                 $timesheet->ref,
                                                 $timesheet->week,
                                                 $timesheet->year,
                                                 $actionUserName,
                                                 $url,
-                                                $actionUserName
+                                                $actionUserName,
                                         );
+                                }
+
+                                $messageTemplate = $langs->transnoentitiesnoconv($bodyKey);
+                                if ($messageTemplate === $bodyKey) {
+                                        $messageTemplate = $langs->trans($bodyKey);
+                                }
+
+                                $message = @vsprintf($messageTemplate, $messageArgs);
+                                if ($message === false) {
+                                        dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Invalid mail template placeholders'), LOG_WARNING);
+                                        $message = $messageTemplate;
                                 }
                         }
 
