@@ -659,22 +659,22 @@ class TimesheetWeek extends CommonObject
 
                 $statusInfo = array(
                         self::STATUS_DRAFT => array(
-                                'label' => $langs->trans('Draft'),
+                                'label' => $langs->trans('TimesheetWeekStatusDraft'),
                                 'picto' => 'statut0',
                                 'class' => 'badge badge-status badge-status0',
                         ),
                         self::STATUS_SUBMITTED => array(
-                                'label' => $langs->trans('Submitted'),
+                                'label' => $langs->trans('TimesheetWeekStatusSubmitted'),
                                 'picto' => 'statut1',
                                 'class' => 'badge badge-status badge-status1',
                         ),
                         self::STATUS_APPROVED => array(
-                                'label' => $langs->trans('Approved'),
+                                'label' => $langs->trans('TimesheetWeekStatusApproved'),
                                 'picto' => 'statut4',
                                 'class' => 'badge badge-status badge-status4',
                         ),
                         self::STATUS_REFUSED => array(
-                                'label' => $langs->trans('Refused'),
+                                'label' => $langs->trans('TimesheetWeekStatusRefused'),
                                 'picto' => 'statut6',
                                 'class' => 'badge badge-status badge-status6',
                         ),
@@ -736,7 +736,11 @@ class TimesheetWeek extends CommonObject
                 $event->note_private = $label;
                 $event->fk_user_author = (int) $user->id;
                 $event->fk_user_mod = (int) $user->id;
-                $event->userownerid = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));
+                $ownerId = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));
+                $event->userownerid = $ownerId;
+                if (property_exists($event, 'fk_user_action')) {
+                        $event->fk_user_action = $ownerId;
+                }
                 $event->datep = $now;
                 $event->datef = $now;
                 $event->percentage = -1;

@@ -87,6 +87,51 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
+ * Fetch assigned internal users for a list of agenda events
+ *
+ * @param DoliDB $db
+ * @param int[]  $eventIds
+ * @return array<int, array<int, stdClass>>
+ */
+function tw_fetch_assigned_users_for_events($db, array $eventIds)
+{
+        $result = array();
+
+        if (empty($eventIds)) {
+                return $result;
+        }
+
+        $ids = array();
+        foreach ($eventIds as $eventId) {
+                $eventId = (int) $eventId;
+                if ($eventId > 0) {
+                        $ids[$eventId] = $eventId;
+                }
+        }
+
+        if (empty($ids)) {
+                return $result;
+        }
+
+        $sql = "SELECT ar.fk_actioncomm AS action_id, u.rowid AS user_id, u.lastname, u.firstname, u.login"
+                ." FROM ".MAIN_DB_PREFIX."actioncomm_resources as ar"
+                ." LEFT JOIN ".MAIN_DB_PREFIX."user as u ON (u.rowid = ar.fk_element AND ar.element_type IN ('user','internal'))"
+                ." WHERE ar.fk_actioncomm IN (".implode(',', $ids).")"
+                ." AND ar.element_type IN ('user','internal')"
+                ." ORDER BY ar.fk_actioncomm, u.lastname, u.firstname";
+
+        $res = $db->query($sql);
+        if ($res) {
+                while ($obj = $db->fetch_object($res)) {
+                        $result[(int) $obj->action_id][] = $obj;
+                }
+                $db->free($res);
+        }
+
+        return $result;
+}
+
+/**
  * @var Conf $conf
  * @var DoliDB $db
  * @var HookManager $hookmanager
@@ -368,7 +413,6 @@ if ($object->id > 0) {
 
                 $sqlFrom = " FROM ".MAIN_DB_PREFIX."actioncomm as a"
                         ." LEFT JOIN ".MAIN_DB_PREFIX."c_actioncomm as ca ON (ca.id = a.fk_action OR ca.code = a.code)"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as ua ON ua.rowid = a.userownerid"
                         ." LEFT JOIN ".MAIN_DB_PREFIX."user as creator ON creator.rowid = a.fk_user_author";
 
                 $sqlCount = "SELECT COUNT(a.id) as nb".$sqlFrom.$sqlWhere;
@@ -382,10 +426,9 @@ if ($object->id > 0) {
                         $db->free($resCount);
                 }
 
-                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, COALESCE(a.code, ca.code) as type_code, a.code, a.userownerid," 
-                        ." a.fk_user_author, ca.label as action_label, ua.lastname as assigned_lastname, ua.firstname as assigned_firstname," 
-                        ." ua.login as assigned_login, ua.rowid as assigned_id, creator.lastname as creator_lastname, creator.firstname as creator_firstname," 
-                        ." creator.login as creator_login, creator.rowid as creator_id" 
+                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, COALESCE(a.code, ca.code) as type_code, a.code,"
+                        ." a.fk_user_author, ca.label as action_label, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
+                        ." creator.login as creator_login, creator.rowid as creator_id"
                         .$sqlFrom
                         .$sqlWhere;
                 if (!empty($sortfield)) {
@@ -400,6 +443,13 @@ if ($object->id > 0) {
                         dol_print_error($db);
                 } else {
                         $num = $db->num_rows($resql);
+
+                        $rows = array();
+                        if ($num > 0) {
+                                while ($obj = $db->fetch_object($resql)) {
+                                        $rows[] = $obj;
+                                }
+                        }
 
                         $titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
                         print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
@@ -427,7 +477,7 @@ if ($object->id > 0) {
                         print_liste_field_titre($langs->trans('Type'), $_SERVER["PHP_SELF"], 'a.code', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('DateStart'), $_SERVER["PHP_SELF"], 'a.datep', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('DateEnd'), $_SERVER["PHP_SELF"], 'a.datep2', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], 'a.userownerid', $param, '', '', $sortfield, $sortorder);
+                        print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], '', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('Author'), $_SERVER["PHP_SELF"], 'a.fk_user_author', $param, '', '', $sortfield, $sortorder);
                         print_liste_field_titre($langs->trans('Status'), $_SERVER["PHP_SELF"], 'a.percent', $param, '', '', $sortfield, $sortorder, 'right');
                         print '</tr>';
@@ -448,22 +498,39 @@ if ($object->id > 0) {
                         print '</tr>';
 
                         if ($num > 0) {
+                                $eventIds = array();
+                                foreach ($rows as $row) {
+                                        $eventIds[] = (int) $row->id;
+                                }
+
+                                $assignedByEvent = tw_fetch_assigned_users_for_events($db, $eventIds);
+
                                 $actionstatic = new ActionComm($db);
                                 $userstatic = new User($db);
                                 $creatorstatic = new User($db);
 
-                                while ($obj = $db->fetch_object($resql)) {
+                                foreach ($rows as $obj) {
                                         $actionstatic->fetch($obj->id);
-
-                                        $userstatic->id = (int) $obj->assigned_id;
-                                        $userstatic->lastname = $obj->assigned_lastname;
-                                        $userstatic->firstname = $obj->assigned_firstname;
-                                        $userstatic->login = $obj->assigned_login;
 
                                         $creatorstatic->id = (int) $obj->creator_id;
                                         $creatorstatic->lastname = $obj->creator_lastname;
                                         $creatorstatic->firstname = $obj->creator_firstname;
                                         $creatorstatic->login = $obj->creator_login;
+
+                                        $assignedHtml = '';
+                                        if (!empty($assignedByEvent[$obj->id])) {
+                                                $links = array();
+                                                foreach ($assignedByEvent[$obj->id] as $assignedUser) {
+                                                        if (!empty($assignedUser->user_id)) {
+                                                                $userstatic->id = (int) $assignedUser->user_id;
+                                                                $userstatic->lastname = $assignedUser->lastname;
+                                                                $userstatic->firstname = $assignedUser->firstname;
+                                                                $userstatic->login = $assignedUser->login;
+                                                                $links[] = $userstatic->getNomUrl(1);
+                                                        }
+                                                }
+                                                $assignedHtml = implode(', ', $links);
+                                        }
 
                                         $typeLabel = '';
                                         if (!empty($obj->action_label)) {
@@ -481,7 +548,7 @@ if ($object->id > 0) {
                                         print '<td>'.dol_escape_htmltag($typeLabel).'</td>';
                                         print '<td>'.dol_print_date($actionstatic->datep, 'dayhour').'</td>';
                                         print '<td>'.dol_print_date($actionstatic->datef, 'dayhour').'</td>';
-                                        print '<td>'.($userstatic->id > 0 ? $userstatic->getNomUrl(1) : '').'</td>';
+                                        print '<td>'.$assignedHtml.'</td>';
                                         print '<td>'.($creatorstatic->id > 0 ? $creatorstatic->getNomUrl(1) : '').'</td>';
                                         print '<td class="right">'.$actionstatic->getLibStatut(5).'</td>';
                                         print '</tr>';
