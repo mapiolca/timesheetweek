@@ -135,7 +135,7 @@ $num = $resql ? $db->num_rows($resql) : 0;
  * Header
  */
 $title = $langs->trans("TimesheetWeekList");
-llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist mod-bookcal page-list');
+llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist page-list');
 
 /**
  * Build param for pagination links
@@ -153,7 +153,7 @@ if (!empty($search_status)) {
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, '', 'time', 0, $newcardbutton, '', $limit, 0, 0, 1);
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, '', 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
 /**
  * Column selector on left of titles
