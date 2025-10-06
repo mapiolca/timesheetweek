@@ -140,7 +140,14 @@ foreach ($dirmodels as $reldir) {
                 print '</label>';
                 print '</td>';
 
-                print '<td class="small">'.($desc ? dol_escape_htmltag($desc) : '&nbsp;').'</td>';
+                if (!empty($desc)) {
+                        $descIsPlainText = ($desc === strip_tags($desc));
+                        $descHtml = $descIsPlainText ? dol_escape_htmltag($desc) : $desc;
+                } else {
+                        $descHtml = '&nbsp;';
+                }
+
+                print '<td class="small">'.$descHtml.'</td>';
 
                 print '<td class="center">';
                 print img_picto($isActive ? $langs->trans('Enabled') : $langs->trans('Disabled'), $isActive ? 'status1' : 'status0');
