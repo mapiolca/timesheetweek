@@ -78,8 +78,10 @@ if (!$res) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/contact/class/contact.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/agenda.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/comm/action/class/actioncomm.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
 
@@ -264,6 +266,7 @@ if ($object->id > 0) {
         }
 
         dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', '', '', $morehtmlstatus);
+        print timesheetweekRenderStatusBadgeCleanup();
 
 	print '<div class="fichecenter">';
 	print '<div class="underbanner clearboth"></div>';
@@ -326,9 +329,21 @@ if ($object->id > 0) {
 
 		// Try to know count of actioncomm from cache
 		$nbEvent = 0;
-		//require_once DOL_DOCUMENT_ROOT.'/core/lib/memory.lib.php';
-		//$cachekey = 'count_events_timesheetweek_'.$object->id;
-		//$nbEvent = dol_getcache($cachekey);
+                //require_once DOL_DOCUMENT_ROOT.'/core/lib/memory.lib.php';
+                //$cachekey = 'count_events_timesheetweek_'.$object->id;
+                //$nbEvent = dol_getcache($cachekey);
+                $sqlCount = "SELECT COUNT(a.id) as nb"
+                        ." FROM ".MAIN_DB_PREFIX."actioncomm as a"
+                        ." WHERE a.elementtype='".$db->escape($object->element)."'"
+                        ." AND a.fk_element=".(int) $object->id;
+                $resCount = $db->query($sqlCount);
+                if ($resCount) {
+                        $objCount = $db->fetch_object($resCount);
+                        if ($objCount) {
+                                $nbEvent = (int) $objCount->nb;
+                        }
+                        $db->free($resCount);
+                }
 		$titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
 		if (!empty($conf->dol_optimize_smallscreen)) {
 			$titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
@@ -337,9 +352,11 @@ if ($object->id > 0) {
 		print_barre_liste($titlelist, 0, $_SERVER["PHP_SELF"], '', $sortfield, $sortorder, '', 0, -1, '', 0, $morehtmlright, '', 0, 1, 0);
 
 		// List of all actions
-		$filters = array();
-		$filters['search_agenda_label'] = $search_agenda_label;
-		$filters['search_rowid'] = $search_rowid;
+                $filters = array();
+                $filters['search_agenda_label'] = $search_agenda_label;
+                $filters['search_rowid'] = $search_rowid;
+                $filters['search_fk_element'] = $object->id;
+                $filters['search_elementtype'] = $object->element;
 
 		// TODO Replace this with same code than into list.php
 		show_actions_done($conf, $langs, $db, $object, null, 0, $actioncode, '', $filters, $sortfield, $sortorder, property_exists($object, 'module') ? $object->module : '');

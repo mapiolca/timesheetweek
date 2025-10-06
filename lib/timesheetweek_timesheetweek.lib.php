@@ -104,7 +104,46 @@ function timesheetweekPrepareHead($object)
 	//); // to remove a tab
 	complete_head_from_modules($conf, $langs, $object, $head, $h, 'timesheetweek@timesheetweek');
 
-	complete_head_from_modules($conf, $langs, $object, $head, $h, 'timesheetweek@timesheetweek', 'remove');
+        complete_head_from_modules($conf, $langs, $object, $head, $h, 'timesheetweek@timesheetweek', 'remove');
 
-	return $head;
+        return $head;
+}
+
+if (!function_exists('timesheetweekRenderStatusBadgeCleanup')) {
+        /**
+         * Injects a small jQuery helper to keep only the Dolibarr badge in status areas
+         * and align vocabulary on "Approuvée/Approved".
+         *
+         * @return string
+         */
+        function timesheetweekRenderStatusBadgeCleanup()
+        {
+                return <<<'JS'
+<script>
+(function (factory) {
+    if (typeof jQuery !== 'undefined') {
+        factory(jQuery);
+    }
+})(function ($) {
+    $(function () {
+        $('.statusref').each(function () {
+            $(this).contents().filter(function () {
+                return this.nodeType === 3 && $.trim(this.nodeValue).length > 0;
+            }).remove();
+        });
+
+        $('.statusref .badge, .status .badge, .badgestatus, .badge-status').each(function () {
+            var text = $.trim($(this).text());
+            if (text === 'Validée') {
+                $(this).text('Approuvée');
+            }
+            if (text === 'Validated') {
+                $(this).text('Approved');
+            }
+        });
+    });
+});
+</script>
+JS;
+        }
 }

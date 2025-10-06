@@ -25,6 +25,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours(), ...
+dol_include_once('/timesheetweek/lib/timesheetweek_timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
 
@@ -603,6 +604,7 @@ JS;
                 $morehtmlstatus = $object->getLibStatut(5);
         }
         dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', $morehtmlright, '', $morehtmlstatus);
+        print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
 	if ($action === 'delete') {
@@ -1085,21 +1087,6 @@ JS;
 
 	echo '</div>';
 
-	// --- Patch d’affichage : remplacer "Validée/Validated" par "Approuvée/Approved" ---
-	$jsStatusPatch = <<<'JS'
-<script>
-(function($){
-	$(function(){
-		$('.status, .statusbadge, .badge, .badgestatus').each(function(){
-			var t = $(this).text().trim();
-			if (t === 'Validée') $(this).text('Approuvée');
-			if (t === 'Validated') $(this).text('Approved');
-		});
-	});
-})(jQuery);
-</script>
-JS;
-	echo $jsStatusPatch;
 }
 
 // End of page

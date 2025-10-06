@@ -228,6 +228,7 @@ if ($object->id) {
         }
 
         dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', 0, '', $morehtmlstatus, 1);
+        print timesheetweekRenderStatusBadgeCleanup();
 
 	print dol_get_fiche_end();
 
