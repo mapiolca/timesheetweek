@@ -427,7 +427,7 @@ if ($object->id > 0) {
                 }
 
                 $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, COALESCE(a.code, ca.code) as type_code, a.code,"
-                        ." a.fk_user_author, ca.label as action_label, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
+                        ." a.fk_user_author, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
                         ." creator.login as creator_login, creator.rowid as creator_id"
                         .$sqlFrom
                         .$sqlWhere;
@@ -533,8 +533,8 @@ if ($object->id > 0) {
                                         }
 
                                         $typeLabel = '';
-                                        if (!empty($obj->action_label)) {
-                                                $typeLabel = $langs->trans($obj->action_label);
+                                        if (!empty($actionstatic->type_label)) {
+                                                $typeLabel = $langs->trans($actionstatic->type_label);
                                         } elseif (!empty($obj->type_code)) {
                                                 $typeLabel = $langs->trans($obj->type_code);
                                         }
