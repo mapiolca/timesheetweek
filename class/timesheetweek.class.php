@@ -7,6 +7,7 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -427,6 +428,13 @@ class TimesheetWeek extends CommonObject
                         return -1;
                 }
 
+                // Remove synced time entries to keep the ERP aligned (EN)
+                // Supprime les temps synchronisés pour garder l'ERP aligné (FR)
+                if ($this->deleteElementTimeRecords() < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->status = self::STATUS_DRAFT;
                 $this->tms = $now;
                 $this->date_validation = null;
@@ -477,6 +485,13 @@ class TimesheetWeek extends CommonObject
                         return -1;
                 }
 
+                // Synchronize time consumption with Dolibarr core table (EN)
+                // Synchronise la consommation de temps avec la table cœur de Dolibarr (FR)
+                if ($this->syncElementTimeRecords() < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->status = self::STATUS_APPROVED;
                 $this->date_validation = $now;
                 $this->tms = $now;
@@ -490,10 +505,146 @@ class TimesheetWeek extends CommonObject
                 return 1;
         }
 
-	/**
-	 * Refuse
-	 * @param User $user
-	 * @return int
+        /**
+         * Synchronize element_time rows with the validated timesheet lines.
+         * EN: Inserts dedicated rows into llx_element_time when approving a sheet, removing stale ones first.
+         * FR: Insère les lignes dans llx_element_time lors de l'approbation, après avoir supprimé les enregistrements obsolètes.
+         * @return int
+         */
+        protected function syncElementTimeRecords()
+        {
+                if (empty($this->id)) {
+                        return 0;
+                }
+
+                // Clean previous entries tied to this sheet to avoid duplicates (EN)
+                // Nettoie les entrées existantes liées à cette fiche pour éviter les doublons (FR)
+                if ($this->deleteElementTimeRecords() < 0) {
+                        return -1;
+                }
+
+                $lines = $this->getLines();
+                if (empty($lines)) {
+                        return 1;
+                }
+
+                foreach ($lines as $line) {
+                        $durationSeconds = (int) round(((float) $line->hours) * 3600);
+                        if ($durationSeconds <= 0) {
+                                continue;
+                        }
+
+                        $taskTimestamp = $this->normalizeLineDate($line->day_date);
+                        $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
+                        $sql .= " entity, fk_user, fk_task, elementtype, fk_element, duration, task_date, import_key";
+                        $sql .= ") VALUES (";
+                        $sql .= " ".(!empty($this->entity) ? (int) $this->entity : 1).",";
+                        $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
+                        $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
+                        $sql .= " 'timesheetweek',";
+                        $sql .= " ".(int) $this->id.",";
+                        $sql .= " ".$durationSeconds.",";
+                        $sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
+                        $sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
+                        $sql .= ")";
+
+                        if (!$this->db->query($sql)) {
+                                $this->error = $this->db->lasterror();
+                                return -1;
+                        }
+                }
+
+                return 1;
+        }
+
+        /**
+         * Delete synced rows from llx_element_time for this sheet.
+         * EN: Uses the custom import_key prefix to target only our module entries.
+         * FR: Utilise le préfixe import_key personnalisé pour ne viser que les entrées du module.
+         * @return int
+         */
+        protected function deleteElementTimeRecords()
+        {
+                if (empty($this->id)) {
+                        return 0;
+                }
+
+                $prefix = $this->getElementTimeImportKeyPrefix();
+                $sql = "DELETE FROM ".MAIN_DB_PREFIX."element_time";
+                $sql .= " WHERE elementtype='timesheetweek'";
+                $sql .= " AND fk_element=".(int) $this->id;
+                if ($prefix !== '') {
+                        $sql .= " AND import_key LIKE '".$this->db->escape($prefix)."%'";
+                }
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                return $this->db->affected_rows($resql);
+        }
+
+        /**
+         * Normalize date value coming from a line.
+         * EN: Returns a unix timestamp or 0 if the date is missing.
+         * FR: Retourne un timestamp unix ou 0 si la date est absente.
+         * @param mixed $value
+         * @return int
+         */
+        protected function normalizeLineDate($value)
+        {
+                if (empty($value)) {
+                        return 0;
+                }
+
+                if (is_numeric($value)) {
+                        return (int) $value;
+                }
+
+                $timestamp = dol_stringtotime($value, 0, 1);
+                if ($timestamp > 0) {
+                        return $timestamp;
+                }
+
+                $timestamp = strtotime($value);
+                return $timestamp ? (int) $timestamp : 0;
+        }
+
+        /**
+         * Build a deterministic import_key for a line.
+         * EN: Generates a short hash starting with a module prefix for deletion filtering.
+         * FR: Génère un hash court préfixé pour faciliter le filtrage à la suppression.
+         * @param TimesheetWeekLine $line
+         * @return string
+         */
+        protected function buildElementTimeImportKey($line)
+        {
+                $lineId = !empty($line->id) ? (int) $line->id : (!empty($line->rowid) ? (int) $line->rowid : 0);
+                $base = (string) $this->id.'-'.$lineId;
+                return $this->getElementTimeImportKeyPrefix().substr(md5($base), 0, 8);
+        }
+
+        /**
+         * Provide the common prefix used for import_key values.
+         * EN: Ensures every record for this sheet starts with a predictable marker.
+         * FR: Garantit que chaque enregistrement de la fiche débute par un marqueur prévisible.
+         * @return string
+         */
+        protected function getElementTimeImportKeyPrefix()
+        {
+                if (empty($this->id)) {
+                        return '';
+                }
+
+                return 'TW'.substr(md5((string) $this->id), 0, 4);
+        }
+
+        /**
+         * Refuse
+         * @param User $user
+         * @return int
 	 */
         public function refuse($user)
         {
