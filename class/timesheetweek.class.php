@@ -206,21 +206,34 @@ class TimesheetWeek extends CommonObject
 
 		if (empty($this->id)) return 0;
 
-		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-		$sql .= " WHERE fk_timesheet_week=".(int) $this->id;
-		$sql .= " ORDER BY day_date ASC, rowid ASC";
+                $sql = "SELECT rowid, fk_task, day_date, hours, zone, meal";
+                $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+                $sql .= " WHERE fk_timesheet_week=".(int) $this->id;
+                $sql .= " ORDER BY day_date ASC, rowid ASC";
 
-		$res = $this->db->query($sql);
-		if (!$res) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		while ($obj = $this->db->fetch_object($res)) {
-			$l = new TimesheetWeekLine($this->db);
-			$l->fetch((int) $obj->rowid);
-			$this->lines[] = $l;
-		}
-		$this->db->free($res);
+                $res = $this->db->query($sql);
+                if (!$res) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                while ($obj = $this->db->fetch_object($res)) {
+                        $l = new TimesheetWeekLine($this->db);
+
+                        // FR: Injecte toutes les informations nécessaires pour la réplication sans dépendre d'un fetch séparé.
+                        // EN: Inject all needed details for replication without relying on a separate fetch.
+                        $l->id = (int) $obj->rowid;
+                        $l->rowid = (int) $obj->rowid;
+                        $l->fk_timesheet_week = (int) $this->id;
+                        $l->fk_task = (int) $obj->fk_task;
+                        $l->day_date = $obj->day_date;
+                        $l->hours = (float) $obj->hours;
+                        $l->zone = isset($obj->zone) ? (int) $obj->zone : null;
+                        $l->meal = isset($obj->meal) ? (int) $obj->meal : null;
+
+                        $this->lines[] = $l;
+                }
+                $this->db->free($res);
 
 		return count($this->lines);
 	}
