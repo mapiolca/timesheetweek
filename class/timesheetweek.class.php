@@ -1365,35 +1365,32 @@ class TimesheetWeek extends CommonObject
          */
         protected function removeTaskTimeSpent(User $actionUser)
         {
-                $lines = $this->getLines();
-                if (!is_array($lines) || !count($lines)) {
+                $timesheetId = (int) $this->id;
+                if ($timesheetId <= 0) {
                         return 1;
                 }
 
-                foreach ($lines as $line) {
-                        $lineId = $this->getLineIdentifier($line);
-                        if ($lineId <= 0) {
-                                continue;
-                        }
+                $records = $this->fetchElementTimeRowsByTimesheet(true);
+                if ($records === false) {
+                        return -1;
+                }
+                if (empty($records)) {
+                        // FR: Avertit qu'aucune ligne miroir n'a été trouvée pour cette feuille.
+                        // EN: Warn that no mirror rows were found for this sheet.
+                        dol_syslog(__METHOD__.': No mirrored rows found for timesheet '.$timesheetId, LOG_DEBUG);
+                        return 1;
+                }
 
-                        $importKey = $this->buildTimeSpentImportKey($lineId);
-                        if (empty($importKey)) {
-                                continue;
-                        }
+                foreach ($records as $record) {
+                        $importKey = !empty($record['import_key']) ? $record['import_key'] : '';
+                        $taskTimeId = !empty($record['fk_elementdet']) ? (int) $record['fk_elementdet'] : 0;
+                        $taskId = !empty($record['fk_element']) ? (int) $record['fk_element'] : 0;
 
-                        $records = $this->fetchElementTimeRowsByImportKey($importKey, true);
-                        if ($records === false) {
-                                return -1;
-                        }
-
-                        foreach ($records as $record) {
-                                $taskTimeId = !empty($record['fk_elementdet']) ? (int) $record['fk_elementdet'] : 0;
-                                $taskId = !empty($record['fk_element']) ? (int) $record['fk_element'] : 0;
-
+                        if ($taskId > 0 && $taskTimeId > 0) {
                                 $task = new Task($this->db);
-                                $taskFetched = ($taskId > 0) ? $task->fetch($taskId) : 0;
+                                $taskFetched = $task->fetch($taskId);
 
-                                if ($taskFetched > 0 && $taskTimeId > 0 && method_exists($task, 'delTimeSpent')) {
+                                if ($taskFetched > 0 && method_exists($task, 'delTimeSpent')) {
                                         $resDel = $task->delTimeSpent($taskTimeId, $actionUser);
                                         if ($resDel <= 0) {
                                                 $this->error = $task->error ?: 'FailedToDeleteTimeSpent';
@@ -1406,8 +1403,8 @@ class TimesheetWeek extends CommonObject
                                                 return -1;
                                         }
                                 } else {
-                                        // FR: Absence d'identifiant de temps ou de méthode, consigne uniquement la situation.
-                                        // EN: Missing time identifier or method, simply log the situation.
+                                        // FR: Consigne l'impossibilité de supprimer côté tâche tout en poursuivant le nettoyage.
+                                        // EN: Log the inability to delete on the task side while continuing the cleanup.
                                         dol_syslog(__METHOD__.': Skip task time deletion for import '.$importKey.' (task='.$taskId.', timespent='.$taskTimeId.')', LOG_DEBUG);
                                 }
                         }
@@ -1780,6 +1777,83 @@ class TimesheetWeek extends CommonObject
                 // FR: Indique combien de lignes ont été trouvées pour la clé demandée.
                 // EN: Indicate how many rows were found for the requested key.
                 dol_syslog(__METHOD__.': Fetched '.count($rows).' rows for '.$importKey, LOG_DEBUG);
+
+                return $rows;
+        }
+
+        /**
+         * Récupère toutes les lignes element_time liées à cette feuille via sa clé d'import.
+         * Fetch all element_time rows linked to this sheet through its import key prefix.
+         *
+         * @param bool $withDetails FR: Inclure les colonnes de liaison si disponibles. / EN: Include linking columns when available.
+         * @return array|false
+         */
+        protected function fetchElementTimeRowsByTimesheet($withDetails = false)
+        {
+                $timesheetId = (int) $this->id;
+                if ($timesheetId <= 0) {
+                        return array();
+                }
+
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        // FR: Impossible de récupérer la structure de la table pour le chargement global.
+                        // EN: Unable to retrieve the table structure for the bulk load.
+                        dol_syslog(__METHOD__.': Could not load element_time columns for timesheet '.$timesheetId, LOG_ERR);
+                        $this->notifyElementTimeError('[tswk:'.$timesheetId.']');
+                        return false;
+                }
+                if (!isset($columns['import_key'])) {
+                        // FR: Sans colonne import_key, il n'existe aucune ligne à purger.
+                        // EN: Without an import_key column, there are no rows to purge.
+                        dol_syslog(__METHOD__.': import_key column missing, returning empty for timesheet '.$timesheetId, LOG_DEBUG);
+                        return array();
+                }
+
+                $selectFields = array('rowid', 'import_key');
+                if ($withDetails) {
+                        if (isset($columns['fk_element'])) {
+                                $selectFields[] = 'fk_element';
+                        }
+                        if (isset($columns['fk_elementdet'])) {
+                                $selectFields[] = 'fk_elementdet';
+                        }
+                }
+
+                $prefix = $this->db->escape('tswk:'.$timesheetId.':');
+                $sql = 'SELECT '.implode(', ', $selectFields).' FROM '.MAIN_DB_PREFIX."element_time WHERE import_key LIKE '".$prefix."%'";
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        // FR: Journalise l'échec de la requête et avertit l'utilisateur.
+                        // EN: Log the query failure and warn the user.
+                        dol_syslog(__METHOD__.': Query failed for timesheet '.$timesheetId.' - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('[tswk:'.$timesheetId.']');
+                        return false;
+                }
+
+                $rows = array();
+                while ($obj = $this->db->fetch_object($resql)) {
+                        $row = array(
+                                'id' => (int) $obj->rowid,
+                                'import_key' => (string) $obj->import_key,
+                        );
+                        if ($withDetails) {
+                                if (isset($obj->fk_element)) {
+                                        $row['fk_element'] = (int) $obj->fk_element;
+                                }
+                                if (isset($obj->fk_elementdet)) {
+                                        $row['fk_elementdet'] = (int) $obj->fk_elementdet;
+                                }
+                        }
+                        $rows[] = $row;
+                }
+                $this->db->free($resql);
+
+                // FR: Trace le nombre total de lignes récupérées pour cette feuille.
+                // EN: Trace the total number of rows retrieved for this sheet.
+                dol_syslog(__METHOD__.': Fetched '.count($rows).' rows for timesheet '.$timesheetId, LOG_DEBUG);
 
                 return $rows;
         }
