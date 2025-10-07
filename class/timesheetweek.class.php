@@ -1445,7 +1445,7 @@ class TimesheetWeek extends CommonObject
          */
         protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser, $taskTimeId)
         {
-                global $conf, $langs;
+                global $langs;
 
                 // FR: Trace l'intention de créer ou vérifier une ligne llx_element_time.
                 // EN: Trace the intent to create or verify an llx_element_time row.
@@ -1466,6 +1466,111 @@ class TimesheetWeek extends CommonObject
                         return 1;
                 }
 
+                $taskId = !empty($task->id) ? (int) $task->id : 0;
+                if ($taskId <= 0) {
+                        return 1;
+                }
+
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        // FR: Avertit de l'impossibilité de récupérer les colonnes de la table.
+                        // EN: Warn that the table columns could not be retrieved.
+                        dol_syslog(__METHOD__.': Unable to load element_time column metadata', LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
+                        return -1;
+                }
+
+                $existingByTaskTime = array();
+                if ($taskTimeId > 0) {
+                        $existingByTaskTime = $this->fetchElementTimeRowByTaskTimeId($taskTimeId);
+                        if ($existingByTaskTime === false) {
+                                // FR: Impossible de lire la ligne associée au temps Dolibarr.
+                                // EN: Unable to read the row linked to the Dolibarr task time.
+                                dol_syslog(__METHOD__.': Failed to load element_time row for tasktime '.$taskTimeId.' (import='.$importKey.')', LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
+                                return -1;
+                        }
+                }
+
+                if (!empty($existingByTaskTime)) {
+                        $updateData = $this->buildElementTimeData($task, $timestamp, $duration, $importKey, $actionUser, $taskTimeId, $columns, false);
+                        if (empty($updateData)) {
+                                return 1;
+                        }
+
+                        $setParts = array();
+                        foreach ($updateData as $field => $value) {
+                                $setParts[] = $field.'='.(is_numeric($value) || $value === 'NULL' ? (string) $value : $value);
+                        }
+
+                        $sql = 'UPDATE '.MAIN_DB_PREFIX."element_time SET ".implode(', ', $setParts).' WHERE rowid='.(int) $existingByTaskTime['rowid'];
+                        if (!$this->db->query($sql)) {
+                                $this->error = $this->db->lasterror();
+                                // FR: Journalise l'échec de la mise à jour de la ligne existante.
+                                // EN: Log the failure to update the existing row.
+                                dol_syslog(__METHOD__.': Update failed for key '.$importKey.' - error='.$this->error, LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
+                                return -1;
+                        }
+
+                        // FR: Mentionne la mise à jour de la ligne miroir préexistante.
+                        // EN: Mention the update of the pre-existing mirror row.
+                        dol_syslog(__METHOD__.': Updated element_time row '.$existingByTaskTime['rowid'].' for key '.$importKey.' (task='.$taskId.', tasktime='.$taskTimeId.')', LOG_DEBUG);
+
+                        return 1;
+                }
+
+                $data = $this->buildElementTimeData($task, $timestamp, $duration, $importKey, $actionUser, $taskTimeId, $columns, true);
+                if (empty($data)) {
+                        return 1;
+                }
+
+                $fieldList = array();
+                $valueList = array();
+                foreach ($data as $field => $value) {
+                        $fieldList[] = $field;
+                        $valueList[] = is_numeric($value) || $value === 'NULL' ? (string) $value : $value;
+                }
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(".implode(', ', $fieldList).") VALUES (".implode(', ', $valueList).")";
+
+                if (!$this->db->query($sql)) {
+                        $this->error = $this->db->lasterror();
+                        // FR: Journalise l'échec de l'insertion dans llx_element_time.
+                        // EN: Log the failure to insert into llx_element_time.
+                        dol_syslog(__METHOD__.': Insert failed for key '.$importKey.' - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
+                        return -1;
+                }
+
+                // FR: Confirme la création d'une nouvelle ligne miroir.
+                // EN: Confirm the creation of a new mirror row.
+                dol_syslog(__METHOD__.': Inserted element_time row for key '.$importKey.' (task='.$taskId.', tasktime='.$taskTimeId.')', LOG_DEBUG);
+
+                return 1;
+        }
+
+        /**
+         * Prépare les données à insérer ou mettre à jour dans llx_element_time.
+         * Prepare the dataset to insert or update inside llx_element_time.
+         *
+         * @param Task  $task
+         * @param int   $timestamp
+         * @param int   $duration
+         * @param string $importKey
+         * @param User  $actionUser
+         * @param int   $taskTimeId
+         * @param array $columns
+         * @param bool  $forInsert
+         * @return array
+         */
+        protected function buildElementTimeData(Task $task, $timestamp, $duration, $importKey, User $actionUser, $taskTimeId, array $columns, $forInsert = true)
+        {
+                global $conf;
+
+                $now = dol_now();
+                $data = array();
+
                 $entity = property_exists($task, 'entity') ? (int) $task->entity : 0;
                 if ($entity <= 0) {
                         $entity = (int) $this->entity;
@@ -1476,7 +1581,7 @@ class TimesheetWeek extends CommonObject
 
                 $taskId = !empty($task->id) ? (int) $task->id : 0;
                 if ($taskId <= 0) {
-                        return 1;
+                        return array();
                 }
 
                 $projectId = 0;
@@ -1493,19 +1598,7 @@ class TimesheetWeek extends CommonObject
                 $note = property_exists($task, 'timespent_note') ? $task->timespent_note : '';
                 $timeUserId = property_exists($task, 'timespent_fk_user') ? (int) $task->timespent_fk_user : (int) $this->fk_user;
 
-                $columns = $this->getElementTimeColumns();
-                if ($columns === false) {
-                        // FR: Avertit de l'impossibilité de récupérer les colonnes de la table.
-                        // EN: Warn that the table columns could not be retrieved.
-                        dol_syslog(__METHOD__.': Unable to load element_time column metadata', LOG_ERR);
-                        $this->notifyElementTimeError('['.$importKey.']');
-                        return -1;
-                }
-
-                // Préparation dynamique des colonnes pour respecter les contraintes de la table. / Dynamically prepare columns to satisfy table constraints.
-                $now = dol_now();
-                $data = array();
-                if (isset($columns['datec'])) {
+                if ($forInsert && isset($columns['datec'])) {
                         $data['datec'] = "'".$this->db->escape($this->db->idate($now))."'";
                 }
                 if (isset($columns['tms'])) {
@@ -1541,7 +1634,7 @@ class TimesheetWeek extends CommonObject
                 if (isset($columns['fk_user_author'])) {
                         $data['fk_user_author'] = $timeUserId;
                 }
-                if (isset($columns['fk_user_create'])) {
+                if ($forInsert && isset($columns['fk_user_create'])) {
                         $data['fk_user_create'] = !empty($actionUser->id) ? (int) $actionUser->id : 'NULL';
                 }
                 if (isset($columns['fk_user_modif'])) {
@@ -1557,33 +1650,68 @@ class TimesheetWeek extends CommonObject
                         $data['fk_project'] = ($projectId > 0 ? $projectId : 'NULL');
                 }
 
-                if (empty($data)) {
-                        return 1;
+                return $data;
+        }
+
+        /**
+         * Récupère la ligne llx_element_time associée à un temps Dolibarr.
+         * Fetch the llx_element_time row linked to a Dolibarr task time entry.
+         *
+         * @param int $taskTimeId
+         * @return array|false
+         */
+        protected function fetchElementTimeRowByTaskTimeId($taskTimeId)
+        {
+                $taskTimeId = (int) $taskTimeId;
+                if ($taskTimeId <= 0) {
+                        return array();
                 }
 
-                $fieldList = array();
-                $valueList = array();
-                foreach ($data as $field => $value) {
-                        $fieldList[] = $field;
-                        $valueList[] = is_numeric($value) || $value === 'NULL' ? (string) $value : $value;
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        return false;
+                }
+                if (!isset($columns['fk_elementdet'])) {
+                        // FR: La table ne référence pas directement les lignes de temps Dolibarr.
+                        // EN: The table does not directly reference Dolibarr task time rows.
+                        dol_syslog(__METHOD__.': fk_elementdet column missing, skip lookup for tasktime '.$taskTimeId, LOG_DEBUG);
+                        return array();
                 }
 
-                $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(".implode(', ', $fieldList).") VALUES (".implode(', ', $valueList).")";
+                $selectFields = array('rowid');
+                if (isset($columns['import_key'])) {
+                        $selectFields[] = 'import_key';
+                }
+                if (isset($columns['duration'])) {
+                        $selectFields[] = 'duration';
+                }
 
-                if (!$this->db->query($sql)) {
+                $sql = 'SELECT '.implode(', ', $selectFields).' FROM '.MAIN_DB_PREFIX."element_time WHERE fk_elementdet=".$taskTimeId.' ORDER BY rowid DESC LIMIT 1';
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
                         $this->error = $this->db->lasterror();
-                        // FR: Journalise l'échec de l'insertion dans llx_element_time.
-                        // EN: Log the failure to insert into llx_element_time.
-                        dol_syslog(__METHOD__.': Insert failed for key '.$importKey.' - error='.$this->error, LOG_ERR);
-                        $this->notifyElementTimeError('['.$importKey.']');
-                        return -1;
+                        dol_syslog(__METHOD__.': Query failed for tasktime '.$taskTimeId.' - error='.$this->error, LOG_ERR);
+                        return false;
                 }
 
-                // FR: Confirme la création d'une nouvelle ligne miroir.
-                // EN: Confirm the creation of a new mirror row.
-                dol_syslog(__METHOD__.': Inserted element_time row for key '.$importKey.' (task='.$taskId.', tasktime='.$taskTimeId.')', LOG_DEBUG);
+                $row = array();
+                if ($obj = $this->db->fetch_object($resql)) {
+                        $row['rowid'] = (int) $obj->rowid;
+                        if (isset($obj->import_key)) {
+                                $row['import_key'] = $obj->import_key;
+                        }
+                        if (isset($obj->duration)) {
+                                $row['duration'] = (int) $obj->duration;
+                        }
+                }
+                $this->db->free($resql);
 
-                return 1;
+                // FR: Trace le résultat de la recherche ciblée.
+                // EN: Trace the outcome of the targeted lookup.
+                dol_syslog(__METHOD__.': Lookup for tasktime '.$taskTimeId.' returned '.(!empty($row) ? '1' : '0').' row(s)', LOG_DEBUG);
+
+                return $row;
         }
 
         /**
