@@ -1197,12 +1197,24 @@ class TimesheetWeek extends CommonObject
          */
         protected function applyTaskTimeSpent(User $actionUser)
         {
+                global $langs;
+
+                // FR: Journalise le démarrage de la synchronisation des temps vers les tâches.
+                // EN: Log the start of the time synchronisation onto tasks.
+                dol_syslog(__METHOD__.': Begin mirroring timesheet '.$this->id.' for user '.$this->fk_user, LOG_DEBUG);
+
                 if ((int) $this->fk_user <= 0) {
+                        // FR: Informe que l'utilisateur assigné est manquant et annule l'opération.
+                        // EN: Report missing assigned user and abort the operation.
+                        dol_syslog(__METHOD__.': Missing fk_user, aborting', LOG_WARNING);
                         return 1;
                 }
 
                 $lines = $this->getLines();
                 if (!is_array($lines) || !count($lines)) {
+                        // FR: Mentionne l'absence de lignes à traiter.
+                        // EN: Mention that there are no lines to process.
+                        dol_syslog(__METHOD__.': No lines to mirror', LOG_DEBUG);
                         return 1;
                 }
 
@@ -1210,24 +1222,40 @@ class TimesheetWeek extends CommonObject
                         $lineId = $this->getLineIdentifier($line);
                         $taskId = !empty($line->fk_task) ? (int) $line->fk_task : 0;
                         if ($lineId <= 0 || $taskId <= 0) {
+                                // FR: Ignore les lignes dépourvues d'identifiant ou de tâche.
+                                // EN: Skip lines without an identifier or task.
+                                dol_syslog(__METHOD__.': Skip line without id or task (line='.$lineId.', task='.$taskId.')', LOG_DEBUG);
                                 continue;
                         }
 
                         $duration = $this->convertHoursToSeconds($line->hours);
                         if ($duration <= 0) {
+                                // FR: Ignore les lignes sans durée positive.
+                                // EN: Skip lines without a positive duration.
+                                dol_syslog(__METHOD__.': Skip line '.$lineId.' because duration is not positive', LOG_DEBUG);
                                 continue;
                         }
 
                         $importKey = $this->buildTimeSpentImportKey($lineId);
                         if (empty($importKey)) {
+                                // FR: Enregistre l'impossibilité de calculer la clé d'import.
+                                // EN: Record that the import key could not be generated.
+                                dol_syslog(__METHOD__.': Failed to compute import key for line '.$lineId, LOG_WARNING);
                                 continue;
                         }
 
                         $existing = $this->fetchTaskTimeRowsByImportKey($importKey);
                         if ($existing === false) {
+                                // FR: Avertit l'utilisateur d'un échec lors de la recherche de temps existants.
+                                // EN: Warn the user about a failure while fetching existing time entries.
+                        dol_syslog(__METHOD__.': Unable to fetch existing task time rows for key '.$importKey, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                                 return -1;
                         }
                         if (!empty($existing)) {
+                                // FR: Indique qu'un enregistrement existe déjà et évite un doublon.
+                                // EN: Note that an entry already exists to avoid duplicates.
+                                dol_syslog(__METHOD__.': Task time already exists for key '.$importKey, LOG_DEBUG);
                                 continue;
                         }
 
@@ -1237,6 +1265,10 @@ class TimesheetWeek extends CommonObject
                                 if (!empty($task->errors) && is_array($task->errors)) {
                                         $this->errors = array_merge($this->errors, $task->errors);
                                 }
+                                // FR: Signale l'échec du chargement de la tâche cible.
+                                // EN: Report the failure to load the target task.
+                                dol_syslog(__METHOD__.': Failed to fetch task '.$taskId.' for line '.$lineId.' - error='.$this->error, LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
                                 return -1;
                         }
 
@@ -1262,6 +1294,10 @@ class TimesheetWeek extends CommonObject
                                 if (!empty($task->errors) && is_array($task->errors)) {
                                         $this->errors = array_merge($this->errors, $task->errors);
                                 }
+                                // FR: Informe de l'échec de la création du temps consommé côté tâche.
+                                // EN: Report the failure to create the time spent entry on the task side.
+                                dol_syslog(__METHOD__.': addTimeSpent failed for task '.$taskId.' (import='.$importKey.') - error='.$this->error, LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
                                 return -1;
                         }
 
@@ -1270,9 +1306,21 @@ class TimesheetWeek extends CommonObject
                                         $task->delTimeSpent((int) $resAdd, $actionUser);
                                 }
                                 $this->deleteElementTimeByImportKey($importKey);
+                                // FR: Préviens de l'échec de la création du miroir dans llx_element_time et de l'annulation.
+                                // EN: Warn about the failure to create the mirror in llx_element_time and the rollback.
+                                dol_syslog(__METHOD__.': ensureElementTimeEntry failed, rollback import '.$importKey, LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
                                 return -1;
                         }
+
+                        // FR: Confirme la synchronisation réussie de la ligne courante.
+                        // EN: Confirm the successful synchronisation of the current line.
+                        dol_syslog(__METHOD__.': Mirrored line '.$lineId.' into task '.$taskId.' (import='.$importKey.')', LOG_DEBUG);
                 }
+
+                // FR: Signale la fin de la synchronisation sans erreur.
+                // EN: Signal the end of the synchronisation without errors.
+                dol_syslog(__METHOD__.': Completed mirroring for timesheet '.$this->id, LOG_DEBUG);
 
                 return 1;
         }
@@ -1402,13 +1450,24 @@ class TimesheetWeek extends CommonObject
          */
         protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser, $taskTimeId)
         {
-                global $conf;
+                global $conf, $langs;
+
+                // FR: Trace l'intention de créer ou vérifier une ligne llx_element_time.
+                // EN: Trace the intent to create or verify an llx_element_time row.
+                dol_syslog(__METHOD__.': Ensure element_time for task '.$task->id.' import '.$importKey, LOG_DEBUG);
 
                 $existing = $this->fetchElementTimeRowsByImportKey($importKey);
                 if ($existing === false) {
+                        // FR: Enregistre l'impossibilité de lire la table miroir.
+                        // EN: Record the inability to read the mirror table.
+                        dol_syslog(__METHOD__.': Could not inspect element_time for key '.$importKey, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return -1;
                 }
                 if (!empty($existing)) {
+                        // FR: Indique que la ligne miroir existe déjà.
+                        // EN: Indicate that the mirror row already exists.
+                        dol_syslog(__METHOD__.': element_time already present for key '.$importKey, LOG_DEBUG);
                         return 1;
                 }
 
@@ -1441,6 +1500,10 @@ class TimesheetWeek extends CommonObject
 
                 $columns = $this->getElementTimeColumns();
                 if ($columns === false) {
+                        // FR: Avertit de l'impossibilité de récupérer les colonnes de la table.
+                        // EN: Warn that the table columns could not be retrieved.
+                        dol_syslog(__METHOD__.': Unable to load element_time column metadata', LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return -1;
                 }
 
@@ -1514,8 +1577,16 @@ class TimesheetWeek extends CommonObject
 
                 if (!$this->db->query($sql)) {
                         $this->error = $this->db->lasterror();
+                        // FR: Journalise l'échec de l'insertion dans llx_element_time.
+                        // EN: Log the failure to insert into llx_element_time.
+                        dol_syslog(__METHOD__.': Insert failed for key '.$importKey.' - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return -1;
                 }
+
+                // FR: Confirme la création d'une nouvelle ligne miroir.
+                // EN: Confirm the creation of a new mirror row.
+                dol_syslog(__METHOD__.': Inserted element_time row for key '.$importKey.' (task='.$taskId.', tasktime='.$taskTimeId.')', LOG_DEBUG);
 
                 return 1;
         }
@@ -1529,8 +1600,15 @@ class TimesheetWeek extends CommonObject
         protected function getElementTimeColumns()
         {
                 if ($this->elementTimeColumnCache !== null) {
+                        // FR: Utilise le cache si disponible et consigne l'opération.
+                        // EN: Use the cache when available and log the operation.
+                        dol_syslog(__METHOD__.': Using cached element_time metadata', LOG_DEBUG);
                         return $this->elementTimeColumnCache;
                 }
+
+                // FR: Journalise le chargement des métadonnées depuis la base.
+                // EN: Log the metadata load from the database.
+                dol_syslog(__METHOD__.': Loading element_time metadata from database', LOG_DEBUG);
 
                 $sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."element_time";
                 $resql = $this->db->query($sql);
@@ -1549,7 +1627,39 @@ class TimesheetWeek extends CommonObject
 
                 $this->elementTimeColumnCache = $columns;
 
+                // FR: Journalise le nombre de colonnes détectées.
+                // EN: Log the number of detected columns.
+                dol_syslog(__METHOD__.': Cached '.count($columns).' element_time columns', LOG_DEBUG);
+
                 return $this->elementTimeColumnCache;
+        }
+
+        /**
+         * Déclenche un message d'erreur utilisateur lié au miroir element_time.
+         * Emit a user-facing error message related to the element_time mirror.
+         *
+         * @param string $context Informations additionnelles à afficher / Additional context to display.
+         * @return void
+         */
+        protected function notifyElementTimeError($context = '')
+        {
+                global $langs;
+
+                if (!is_object($langs)) {
+                        return;
+                }
+
+                // FR: Construit un message combinant la traduction et le contexte éventuel.
+                // EN: Build a message mixing the translation and the optional context.
+                $message = $langs->trans('TimesheetWeekElementTimeMirrorError');
+                if ($context !== '') {
+                        $message .= ' '.$context;
+                }
+                if (!empty($this->error)) {
+                        $message .= ' ('.$this->error.')';
+                }
+
+                setEventMessages($message, null, 'errors');
         }
 
         /**
@@ -1561,22 +1671,40 @@ class TimesheetWeek extends CommonObject
         protected function deleteElementTimeByImportKey($importKey)
         {
                 if (empty($importKey)) {
+                        // FR: Aucun import key fourni, rien à supprimer.
+                        // EN: No import key provided, nothing to delete.
+                        dol_syslog(__METHOD__.': No import key provided for deletion', LOG_DEBUG);
                         return 1;
                 }
 
                 $columns = $this->getElementTimeColumns();
                 if ($columns === false) {
+                        // FR: Impossible de lire la structure de la table lors de la suppression.
+                        // EN: Unable to read the table structure during deletion.
+                        dol_syslog(__METHOD__.': Could not load element_time columns while deleting '.$importKey, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return -1;
                 }
                 if (!isset($columns['import_key'])) {
+                        // FR: La colonne import_key n'existe pas, aucune suppression nécessaire.
+                        // EN: The import_key column is missing, nothing to delete.
+                        dol_syslog(__METHOD__.': import_key column missing, skip deletion for '.$importKey, LOG_DEBUG);
                         return 1;
                 }
 
                 $sql = "DELETE FROM ".MAIN_DB_PREFIX."element_time WHERE import_key='".$this->db->escape($importKey)."'";
                 if (!$this->db->query($sql)) {
                         $this->error = $this->db->lasterror();
+                        // FR: La suppression a échoué, journalise l'erreur et avertit l'utilisateur.
+                        // EN: Deletion failed, log the error and warn the user.
+                        dol_syslog(__METHOD__.': Failed to delete rows for '.$importKey.' - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return -1;
                 }
+
+                // FR: Suppression effectuée avec succès.
+                // EN: Deletion completed successfully.
+                dol_syslog(__METHOD__.': Deleted element_time rows for '.$importKey, LOG_DEBUG);
 
                 return 1;
         }
@@ -1590,14 +1718,24 @@ class TimesheetWeek extends CommonObject
         protected function fetchElementTimeRowsByImportKey($importKey)
         {
                 if (empty($importKey)) {
+                        // FR: Sans clé d'import, aucune lecture n'est nécessaire.
+                        // EN: Without an import key, no lookup is required.
+                        dol_syslog(__METHOD__.': No import key provided for fetch', LOG_DEBUG);
                         return array();
                 }
 
                 $columns = $this->getElementTimeColumns();
                 if ($columns === false) {
+                        // FR: Impossible d'obtenir la structure de la table pendant la lecture.
+                        // EN: Unable to obtain the table structure during lookup.
+                        dol_syslog(__METHOD__.': Could not load element_time columns while fetching '.$importKey, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return false;
                 }
                 if (!isset($columns['import_key'])) {
+                        // FR: Si la colonne n'existe pas, aucune ligne ne peut être liée.
+                        // EN: If the column is missing, no linked rows can exist.
+                        dol_syslog(__METHOD__.': import_key column missing, returning empty for '.$importKey, LOG_DEBUG);
                         return array();
                 }
 
@@ -1606,6 +1744,10 @@ class TimesheetWeek extends CommonObject
                 $resql = $this->db->query($sql);
                 if (!$resql) {
                         $this->error = $this->db->lasterror();
+                        // FR: Journalise l'échec de la requête et avertit l'utilisateur.
+                        // EN: Log the query failure and notify the user.
+                        dol_syslog(__METHOD__.': Query failed for '.$importKey.' - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('['.$importKey.']');
                         return false;
                 }
 
@@ -1614,6 +1756,10 @@ class TimesheetWeek extends CommonObject
                         $rows[] = array('id' => (int) $obj->rowid);
                 }
                 $this->db->free($resql);
+
+                // FR: Indique combien de lignes ont été trouvées pour la clé demandée.
+                // EN: Indicate how many rows were found for the requested key.
+                dol_syslog(__METHOD__.': Fetched '.count($rows).' rows for '.$importKey, LOG_DEBUG);
 
                 return $rows;
         }
