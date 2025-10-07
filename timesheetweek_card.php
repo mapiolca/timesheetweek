@@ -961,6 +961,8 @@ JS;
 			if (!isset($tasksById[$tid])) $missing[] = (int)$tid;
 		}
 		if (!empty($missing)) {
+                        // EN: Bring in the same enriched task metadata for unassigned lines to keep filtering consistent.
+                        // FR: Récupère les mêmes métadonnées enrichies pour les lignes non assignées afin d'harmoniser le filtrage.
                         $sqlMiss = "SELECT t.rowid as task_id, t.label as task_label, t.ref as task_ref, t.progress as task_progress,
                                                         t.fk_statut as task_status, t.dateo as task_date_start, t.datee as task_date_end,
                                                         p.rowid as project_id, p.ref as project_ref, p.title as project_title
@@ -991,6 +993,8 @@ JS;
         $weekdates = array();
         $weekStartDate = null;
         $weekEndDate = null;
+        // EN: Derive week boundaries defensively because the week metadata can be missing on drafts.
+        // FR: Calcule prudemment les bornes de semaine car les métadonnées peuvent manquer sur les brouillons.
         if (!empty($object->year) && !empty($object->week)) {
                 $dto = new DateTime();
                 $dto->setISODate((int)$object->year, (int)$object->week);
@@ -1007,6 +1011,8 @@ JS;
         }
 
         if (!empty($tasks)) {
+                // EN: Define closed statuses dynamically to remain compatible across Dolibarr versions.
+                // FR: Définit dynamiquement les statuts clos pour rester compatible entre versions de Dolibarr.
                 $closedStatuses = array();
                 if (defined('Task::STATUS_DONE')) $closedStatuses[] = Task::STATUS_DONE;
                 if (defined('Task::STATUS_CLOSED')) $closedStatuses[] = Task::STATUS_CLOSED;
@@ -1019,6 +1025,8 @@ JS;
 
                 $filteredTasks = array();
                 foreach ($tasks as $t) {
+                        // EN: Skip tasks already completed or closed to declutter the weekly view.
+                        // FR: Ignore les tâches déjà terminées ou clôturées pour épurer la vue hebdomadaire.
                         $progress = isset($t['task_progress']) ? $t['task_progress'] : null;
                         if ($progress !== null && (float)$progress >= 100) {
                                 continue;
@@ -1034,6 +1042,8 @@ JS;
                                 }
                         }
 
+                        // EN: Extract scheduling information to hide tasks outside the sheet week.
+                        // FR: Analyse les dates de planification pour masquer les tâches hors de la semaine de la feuille.
                         $startRaw = isset($t['task_date_start']) ? $t['task_date_start'] : null;
                         $endRaw = isset($t['task_date_end']) ? $t['task_date_end'] : null;
                         $startTs = null;
@@ -1055,6 +1065,8 @@ JS;
                                 }
                         }
 
+                        // EN: Ignore tasks that start after the sheet week or end before it.
+                        // FR: Ignore les tâches qui commencent après la semaine ou se terminent avant celle-ci.
                         if ($weekStartTs !== null && $weekEndTs !== null && $startTs !== null && $startTs > $weekEndTs) {
                                 continue;
                         }
@@ -1085,6 +1097,8 @@ JS;
 		echo '<tr class="liste_titre">';
                 echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
                 foreach ($days as $d) {
+                        // EN: Render day headers safely even if week dates are undefined.
+                        // FR: Affiche les en-têtes de jours en sécurité même sans dates de semaine définies.
                         $labelDate = '';
                         if (!empty($weekdates[$d])) {
                                 $tmpTs = strtotime($weekdates[$d]);
