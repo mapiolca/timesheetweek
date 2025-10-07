@@ -6,6 +6,10 @@
 
 Description of the module...
 
+- Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
+- Recalcul automatique des compteurs de zones et de paniers lors de chaque enregistrement.
+- Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
+
 <!--
 ![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}
 -->
@@ -84,6 +88,8 @@ Using your browser:
   - Log into Dolibarr as a super-administrator
   - Go to "Setup"> "Modules"
   - You should now be able to find and enable the module
+  - EN: Run the `sql/update_all.sql` script to ensure older timesheets receive the new counters
+  - FR: Exécutez le script `sql/update_all.sql` pour que les feuilles existantes profitent des nouveaux compteurs
 
 
 
