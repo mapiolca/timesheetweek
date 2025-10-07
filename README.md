@@ -5,6 +5,7 @@
 Description of the module...
 
 - Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
+- Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
 
 <!--
 ![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}

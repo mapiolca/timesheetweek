@@ -70,9 +70,19 @@ $arrayfields = array(
 	'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
 	't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
 	't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
-	't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
-	't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
-	't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
+        't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
+        't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
+        // EN: Zone counters columns for list display.
+        // FR: Colonnes des compteurs de zones pour l'affichage de la liste.
+        't.zone1_count'  => array('label' => $langs->trans("Zone1Count"),   'checked' => 0),
+        't.zone2_count'  => array('label' => $langs->trans("Zone2Count"),   'checked' => 0),
+        't.zone3_count'  => array('label' => $langs->trans("Zone3Count"),   'checked' => 0),
+        't.zone4_count'  => array('label' => $langs->trans("Zone4Count"),   'checked' => 0),
+        't.zone5_count'  => array('label' => $langs->trans("Zone5Count"),   'checked' => 0),
+        // EN: Meal counter column for list display.
+        // FR: Colonne du compteur de paniers pour l'affichage de la liste.
+        't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
+        't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
 	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
@@ -104,6 +114,9 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
  * SQL
  */
 $sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+// EN: Expose zone and meal counters in the list query.
+// FR: Expose les compteurs de zones et de paniers dans la requête de liste.
+$sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
 $sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
@@ -201,13 +214,33 @@ if (!empty($arrayfields['t.week']['checked'])) {
 	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {
-	print '<td class="liste_titre right">&nbsp;</td>';
+        print '<td class="liste_titre right">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.overtime_hours']['checked'])) {
-	print '<td class="liste_titre right">&nbsp;</td>';
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+// EN: Keep filters empty for zone and meal counters (display only).
+// FR: Laisse les filtres vides pour les compteurs de zones et paniers (affichage seul).
+if (!empty($arrayfields['t.zone1_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.zone2_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.zone3_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.zone4_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.zone5_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
+}
+if (!empty($arrayfields['t.meal_count']['checked'])) {
+        print '<td class="liste_titre right">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.date_creation']['checked'])) {
-	print '<td class="liste_titre center">&nbsp;</td>';
+        print '<td class="liste_titre center">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.tms']['checked'])) {
 	print '<td class="liste_titre center">&nbsp;</td>';
@@ -252,10 +285,32 @@ if (!empty($arrayfields['t.total_hours']['checked'])) {
 	print_liste_field_titre($arrayfields['t.total_hours']['label'], $_SERVER["PHP_SELF"], "t.total_hours", "", $param, '', $sortfield, $sortorder, 'right ');
 }
 if (!empty($arrayfields['t.overtime_hours']['checked'])) {
-	print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", "", $param, '', $sortfield, $sortorder, 'right ');
+        print_liste_field_titre($arrayfields['t.overtime_hours']['label'], $_SERVER["PHP_SELF"], "t.overtime_hours", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+// EN: Display headers for weekly zone counters.
+// FR: Affiche les entêtes des compteurs hebdomadaires de zones.
+if (!empty($arrayfields['t.zone1_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.zone1_count']['label'], $_SERVER["PHP_SELF"], "t.zone1_count", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.zone2_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.zone2_count']['label'], $_SERVER["PHP_SELF"], "t.zone2_count", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.zone3_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.zone3_count']['label'], $_SERVER["PHP_SELF"], "t.zone3_count", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.zone4_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.zone4_count']['label'], $_SERVER["PHP_SELF"], "t.zone4_count", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+if (!empty($arrayfields['t.zone5_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.zone5_count']['label'], $_SERVER["PHP_SELF"], "t.zone5_count", "", $param, '', $sortfield, $sortorder, 'right ');
+}
+// EN: Display header for weekly meal counter.
+// FR: Affiche l'entête du compteur hebdomadaire de paniers.
+if (!empty($arrayfields['t.meal_count']['checked'])) {
+        print_liste_field_titre($arrayfields['t.meal_count']['label'], $_SERVER["PHP_SELF"], "t.meal_count", "", $param, '', $sortfield, $sortorder, 'right ');
 }
 if (!empty($arrayfields['t.date_creation']['checked'])) {
-	print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", "", $param, '', $sortfield, $sortorder, 'center ');
+        print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.tms']['checked'])) {
 	print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -323,17 +378,39 @@ while ($i < $imax) {
 		print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
 	}
 	// Overtime
-	if (!empty($arrayfields['t.overtime_hours']['checked'])) {
-		$tot = (float) $obj->overtime_hours;
-		$hh = floor($tot);
-		$mm = round(($tot - $hh) * 60);
-		if ($mm == 60) { $hh++; $mm = 0; }
-		print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
-	}
-	// Creation
-	if (!empty($arrayfields['t.date_creation']['checked'])) {
-		print '<td class="center">'.($obj->date_creation ? dol_print_date($db->jdate($obj->date_creation),'dayhour') : '').'</td>';
-	}
+        if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+                $tot = (float) $obj->overtime_hours;
+                $hh = floor($tot);
+                $mm = round(($tot - $hh) * 60);
+                if ($mm == 60) { $hh++; $mm = 0; }
+                print '<td class="right">'.str_pad((string)$hh,2,'0',STR_PAD_LEFT).':'.str_pad((string)$mm,2,'0',STR_PAD_LEFT).'</td>';
+        }
+        // EN: Render weekly zone counters.
+        // FR: Affiche les compteurs hebdomadaires de zones.
+        if (!empty($arrayfields['t.zone1_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->zone1_count.'</td>';
+        }
+        if (!empty($arrayfields['t.zone2_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->zone2_count.'</td>';
+        }
+        if (!empty($arrayfields['t.zone3_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->zone3_count.'</td>';
+        }
+        if (!empty($arrayfields['t.zone4_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->zone4_count.'</td>';
+        }
+        if (!empty($arrayfields['t.zone5_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->zone5_count.'</td>';
+        }
+        // EN: Render weekly meal counter.
+        // FR: Affiche le compteur hebdomadaire de paniers.
+        if (!empty($arrayfields['t.meal_count']['checked'])) {
+                print '<td class="right">'.(int)$obj->meal_count.'</td>';
+        }
+        // Creation
+        if (!empty($arrayfields['t.date_creation']['checked'])) {
+                print '<td class="center">'.($obj->date_creation ? dol_print_date($db->jdate($obj->date_creation),'dayhour') : '').'</td>';
+        }
 	// Modification
 	if (!empty($arrayfields['t.tms']['checked'])) {
 		print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
