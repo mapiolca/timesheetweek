@@ -1230,6 +1230,7 @@ class TimesheetWeek extends CommonObject
         }
 
         /**
+         * Réplique les temps consommés sur chaque ligne de feuille vers les tâches liées.
          * Add time spent entries on linked tasks for every line of the timesheet.
          *
          * @param User $actionUser
@@ -1266,7 +1267,7 @@ class TimesheetWeek extends CommonObject
 
                 foreach ($lines as $line) {
                         $lineId = $this->getLineIdentifier($line);
-                        $taskId = !empty($line->fk_task) ? (int) $line->fk_task : 0;
+                        $taskId = $this->resolveLineTaskId($line);
                         if ($lineId <= 0 || $taskId <= 0) {
                                 // FR: Ignore les lignes dépourvues d'identifiant ou de tâche.
                                 // EN: Skip lines without an identifier or task.
@@ -1282,7 +1283,7 @@ class TimesheetWeek extends CommonObject
                                 continue;
                         }
 
-                        $duration = $this->convertHoursToSeconds($line->hours);
+                        $duration = $this->convertHoursToSeconds($this->resolveLineHours($line));
                         $minDuration = $this->getMinElementTimeDurationSeconds();
                         if ($duration < $minDuration) {
                                 // FR: Arrête la synchronisation si la durée est inférieure au minimum (60 secondes).
@@ -1321,7 +1322,7 @@ class TimesheetWeek extends CommonObject
                                 return -1;
                         }
 
-                        $timestamp = $this->resolveLineDate($line->day_date);
+                        $timestamp = $this->resolveLineDate($this->resolveLineDayDate($line));
 
                         $task->timespent_date = $timestamp;
                         $task->timespent_datehour = $timestamp;
@@ -2257,26 +2258,16 @@ class TimesheetWeek extends CommonObject
         }
 
         /**
-         * Resolve the identifier of a line object.
+         * Détermine l'identifiant associé à une ligne quel que soit son format.
+         * Resolve the identifier of a line value regardless of its format.
          *
-         * @param TimesheetWeekLine|object $line
+         * @param TimesheetWeekLine|array|object $line
          * @return int
          */
         protected function getLineIdentifier($line)
         {
-                if (!is_object($line)) {
-                        return 0;
-                }
-
-                if (!empty($line->id)) {
-                        return (int) $line->id;
-                }
-
-                if (!empty($line->rowid)) {
-                        return (int) $line->rowid;
-                }
-
-                return 0;
+                $value = $this->extractLineValue($line, array('id', 'rowid', 'lineid', 'line_id', 'fk_line'));
+                return ($value !== null ? (int) $value : 0);
         }
 
         /**
@@ -2316,10 +2307,11 @@ class TimesheetWeek extends CommonObject
         }
 
         /**
+         * Construit la note enregistrée sur la ligne de temps générée.
          * Build the note stored on the generated time spent entry.
          *
-         * @param TimesheetWeekLine|object $line
-         * @param int                      $timestamp
+         * @param TimesheetWeekLine|array|object $line
+         * @param int                            $timestamp
          * @return string
          */
         protected function buildTimeSpentNote($line, $timestamp)
@@ -2329,11 +2321,83 @@ class TimesheetWeek extends CommonObject
                         $label .= ' - '.dol_print_date($timestamp, 'day');
                 }
 
-                if (!empty($line->hours)) {
-                        $label .= ' ('.round((float) $line->hours, 2).'h)';
+                $hours = $this->resolveLineHours($line);
+                if (!empty($hours)) {
+                        $label .= ' ('.round((float) $hours, 2).'h)';
                 }
 
                 return $label;
+        }
+
+        /**
+         * Détermine l'identifiant de tâche associé à une ligne.
+         * Resolve the task identifier attached to a line.
+         *
+         * @param TimesheetWeekLine|array|object $line
+         * @return int
+         */
+        protected function resolveLineTaskId($line)
+        {
+                $value = $this->extractLineValue($line, array('fk_task', 'taskid', 'task_id', 'fk_task_id'));
+                return ($value !== null ? (int) $value : 0);
+        }
+
+        /**
+         * Récupère la durée en heures telle que saisie sur la ligne.
+         * Retrieve the hours value stored on the line.
+         *
+         * @param TimesheetWeekLine|array|object $line
+         * @return float|int|string
+         */
+        protected function resolveLineHours($line)
+        {
+                $value = $this->extractLineValue($line, array('hours', 'duration', 'qty', 'quantity'));
+                if ($value === null) {
+                        return 0;
+                }
+
+                return $value;
+        }
+
+        /**
+         * Détermine la date (jour) de la ligne de feuille de temps.
+         * Resolve the day date stored on the timesheet line.
+         *
+         * @param TimesheetWeekLine|array|object $line
+         * @return mixed
+         */
+        protected function resolveLineDayDate($line)
+        {
+                return $this->extractLineValue($line, array('day_date', 'date', 'element_date', 'date_day'));
+        }
+
+        /**
+         * Extrait une valeur en tentant plusieurs clés pour gérer les tableaux ou objets.
+         * Extract a value while trying several keys to handle arrays or objects.
+         *
+         * @param TimesheetWeekLine|array|object $line
+         * @param array                          $candidates
+         * @return mixed|null
+         */
+        protected function extractLineValue($line, array $candidates)
+        {
+                if (is_object($line)) {
+                        foreach ($candidates as $property) {
+                                if (isset($line->{$property})) {
+                                        return $line->{$property};
+                                }
+                        }
+                }
+
+                if (is_array($line)) {
+                        foreach ($candidates as $property) {
+                                if (array_key_exists($property, $line)) {
+                                        return $line[$property];
+                                }
+                        }
+                }
+
+                return null;
         }
 
         /**
