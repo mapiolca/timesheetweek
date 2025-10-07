@@ -1121,6 +1121,10 @@ JS;
                         // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
                         echo '<span class="zone-select">'.$langs->trans("Zone").' ';
                         echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+                        // EN: Provide an empty choice so the default zone selector starts blank.
+                        // FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
+                        $selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
+                        echo '<option value=""'.$selEmpty.'></option>';
                         for ($z=1; $z<=5; $z++) {
                                 $sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
                                 echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
