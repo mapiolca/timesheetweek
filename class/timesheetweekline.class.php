@@ -28,6 +28,49 @@ class TimesheetWeekLine extends CommonObjectLine
     public $meal;
 
     /**
+     * Fetches a timesheet line by its rowid.
+     * Récupère une ligne de feuille de temps via son rowid.
+     *
+     * @param int $id Row identifier / Identifiant de ligne
+     * @return int                             >0 success, <=0 error / >0 succès, <=0 erreur
+     */
+    public function fetch($id)
+    {
+        if (empty($id)) {
+            return 0;
+        }
+
+        // Build the query for the line / Construit la requête pour la ligne
+        $sql = "SELECT rowid, fk_timesheet_week, fk_task, day_date, hours, zone, meal";
+        $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+        $sql .= " WHERE rowid=".(int) $id;
+
+        $resql = $this->db->query($sql);
+        if (!$resql) {
+            $this->error = $this->db->lasterror();
+            return -1;
+        }
+
+        $obj = $this->db->fetch_object($resql);
+        $this->db->free($resql);
+        if (!$obj) {
+            return 0;
+        }
+
+        // Map database values to object / Mappe les valeurs de la base vers l'objet
+        $this->id = (int) $obj->rowid;
+        $this->rowid = (int) $obj->rowid;
+        $this->fk_timesheet_week = (int) $obj->fk_timesheet_week;
+        $this->fk_task = (int) $obj->fk_task;
+        $this->day_date = $obj->day_date;
+        $this->hours = (float) $obj->hours;
+        $this->zone = (int) $obj->zone;
+        $this->meal = (int) $obj->meal;
+
+        return 1;
+    }
+
+    /**
      * Crée ou met à jour la ligne si elle existe déjà
      */
     public function save($user)
