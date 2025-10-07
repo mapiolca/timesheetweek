@@ -508,9 +508,14 @@ class TimesheetWeek extends CommonObject
                 $this->date_validation = $now;
                 $this->tms = $now;
 
-                if ($this->applyTaskTimeSpent($user) < 0) {
-                        $this->db->rollback();
-                        return -1;
+                $skipInlineReplication = ((int) getDolGlobalInt('TIMESHEETWEEK_TASKTIME_REPLICATE', 0) === 1);
+                if (!$skipInlineReplication) {
+                        // FR: Réplique immédiatement les temps vers les tâches lorsque l'option n'est pas active côté carte.
+                        // EN: Mirror time entries immediately when the card-level option is not active.
+                        if ($this->applyTaskTimeSpent($user) < 0) {
+                                $this->db->rollback();
+                                return -1;
+                        }
                 }
 
                 if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
@@ -1188,6 +1193,20 @@ class TimesheetWeek extends CommonObject
 
                return $this->fireNotificationTrigger($triggerCode, $actionUser);
        }
+
+        /**
+         * Réplique les temps consommés vers les tâches associées à la feuille.
+         * Mirror the timesheet consumption onto the related project tasks.
+         *
+         * @param User $actionUser
+         * @return int
+         */
+        public function replicateTaskTimeSpent(User $actionUser)
+        {
+                // FR: Délègue au moteur interne de synchronisation pour conserver la logique existante.
+                // EN: Delegate to the internal synchronisation engine to keep the existing logic.
+                return $this->applyTaskTimeSpent($actionUser);
+        }
 
         /**
          * Add time spent entries on linked tasks for every line of the timesheet.
