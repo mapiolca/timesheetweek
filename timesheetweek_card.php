@@ -946,13 +946,13 @@ JS;
 	}
 
 	// 2) RÉCUPÉRER LES TÂCHES ASSIGNÉES
-	$tasks = $object->getAssignedTasks($object->fk_user); // id, label, project_id, project_ref, project_title, task_ref?
-	$tasksById = array();
-	if (!empty($tasks)) {
-		foreach ($tasks as $t) {
-			$tasksById[(int)$t['task_id']] = $t;
-		}
-	}
+        $tasks = $object->getAssignedTasks($object->fk_user); // id, label, project_id, project_ref, project_title, task_ref?
+        $tasksById = array();
+        if (!empty($tasks)) {
+                foreach ($tasks as $t) {
+                        $tasksById[(int)$t['task_id']] = $t;
+                }
+        }
 
 	// 3) COMPLÉTER AVEC TÂCHES PRÉSENTES DANS LES LIGNES MAIS PAS DANS LES ASSIGNATIONS
 	if (!empty($taskIdsFromLines)) {
@@ -961,43 +961,119 @@ JS;
 			if (!isset($tasksById[$tid])) $missing[] = (int)$tid;
 		}
 		if (!empty($missing)) {
-			$sqlMiss = "SELECT t.rowid as task_id, t.label as task_label, t.ref as task_ref,
-							p.rowid as project_id, p.ref as project_ref, p.title as project_title
-						FROM ".MAIN_DB_PREFIX."projet_task t
-						INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet
-						WHERE t.rowid IN (".implode(',', array_map('intval',$missing)).")";
-			$resMiss = $db->query($sqlMiss);
-			if ($resMiss) {
-				while ($o = $db->fetch_object($resMiss)) {
-					$tasks[] = array(
-						'task_id'       => (int)$o->task_id,
-						'task_label'    => $o->task_label,
-						'task_ref'      => $o->task_ref,
-						'project_id'    => (int)$o->project_id,
-						'project_ref'   => $o->project_ref,
-						'project_title' => $o->project_title
-					);
-				}
-			}
-		}
-	}
+                        $sqlMiss = "SELECT t.rowid as task_id, t.label as task_label, t.ref as task_ref, t.progress as task_progress,
+                                                        t.fk_statut as task_status, t.dateo as task_date_start, t.datee as task_date_end,
+                                                        p.rowid as project_id, p.ref as project_ref, p.title as project_title
+                                                FROM ".MAIN_DB_PREFIX."projet_task t
+                                                INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet
+                                                WHERE t.rowid IN (".implode(',', array_map('intval',$missing)).")";
+                        $resMiss = $db->query($sqlMiss);
+                        if ($resMiss) {
+                                while ($o = $db->fetch_object($resMiss)) {
+                                        $tasks[] = array(
+                                                'task_id'       => (int)$o->task_id,
+                                                'task_label'    => $o->task_label,
+                                                'task_ref'      => $o->task_ref,
+                                                'task_progress' => ($o->task_progress !== null ? (float)$o->task_progress : null),
+                                                'task_status'   => ($o->task_status !== null ? (int)$o->task_status : null),
+                                                'task_date_start' => ($o->task_date_start !== null ? (string)$o->task_date_start : null),
+                                                'task_date_end' => ($o->task_date_end !== null ? (string)$o->task_date_end : null),
+                                                'project_id'    => (int)$o->project_id,
+                                                'project_ref'   => $o->project_ref,
+                                                'project_title' => $o->project_title
+                                        );
+                                }
+                        }
+                }
+        }
 
-	// 4) AFFICHAGE
-	if (empty($tasks)) {
-		echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
-	} else {
-		$days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
-		$dto = new DateTime();
-		$dto->setISODate((int)$object->year, (int)$object->week);
-		$weekdates = array();
-		foreach ($days as $d) {
-			$weekdates[$d] = $dto->format('Y-m-d');
-			$dto->modify('+1 day');
-		}
+        $days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
+        $weekdates = array();
+        $weekStartDate = null;
+        $weekEndDate = null;
+        if (!empty($object->year) && !empty($object->week)) {
+                $dto = new DateTime();
+                $dto->setISODate((int)$object->year, (int)$object->week);
+                foreach ($days as $d) {
+                        $weekdates[$d] = $dto->format('Y-m-d');
+                        $dto->modify('+1 day');
+                }
+                $weekStartDate = isset($weekdates['Monday']) ? $weekdates['Monday'] : null;
+                $weekEndDate = isset($weekdates['Sunday']) ? $weekdates['Sunday'] : null;
+        } else {
+                foreach ($days as $d) {
+                        $weekdates[$d] = null;
+                }
+        }
 
-		// Heures contractuelles
-		$userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
-		$contractedHours = (!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
+        if (!empty($tasks)) {
+                $closedStatuses = array();
+                if (defined('Task::STATUS_DONE')) $closedStatuses[] = Task::STATUS_DONE;
+                if (defined('Task::STATUS_CLOSED')) $closedStatuses[] = Task::STATUS_CLOSED;
+                if (defined('Task::STATUS_FINISHED')) $closedStatuses[] = Task::STATUS_FINISHED;
+                if (defined('Task::STATUS_CANCELLED')) $closedStatuses[] = Task::STATUS_CANCELLED;
+                if (defined('Task::STATUS_CANCELED')) $closedStatuses[] = Task::STATUS_CANCELED;
+
+                $weekStartTs = ($weekStartDate ? strtotime($weekStartDate.' 00:00:00') : null);
+                $weekEndTs = ($weekEndDate ? strtotime($weekEndDate.' 23:59:59') : null);
+
+                $filteredTasks = array();
+                foreach ($tasks as $t) {
+                        $progress = isset($t['task_progress']) ? $t['task_progress'] : null;
+                        if ($progress !== null && (float)$progress >= 100) {
+                                continue;
+                        }
+
+                        $status = isset($t['task_status']) ? $t['task_status'] : null;
+                        if ($status !== null) {
+                                if (!empty($closedStatuses) && in_array((int)$status, $closedStatuses, true)) {
+                                        continue;
+                                }
+                                if (empty($closedStatuses) && (int)$status >= 3) {
+                                        continue;
+                                }
+                        }
+
+                        $startRaw = isset($t['task_date_start']) ? $t['task_date_start'] : null;
+                        $endRaw = isset($t['task_date_end']) ? $t['task_date_end'] : null;
+                        $startTs = null;
+                        $endTs = null;
+                        if (!empty($startRaw)) {
+                                if (is_numeric($startRaw)) {
+                                        $startTs = (int)$startRaw;
+                                } else {
+                                        $startTs = strtotime($startRaw);
+                                        if ($startTs === false) $startTs = null;
+                                }
+                        }
+                        if (!empty($endRaw)) {
+                                if (is_numeric($endRaw)) {
+                                        $endTs = (int)$endRaw;
+                                } else {
+                                        $endTs = strtotime($endRaw);
+                                        if ($endTs === false) $endTs = null;
+                                }
+                        }
+
+                        if ($weekStartTs !== null && $weekEndTs !== null && $startTs !== null && $startTs > $weekEndTs) {
+                                continue;
+                        }
+                        if ($weekStartTs !== null && $endTs !== null && $endTs < $weekStartTs) {
+                                continue;
+                        }
+
+                        $filteredTasks[] = $t;
+                }
+                $tasks = array_values($filteredTasks);
+        }
+
+        // 4) AFFICHAGE
+        if (empty($tasks)) {
+                echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
+        } else {
+                // Heures contractuelles
+                $userEmployee=new User($db); $userEmployee->fetch($object->fk_user);
+                $contractedHours = (!empty($userEmployee->weeklyhours)?(float)$userEmployee->weeklyhours:35.0);
 
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
@@ -1008,9 +1084,20 @@ JS;
 		// Header jours
 		echo '<tr class="liste_titre">';
                 echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
-		foreach ($days as $d) {
-			echo '<th>'.$langs->trans(substr($d,0,3)).'<br><span class="opacitymedium">'.dol_print_date(strtotime($weekdates[$d]), 'day').'</span></th>';
-		}
+                foreach ($days as $d) {
+                        $labelDate = '';
+                        if (!empty($weekdates[$d])) {
+                                $tmpTs = strtotime($weekdates[$d]);
+                                if ($tmpTs !== false) {
+                                        $labelDate = dol_print_date($tmpTs, 'day');
+                                }
+                        }
+                        echo '<th>'.$langs->trans(substr($d,0,3));
+                        if ($labelDate !== '') {
+                                echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
+                        }
+                        echo '</th>';
+                }
 		echo '<th class="right">'.$langs->trans("Total").'</th>';
 		echo '</tr>';
 
