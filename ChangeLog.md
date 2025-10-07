@@ -6,7 +6,7 @@
 - Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
 - Affichage du libellé "Zone" devant chaque sélecteur quotidien.
 - Ajout de la traduction "Meals" en "Repas".
-- Ajout du script de mise à jour SQL pour créer les compteurs hebdomadaires sur les données existantes.
+- Ajout du script de mise à jour SQL (`sql/update_all.sql`) pour créer les compteurs hebdomadaires sur les données existantes.
 
 ## 1.0
 
