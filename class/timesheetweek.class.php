@@ -536,7 +536,7 @@ class TimesheetWeek extends CommonObject
 
                         $taskTimestamp = $this->normalizeLineDate($line->day_date);
                         $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
-                        $sql .= " fk_user, fk_element, elementtype, duration, task_date, import_key";
+                        $sql .= " fk_user, fk_element, elementtype, element_duration, task_date, import_key";
                         $sql .= ") VALUES (";
                         $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
                         $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
