@@ -50,7 +50,15 @@ class TimesheetWeek extends CommonObject
 	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
 
 	/** @var TimesheetWeekLine[] */
-	public $lines = array();
+        public $lines = array();
+
+        /**
+         * Cache des colonnes de llx_element_time pour limiter les requêtes répétées.
+         * Cache for llx_element_time columns to avoid repeated metadata queries.
+         *
+         * @var array|null
+         */
+        protected $elementTimeColumnCache = null;
 
 	public $errors = array();
 	public $error = '';
@@ -1257,7 +1265,7 @@ class TimesheetWeek extends CommonObject
                                 return -1;
                         }
 
-                        if ($this->ensureElementTimeEntry($task, $timestamp, $duration, $importKey, $actionUser) < 0) {
+                        if ($this->ensureElementTimeEntry($task, $timestamp, $duration, $importKey, $actionUser, (int) $resAdd) < 0) {
                                 if (method_exists($task, 'delTimeSpent')) {
                                         $task->delTimeSpent((int) $resAdd, $actionUser);
                                 }
@@ -1389,9 +1397,10 @@ class TimesheetWeek extends CommonObject
          * @param int  $duration
          * @param string $importKey
          * @param User $actionUser
+         * @param int $taskTimeId Identifiant de la ligne temps créée (llx_projet_task_time). / Identifier of the created time entry line.
          * @return int
          */
-        protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser)
+        protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser, $taskTimeId)
         {
                 global $conf;
 
@@ -1430,22 +1439,78 @@ class TimesheetWeek extends CommonObject
                 $note = property_exists($task, 'timespent_note') ? $task->timespent_note : '';
                 $timeUserId = property_exists($task, 'timespent_fk_user') ? (int) $task->timespent_fk_user : (int) $this->fk_user;
 
-                $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
-                $sql .= "entity, elementtype, fk_element, element_date, element_datehour, element_withhour, duration, fk_user, fk_user_create, note, import_key, fk_project";
-                $sql .= ") VALUES (";
-                $sql .= "".($entity > 0 ? (int) $entity : '1').",";
-                $sql .= " 'task',";
-                $sql .= " ".$taskId.",";
-                $sql .= " ".($dateDay !== '' ? "'".$this->db->escape($dateDay)."'" : 'NULL').",";
-                $sql .= " ".($dateHour !== '' ? "'".$this->db->escape($dateHour)."'" : 'NULL').",";
-                $sql .= " ".$withHour.",";
-                $sql .= " ".((int) $duration).",";
-                $sql .= " ".$timeUserId.",";
-                $sql .= " ".(!empty($actionUser->id) ? (int) $actionUser->id : 'NULL').",";
-                $sql .= " ".($note !== '' ? "'".$this->db->escape($note)."'" : 'NULL').",";
-                $sql .= " '".$this->db->escape($importKey)."',";
-                $sql .= " ".($projectId > 0 ? $projectId : 'NULL');
-                $sql .= ")";
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        return -1;
+                }
+
+                // Préparation dynamique des colonnes pour respecter les contraintes de la table. / Dynamically prepare columns to satisfy table constraints.
+                $now = dol_now();
+                $data = array();
+                if (isset($columns['datec'])) {
+                        $data['datec'] = "'".$this->db->escape($this->db->idate($now))."'";
+                }
+                if (isset($columns['tms'])) {
+                        $data['tms'] = "'".$this->db->escape($this->db->idate($now))."'";
+                }
+                if (isset($columns['entity'])) {
+                        $data['entity'] = ($entity > 0 ? (int) $entity : 1);
+                }
+                if (isset($columns['elementtype'])) {
+                        $data['elementtype'] = "'task'";
+                }
+                if (isset($columns['fk_element'])) {
+                        $data['fk_element'] = $taskId;
+                }
+                if ($taskTimeId > 0 && isset($columns['fk_elementdet'])) {
+                        $data['fk_elementdet'] = (int) $taskTimeId;
+                }
+                if (isset($columns['element_date'])) {
+                        $data['element_date'] = ($dateDay !== '' ? "'".$this->db->escape($dateDay)."'" : 'NULL');
+                }
+                if (isset($columns['element_datehour'])) {
+                        $data['element_datehour'] = ($dateHour !== '' ? "'".$this->db->escape($dateHour)."'" : 'NULL');
+                }
+                if (isset($columns['element_withhour'])) {
+                        $data['element_withhour'] = (int) $withHour;
+                }
+                if (isset($columns['duration'])) {
+                        $data['duration'] = (int) $duration;
+                }
+                if (isset($columns['fk_user'])) {
+                        $data['fk_user'] = $timeUserId;
+                }
+                if (isset($columns['fk_user_author'])) {
+                        $data['fk_user_author'] = $timeUserId;
+                }
+                if (isset($columns['fk_user_create'])) {
+                        $data['fk_user_create'] = !empty($actionUser->id) ? (int) $actionUser->id : 'NULL';
+                }
+                if (isset($columns['fk_user_modif'])) {
+                        $data['fk_user_modif'] = !empty($actionUser->id) ? (int) $actionUser->id : 'NULL';
+                }
+                if (isset($columns['note'])) {
+                        $data['note'] = ($note !== '' ? "'".$this->db->escape($note)."'" : 'NULL');
+                }
+                if (isset($columns['import_key'])) {
+                        $data['import_key'] = "'".$this->db->escape($importKey)."'";
+                }
+                if (isset($columns['fk_project'])) {
+                        $data['fk_project'] = ($projectId > 0 ? $projectId : 'NULL');
+                }
+
+                if (empty($data)) {
+                        return 1;
+                }
+
+                $fieldList = array();
+                $valueList = array();
+                foreach ($data as $field => $value) {
+                        $fieldList[] = $field;
+                        $valueList[] = is_numeric($value) || $value === 'NULL' ? (string) $value : $value;
+                }
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(".implode(', ', $fieldList).") VALUES (".implode(', ', $valueList).")";
 
                 if (!$this->db->query($sql)) {
                         $this->error = $this->db->lasterror();
@@ -1453,6 +1518,38 @@ class TimesheetWeek extends CommonObject
                 }
 
                 return 1;
+        }
+
+        /**
+         * Récupère et mémorise les colonnes de llx_element_time.
+         * Retrieve and cache llx_element_time columns metadata.
+         *
+         * @return array|false
+         */
+        protected function getElementTimeColumns()
+        {
+                if ($this->elementTimeColumnCache !== null) {
+                        return $this->elementTimeColumnCache;
+                }
+
+                $sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."element_time";
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return false;
+                }
+
+                $columns = array();
+                while ($obj = $this->db->fetch_object($resql)) {
+                        if (!empty($obj->Field)) {
+                                $columns[$obj->Field] = $obj;
+                        }
+                }
+                $this->db->free($resql);
+
+                $this->elementTimeColumnCache = $columns;
+
+                return $this->elementTimeColumnCache;
         }
 
         /**
@@ -1464,6 +1561,14 @@ class TimesheetWeek extends CommonObject
         protected function deleteElementTimeByImportKey($importKey)
         {
                 if (empty($importKey)) {
+                        return 1;
+                }
+
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        return -1;
+                }
+                if (!isset($columns['import_key'])) {
                         return 1;
                 }
 
@@ -1485,6 +1590,14 @@ class TimesheetWeek extends CommonObject
         protected function fetchElementTimeRowsByImportKey($importKey)
         {
                 if (empty($importKey)) {
+                        return array();
+                }
+
+                $columns = $this->getElementTimeColumns();
+                if ($columns === false) {
+                        return false;
+                }
+                if (!isset($columns['import_key'])) {
                         return array();
                 }
 
