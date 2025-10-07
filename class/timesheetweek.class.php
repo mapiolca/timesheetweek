@@ -60,14 +60,6 @@ class TimesheetWeek extends CommonObject
          */
         protected $elementTimeColumnCache = null;
 
-        /**
-         * Cache des colonnes de llx_projet_task_time pour anticiper les doublons.
-         * Cache for llx_projet_task_time columns to anticipate duplicates.
-         *
-         * @var array|null
-         */
-        protected $taskTimeColumnCache = null;
-
 	public $errors = array();
 	public $error = '';
 
@@ -1299,21 +1291,6 @@ class TimesheetWeek extends CommonObject
                                 continue;
                         }
 
-                        $existingTaskTime = $this->fetchTaskTimeRowsByImportKey($importKey);
-                        if ($existingTaskTime === false) {
-                                // FR: Préviens qu'un contrôle des temps tâche a échoué.
-                                // EN: Warn that checking task time duplicates has failed.
-                                dol_syslog(__METHOD__.': Unable to inspect projet_task_time for key '.$importKey, LOG_ERR);
-                                $this->notifyElementTimeError('['.$importKey.']');
-                                return -1;
-                        }
-                        if (!empty($existingTaskTime)) {
-                                // FR: Évite de recréer un temps déjà existant côté tâche.
-                                // EN: Avoid recreating an already existing task time entry.
-                                dol_syslog(__METHOD__.': projet_task_time already exists for key '.$importKey, LOG_DEBUG);
-                                continue;
-                        }
-
                         $task = new Task($this->db);
                         if ($task->fetch($taskId) <= 0) {
                                 $this->error = $task->error ?: 'FailedToFetchTask';
@@ -1725,101 +1702,6 @@ class TimesheetWeek extends CommonObject
                 dol_syslog(__METHOD__.': Deleted element_time rows for '.$importKey, LOG_DEBUG);
 
                 return 1;
-        }
-
-        /**
-         * Récupère les enregistrements projet_task_time associés à une clé d'import.
-         * Fetch projet_task_time rows linked to a specific import key.
-         *
-         * @param string $importKey
-         * @return array|false
-         */
-        protected function fetchTaskTimeRowsByImportKey($importKey)
-        {
-                if (empty($importKey)) {
-                        // FR: Aucun import_key fourni, aucun contrôle nécessaire.
-                        // EN: No import key supplied, no check required.
-                        dol_syslog(__METHOD__.': No import key provided for fetch', LOG_DEBUG);
-                        return array();
-                }
-
-                $columns = $this->getTaskTimeColumns();
-                if ($columns === false) {
-                        // FR: Impossible de récupérer la structure de la table projet_task_time.
-                        // EN: Unable to retrieve the projet_task_time table structure.
-                        dol_syslog(__METHOD__.': Could not load projet_task_time columns while fetching '.$importKey, LOG_ERR);
-                        return false;
-                }
-                if (!isset($columns['import_key'])) {
-                        // FR: Sans colonne import_key, pas de contrôle disponible.
-                        // EN: Without an import_key column, no duplicate check is possible.
-                        dol_syslog(__METHOD__.': import_key column missing on projet_task_time, returning empty for '.$importKey, LOG_DEBUG);
-                        return array();
-                }
-
-                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."projet_task_time WHERE import_key='".$this->db->escape($importKey)."'";
-
-                $resql = $this->db->query($sql);
-                if (!$resql) {
-                        $this->error = $this->db->lasterror();
-                        // FR: Journalise l'échec de la requête de contrôle de doublon.
-                        // EN: Log the failure of the duplicate check query.
-                        dol_syslog(__METHOD__.': Query failed for '.$importKey.' - error='.$this->error, LOG_ERR);
-                        return false;
-                }
-
-                $rows = array();
-                while ($obj = $this->db->fetch_object($resql)) {
-                        $rows[] = array('id' => (int) $obj->rowid);
-                }
-                $this->db->free($resql);
-
-                // FR: Indique combien de lignes temps tâche ont été trouvées.
-                // EN: Indicate how many task time rows were found.
-                dol_syslog(__METHOD__.': Fetched '.count($rows).' task time rows for '.$importKey, LOG_DEBUG);
-
-                return $rows;
-        }
-
-        /**
-         * Récupère et mémorise les colonnes de llx_projet_task_time.
-         * Retrieve and cache llx_projet_task_time columns metadata.
-         *
-         * @return array|false
-         */
-        protected function getTaskTimeColumns()
-        {
-                if ($this->taskTimeColumnCache !== null) {
-                        // FR: Réutilise le cache si déjà alimenté.
-                        // EN: Reuse the cache when already populated.
-                        dol_syslog(__METHOD__.': Using cached projet_task_time metadata', LOG_DEBUG);
-                        return $this->taskTimeColumnCache;
-                }
-
-                dol_syslog(__METHOD__.': Loading projet_task_time metadata from database', LOG_DEBUG);
-
-                $sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."projet_task_time";
-                $resql = $this->db->query($sql);
-                if (!$resql) {
-                        $this->error = $this->db->lasterror();
-                        return false;
-                }
-
-                $columns = array();
-                while ($obj = $this->db->fetch_object($resql)) {
-                        if (!empty($obj->Field)) {
-                                $columns[$obj->Field] = $obj;
-                        }
-                }
-                $this->db->free($resql);
-
-                $this->taskTimeColumnCache = $columns;
-
-                // FR: Note le nombre de colonnes disponibles pour llx_projet_task_time.
-                // EN: Note the number of available columns for llx_projet_task_time.
-                dol_syslog(__METHOD__.': Cached '.count($columns).' projet_task_time columns', LOG_DEBUG);
-
-                return $this->taskTimeColumnCache;
         }
 
         /**
