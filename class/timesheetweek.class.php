@@ -541,7 +541,13 @@ class TimesheetWeek extends CommonObject
 
                         $taskTimestamp = $this->normalizeLineDate($line->day_date);
                         $noteDateLabel = $taskTimestamp ? dol_print_date($taskTimestamp, '%d/%m/%Y') : dol_print_date(dol_now(), '%d/%m/%Y');
-                        $noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
+                        // Try Dolibarr helper then fallback to module formatter (EN)
+                        // Tente l'assistant Dolibarr puis bascule sur le formateur du module (FR)
+                        if (function_exists('dol_print_duration')) {
+                                $noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
+                        } else {
+                                $noteDurationLabel = $this->formatDurationLabel($durationSeconds);
+                        }
                         $noteDurationLabel = trim(str_replace('&nbsp;', ' ', $noteDurationLabel));
                         if ($noteDurationLabel === '') {
                                 $noteDurationValue = price2num($line->hours, 'MT');
@@ -689,6 +695,38 @@ class TimesheetWeek extends CommonObject
                 }
 
                 return null;
+        }
+
+        /**
+         * Format a readable duration when Dolibarr helper is unavailable.
+         * EN: Converts a duration in seconds to an "Hh Mmin" label for notes.
+         * FR: Convertit une durée en secondes en libellé « Hh Mmin » pour les notes.
+         * @param int $seconds
+         * @return string
+         */
+        protected function formatDurationLabel($seconds)
+        {
+                $seconds = max(0, (int) $seconds);
+                $hours = (int) floor($seconds / 3600);
+                $minutes = (int) floor(($seconds % 3600) / 60);
+                $remainingSeconds = $seconds % 60;
+
+                $parts = array();
+                if ($hours > 0) {
+                        $parts[] = $hours.'h';
+                }
+                if ($minutes > 0) {
+                        $parts[] = $minutes.'min';
+                }
+                if ($remainingSeconds > 0 && $hours === 0) {
+                        $parts[] = $remainingSeconds.'s';
+                }
+
+                if (empty($parts)) {
+                        return '0 min';
+                }
+
+                return implode(' ', $parts);
         }
 
         /**
