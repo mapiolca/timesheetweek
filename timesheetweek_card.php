@@ -424,10 +424,45 @@ if ($action === 'save' && $id > 0) {
 		}
 	}
 
-	// Totaux
-	$totalHours = 0.0;
-	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-	$resSum = $db->query($sqlSum);
+        // EN: Collect daily aggregates once the line operations are done.
+        // FR: Collecte les agrégats journaliers une fois les opérations sur les lignes terminées.
+        $zoneCounters = array(1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
+        $mealCounter = 0;
+        $sqlDayAgg = "SELECT day_date, MAX(zone) as zone, MAX(meal) as meal";
+        $sqlDayAgg .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+        $sqlDayAgg .= " WHERE fk_timesheet_week=".(int)$object->id;
+        $sqlDayAgg .= " GROUP BY day_date";
+        $resDayAgg = $db->query($sqlDayAgg);
+        if (!$resDayAgg) {
+                $db->rollback();
+                setEventMessages($db->lasterror(), null, 'errors');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
+        while ($dayRow = $db->fetch_object($resDayAgg)) {
+                $zoneVal = (int) $dayRow->zone;
+                if ($zoneVal >= 1 && $zoneVal <= 5) {
+                        $zoneCounters[$zoneVal]++;
+                }
+                if (!empty($dayRow->meal)) {
+                        $mealCounter++;
+                }
+        }
+        $db->free($resDayAgg);
+
+        // EN: Attach the computed counters to the week object before updating the database.
+        // FR: Associe les compteurs calculés à l'objet hebdomadaire avant la mise à jour de la base.
+        $object->zone1_count = $zoneCounters[1];
+        $object->zone2_count = $zoneCounters[2];
+        $object->zone3_count = $zoneCounters[3];
+        $object->zone4_count = $zoneCounters[4];
+        $object->zone5_count = $zoneCounters[5];
+        $object->meal_count = $mealCounter;
+
+        // Totaux
+        $totalHours = 0.0;
+        $sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
+        $resSum = $db->query($sqlSum);
 	if ($resSum) {
 		$o = $db->fetch_object($resSum);
 		$totalHours = (float) $o->sh;
@@ -1119,13 +1154,16 @@ JS;
 		echo '<tr class="liste_titre">';
 		echo '<td></td>';
 		foreach ($days as $d) {
-			echo '<td class="center">';
-			echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
-			for ($z=1; $z<=5; $z++) {
-				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
-				echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
-			}
-			echo '</select><br>';
+                        echo '<td class="center">';
+                        // EN: Prefix zone selector with its label to improve understanding.
+                        // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
+                        echo '<span class="zone-select">'.$langs->trans("Zone").' ';
+                        echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+                        for ($z=1; $z<=5; $z++) {
+                                $sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
+                                echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
+                        }
+                        echo '</select></span><br>';
 			$checked = $dayMeal[$d] ? ' checked' : '';
 			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
 			echo '</td>';

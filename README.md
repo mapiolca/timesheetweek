@@ -4,6 +4,8 @@
 
 Description of the module...
 
+- Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
+
 <!--
 ![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}
 -->
