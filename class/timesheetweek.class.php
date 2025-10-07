@@ -540,8 +540,19 @@ class TimesheetWeek extends CommonObject
                         }
 
                         $taskTimestamp = $this->normalizeLineDate($line->day_date);
+                        $noteDateLabel = $taskTimestamp ? dol_print_date($taskTimestamp, '%d/%m/%Y') : dol_print_date(dol_now(), '%d/%m/%Y');
+                        $noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
+                        $noteDurationLabel = trim(str_replace('&nbsp;', ' ', $noteDurationLabel));
+                        if ($noteDurationLabel === '') {
+                                $noteDurationValue = price2num($line->hours, 'MT');
+                                $noteDurationLabel = ($noteDurationValue !== '' ? number_format((float) $noteDurationValue, 2, '.', ' ') : '0.00').' h';
+                        }
+                        $noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
+
+                        // Store a readable note for auditors and managers (EN)
+                        // Enregistre une note lisible pour les contrôleurs et managers (FR)
                         $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
-                        $sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, import_key";
+                        $sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, note, import_key";
                         $sql .= ") VALUES (";
                         $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
                         $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
@@ -549,6 +560,7 @@ class TimesheetWeek extends CommonObject
                         $sql .= " ".$durationSeconds.",";
                         $sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
                         $sql .= ($employeeThm !== null ? " ".$employeeThm : " NULL").",";
+                        $sql .= " '".$this->db->escape($noteMessage)."',";
                         $sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
                         $sql .= ")";
 
