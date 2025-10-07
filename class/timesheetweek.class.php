@@ -28,10 +28,11 @@ class TimesheetWeek extends CommonObject
 	public $dir_output = 'timesheetweek';
 
 	// Status
-	const STATUS_DRAFT     = 0;
-	const STATUS_SUBMITTED = 1;
-	const STATUS_APPROVED  = 4; // "approuvée"
-	const STATUS_REFUSED   = 6;
+        const STATUS_DRAFT     = 0;
+        const STATUS_SUBMITTED = 1;
+        const STATUS_APPROVED  = 4; // "approuvée"
+        const STATUS_SEALED    = 8; // EN: "sealed" status / FR : statut "scellée"
+        const STATUS_REFUSED   = 6;
 
 	// Properties
 	public $id;
@@ -503,6 +504,94 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $this->db->commit();
+                return 1;
+        }
+
+        /**
+         * EN: Seal the approved timesheet to prevent further changes.
+         * FR : Scelle la feuille approuvée pour empêcher de nouvelles modifications.
+         *
+         * @param User $user
+         * @return int
+         */
+        public function seal($user)
+        {
+                $now = dol_now();
+
+                if ((int) $this->status !== self::STATUS_APPROVED) {
+                        $this->error = 'BadStatusForSeal';
+                        return -1;
+                }
+
+                $this->db->begin();
+
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_SEALED;
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= " WHERE rowid=".(int) $this->id;
+
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                // EN: Keep approval metadata intact while locking the sheet.
+                // FR : Conserve les métadonnées d'approbation tout en verrouillant la feuille.
+                $this->status = self::STATUS_SEALED;
+                $this->tms = $now;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+
+                return 1;
+        }
+
+        /**
+         * EN: Revert a sealed timesheet back to the approved state.
+         * FR : Rouvre une feuille scellée en la repassant au statut approuvé.
+         *
+         * @param User $user
+         * @return int
+         */
+        public function unseal($user)
+        {
+                $now = dol_now();
+
+                if ((int) $this->status !== self::STATUS_SEALED) {
+                        $this->error = 'BadStatusForUnseal';
+                        return -1;
+                }
+
+                $this->db->begin();
+
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
+                $sql .= " status=".(int) self::STATUS_APPROVED;
+                $sql .= ", tms='".$this->db->idate($now)."'";
+                $sql .= " WHERE rowid=".(int) $this->id;
+
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                // EN: Keep the original validation date while allowing edits again.
+                // FR : Préserve la date d'approbation d'origine tout en rouvrant l'édition.
+                $this->status = self::STATUS_APPROVED;
+                $this->tms = $now;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_UNSEAL', 'TimesheetWeekAgendaUnsealed', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+
                 return 1;
         }
 
@@ -1450,6 +1539,11 @@ class TimesheetWeek extends CommonObject
                                 'label' => $langs->trans('TimesheetWeekStatusApproved'),
                                 'picto' => 'statut4',
                                 'class' => 'badge badge-status badge-status4',
+                        ),
+                        self::STATUS_SEALED => array(
+                                'label' => $langs->trans('TimesheetWeekStatusSealed'),
+                                'picto' => 'statut8',
+                                'class' => 'badge badge-status badge-status8',
                         ),
                         self::STATUS_REFUSED => array(
                                 'label' => $langs->trans('TimesheetWeekStatusRefused'),

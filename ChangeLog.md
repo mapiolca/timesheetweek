@@ -2,4 +2,5 @@
 
 ## 1.0
 
-Initial version
+- Ajout du statut "Scellée" / "Sealed" et des permissions associées.
+- Initial version
