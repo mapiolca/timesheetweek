@@ -111,6 +111,10 @@ Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
 Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
 Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
+TimesheetWeekElementTimeMirrorError = Error while mirroring task time entries. Please check the logs for more details.
+TimesheetWeekTaskTimeReplication = Replicate times to project tasks
+TimesheetWeekTaskTimeReplicationHelp = When enabled, approved timesheets will mirror the captured time into task time spent entries.
+TimesheetWeekElementTimeDurationBelowMinimum = The mirrored duration must be at least %s seconds.
 
 TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
 TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__

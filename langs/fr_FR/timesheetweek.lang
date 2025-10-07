@@ -111,6 +111,10 @@ Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
 Notify_TIMESHEETWEEK_APPROVE = Feuille de temps approuvée
 Notify_TIMESHEETWEEK_REFUSE = Feuille de temps refusée
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
+TimesheetWeekElementTimeMirrorError = Erreur lors de la synchronisation des temps sur les tâches. Merci de consulter les journaux pour plus de détails.
+TimesheetWeekTaskTimeReplication = Répliquer les temps vers les tâches projet
+TimesheetWeekTaskTimeReplicationHelp = Lorsque l'option est activée, les feuilles de temps approuvées dupliquent les heures saisies dans les temps passés des tâches.
+TimesheetWeekElementTimeDurationBelowMinimum = La durée recopiée doit être au moins de %s secondes.
 
 TimesheetWeekTemplateSubmitLabel = Notification de soumission de feuille de temps
 TimesheetWeekTemplateSubmitSubject = Feuille de temps __TIMESHEETWEEK_REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__

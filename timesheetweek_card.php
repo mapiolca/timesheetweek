@@ -559,7 +559,19 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 
         $res = $object->approve($user);
         if ($res > 0) {
-                setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+                $replicationOk = true;
+                if ((int) getDolGlobalInt('TIMESHEETWEEK_TASKTIME_REPLICATE', 0) === 1) {
+                        // FR: Lance la réplication vers les tâches après validation lorsque l'option est activée.
+                        // EN: Trigger task replication after validation when the option is enabled.
+                        $replicationResult = $object->replicateTaskTimeSpent($user);
+                        if ($replicationResult < 0) {
+                                $replicationOk = false;
+                        }
+                }
+
+                if ($replicationOk) {
+                        setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
+                }
         } else {
                 $errmsg = tw_translate_error($object->error, $langs);
                 setEventMessages($errmsg, $object->errors, 'errors');
