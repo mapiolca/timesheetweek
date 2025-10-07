@@ -1434,7 +1434,7 @@ class TimesheetWeek extends CommonObject
                 $sql .= "entity, elementtype, fk_element, element_date, element_datehour, element_withhour, duration, fk_user, fk_user_create, note, import_key, fk_project";
                 $sql .= ") VALUES (";
                 $sql .= "".($entity > 0 ? (int) $entity : '1').",";
-                $sql .= " 'project_task',";
+                $sql .= " 'task',";
                 $sql .= " ".$taskId.",";
                 $sql .= " ".($dateDay !== '' ? "'".$this->db->escape($dateDay)."'" : 'NULL').",";
                 $sql .= " ".($dateHour !== '' ? "'".$this->db->escape($dateHour)."'" : 'NULL').",";
