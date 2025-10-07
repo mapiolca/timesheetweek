@@ -854,8 +854,11 @@ class TimesheetWeek extends CommonObject
 
 		// Several ways tasks can be assigned -> llx_element_contact with element='project_task'
 		// Note: Some installs store user id into fk_socpeople (legacy)
-		$sql = "SELECT t.rowid as task_id, t.label as task_label,";
-		$sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title";
+               // EN: Fetch extra task metadata so the card can filter items (status, progress, dates).
+               // FR: Récupère des métadonnées supplémentaires pour que la carte puisse filtrer (statut, avancement, dates).
+               $sql = "SELECT t.rowid as task_id, t.label as task_label, t.ref as task_ref,";
+               $sql .= " t.progress as task_progress, t.fk_statut as task_status, t.dateo as task_date_start, t.datee as task_date_end,";
+                $sql .= " p.rowid as project_id, p.ref as project_ref, p.title as project_title";
 		$sql .= " FROM ".MAIN_DB_PREFIX."projet_task t";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = t.fk_projet";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."element_contact ec ON ec.element_id = t.rowid";
@@ -864,7 +867,9 @@ class TimesheetWeek extends CommonObject
 		$sql .= " WHERE p.entity IN (".getEntity('project').")";
 		$sql .= " AND ctc.element = 'project_task'";
 		$sql .= " AND (ec.fk_socpeople = ".$userid." OR u.rowid = ".$userid.")";
-		$sql .= " GROUP BY t.rowid, t.label, p.rowid, p.ref, p.title";
+               // EN: Group by the extra fields to keep SQL strict mode satisfied once new columns are selected.
+               // FR: Ajoute les nouveaux champs dans le GROUP BY pour respecter le mode strict SQL après sélection.
+               $sql .= " GROUP BY t.rowid, t.label, t.ref, t.progress, t.fk_statut, t.dateo, t.datee, p.rowid, p.ref, p.title";
 		$sql .= " ORDER BY p.ref, t.label";
 
 		$res = $this->db->query($sql);
@@ -874,13 +879,20 @@ class TimesheetWeek extends CommonObject
 		}
 		$out = array();
 		while ($obj = $this->db->fetch_object($res)) {
-			$out[] = array(
-				'task_id' => (int) $obj->task_id,
-				'task_label' => (string) $obj->task_label,
-				'project_id' => (int) $obj->project_id,
-				'project_ref' => (string) $obj->project_ref,
-				'project_title' => (string) $obj->project_title,
-			);
+                       // EN: Return the enriched task information so the caller can apply advanced filters.
+                       // FR: Retourne les informations enrichies de la tâche pour permettre des filtres avancés côté appelant.
+                       $out[] = array(
+                                'task_id' => (int) $obj->task_id,
+                                'task_label' => (string) $obj->task_label,
+                                'task_ref' => (string) $obj->task_ref,
+                                'task_progress' => ($obj->task_progress !== null ? (float) $obj->task_progress : null),
+                                'task_status' => ($obj->task_status !== null ? (int) $obj->task_status : null),
+                                'task_date_start' => ($obj->task_date_start !== null ? (string) $obj->task_date_start : null),
+                                'task_date_end' => ($obj->task_date_end !== null ? (string) $obj->task_date_end : null),
+                                'project_id' => (int) $obj->project_id,
+                                'project_ref' => (string) $obj->project_ref,
+                                'project_title' => (string) $obj->project_title,
+                        );
 		}
 		$this->db->free($res);
 		return $out;
