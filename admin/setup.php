@@ -115,6 +115,19 @@ if ($action === 'setmodule' && !empty($value)) {
         }
 }
 
+// FR: Sauvegarde du réglage de réplication des temps vers les tâches.
+// EN: Save the task time replication setting.
+if ($action === 'set_tasktime_replicate') {
+        $replicationValue = GETPOST('value', 'int');
+        $newReplicationValue = !empty($replicationValue) ? 1 : 0;
+        $result = dolibarr_set_const($db, 'TIMESHEETWEEK_TASKTIME_REPLICATE', $newReplicationValue, 'chaine', 0, '', $conf->entity);
+        if ($result > 0) {
+                setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+        } else {
+                setEventMessages($langs->trans('Error'), null, 'errors');
+        }
+}
+
 if ($action === 'setdoc' && !empty($value)) {
         $res = timesheetweek_enable_document_model($value);
         if ($res > 0) {
@@ -259,6 +272,40 @@ print '<div class="center">';
 print '<input type="submit" class="button button-save" value="'.$langs->trans('Save').'">';
 print '</div>';
 
+print '</form>';
+
+print '<br>';
+
+// FR: Formulaire du paramètre de réplication des temps.
+// EN: Form for the task time replication setting.
+$replicationCurrentValue = (int) getDolGlobalInt('TIMESHEETWEEK_TASKTIME_REPLICATE', 0);
+$replicationToken = newToken();
+print '<form action="'.$_SERVER['PHP_SELF'].'" method="POST">';
+print '<input type="hidden" name="token" value="'.$replicationToken.'">';
+print '<input type="hidden" name="action" value="set_tasktime_replicate">';
+print load_fiche_titre($langs->trans('TimesheetWeekTaskTimeReplication'), '', 'object_time@timesheetweek');
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Parameter').'</th>';
+print '<th>'.$langs->trans('Value').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '</tr>';
+print '<tr class="oddeven">';
+print '<td>'.$langs->trans('TimesheetWeekTaskTimeReplication').'</td>';
+print '<td class="center">';
+print '<select name="value" class="flat">';
+print '<option value="0"'.($replicationCurrentValue !== 1 ? ' selected' : '').'>'.$langs->trans('No').'</option>';
+print '<option value="1"'.($replicationCurrentValue === 1 ? ' selected' : '').'>'.$langs->trans('Yes').'</option>';
+print '</select>';
+print '</td>';
+print '<td>'.$langs->trans('TimesheetWeekTaskTimeReplicationHelp').'</td>';
+print '</tr>';
+print '</table>';
+print '</div>';
+print '<div class="center">';
+print '<input type="submit" class="button button-save" value="'.$langs->trans('Save').'">';
+print '</div>';
 print '</form>';
 
 print '<br>';
