@@ -10,6 +10,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 
 dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
 
@@ -264,14 +265,27 @@ class TimesheetWeek extends CommonObject
 	 * @param User $user
 	 * @return int
 	 */
-	public function delete($user)
-	{
-		$this->db->begin();
+        public function delete($user)
+        {
+                $this->db->begin();
 
-		$dl = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
-		if (!$this->db->query($dl)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
+                if (!is_array($this->lines) || !count($this->lines)) {
+                        $resLines = $this->fetchLines();
+                        if ($resLines < 0) {
+                                $this->db->rollback();
+                                return -1;
+                        }
+                }
+
+                if ($this->removeTaskTimeSpent($user) < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $dl = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
+                if (!$this->db->query($dl)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
 			return -1;
 		}
 
@@ -431,6 +445,11 @@ class TimesheetWeek extends CommonObject
                 $this->tms = $now;
                 $this->date_validation = null;
 
+                if ($this->removeTaskTimeSpent($user) < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
                         $this->db->rollback();
                         return -1;
@@ -480,6 +499,11 @@ class TimesheetWeek extends CommonObject
                 $this->status = self::STATUS_APPROVED;
                 $this->date_validation = $now;
                 $this->tms = $now;
+
+                if ($this->applyTaskTimeSpent($user) < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
 
                 if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
                         $this->db->rollback();
@@ -1156,6 +1180,285 @@ class TimesheetWeek extends CommonObject
 
                return $this->fireNotificationTrigger($triggerCode, $actionUser);
        }
+
+        /**
+         * Add time spent entries on linked tasks for every line of the timesheet.
+         *
+         * @param User $actionUser
+         * @return int
+         */
+        protected function applyTaskTimeSpent(User $actionUser)
+        {
+                if ((int) $this->fk_user <= 0) {
+                        return 1;
+                }
+
+                $lines = $this->getLines();
+                if (!is_array($lines) || !count($lines)) {
+                        return 1;
+                }
+
+                foreach ($lines as $line) {
+                        $lineId = $this->getLineIdentifier($line);
+                        $taskId = !empty($line->fk_task) ? (int) $line->fk_task : 0;
+                        if ($lineId <= 0 || $taskId <= 0) {
+                                continue;
+                        }
+
+                        $duration = $this->convertHoursToSeconds($line->hours);
+                        if ($duration <= 0) {
+                                continue;
+                        }
+
+                        $importKey = $this->buildTimeSpentImportKey($lineId);
+                        if (empty($importKey)) {
+                                continue;
+                        }
+
+                        $existing = $this->fetchTaskTimeRowsByImportKey($importKey);
+                        if ($existing === false) {
+                                return -1;
+                        }
+                        if (!empty($existing)) {
+                                continue;
+                        }
+
+                        $task = new Task($this->db);
+                        if ($task->fetch($taskId) <= 0) {
+                                $this->error = $task->error ?: 'FailedToFetchTask';
+                                if (!empty($task->errors) && is_array($task->errors)) {
+                                        $this->errors = array_merge($this->errors, $task->errors);
+                                }
+                                return -1;
+                        }
+
+                        $timestamp = $this->resolveLineDate($line->day_date);
+
+                        $task->timespent_date = $timestamp;
+                        $task->timespent_datehour = $timestamp;
+                        $task->timespent_withhour = 0;
+                        $task->timespent_duration = $duration;
+                        $task->timespent_fk_user = (int) $this->fk_user;
+                        $task->timespent_note = $this->buildTimeSpentNote($line, $timestamp);
+                        $task->timespent_import_key = $importKey;
+
+                        if (property_exists($task, 'fk_project') && !empty($task->fk_project)) {
+                                $task->timespent_fk_project = (int) $task->fk_project;
+                        } elseif (property_exists($task, 'fk_projet') && !empty($task->fk_projet)) {
+                                $task->timespent_fk_project = (int) $task->fk_projet;
+                        }
+
+                        $resAdd = $task->addTimeSpent($actionUser);
+                        if ($resAdd <= 0) {
+                                $this->error = $task->error ?: 'FailedToAddTimeSpent';
+                                if (!empty($task->errors) && is_array($task->errors)) {
+                                        $this->errors = array_merge($this->errors, $task->errors);
+                                }
+                                return -1;
+                        }
+                }
+
+                return 1;
+        }
+
+        /**
+         * Remove time spent entries previously generated for this timesheet.
+         *
+         * @param User $actionUser
+         * @return int
+         */
+        protected function removeTaskTimeSpent(User $actionUser)
+        {
+                $lines = $this->getLines();
+                if (!is_array($lines) || !count($lines)) {
+                        return 1;
+                }
+
+                foreach ($lines as $line) {
+                        $lineId = $this->getLineIdentifier($line);
+                        if ($lineId <= 0) {
+                                continue;
+                        }
+
+                        $importKey = $this->buildTimeSpentImportKey($lineId);
+                        if (empty($importKey)) {
+                                continue;
+                        }
+
+                        $records = $this->fetchTaskTimeRowsByImportKey($importKey, true);
+                        if ($records === false) {
+                                return -1;
+                        }
+
+                        foreach ($records as $record) {
+                                $taskTimeId = (int) $record['id'];
+                                $taskId = !empty($record['fk_task']) ? (int) $record['fk_task'] : 0;
+
+                                $task = new Task($this->db);
+                                $taskFetched = ($taskId > 0) ? $task->fetch($taskId) : 0;
+
+                                if ($taskFetched > 0 && method_exists($task, 'delTimeSpent')) {
+                                        $resDel = $task->delTimeSpent($taskTimeId, $actionUser);
+                                        if ($resDel <= 0) {
+                                                $this->error = $task->error ?: 'FailedToDeleteTimeSpent';
+                                                if (!empty($task->errors) && is_array($task->errors)) {
+                                                        $this->errors = array_merge($this->errors, $task->errors);
+                                                }
+                                                return -1;
+                                        }
+                                } else {
+                                        $sql = "DELETE FROM ".MAIN_DB_PREFIX."projet_task_time WHERE rowid=".$taskTimeId;
+                                        if (!$this->db->query($sql)) {
+                                                $this->error = $this->db->lasterror();
+                                                return -1;
+                                        }
+                                }
+                        }
+                }
+
+                return 1;
+        }
+
+        /**
+         * Build a unique import key for the time spent entry of a line.
+         *
+         * @param int $lineId
+         * @return string
+         */
+        protected function buildTimeSpentImportKey($lineId)
+        {
+                if ((int) $lineId <= 0 || (int) $this->id <= 0) {
+                        return '';
+                }
+
+                return 'tswk:'.$this->id.':'.$lineId;
+        }
+
+        /**
+         * Fetch task time rows linked to a specific import key.
+         *
+         * @param string $importKey
+         * @param bool   $withTask
+         * @return array|false
+         */
+        protected function fetchTaskTimeRowsByImportKey($importKey, $withTask = false)
+        {
+                if (empty($importKey)) {
+                        return array();
+                }
+
+                $select = $withTask ? 'rowid, fk_task' : 'rowid';
+                $sql = "SELECT $select FROM ".MAIN_DB_PREFIX."projet_task_time";
+                $sql .= " WHERE import_key='".$this->db->escape($importKey)."'";
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return false;
+                }
+
+                $rows = array();
+                while ($obj = $this->db->fetch_object($resql)) {
+                        $rows[] = array(
+                                'id' => (int) $obj->rowid,
+                                'fk_task' => isset($obj->fk_task) ? (int) $obj->fk_task : 0,
+                        );
+                }
+                $this->db->free($resql);
+
+                return $rows;
+        }
+
+        /**
+         * Convert an hours value to seconds for task time tracking.
+         *
+         * @param float|int|string $hours
+         * @return int
+         */
+        protected function convertHoursToSeconds($hours)
+        {
+                return (int) round(((float) $hours) * 3600);
+        }
+
+        /**
+         * Resolve the identifier of a line object.
+         *
+         * @param TimesheetWeekLine|object $line
+         * @return int
+         */
+        protected function getLineIdentifier($line)
+        {
+                if (!is_object($line)) {
+                        return 0;
+                }
+
+                if (!empty($line->id)) {
+                        return (int) $line->id;
+                }
+
+                if (!empty($line->rowid)) {
+                        return (int) $line->rowid;
+                }
+
+                return 0;
+        }
+
+        /**
+         * Resolve the timestamp to use for a line date value.
+         *
+         * @param mixed $value
+         * @return int
+         */
+        protected function resolveLineDate($value)
+        {
+                if (empty($value)) {
+                        return dol_now();
+                }
+
+                if (is_numeric($value)) {
+                        $timestamp = (int) $value;
+                        if ($timestamp > 0) {
+                                return $timestamp;
+                        }
+                }
+
+                if ($value instanceof \DateTimeInterface) {
+                        return $value->getTimestamp();
+                }
+
+                $timestamp = strtotime((string) $value);
+                if ($timestamp > 0) {
+                        return $timestamp;
+                }
+
+                $timestamp = dol_stringtotime((string) $value, '%Y-%m-%d');
+                if ($timestamp > 0) {
+                        return $timestamp;
+                }
+
+                return dol_now();
+        }
+
+        /**
+         * Build the note stored on the generated time spent entry.
+         *
+         * @param TimesheetWeekLine|object $line
+         * @param int                      $timestamp
+         * @return string
+         */
+        protected function buildTimeSpentNote($line, $timestamp)
+        {
+                $label = 'Timesheet '.$this->ref;
+                if ($timestamp > 0) {
+                        $label .= ' - '.dol_print_date($timestamp, 'day');
+                }
+
+                if (!empty($line->hours)) {
+                        $label .= ' ('.round((float) $line->hours, 2).'h)';
+                }
+
+                return $label;
+        }
 
         /**
          * Badge / labels
