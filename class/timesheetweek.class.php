@@ -8,6 +8,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -528,6 +529,10 @@ class TimesheetWeek extends CommonObject
                         return 1;
                 }
 
+                // Determine employee hourly rate for THM column (EN)
+                // Détermine le taux horaire salarié pour la colonne THM (FR)
+                $employeeThm = $this->resolveEmployeeThm();
+
                 foreach ($lines as $line) {
                         $durationSeconds = (int) round(((float) $line->hours) * 3600);
                         if ($durationSeconds <= 0) {
@@ -536,13 +541,14 @@ class TimesheetWeek extends CommonObject
 
                         $taskTimestamp = $this->normalizeLineDate($line->day_date);
                         $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
-                        $sql .= " fk_user, fk_element, elementtype, element_duration, element_date, import_key";
+                        $sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, import_key";
                         $sql .= ") VALUES (";
                         $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
                         $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
                         $sql .= " 'task',";
                         $sql .= " ".$durationSeconds.",";
                         $sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
+                        $sql .= ($employeeThm !== null ? " ".$employeeThm : " NULL").",";
                         $sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
                         $sql .= ")";
 
@@ -636,6 +642,41 @@ class TimesheetWeek extends CommonObject
                 }
 
                 return 'TW'.substr(md5((string) $this->id), 0, 4);
+        }
+
+        /**
+         * Resolve employee THM (average hourly rate) for element_time insert.
+         * EN: Tries the standard user fields to find the hourly cost before inserting into llx_element_time.
+         * FR: Explore les champs standards de l'utilisateur pour retrouver le coût horaire avant l'insertion dans llx_element_time.
+         * @return string|null
+         */
+        protected function resolveEmployeeThm()
+        {
+                $employee = $this->loadUserFromCache($this->fk_user);
+                if (!$employee) {
+                        return null;
+                }
+
+                $candidates = array();
+                if (property_exists($employee, 'thm')) {
+                        $candidates[] = $employee->thm;
+                }
+                if (!empty($employee->array_options) && array_key_exists('options_thm', $employee->array_options)) {
+                        $candidates[] = $employee->array_options['options_thm'];
+                }
+
+                foreach ($candidates as $candidate) {
+                        if ($candidate === '' || $candidate === null) {
+                                continue;
+                        }
+
+                        $value = price2num($candidate, 'MT');
+                        if ($value !== '') {
+                                return (string) $value;
+                        }
+                }
+
+                return null;
         }
 
         /**
