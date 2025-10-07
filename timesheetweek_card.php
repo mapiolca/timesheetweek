@@ -424,58 +424,20 @@ if ($action === 'save' && $id > 0) {
 		}
 	}
 
-        // EN: Collect daily aggregates once the line operations are done.
-        // FR: Collecte les agrégats journaliers une fois les opérations sur les lignes terminées.
-        $zoneCounters = array(1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
-        $mealCounter = 0;
-        $sqlDayAgg = "SELECT day_date, MAX(zone) as zone, MAX(meal) as meal";
-        $sqlDayAgg .= " FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-        $sqlDayAgg .= " WHERE fk_timesheet_week=".(int)$object->id;
-        $sqlDayAgg .= " GROUP BY day_date";
-        $resDayAgg = $db->query($sqlDayAgg);
-        if (!$resDayAgg) {
+        // EN: Reload the lines to work with the freshly stored data before aggregating.
+        // FR: Recharge les lignes pour travailler sur les données fraîchement enregistrées avant l'agrégation.
+        $linesReloaded = $object->fetchLines();
+        if ($linesReloaded < 0) {
                 $db->rollback();
-                setEventMessages($db->lasterror(), null, 'errors');
+                setEventMessages($object->error ? $object->error : $db->lasterror(), $object->errors, 'errors');
                 header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
                 exit;
         }
-        while ($dayRow = $db->fetch_object($resDayAgg)) {
-                $zoneVal = (int) $dayRow->zone;
-                if ($zoneVal >= 1 && $zoneVal <= 5) {
-                        $zoneCounters[$zoneVal]++;
-                }
-                if (!empty($dayRow->meal)) {
-                        $mealCounter++;
-                }
-        }
-        $db->free($resDayAgg);
 
-        // EN: Attach the computed counters to the week object before updating the database.
-        // FR: Associe les compteurs calculés à l'objet hebdomadaire avant la mise à jour de la base.
-        $object->zone1_count = $zoneCounters[1];
-        $object->zone2_count = $zoneCounters[2];
-        $object->zone3_count = $zoneCounters[3];
-        $object->zone4_count = $zoneCounters[4];
-        $object->zone5_count = $zoneCounters[5];
-        $object->meal_count = $mealCounter;
-
-        // Totaux
-        $totalHours = 0.0;
-        $sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-        $resSum = $db->query($sqlSum);
-	if ($resSum) {
-		$o = $db->fetch_object($resSum);
-		$totalHours = (float) $o->sh;
-	}
-
-	$uEmp = new User($db);
-	$uEmp->fetch($object->fk_user);
-	$contract = !empty($uEmp->weeklyhours) ? (float)$uEmp->weeklyhours : 35.0;
-	$overtime = max(0.0, $totalHours - $contract);
-
-	$object->total_hours    = $totalHours;
-	$object->overtime_hours = $overtime;
-	$upd = $object->update($user);
+        // EN: Recompute totals and counters so they follow the exact same flow as hours and overtime.
+        // FR: Recalcule les totaux et les compteurs afin qu'ils suivent exactement le même flux que les heures et les heures supplémentaires.
+        $object->computeTotals();
+        $upd = $object->update($user);
 	if ($upd < 0) {
 		$db->rollback();
 		setEventMessages($object->error, $object->errors, 'errors');

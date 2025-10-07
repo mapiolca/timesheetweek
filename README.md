@@ -5,6 +5,7 @@
 Description of the module...
 
 - Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
+- Recalcul automatique des compteurs de zones et de paniers lors de chaque enregistrement.
 - Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
 
 <!--
