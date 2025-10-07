@@ -533,6 +533,13 @@ class TimesheetWeek extends CommonObject
                 // Détermine le taux horaire salarié pour la colonne THM (FR)
                 $employeeThm = $this->resolveEmployeeThm();
 
+                // Prepare multilingual helper for note composition (EN)
+                // Prépare l'assistant multilingue pour composer la note (FR)
+                global $langs;
+                if (is_object($langs)) {
+                        $langs->load('timesheetweek@timesheetweek');
+                }
+
                 foreach ($lines as $line) {
                         $durationSeconds = (int) round(((float) $line->hours) * 3600);
                         if ($durationSeconds <= 0) {
@@ -553,7 +560,14 @@ class TimesheetWeek extends CommonObject
                                 $noteDurationValue = price2num($line->hours, 'MT');
                                 $noteDurationLabel = ($noteDurationValue !== '' ? number_format((float) $noteDurationValue, 2, '.', ' ') : '0.00').' h';
                         }
-                        $noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
+
+                        // Build the readable note with translations and fallback (EN)
+                        // Construit la note lisible avec traductions et repli (FR)
+                        if (is_object($langs)) {
+                                $noteMessage = $langs->trans('TimesheetWeekElementTimeNote', (string) $this->ref, $noteDateLabel, $noteDurationLabel);
+                        } else {
+                                $noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
+                        }
 
                         // Store a readable note for auditors and managers (EN)
                         // Enregistre une note lisible pour les contrôleurs et managers (FR)

@@ -110,6 +110,7 @@ TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur d
 Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
 Notify_TIMESHEETWEEK_APPROVE = Feuille de temps approuvée
 Notify_TIMESHEETWEEK_REFUSE = Feuille de temps refusée
+TimesheetWeekElementTimeNote = Feuille de temps %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
 
 TimesheetWeekTemplateSubmitLabel = Notification de soumission de feuille de temps
