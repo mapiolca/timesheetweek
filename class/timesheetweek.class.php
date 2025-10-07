@@ -1257,6 +1257,15 @@ class TimesheetWeek extends CommonObject
                         return 1;
                 }
 
+                // FR: Recharge systématiquement les lignes depuis la base pour garantir la présence des identifiants.
+                // EN: Always reload lines from database to guarantee identifiers are available.
+                $resLines = $this->fetchLines();
+                if ($resLines < 0) {
+                        dol_syslog(__METHOD__.': Unable to reload lines before mirroring - error='.$this->error, LOG_ERR);
+                        $this->notifyElementTimeError('[reload-lines]');
+                        return -1;
+                }
+
                 $lines = $this->getLines();
                 if (!is_array($lines) || !count($lines)) {
                         // FR: Mentionne l'absence de lignes à traiter.
@@ -1269,9 +1278,9 @@ class TimesheetWeek extends CommonObject
                         $lineId = $this->getLineIdentifier($line);
                         $taskId = $this->resolveLineTaskId($line);
                         if ($lineId <= 0 || $taskId <= 0) {
-                                // FR: Ignore les lignes dépourvues d'identifiant ou de tâche.
-                                // EN: Skip lines without an identifier or task.
-                                dol_syslog(__METHOD__.': Skip line without id or task (line='.$lineId.', task='.$taskId.')', LOG_DEBUG);
+                                // FR: Journalise l'absence d'identifiant ou de tâche pour investigation et ignore la ligne.
+                                // EN: Log missing identifier or task for investigation and skip the line.
+                                dol_syslog(__METHOD__.': Skip line without id or task (line='.$lineId.', task='.$taskId.')', LOG_WARNING);
                                 continue;
                         }
 
