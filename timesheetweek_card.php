@@ -54,12 +54,13 @@ function tw_status($name) {
 		} else {
 			$approved = 2;
 		}
-		$map = array(
-			'draft'     => defined('TimesheetWeek::STATUS_DRAFT')     ? TimesheetWeek::STATUS_DRAFT     : 0,
-			'submitted' => defined('TimesheetWeek::STATUS_SUBMITTED') ? TimesheetWeek::STATUS_SUBMITTED : 1,
-			'approved'  => $approved, // <— Approuvée
-			'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
-		);
+                $map = array(
+                        'draft'     => defined('TimesheetWeek::STATUS_DRAFT')     ? TimesheetWeek::STATUS_DRAFT     : 0,
+                        'submitted' => defined('TimesheetWeek::STATUS_SUBMITTED') ? TimesheetWeek::STATUS_SUBMITTED : 1,
+                        'approved'  => $approved, // <— Approuvée
+                        'sealed'    => defined('TimesheetWeek::STATUS_SEALED')    ? TimesheetWeek::STATUS_SEALED    : 8,
+                        'refused'   => defined('TimesheetWeek::STATUS_REFUSED')   ? TimesheetWeek::STATUS_REFUSED   : 3,
+                );
         }
         return $map[$name];
 }
@@ -93,6 +94,9 @@ $permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAl
 $permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
 $permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
 $permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
+
+$permSeal          = $user->hasRight('timesheetweek','timesheetweek','seal');
+$permUnseal        = $user->hasRight('timesheetweek','timesheetweek','unseal');
 
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
@@ -499,13 +503,21 @@ if ($action === 'submit' && $id > 0) {
 
 // ----------------- Action: Back to draft -----------------
 if ($action === 'setdraft' && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
+        if ($object->id <= 0) $object->fetch($id);
 
-	if ($object->status == tw_status('draft')) {
-		setEventMessages($langs->trans("AlreadyDraft"), null, 'warnings');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+        if ($object->status == tw_status('sealed')) {
+                // EN: Block direct draft revert on sealed sheets.
+                // FR : Empêche de repasser en brouillon une feuille scellée sans la desceller.
+                setEventMessages($langs->trans('CannotSetDraftWhenSealed'), null, 'warnings');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
+
+        if ($object->status == tw_status('draft')) {
+                setEventMessages($langs->trans("AlreadyDraft"), null, 'warnings');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
 
 	$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
         $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
@@ -570,15 +582,15 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 
 // ----------------- Action: CONFIRM REFUSE (Refuser) -----------------
 if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
-	if ($object->id <= 0) $object->fetch($id);
-	if ($object->status != tw_status('submitted')) {
-		setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
-		header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-		exit;
-	}
+        if ($object->id <= 0) $object->fetch($id);
+        if ($object->status != tw_status('submitted')) {
+                setEventMessages($langs->trans("ActionNotAllowedOnThisStatus"), null, 'warnings');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
         if (!tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
-		accessforbidden();
-	}
+                accessforbidden();
+        }
 
         if (!is_array($object->context)) {
                 $object->context = array();
@@ -589,6 +601,52 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
         $res = $object->refuse($user);
         if ($res > 0) {
                 setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
+}
+
+// ----------------- Action: SEAL -----------------
+if ($action === 'seal' && $id > 0) {
+        if ($object->id <= 0) $object->fetch($id);
+        if (!$permSeal) accessforbidden();
+
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        // EN: Flag the current action for triggers and logs.
+        // FR : Marque l'action courante pour les triggers et journaux.
+        $object->context['timesheetweek_card_action'] = 'seal';
+
+        $res = $object->seal($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans('TimesheetSealed'), null, 'mesgs');
+        } else {
+                $errmsg = tw_translate_error($object->error, $langs);
+                setEventMessages($errmsg, $object->errors, 'errors');
+        }
+        header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+        exit;
+}
+
+// ----------------- Action: UNSEAL -----------------
+if ($action === 'unseal' && $id > 0) {
+        if ($object->id <= 0) $object->fetch($id);
+        if (!$permUnseal) accessforbidden();
+
+        if (!is_array($object->context)) {
+                $object->context = array();
+        }
+        // EN: Flag the unseal action to inform future triggers.
+        // FR : Marque l'action de descellage pour informer les triggers.
+        $object->context['timesheetweek_card_action'] = 'unseal';
+
+        $res = $object->unseal($user);
+        if ($res > 0) {
+                setEventMessages($langs->trans('TimesheetUnsealed'), null, 'mesgs');
         } else {
                 $errmsg = tw_translate_error($object->error, $langs);
                 setEventMessages($errmsg, $object->errors, 'errors');
@@ -1283,50 +1341,64 @@ JS;
 		echo $jsGrid;
 	}
 
-	// ---- Boutons d’action (barre) ----
+        // ---- Boutons d’action (barre) ----
         echo '<div class="tabsAction">';
 
         $token = newToken();
 
-        if ($canSendMail) {
-                echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+        if ($object->status == tw_status('sealed')) {
+                // EN: In sealed state only show the unseal control for authorized users.
+                // FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
+                if ($permUnseal) {
+                        echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+                }
+        } else {
+                if ($canSendMail) {
+                        echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+                }
+
+                // Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
+                if ($object->status == tw_status('draft')) {
+                        // Compter les lignes
+                        $nbLines = 0;
+                        $rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
+                        if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
+                        if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+                                echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+                        }
+                }
+
+                // Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
+                if ($object->status != tw_status('draft')) {
+                        $canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
+                        $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+                        if ($canEmployee || $canValidator) {
+                                echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
+                        }
+                }
+
+                // Approuver / Refuser quand soumis (validateur/manager/all/own)
+                if ($object->status == tw_status('submitted')) {
+                        $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+                        if ($canValidator) {
+                                echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
+                                echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
+                        }
+                }
+
+                // EN: Allow sealing once the sheet is approved and the user is authorized.
+                // FR : Autorise le scellement dès que la feuille est approuvée et que l'utilisateur est habilité.
+                if ($object->status == tw_status('approved') && $permSeal) {
+                        echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
+                }
+
+                // Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
+                $canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+                        || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+                if ($canDelete) {
+                        echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+                }
         }
-
-        // Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-        if ($object->status == tw_status('draft')) {
-		// Compter les lignes
-		$nbLines = 0;
-		$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
-		if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
-		if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-			echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
-		}
-	}
-
-	// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
-	if ($object->status != tw_status('draft')) {
-		$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-                $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-		if ($canEmployee || $canValidator) {
-			echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
-		}
-	}
-
-	// Approuver / Refuser quand soumis (validateur/manager/all/own)
-	if ($object->status == tw_status('submitted')) {
-                $canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-		if ($canValidator) {
-			echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-			echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
-		}
-	}
-
-	// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
-        $canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-                || tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-	if ($canDelete) {
-		echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
-	}
 
         echo '</div>';
 

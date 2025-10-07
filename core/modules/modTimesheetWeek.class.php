@@ -364,15 +364,31 @@ class modTimesheetWeek extends DolibarrModules
 		$this->rights[$r][4] = 'timesheetweek';
 		$this->rights[$r][5] = 'validateChild';
 		$r++;
-		// EN: Allow global validation on all employee timesheets
-		// FR : Autorise la validation de toutes les feuilles de temps
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
-		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'validateAll';
-		$r++;
+                // EN: Allow global validation on all employee timesheets
+                // FR : Autorise la validation de toutes les feuilles de temps
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'validateAll';
+                $r++;
 
-		/* END MODULEBUILDER PERMISSIONS */
+                // EN: Allow sealing approved timesheets.
+                // FR : Autorise le scellement des feuilles approuvées.
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'seal';
+                $r++;
+
+                // EN: Allow reopening sealed timesheets.
+                // FR : Autorise le descellage des feuilles scellées.
+                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
+                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
+                $this->rights[$r][4] = 'timesheetweek';
+                $this->rights[$r][5] = 'unseal';
+                $r++;
+
+                /* END MODULEBUILDER PERMISSIONS */
 
 
 		// Main menu entries to add

@@ -217,6 +217,7 @@ if (!empty($arrayfields['t.status']['checked'])) {
                 TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
                 TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
                 TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+                TimesheetWeek::STATUS_SEALED    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SEALED, 0),
                 TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
         );
 

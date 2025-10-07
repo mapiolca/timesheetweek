@@ -2,6 +2,8 @@
 
 ## Features
 
+- Statut "Scellée" / "Sealed" pour verrouiller les feuilles approuvées.
+
 Description of the module...
 
 <!--
