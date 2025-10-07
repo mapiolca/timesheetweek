@@ -7,6 +7,8 @@
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -427,6 +429,13 @@ class TimesheetWeek extends CommonObject
                         return -1;
                 }
 
+                // Remove synced time entries to keep the ERP aligned (EN)
+                // Supprime les temps synchronisés pour garder l'ERP aligné (FR)
+                if ($this->deleteElementTimeRecords() < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->status = self::STATUS_DRAFT;
                 $this->tms = $now;
                 $this->date_validation = null;
@@ -477,6 +486,13 @@ class TimesheetWeek extends CommonObject
                         return -1;
                 }
 
+                // Synchronize time consumption with Dolibarr core table (EN)
+                // Synchronise la consommation de temps avec la table cœur de Dolibarr (FR)
+                if ($this->syncElementTimeRecords() < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
                 $this->status = self::STATUS_APPROVED;
                 $this->date_validation = $now;
                 $this->tms = $now;
@@ -490,10 +506,247 @@ class TimesheetWeek extends CommonObject
                 return 1;
         }
 
-	/**
-	 * Refuse
-	 * @param User $user
-	 * @return int
+        /**
+         * Synchronize element_time rows with the validated timesheet lines.
+         * EN: Inserts dedicated rows into llx_element_time when approving a sheet, removing stale ones first.
+         * FR: Insère les lignes dans llx_element_time lors de l'approbation, après avoir supprimé les enregistrements obsolètes.
+         * @return int
+         */
+        protected function syncElementTimeRecords()
+        {
+                if (empty($this->id)) {
+                        return 0;
+                }
+
+                // Clean previous entries tied to this sheet to avoid duplicates (EN)
+                // Nettoie les entrées existantes liées à cette fiche pour éviter les doublons (FR)
+                if ($this->deleteElementTimeRecords() < 0) {
+                        return -1;
+                }
+
+                $lines = $this->getLines();
+                if (empty($lines)) {
+                        return 1;
+                }
+
+                // Determine employee hourly rate for THM column (EN)
+                // Détermine le taux horaire salarié pour la colonne THM (FR)
+                $employeeThm = $this->resolveEmployeeThm();
+
+                // Prepare multilingual helper for note composition (EN)
+                // Prépare l'assistant multilingue pour composer la note (FR)
+                global $langs;
+                if (is_object($langs)) {
+                        $langs->load('timesheetweek@timesheetweek');
+                }
+
+                foreach ($lines as $line) {
+                        $durationSeconds = (int) round(((float) $line->hours) * 3600);
+                        if ($durationSeconds <= 0) {
+                                continue;
+                        }
+
+                        $taskTimestamp = $this->normalizeLineDate($line->day_date);
+                        $noteDateLabel = $taskTimestamp ? dol_print_date($taskTimestamp, '%d/%m/%Y') : dol_print_date(dol_now(), '%d/%m/%Y');
+                        // Try Dolibarr helper then fallback to module formatter (EN)
+                        // Tente l'assistant Dolibarr puis bascule sur le formateur du module (FR)
+                        if (function_exists('dol_print_duration')) {
+                                $noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
+                        } else {
+                                $noteDurationLabel = $this->formatDurationLabel($durationSeconds);
+                        }
+                        $noteDurationLabel = trim(str_replace('&nbsp;', ' ', $noteDurationLabel));
+                        if ($noteDurationLabel === '') {
+                                $noteDurationValue = price2num($line->hours, 'MT');
+                                $noteDurationLabel = ($noteDurationValue !== '' ? number_format((float) $noteDurationValue, 2, '.', ' ') : '0.00').' h';
+                        }
+
+                        // Build the readable note with translations and fallback (EN)
+                        // Construit la note lisible avec traductions et repli (FR)
+                        if (is_object($langs)) {
+                                $noteMessage = $langs->trans('TimesheetWeekElementTimeNote', (string) $this->ref, $noteDateLabel, $noteDurationLabel);
+                        } else {
+                                $noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
+                        }
+
+                        // Store a readable note for auditors and managers (EN)
+                        // Enregistre une note lisible pour les contrôleurs et managers (FR)
+                        $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
+                        $sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, note, import_key";
+                        $sql .= ") VALUES (";
+                        $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
+                        $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
+                        $sql .= " 'task',";
+                        $sql .= " ".$durationSeconds.",";
+                        $sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
+                        $sql .= ($employeeThm !== null ? " ".$employeeThm : " NULL").",";
+                        $sql .= " '".$this->db->escape($noteMessage)."',";
+                        $sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
+                        $sql .= ")";
+
+                        if (!$this->db->query($sql)) {
+                                $this->error = $this->db->lasterror();
+                                return -1;
+                        }
+                }
+
+                return 1;
+        }
+
+        /**
+         * Delete synced rows from llx_element_time for this sheet.
+         * EN: Uses the custom import_key prefix to target only our module entries.
+         * FR: Utilise le préfixe import_key personnalisé pour ne viser que les entrées du module.
+         * @return int
+         */
+        protected function deleteElementTimeRecords()
+        {
+                if (empty($this->id)) {
+                        return 0;
+                }
+
+                $prefix = $this->getElementTimeImportKeyPrefix();
+                $sql = "DELETE FROM ".MAIN_DB_PREFIX."element_time";
+                $sql .= " WHERE elementtype='task'";
+                if ($prefix !== '') {
+                        $sql .= " AND import_key LIKE '".$this->db->escape($prefix)."%'";
+                }
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                return $this->db->affected_rows($resql);
+        }
+
+        /**
+         * Normalize date value coming from a line.
+         * EN: Returns a unix timestamp or 0 if the date is missing.
+         * FR: Retourne un timestamp unix ou 0 si la date est absente.
+         * @param mixed $value
+         * @return int
+         */
+        protected function normalizeLineDate($value)
+        {
+                if (empty($value)) {
+                        return 0;
+                }
+
+                if (is_numeric($value)) {
+                        return (int) $value;
+                }
+
+                $timestamp = dol_stringtotime($value, 0, 1);
+                if ($timestamp > 0) {
+                        return $timestamp;
+                }
+
+                $timestamp = strtotime($value);
+                return $timestamp ? (int) $timestamp : 0;
+        }
+
+        /**
+         * Build a deterministic import_key for a line.
+         * EN: Generates a short hash starting with a module prefix for deletion filtering.
+         * FR: Génère un hash court préfixé pour faciliter le filtrage à la suppression.
+         * @param TimesheetWeekLine $line
+         * @return string
+         */
+        protected function buildElementTimeImportKey($line)
+        {
+                $lineId = !empty($line->id) ? (int) $line->id : (!empty($line->rowid) ? (int) $line->rowid : 0);
+                $base = (string) $this->id.'-'.$lineId;
+                return $this->getElementTimeImportKeyPrefix().substr(md5($base), 0, 8);
+        }
+
+        /**
+         * Provide the common prefix used for import_key values.
+         * EN: Ensures every record for this sheet starts with a predictable marker.
+         * FR: Garantit que chaque enregistrement de la fiche débute par un marqueur prévisible.
+         * @return string
+         */
+        protected function getElementTimeImportKeyPrefix()
+        {
+                if (empty($this->id)) {
+                        return '';
+                }
+
+                return 'TW'.substr(md5((string) $this->id), 0, 4);
+        }
+
+        /**
+         * Resolve employee THM (average hourly rate) for element_time insert.
+         * EN: Tries the standard user fields to find the hourly cost before inserting into llx_element_time.
+         * FR: Explore les champs standards de l'utilisateur pour retrouver le coût horaire avant l'insertion dans llx_element_time.
+         * @return string|null
+         */
+        protected function resolveEmployeeThm()
+        {
+                $employee = $this->loadUserFromCache($this->fk_user);
+                if (!$employee) {
+                        return null;
+                }
+
+                $candidates = array();
+                if (property_exists($employee, 'thm')) {
+                        $candidates[] = $employee->thm;
+                }
+                if (!empty($employee->array_options) && array_key_exists('options_thm', $employee->array_options)) {
+                        $candidates[] = $employee->array_options['options_thm'];
+                }
+
+                foreach ($candidates as $candidate) {
+                        if ($candidate === '' || $candidate === null) {
+                                continue;
+                        }
+
+                        $value = price2num($candidate, 'MT');
+                        if ($value !== '') {
+                                return (string) $value;
+                        }
+                }
+
+                return null;
+        }
+
+        /**
+         * Format a readable duration when Dolibarr helper is unavailable.
+         * EN: Converts a duration in seconds to an "Hh Mmin" label for notes.
+         * FR: Convertit une durée en secondes en libellé « Hh Mmin » pour les notes.
+         * @param int $seconds
+         * @return string
+         */
+        protected function formatDurationLabel($seconds)
+        {
+                $seconds = max(0, (int) $seconds);
+                $hours = (int) floor($seconds / 3600);
+                $minutes = (int) floor(($seconds % 3600) / 60);
+                $remainingSeconds = $seconds % 60;
+
+                $parts = array();
+                if ($hours > 0) {
+                        $parts[] = $hours.'h';
+                }
+                if ($minutes > 0) {
+                        $parts[] = $minutes.'min';
+                }
+                if ($remainingSeconds > 0 && $hours === 0) {
+                        $parts[] = $remainingSeconds.'s';
+                }
+
+                if (empty($parts)) {
+                        return '0 min';
+                }
+
+                return implode(' ', $parts);
+        }
+
+        /**
+         * Refuse
+         * @param User $user
+         * @return int
 	 */
         public function refuse($user)
         {

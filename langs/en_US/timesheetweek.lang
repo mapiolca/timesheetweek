@@ -110,6 +110,7 @@ TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %
 Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
 Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
 Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 
 TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
