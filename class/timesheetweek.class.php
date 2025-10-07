@@ -1256,6 +1256,14 @@ class TimesheetWeek extends CommonObject
                                 }
                                 return -1;
                         }
+
+                        if ($this->ensureElementTimeEntry($task, $timestamp, $duration, $importKey, $actionUser) < 0) {
+                                if (method_exists($task, 'delTimeSpent')) {
+                                        $task->delTimeSpent((int) $resAdd, $actionUser);
+                                }
+                                $this->deleteElementTimeByImportKey($importKey);
+                                return -1;
+                        }
                 }
 
                 return 1;
@@ -1314,6 +1322,10 @@ class TimesheetWeek extends CommonObject
                                         }
                                 }
                         }
+
+                        if ($this->deleteElementTimeByImportKey($importKey) < 0) {
+                                return -1;
+                        }
                 }
 
                 return 1;
@@ -1363,6 +1375,130 @@ class TimesheetWeek extends CommonObject
                                 'id' => (int) $obj->rowid,
                                 'fk_task' => isset($obj->fk_task) ? (int) $obj->fk_task : 0,
                         );
+                }
+                $this->db->free($resql);
+
+                return $rows;
+        }
+
+        /**
+         * Ensure a matching entry exists in llx_element_time for the generated time spent record.
+         *
+         * @param Task $task
+         * @param int  $timestamp
+         * @param int  $duration
+         * @param string $importKey
+         * @param User $actionUser
+         * @return int
+         */
+        protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser)
+        {
+                global $conf;
+
+                $existing = $this->fetchElementTimeRowsByImportKey($importKey);
+                if ($existing === false) {
+                        return -1;
+                }
+                if (!empty($existing)) {
+                        return 1;
+                }
+
+                $entity = property_exists($task, 'entity') ? (int) $task->entity : 0;
+                if ($entity <= 0) {
+                        $entity = (int) $this->entity;
+                }
+                if ($entity <= 0 && !empty($conf->entity)) {
+                        $entity = (int) $conf->entity;
+                }
+
+                $taskId = !empty($task->id) ? (int) $task->id : 0;
+                if ($taskId <= 0) {
+                        return 1;
+                }
+
+                $projectId = 0;
+                if (property_exists($task, 'fk_project') && !empty($task->fk_project)) {
+                        $projectId = (int) $task->fk_project;
+                } elseif (property_exists($task, 'fk_projet') && !empty($task->fk_projet)) {
+                        $projectId = (int) $task->fk_projet;
+                }
+
+                $withHour = property_exists($task, 'timespent_withhour') ? (int) $task->timespent_withhour : 0;
+                $dateDay = $timestamp ? dol_print_date($timestamp, '%Y-%m-%d') : '';
+                $dateHour = $timestamp ? $this->db->idate($timestamp) : '';
+
+                $note = property_exists($task, 'timespent_note') ? $task->timespent_note : '';
+                $timeUserId = property_exists($task, 'timespent_fk_user') ? (int) $task->timespent_fk_user : (int) $this->fk_user;
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
+                $sql .= "entity, elementtype, fk_element, element_date, element_datehour, element_withhour, duration, fk_user, fk_user_create, note, import_key, fk_project";
+                $sql .= ") VALUES (";
+                $sql .= "".($entity > 0 ? (int) $entity : '1').",";
+                $sql .= " 'project_task',";
+                $sql .= " ".$taskId.",";
+                $sql .= " ".($dateDay !== '' ? "'".$this->db->escape($dateDay)."'" : 'NULL').",";
+                $sql .= " ".($dateHour !== '' ? "'".$this->db->escape($dateHour)."'" : 'NULL').",";
+                $sql .= " ".$withHour.",";
+                $sql .= " ".((int) $duration).",";
+                $sql .= " ".$timeUserId.",";
+                $sql .= " ".(!empty($actionUser->id) ? (int) $actionUser->id : 'NULL').",";
+                $sql .= " ".($note !== '' ? "'".$this->db->escape($note)."'" : 'NULL').",";
+                $sql .= " '".$this->db->escape($importKey)."',";
+                $sql .= " ".($projectId > 0 ? $projectId : 'NULL');
+                $sql .= ")";
+
+                if (!$this->db->query($sql)) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                return 1;
+        }
+
+        /**
+         * Remove any llx_element_time rows linked to the provided import key.
+         *
+         * @param string $importKey
+         * @return int
+         */
+        protected function deleteElementTimeByImportKey($importKey)
+        {
+                if (empty($importKey)) {
+                        return 1;
+                }
+
+                $sql = "DELETE FROM ".MAIN_DB_PREFIX."element_time WHERE import_key='".$this->db->escape($importKey)."'";
+                if (!$this->db->query($sql)) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                return 1;
+        }
+
+        /**
+         * Fetch llx_element_time rows linked to an import key.
+         *
+         * @param string $importKey
+         * @return array|false
+         */
+        protected function fetchElementTimeRowsByImportKey($importKey)
+        {
+                if (empty($importKey)) {
+                        return array();
+                }
+
+                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."element_time WHERE import_key='".$this->db->escape($importKey)."'";
+
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return false;
+                }
+
+                $rows = array();
+                while ($obj = $this->db->fetch_object($resql)) {
+                        $rows[] = array('id' => (int) $obj->rowid);
                 }
                 $this->db->free($resql);
 
