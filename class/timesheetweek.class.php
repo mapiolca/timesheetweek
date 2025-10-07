@@ -1276,18 +1276,18 @@ class TimesheetWeek extends CommonObject
                                 continue;
                         }
 
-                        $existing = $this->fetchTaskTimeRowsByImportKey($importKey);
-                        if ($existing === false) {
-                                // FR: Avertit l'utilisateur d'un échec lors de la recherche de temps existants.
-                                // EN: Warn the user about a failure while fetching existing time entries.
-                        dol_syslog(__METHOD__.': Unable to fetch existing task time rows for key '.$importKey, LOG_ERR);
-                        $this->notifyElementTimeError('['.$importKey.']');
+                       $existing = $this->fetchElementTimeRowsByImportKey($importKey);
+                       if ($existing === false) {
+                                // FR: Avertit l'utilisateur d'un échec lors de la recherche des miroirs element_time.
+                                // EN: Warn the user about a failure while fetching element_time mirror rows.
+                                dol_syslog(__METHOD__.': Unable to fetch existing element_time rows for key '.$importKey, LOG_ERR);
+                                $this->notifyElementTimeError('['.$importKey.']');
                                 return -1;
                         }
                         if (!empty($existing)) {
-                                // FR: Indique qu'un enregistrement existe déjà et évite un doublon.
-                                // EN: Note that an entry already exists to avoid duplicates.
-                                dol_syslog(__METHOD__.': Task time already exists for key '.$importKey, LOG_DEBUG);
+                                // FR: Indique qu'un miroir element_time existe déjà et évite un doublon.
+                                // EN: Note that an element_time mirror already exists to avoid duplicates.
+                                dol_syslog(__METHOD__.': element_time already exists for key '.$importKey, LOG_DEBUG);
                                 continue;
                         }
 
@@ -1381,33 +1381,34 @@ class TimesheetWeek extends CommonObject
                                 continue;
                         }
 
-                        $records = $this->fetchTaskTimeRowsByImportKey($importKey, true);
+                        $records = $this->fetchElementTimeRowsByImportKey($importKey, true);
                         if ($records === false) {
                                 return -1;
                         }
 
                         foreach ($records as $record) {
-                                $taskTimeId = (int) $record['id'];
-                                $taskId = !empty($record['fk_task']) ? (int) $record['fk_task'] : 0;
+                                $taskTimeId = !empty($record['fk_elementdet']) ? (int) $record['fk_elementdet'] : 0;
+                                $taskId = !empty($record['fk_element']) ? (int) $record['fk_element'] : 0;
 
                                 $task = new Task($this->db);
                                 $taskFetched = ($taskId > 0) ? $task->fetch($taskId) : 0;
 
-                                if ($taskFetched > 0 && method_exists($task, 'delTimeSpent')) {
+                                if ($taskFetched > 0 && $taskTimeId > 0 && method_exists($task, 'delTimeSpent')) {
                                         $resDel = $task->delTimeSpent($taskTimeId, $actionUser);
                                         if ($resDel <= 0) {
                                                 $this->error = $task->error ?: 'FailedToDeleteTimeSpent';
                                                 if (!empty($task->errors) && is_array($task->errors)) {
                                                         $this->errors = array_merge($this->errors, $task->errors);
                                                 }
+                                                // FR: Journalise l'échec de la suppression via l'API Dolibarr.
+                                                // EN: Log the failure to delete through Dolibarr's API.
+                                                dol_syslog(__METHOD__.': delTimeSpent failed for import '.$importKey.' (task='.$taskId.', timespent='.$taskTimeId.') - error='.$this->error, LOG_ERR);
                                                 return -1;
                                         }
                                 } else {
-                                        $sql = "DELETE FROM ".MAIN_DB_PREFIX."projet_task_time WHERE rowid=".$taskTimeId;
-                                        if (!$this->db->query($sql)) {
-                                                $this->error = $this->db->lasterror();
-                                                return -1;
-                                        }
+                                        // FR: Absence d'identifiant de temps ou de méthode, consigne uniquement la situation.
+                                        // EN: Missing time identifier or method, simply log the situation.
+                                        dol_syslog(__METHOD__.': Skip task time deletion for import '.$importKey.' (task='.$taskId.', timespent='.$taskTimeId.')', LOG_DEBUG);
                                 }
                         }
 
@@ -1435,41 +1436,6 @@ class TimesheetWeek extends CommonObject
         }
 
         /**
-         * Fetch task time rows linked to a specific import key.
-         *
-         * @param string $importKey
-         * @param bool   $withTask
-         * @return array|false
-         */
-        protected function fetchTaskTimeRowsByImportKey($importKey, $withTask = false)
-        {
-                if (empty($importKey)) {
-                        return array();
-                }
-
-                $select = $withTask ? 'rowid, fk_task' : 'rowid';
-                $sql = "SELECT $select FROM ".MAIN_DB_PREFIX."projet_task_time";
-                $sql .= " WHERE import_key='".$this->db->escape($importKey)."'";
-
-                $resql = $this->db->query($sql);
-                if (!$resql) {
-                        $this->error = $this->db->lasterror();
-                        return false;
-                }
-
-                $rows = array();
-                while ($obj = $this->db->fetch_object($resql)) {
-                        $rows[] = array(
-                                'id' => (int) $obj->rowid,
-                                'fk_task' => isset($obj->fk_task) ? (int) $obj->fk_task : 0,
-                        );
-                }
-                $this->db->free($resql);
-
-                return $rows;
-        }
-
-        /**
          * Ensure a matching entry exists in llx_element_time for the generated time spent record.
          *
          * @param Task $task
@@ -1477,7 +1443,7 @@ class TimesheetWeek extends CommonObject
          * @param int  $duration
          * @param string $importKey
          * @param User $actionUser
-         * @param int $taskTimeId Identifiant de la ligne temps créée (llx_projet_task_time). / Identifier of the created time entry line.
+         * @param int $taskTimeId Identifiant de la ligne temps créée (table Dolibarr dédiée). / Identifier of the created time entry line (Dolibarr task time table).
          * @return int
          */
         protected function ensureElementTimeEntry(Task $task, $timestamp, $duration, $importKey, User $actionUser, $taskTimeId)
@@ -1745,9 +1711,10 @@ class TimesheetWeek extends CommonObject
          * Fetch llx_element_time rows linked to an import key.
          *
          * @param string $importKey
+         * @param bool   $withDetails FR: Inclure fk_element/fk_elementdet si disponibles. / EN: Include fk_element/fk_elementdet when available.
          * @return array|false
          */
-        protected function fetchElementTimeRowsByImportKey($importKey)
+        protected function fetchElementTimeRowsByImportKey($importKey, $withDetails = false)
         {
                 if (empty($importKey)) {
                         // FR: Sans clé d'import, aucune lecture n'est nécessaire.
@@ -1771,7 +1738,19 @@ class TimesheetWeek extends CommonObject
                         return array();
                 }
 
-                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."element_time WHERE import_key='".$this->db->escape($importKey)."'";
+                $selectFields = array('rowid');
+                if ($withDetails) {
+                        // FR: Ajoute les colonnes détaillées uniquement si elles existent.
+                        // EN: Append detailed columns only when they exist.
+                        if (isset($columns['fk_element'])) {
+                                $selectFields[] = 'fk_element';
+                        }
+                        if (isset($columns['fk_elementdet'])) {
+                                $selectFields[] = 'fk_elementdet';
+                        }
+                }
+
+                $sql = 'SELECT '.implode(', ', $selectFields).' FROM '.MAIN_DB_PREFIX."element_time WHERE import_key='".$this->db->escape($importKey)."'";
 
                 $resql = $this->db->query($sql);
                 if (!$resql) {
@@ -1785,7 +1764,16 @@ class TimesheetWeek extends CommonObject
 
                 $rows = array();
                 while ($obj = $this->db->fetch_object($resql)) {
-                        $rows[] = array('id' => (int) $obj->rowid);
+                        $row = array('id' => (int) $obj->rowid);
+                        if ($withDetails) {
+                                if (isset($obj->fk_element)) {
+                                        $row['fk_element'] = (int) $obj->fk_element;
+                                }
+                                if (isset($obj->fk_elementdet)) {
+                                        $row['fk_elementdet'] = (int) $obj->fk_elementdet;
+                                }
+                        }
+                        $rows[] = $row;
                 }
                 $this->db->free($resql);
 
