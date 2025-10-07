@@ -541,8 +541,8 @@ class TimesheetWeek extends CommonObject
                         $sql .= " ".(!empty($this->entity) ? (int) $this->entity : 1).",";
                         $sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
                         $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
-                        $sql .= " 'timesheetweek',";
-                        $sql .= " ".(int) $this->id.",";
+                        $sql .= " 'task',";
+                        $sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
                         $sql .= " ".$durationSeconds.",";
                         $sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
                         $sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
@@ -571,8 +571,7 @@ class TimesheetWeek extends CommonObject
 
                 $prefix = $this->getElementTimeImportKeyPrefix();
                 $sql = "DELETE FROM ".MAIN_DB_PREFIX."element_time";
-                $sql .= " WHERE elementtype='timesheetweek'";
-                $sql .= " AND fk_element=".(int) $this->id;
+                $sql .= " WHERE elementtype='task'";
                 if ($prefix !== '') {
                         $sql .= " AND import_key LIKE '".$this->db->escape($prefix)."%'";
                 }
