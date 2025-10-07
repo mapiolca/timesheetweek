@@ -1285,14 +1285,21 @@ class TimesheetWeek extends CommonObject
                         }
 
                         $importKey = $this->buildTimeSpentImportKey($lineId);
-                        if (empty($importKey)) {
-                                // FR: Enregistre l'impossibilité de calculer la clé d'import.
-                                // EN: Record that the import key could not be generated.
-                                dol_syslog(__METHOD__.': Failed to compute import key for line '.$lineId, LOG_WARNING);
+                        if (empty($importKey) || $importKey === '0') {
+                                // FR: Ignore la ligne lorsqu'aucune clé d'import valide ne peut être générée.
+                                // EN: Skip the line when no valid import key can be generated.
+                                dol_syslog(__METHOD__.': Skip line '.$lineId.' due to empty import key (value='.(string) $importKey.')', LOG_WARNING);
                                 continue;
                         }
 
                         $duration = $this->convertHoursToSeconds($this->resolveLineHours($line));
+                        if ($duration === 0) {
+                                // FR: Ignore les durées nulles pour éviter des écritures vides côté tâches et element_time.
+                                // EN: Skip zero durations to prevent empty task and element_time records.
+                                dol_syslog(__METHOD__.': Skip line '.$lineId.' because duration is exactly zero (import='.$importKey.')', LOG_DEBUG);
+                                continue;
+                        }
+
                         $minDuration = $this->getMinElementTimeDurationSeconds();
                         if ($duration < $minDuration) {
                                 // FR: Arrête la synchronisation si la durée est inférieure au minimum (60 secondes).
@@ -1478,6 +1485,13 @@ class TimesheetWeek extends CommonObject
                         // FR: Charge les traductions du module pour harmoniser les messages d'erreur.
                         // EN: Load the module translations to harmonise error messages.
                         $langs->load('timesheetweek@timesheetweek');
+                }
+
+                if (empty($importKey) || $importKey === '0') {
+                        // FR: Sans clé d'import valide, on ignore toute tentative d'écriture pour éviter des enregistrements incohérents.
+                        // EN: Without a valid import key, skip any write attempt to avoid inconsistent records.
+                        dol_syslog(__METHOD__.': Abort element_time ensure because import key is empty or zero for task '.(int) $task->id, LOG_WARNING);
+                        return 1;
                 }
 
                 // FR: Trace l'intention de créer ou vérifier une ligne llx_element_time.
