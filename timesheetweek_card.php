@@ -859,7 +859,7 @@ JS;
                 }
         }
 
-        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', $morehtmlref, $morehtmlright, '', $morehtmlstatus);
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
         print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
