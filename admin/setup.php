@@ -327,17 +327,18 @@ $numberingModules = timesheetweekListNumberingModules($directories, $langs, $sam
 $documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
 $pageToken = function_exists('newToken') ? newToken() : '';
 
-$title = $langs->trans('ModuleSetup', 'TimesheetWeek');
+$title = $langs->trans('ModuleSetup', 'Timesheetweek');
 $helpurl = '';
 
-llxHeader('', $title, $helpurl);
+llxHeader('', $title, $helpurl, '', 0, 0, '', '', '', 'mod-timesheetweek page-admin');
 
+// Subheader
+$linkback = '<a href="'.($backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1').'">'.$langs->trans("BackToModuleList").'</a>';
+
+print load_fiche_titre($langs->trans($title), $linkback, 'title_setup');
+
+// Configuration header
 $head = timesheetweekAdminPrepareHead();
-// EN: Render the admin header with the bookcal pictogram to match the module identity.
-// FR: Affiche l'en-tête d'administration avec le pictogramme bookcal pour refléter l'identité du module.
-print dol_get_fiche_head($head, 'settings', $langs->trans($title), -1, 'timesheetweek@timesheetweek');
-
-print load_fiche_titre($langs->trans('TimesheetWeekSetup'), '', 'timesheetweek@timesheetweek');
 print '<div class="opacitymedium">'.$langs->trans('TimesheetWeekSetupPage').'</div>';
 print '<br>';
 
