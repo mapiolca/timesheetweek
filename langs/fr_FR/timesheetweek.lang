@@ -37,6 +37,7 @@ TimesheetWeek = Feuille de temps hebdomadaire
 # TimesheetWeekList = Feuilles de temps hebdomadaires
 ListTimesheetWeek = Feuilles de temps hebdomadaires
 NewTimesheetWeek = Nouvelle feuille de temps hebdomadaire
+QuickCreateTimesheetWeek = Création rapide d'une feuille de temps hebdomadaire
 TimesheetWeekList = Liste des feuilles de temps
 TimesheetWeekNew = Nouvelle feuille de temps
 ShowTimesheetWeek = Afficher la feuille de temps %s
