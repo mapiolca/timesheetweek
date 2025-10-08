@@ -51,27 +51,24 @@ class ActionsTimesheetweek
      */
     public function menuDropdownQuickaddItems($parameters, &$object, &$action, $hookmanager)
     {
-        global $conf, $langs, $user;
+        global $langs, $user;
 
         // EN: Reset hook containers before populating the dropdown.
         // FR: Réinitialiser les conteneurs du hook avant de remplir le menu déroulant.
         $this->results = array();
         $this->resprints = '';
 
-        // EN: Skip the quick entry when the module is disabled.
-        // FR: Ignorer l'entrée rapide lorsque le module est désactivé.
-        if (empty($conf->timesheetweek->enabled) || !isModEnabled('timesheetweek')) {
-            return 0;
-        }
-
         // EN: Load module translations to expose localized labels.
         // FR: Charger les traductions du module pour exposer les libellés localisés.
         $langs->loadLangs(array('timesheetweek@timesheetweek'));
 
-        // EN: Stop if the user has no permission to write any weekly timesheet.
-        // FR: Arrêter si l'utilisateur n'a aucun droit d'écriture sur les feuilles hebdomadaires.
-        if (empty($user->rights->timesheetweek->write) && empty($user->rights->timesheetweek->writeChild) && empty($user->rights->timesheetweek->writeAll)) {
-            return 0;
+        // EN: Evaluate user permissions to control quick creation visibility.
+        // FR: Évaluer les droits de l'utilisateur pour contrôler la visibilité de la création rapide.
+        $hasWriteRight = !empty($user->rights->timesheetweek->write) || !empty($user->rights->timesheetweek->writeChild) || !empty($user->rights->timesheetweek->writeAll);
+        if (!$hasWriteRight && method_exists($user, 'hasRight')) {
+            // EN: Consolidate Dolibarr helper checks when available.
+            // FR: Consolider les vérifications via les helpers Dolibarr lorsqu'ils sont disponibles.
+            $hasWriteRight = $user->hasRight('timesheetweek', 'write') || $user->hasRight('timesheetweek', 'writeChild') || $user->hasRight('timesheetweek', 'writeAll');
         }
 
         // EN: Inject the quick creation entry with translated metadata.
@@ -83,7 +80,9 @@ class ActionsTimesheetweek
             'title' => 'QuickCreateTimesheetWeek@timesheetweek',
             'name' => 'TimesheetWeek@timesheetweek',
             'picto' => 'bookcal',
-            'activation' => isModEnabled('timesheetweek'),
+            // EN: Activate the quick add entry only when modules and rights allow it.
+            // FR: Activer l'entrée de création rapide uniquement lorsque les modules et droits le permettent.
+            'activation' => isModEnabled('product') && $hasWriteRight,
             'position' => 100,
         );
 
