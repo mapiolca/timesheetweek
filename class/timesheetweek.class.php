@@ -1693,14 +1693,18 @@ class TimesheetWeek extends CommonObject
                                 'class' => 'badge badge-status badge-status4',
                         ),
                         self::STATUS_SEALED => array(
+                                // EN: Swap the badge styling with the refused status to improve visual contrast.
+                                // FR: Inverse le style de badge avec le statut refusé pour améliorer le contraste visuel.
                                 'label' => $langs->trans('TimesheetWeekStatusSealed'),
-                                'picto' => 'statut8',
-                                'class' => 'badge badge-status badge-status8',
-                        ),
-                        self::STATUS_REFUSED => array(
-                                'label' => $langs->trans('TimesheetWeekStatusRefused'),
                                 'picto' => 'statut6',
                                 'class' => 'badge badge-status badge-status6',
+                        ),
+                        self::STATUS_REFUSED => array(
+                                // EN: Apply the sealed badge colors to the refused status for clearer differentiation.
+                                // FR: Applique les couleurs du statut scellé au statut refusé pour une meilleure différenciation.
+                                'label' => $langs->trans('TimesheetWeekStatusRefused'),
+                                'picto' => 'statut8',
+                                'class' => 'badge badge-status badge-status8',
                         ),
                 );
 

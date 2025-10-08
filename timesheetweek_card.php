@@ -832,10 +832,31 @@ JS;
         }
 
         $morehtmlref = '';
-        if (!empty($conf->multicompany->enabled)) {
-                // EN: Append the entity identifier inside the banner when Multicompany is enabled.
-                // FR: Ajoute l'identifiant d'entité dans la bannière lorsque Multicompany est activé.
-                $morehtmlref .= '<br>'.$langs->trans('Entity').': '.dol_escape_htmltag((string) $object->entity);
+        if (!empty($conf->multicompany->enabled) && (int) $object->entity !== (int) $conf->entity) {
+                // EN: Fetch the entity label to display the native Multicompany badge below the reference.
+                // FR: Récupère le libellé de l'entité pour afficher le badge Multicompany natif sous la référence.
+                $entityName = '';
+                $entityId = (int) $object->entity;
+                if ($entityId > 0) {
+                        $sqlEntity = 'SELECT label FROM '.MAIN_DB_PREFIX."entity WHERE rowid = ".$entityId;
+                        $resEntity = $db->query($sqlEntity);
+                        if ($resEntity) {
+                                $entityRow = $db->fetch_object($resEntity);
+                                if ($entityRow) {
+                                        $entityName = trim((string) $entityRow->label);
+                                }
+                                $db->free($resEntity);
+                        }
+                        if ($entityName === '') {
+                                // EN: Fall back to a generic label when the entity dictionary is empty.
+                                // FR: Revient à un libellé générique lorsque le dictionnaire d'entités est vide.
+                                $entityName = $langs->trans('Entity').' #'.$entityId;
+                        }
+                        $entityBadge = '<div class="refidno multicompany-entity-card-container"><span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($entityName).'</span></div>';
+                        // EN: Inject the entity badge underneath the reference to mimic Dolibarr's native layout.
+                        // FR: Insère le badge d'entité sous la référence pour reproduire la mise en page native de Dolibarr.
+                        $morehtmlref .= '<br>'.$entityBadge;
+                }
         }
 
         dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', $morehtmlref, $morehtmlright, '', $morehtmlstatus);
