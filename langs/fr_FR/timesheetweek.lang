@@ -17,6 +17,7 @@ Settings = Paramètres
 TimesheetWeekSetupPage = Page de configuration TimesheetWeek
 TimesheetWeekNumberingHelp = Choisissez le masque de numérotation qui générera les références des feuilles hebdomadaires.
 TimesheetWeekNumberingEmpty = Aucun module de numérotation disponible.
+TimesheetWeekNumberingActivate = Activer ce masque
 TimesheetWeekPDFModelsHelp = Activez les modèles PDF générables depuis une feuille hebdomadaire.
 TimesheetWeekPDFModelsEmpty = Aucun modèle PDF disponible.
 NewSection=Nouvelle section
@@ -45,6 +46,18 @@ SelectWeekPlaceholder = -- Sélectionnez une semaine --
 About = À propos
 TimesheetWeekAbout = À propos de TimesheetWeek
 TimesheetWeekAboutPage = Page à propos de TimesheetWeek
+TimesheetWeekAboutGeneral = Informations générales
+TimesheetWeekAboutVersion = Version
+TimesheetWeekAboutFamily = Famille
+TimesheetWeekAboutDescription = Description
+TimesheetWeekAboutMaintainer = Éditeur
+TimesheetWeekAboutResources = Ressources
+TimesheetWeekAboutDocumentation = Documentation
+TimesheetWeekAboutDocumentationLink = Consulter le README
+TimesheetWeekAboutSupport = Support
+TimesheetWeekAboutSupportValue = Contactez votre intégrateur ou le support Dolistore pour toute demande.
+TimesheetWeekAboutContact = Site éditeur
+TimesheetWeekDescription = Gestion hebdomadaire des feuilles de temps alignée sur Dolibarr.
 
 #
 # Page d'exemple

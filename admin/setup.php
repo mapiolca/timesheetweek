@@ -333,7 +333,9 @@ $helpurl = '';
 llxHeader('', $title, $helpurl);
 
 $head = timesheetweekAdminPrepareHead();
-print dol_get_fiche_head($head, 'settings', $title, -1, 'timesheetweek@timesheetweek');
+// EN: Render the admin header with the bookcal pictogram to match the module identity.
+// FR: Affiche l'en-tête d'administration avec le pictogramme bookcal pour refléter l'identité du module.
+print dol_get_fiche_head($head, 'settings', $title, -1, 'bookcal@timesheetweek');
 
 print load_fiche_titre($langs->trans('TimesheetWeekSetup'), '', 'bookcal@timesheetweek');
 print '<div class="opacitymedium">'.$langs->trans('TimesheetWeekSetupPage').'</div>';
@@ -341,10 +343,8 @@ print '<br>';
 
 print '<div class="fichecenter">';
 
-print '<form action="'.$_SERVER['PHP_SELF'].'" method="POST">';
-print '<input type="hidden" name="token" value="'.$pageToken.'">';
-print '<input type="hidden" name="action" value="setmodule">';
-
+// EN: Display the numbering modules with switch-based activation instead of radios.
+// FR: Affiche les modules de numérotation avec des commutateurs plutôt qu'avec des radios.
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekNumberingHelp').'</div>';
 
 print '<div class="div-table-responsive-no-min">';
@@ -367,13 +367,10 @@ foreach ($numberingModules as $moduleInfo) {
 
         print '<tr class="oddeven">';
         print '<td class="nowraponall">';
-        print '<label class="cursorpointer" for="model_'.$moduleInfo['classname'].'">';
-        print '<input type="radio" id="model_'.$moduleInfo['classname'].'" class="flat" name="value" value="'.dol_escape_htmltag($moduleInfo['classname']).'"'.($moduleInfo['active'] ? ' checked' : '').($moduleInfo['can_be_activated'] ? '' : ' disabled').'> ';
         print dol_escape_htmltag($moduleInfo['label']);
         if ($moduleInfo['classname'] !== $moduleInfo['label']) {
                 print ' <span class="opacitymedium">('.dol_escape_htmltag($moduleInfo['classname']).')</span>';
         }
-        print '</label>';
         if (!$moduleInfo['can_be_activated'] && !empty($moduleInfo['activation_error'])) {
                 print '<br><span class="error">'.dol_escape_htmltag($moduleInfo['activation_error']).'</span>';
         }
@@ -381,18 +378,24 @@ foreach ($numberingModules as $moduleInfo) {
 
         print '<td class="small">'.(!empty($descHtml) ? $descHtml : '&nbsp;').'</td>';
         print '<td class="small">'.(!empty($moduleInfo['example']) ? dol_escape_htmltag($moduleInfo['example']) : '&nbsp;').'</td>';
-        print '<td class="center">'.img_picto($moduleInfo['active'] ? $langs->trans('Enabled') : $langs->trans('Disabled'), $moduleInfo['active'] ? 'status1' : 'status0').'</td>';
+
+        // EN: Render the activation toggle that selects the numbering model with CSRF protection.
+        // FR: Affiche le commutateur d’activation qui sélectionne le modèle de numérotation avec protection CSRF.
+        print '<td class="center">';
+        if ($moduleInfo['active']) {
+                print img_picto($langs->trans('Enabled'), 'switch_on');
+        } elseif ($moduleInfo['can_be_activated']) {
+                $url = $_SERVER['PHP_SELF'].'?action=setmodule&value='.urlencode($moduleInfo['classname']).'&token='.$pageToken;
+                print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('TimesheetWeekNumberingActivate'), 'switch_off').'</a>';
+        } else {
+                print img_picto($langs->trans('Disabled'), 'switch_off');
+        }
+        print '</td>';
         print '</tr>';
 }
 
 print '</table>';
 print '</div>';
-
-print '<div class="center">';
-print '<input type="submit" class="button button-save" value="'.$langs->trans('Save').'">';
-print '</div>';
-
-print '</form>';
 
 print '</div>';
 

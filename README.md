@@ -18,6 +18,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
 - Inversion des couleurs des statuts « Scellée » et « Refusée » pour respecter les codes couleur Dolibarr.
 - Refonte complète de la page de configuration inspirée du module DiffusionPlans pour gérer les masques de numérotation et les modèles PDF selon les codes graphiques Dolibarr.
+- Sélection du masque de numérotation via des commutateurs natifs directement depuis la configuration Dolibarr.
+- Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
 - README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
 
 ### Installation
@@ -29,8 +31,9 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 
 ### Configuration
 
-- Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour choisir le masque de numérotation actif et activer les modèles PDF souhaités.
+- Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
+- L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
 
 ### Traductions
 
@@ -54,6 +57,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - ISO week selector shared between list and card views, now supporting multi-selection to combine several periods.
 - Swapped colours for « Scellée » and « Refusée » statuses to match Dolibarr visual cues.
 - Fully redesigned setup page inspired by the DiffusionPlans module to drive numbering masks and PDF templates with Dolibarr's graphical and functional patterns.
+- Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
+- Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
 
 ### Installation
@@ -65,8 +70,9 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 
 ### Configuration
 
-- Visit `Setup > Modules > TimesheetWeek` to select the numbering mask and to activate the PDF models you want to expose to users.
+- Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
+- The « À propos » tab summarises the module version, publisher and support links.
 
 ### Translations
 

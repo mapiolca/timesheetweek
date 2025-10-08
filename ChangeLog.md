@@ -23,5 +23,7 @@
 - Réorganisation des options de partage Multicompany pour séparer les feuilles et la numérotation avec les pictogrammes adaptés / Reorganised Multicompany sharing options to separate sheets and numbering with suitable pictograms.
 - Inversion des couleurs des statuts "Scellée" et "Refusée" pour reprendre les repères Dolibarr / Swapped colors of "Sealed" and "Refused" statuses to match Dolibarr visual cues.
 - Refonte de la page de configuration en suivant le modèle DiffusionPlans pour harmoniser la gestion des masques de numérotation et des modèles PDF avec Dolibarr / Setup page redesigned following the DiffusionPlans template to align numbering masks and PDF templates with Dolibarr standards.
+- Activation des masques de numérotation via des commutateurs Dolibarr natifs / Numbering masks activated through native Dolibarr switches.
+- Ajout d'un onglet « À propos » récapitulant version, éditeur et ressources du module / Added an « À propos » tab listing version, publisher and module resources.
 - README bilingue (FR/EN) entièrement mis à jour / Fully refreshed bilingual (FR/EN) README.
 - Notification d'approbation en français corrigée pour utiliser l'accent « approuvée » sans entité HTML / French approval notification updated to use the plain "approuvée" accent instead of an HTML entity.

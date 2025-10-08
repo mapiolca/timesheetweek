@@ -17,6 +17,7 @@ Settings = Settings
 TimesheetWeekSetupPage = TimesheetWeek setup page
 TimesheetWeekNumberingHelp = Choose the numbering mask that will generate references for weekly timesheets.
 TimesheetWeekNumberingEmpty = No numbering module is available.
+TimesheetWeekNumberingActivate = Activate this mask
 TimesheetWeekPDFModelsHelp = Enable the PDF templates that can be generated from a weekly timesheet.
 TimesheetWeekPDFModelsEmpty = No PDF template is available.
 NewSection=New section
@@ -45,6 +46,18 @@ SelectWeekPlaceholder = -- Select a week --
 About = About
 TimesheetWeekAbout = About TimesheetWeek
 TimesheetWeekAboutPage = TimesheetWeek about page
+TimesheetWeekAboutGeneral = General information
+TimesheetWeekAboutVersion = Version
+TimesheetWeekAboutFamily = Family
+TimesheetWeekAboutDescription = Description
+TimesheetWeekAboutMaintainer = Publisher
+TimesheetWeekAboutResources = Resources
+TimesheetWeekAboutDocumentation = Documentation
+TimesheetWeekAboutDocumentationLink = Open the README
+TimesheetWeekAboutSupport = Support
+TimesheetWeekAboutSupportValue = Reach your integrator or the Dolistore support team for any request.
+TimesheetWeekAboutContact = Publisher website
+TimesheetWeekDescription = Weekly timesheet management aligned with Dolibarr.
 
 #
 # Sample page
