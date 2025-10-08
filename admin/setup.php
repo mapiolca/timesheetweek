@@ -22,6 +22,8 @@
  *  \brief      Setup page for TimesheetWeek module (numbering, options...)
  */
 
+// EN: Load Dolibarr environment with fallback paths.
+// FR: Charge l'environnement Dolibarr en testant les chemins possibles.
 $res = 0;
 if (!$res && file_exists(__DIR__.'/../main.inc.php')) {
         $res = require_once __DIR__.'/../main.inc.php';
@@ -41,31 +43,69 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
+// EN: Load translation files required for the configuration page.
+// FR: Charge les fichiers de traduction nécessaires à la page de configuration.
 $langs->loadLangs(array('admin', 'other', 'timesheetweek@timesheetweek'));
 
+// EN: Only administrators can access the setup.
+// FR: Seuls les administrateurs peuvent accéder à la configuration.
 if (empty($user->admin)) {
         accessforbidden();
 }
 
+// EN: Read HTTP parameters once so we can re-use them further down.
+// FR: Lit les paramètres HTTP une seule fois pour les réutiliser ensuite.
 $action = GETPOST('action', 'aZ09');
-// FR: On accepte les caractères natifs des classes Dolibarr (underscore, chiffres...).
-// EN: Allow native Dolibarr class names with underscores and digits.
 $value = GETPOST('value', 'alphanohtml');
-$receivedToken = GETPOST('token', 'alphanohtml');
+$token = GETPOST('token', 'alphanohtml');
 
-// EN: Secure the state-changing actions with the Dolibarr CSRF token when available.
-// FR: Sécurise les actions modifiant l'état avec le jeton CSRF de Dolibarr lorsque disponible.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel'), true)) {
-        if (function_exists('dol_verify_token')) {
-                if (empty($receivedToken) || dol_verify_token($receivedToken) <= 0) {
-                        accessforbidden();
-                }
+// EN: Helper to enable a PDF model in the database.
+// FR: Aide pour activer un modèle PDF dans la base.
+function timesheetweekEnableDocumentModel($model)
+{
+        global $db, $conf;
+
+        if (empty($model)) {
+                return 0;
         }
+
+        $sql = 'INSERT INTO '.MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES ('".$db->escape($model)."', 'timesheetweek', ".((int) $conf->entity).')';
+        $resql = $db->query($sql);
+        if ($resql) {
+                return 1;
+        }
+
+        // EN: Ignore duplicate entries silently because the model is already stored.
+        // FR: Ignore les doublons car le modèle est déjà enregistré.
+        if ($db->lasterrno() && strpos($db->lasterror(), 'Duplicate') !== false) {
+                return 1;
+        }
+
+        return -1;
 }
 
-// EN: Helper to collect metadata for numbering modules so we can render a native-looking table.
-// FR: Collecte des métadonnées sur les modules de numérotation pour afficher un tableau au format natif.
-function timesheetweek_collect_numbering_modules(array $directories, Translate $langs, TimesheetWeek $sampleObject, $selected)
+// EN: Helper to disable a PDF model from the database.
+// FR: Aide pour désactiver un modèle PDF dans la base.
+function timesheetweekDisableDocumentModel($model)
+{
+        global $db, $conf;
+
+        if (empty($model)) {
+                return 0;
+        }
+
+        $sql = 'DELETE FROM '.MAIN_DB_PREFIX."document_model WHERE nom='".$db->escape($model)."' AND type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
+        $resql = $db->query($sql);
+        if ($resql) {
+                return ($db->affected_rows($resql) >= 0) ? 1 : 0;
+        }
+
+        return -1;
+}
+
+// EN: Build the list of numbering modules available for the module.
+// FR: Construit la liste des modules de numérotation disponibles pour le module.
+function timesheetweekListNumberingModules(array $directories, Translate $langs, TimesheetWeek $sample, $selected)
 {
         global $db;
 
@@ -77,8 +117,8 @@ function timesheetweek_collect_numbering_modules(array $directories, Translate $
                         continue;
                 }
 
-                $filelist = dol_dir_list($dir, 'files', 0, '^mod_.*\.php$');
-                foreach ($filelist as $fileinfo) {
+                $files = dol_dir_list($dir, 'files', 0, '^mod_.*\.php$');
+                foreach ($files as $fileinfo) {
                         $file = $fileinfo['name'];
                         $classname = preg_replace('/\.php$/', '', $file);
 
@@ -87,11 +127,7 @@ function timesheetweek_collect_numbering_modules(array $directories, Translate $
                                 continue;
                         }
 
-                        try {
-                                $module = new $classname($db);
-                        } catch (Throwable $exception) {
-                                continue;
-                        }
+                        $module = new $classname($db);
 
                         $label = !empty($module->name) ? $module->name : $classname;
                         if ($label && $langs->transnoentitiesnoconv($label) !== $label) {
@@ -100,37 +136,25 @@ function timesheetweek_collect_numbering_modules(array $directories, Translate $
 
                         $description = '';
                         if (method_exists($module, 'info')) {
-                                try {
-                                        $description = $module->info($langs);
-                                } catch (Throwable $exception) {
-                                        $description = '';
-                                }
+                                $description = $module->info($langs);
                         } elseif (!empty($module->description)) {
                                 $description = $module->description;
-                        } elseif (!empty($module->desc)) {
-                                $description = $module->desc;
+                        }
+                        if ($description && $langs->transnoentitiesnoconv($description) !== $description) {
+                                $description = $langs->trans($description);
                         }
 
                         $example = '';
                         if (method_exists($module, 'getExample')) {
-                                try {
-                                        $example = $module->getExample();
-                                } catch (Throwable $exception) {
-                                        $example = '';
-                                }
+                                $example = $module->getExample($sample);
                         }
 
                         $canBeActivated = true;
                         $activationError = '';
                         if (method_exists($module, 'canBeActivated')) {
-                                try {
-                                        $canBeActivated = (bool) $module->canBeActivated($sampleObject);
-                                        if (!$canBeActivated && !empty($module->error)) {
-                                                $activationError = $module->error;
-                                        }
-                                } catch (Throwable $exception) {
-                                        $canBeActivated = false;
-                                        $activationError = $exception->getMessage();
+                                $canBeActivated = (bool) $module->canBeActivated($sample);
+                                if (!$canBeActivated && !empty($module->error)) {
+                                        $activationError = $module->error;
                                 }
                         }
 
@@ -153,9 +177,9 @@ function timesheetweek_collect_numbering_modules(array $directories, Translate $
         return $modules;
 }
 
-// EN: Helper to collect PDF model metadata while respecting Dolibarr document conventions.
-// FR: Collecte les métadonnées des modèles PDF en respectant les conventions Dolibarr.
-function timesheetweek_collect_document_models(array $directories, Translate $langs, array $enabledModels, $defaultModel)
+// EN: Build the list of available PDF models for the module.
+// FR: Construit la liste des modèles PDF disponibles pour le module.
+function timesheetweekListDocumentModels(array $directories, Translate $langs, array $enabled, $default)
 {
         global $db;
 
@@ -167,8 +191,8 @@ function timesheetweek_collect_document_models(array $directories, Translate $la
                         continue;
                 }
 
-                $filelist = dol_dir_list($dir, 'files', 0, '^[a-z0-9_]+\.php$');
-                foreach ($filelist as $fileinfo) {
+                $files = dol_dir_list($dir, 'files', 0, '^[a-z0-9_]+\.php$');
+                foreach ($files as $fileinfo) {
                         $file = $fileinfo['name'];
                         $classname = preg_replace('/\.php$/', '', $file);
 
@@ -177,22 +201,20 @@ function timesheetweek_collect_document_models(array $directories, Translate $la
                                 continue;
                         }
 
-                        try {
-                                $module = new $classname($db);
-                        } catch (Throwable $exception) {
-                                continue;
-                        }
-
-                        if (!property_exists($module, 'type') || $module->type !== 'pdf') {
+                        $module = new $classname($db);
+                        if (empty($module->type) || $module->type !== 'pdf') {
                                 continue;
                         }
 
                         $name = !empty($module->name) ? $module->name : $classname;
+                        $label = $name;
+                        if (!empty($module->name) && $langs->transnoentitiesnoconv($module->name) !== $module->name) {
+                                $label = $langs->trans($module->name);
+                        }
+
                         $description = '';
                         if (!empty($module->description)) {
                                 $description = $module->description;
-                        } elseif (!empty($module->desc)) {
-                                $description = $module->desc;
                         }
                         if ($description && $langs->transnoentitiesnoconv($description) !== $description) {
                                 $description = $langs->trans($description);
@@ -201,11 +223,11 @@ function timesheetweek_collect_document_models(array $directories, Translate $la
                         $models[] = array(
                                 'name' => $name,
                                 'classname' => $classname,
-                                'label' => !empty($module->name) && $langs->transnoentitiesnoconv($module->name) !== $module->name ? $langs->trans($module->name) : $name,
+                                'label' => $label,
                                 'description' => $description,
+                                'is_enabled' => !empty($enabled[$name]),
+                                'is_default' => ($default === $name),
                                 'type' => $module->type,
-                                'is_enabled' => !empty($enabledModels[$name]),
-                                'is_default' => ($defaultModel === $name),
                         );
                 }
         }
@@ -217,61 +239,18 @@ function timesheetweek_collect_document_models(array $directories, Translate $la
         return $models;
 }
 
-if (!function_exists('timesheetweek_enable_document_model')) {
-        /**
-         * Enable a document model for TimesheetWeek.
-         *
-         * @param string $model
-         * @return int
-         */
-        function timesheetweek_enable_document_model($model)
-        {
-                global $db, $conf;
-
-                if (empty($model)) {
-                        return 0;
+// EN: Verify CSRF token when the request changes the configuration.
+// FR: Vérifie le jeton CSRF lorsque la requête modifie la configuration.
+if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel'), true)) {
+        if (function_exists('dol_verify_token')) {
+                if (empty($token) || dol_verify_token($token) <= 0) {
+                        accessforbidden();
                 }
-
-                $sql = 'INSERT INTO '.MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES ('".$db->escape($model)."', 'timesheetweek', ".((int) $conf->entity).')';
-                $resql = $db->query($sql);
-                if ($resql) {
-                        return 1;
-                }
-
-                // Ignore duplicate errors silently (model already enabled)
-                if ($db->lasterrno() && strpos($db->lasterror(), 'Duplicate') !== false) {
-                        return 1;
-                }
-
-                return -1;
         }
 }
 
-if (!function_exists('timesheetweek_disable_document_model')) {
-        /**
-         * Disable a document model for TimesheetWeek.
-         *
-         * @param string $model
-         * @return int
-         */
-        function timesheetweek_disable_document_model($model)
-        {
-                global $db, $conf;
-
-                if (empty($model)) {
-                        return 0;
-                }
-
-                $sql = 'DELETE FROM '.MAIN_DB_PREFIX."document_model WHERE nom='".$db->escape($model)."' AND type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
-                $resql = $db->query($sql);
-                if ($resql) {
-                        return ($db->affected_rows($resql) >= 0) ? 1 : 0;
-                }
-
-                return -1;
-        }
-}
-
+// EN: Persist the chosen numbering module.
+// FR: Enregistre le module de numérotation choisi.
 if ($action === 'setmodule' && !empty($value)) {
         $result = dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON', $value, 'chaine', 0, '', $conf->entity);
         if ($result > 0) {
@@ -281,8 +260,10 @@ if ($action === 'setmodule' && !empty($value)) {
         }
 }
 
+// EN: Set the default PDF model while ensuring the model is enabled.
+// FR: Définit le modèle PDF par défaut tout en s'assurant qu'il est activé.
 if ($action === 'setdoc' && !empty($value)) {
-        $res = timesheetweek_enable_document_model($value);
+        $res = timesheetweekEnableDocumentModel($value);
         if ($res > 0) {
                 $res = dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON_PDF', $value, 'chaine', 0, '', $conf->entity);
         }
@@ -293,8 +274,10 @@ if ($action === 'setdoc' && !empty($value)) {
         }
 }
 
+// EN: Activate a PDF model without making it the default.
+// FR: Active un modèle PDF sans le définir comme défaut.
 if ($action === 'setdocmodel' && !empty($value)) {
-        $res = timesheetweek_enable_document_model($value);
+        $res = timesheetweekEnableDocumentModel($value);
         if ($res > 0) {
                 setEventMessages($langs->trans('ModelEnabled', $value), null, 'mesgs');
         } else {
@@ -302,8 +285,10 @@ if ($action === 'setdocmodel' && !empty($value)) {
         }
 }
 
+// EN: Disable a PDF model and remove the default flag if needed.
+// FR: Désactive un modèle PDF et supprime le statut par défaut si nécessaire.
 if ($action === 'delmodel' && !empty($value)) {
-        $res = timesheetweek_disable_document_model($value);
+        $res = timesheetweekDisableDocumentModel($value);
         if ($res > 0) {
                 if ($value === getDolGlobalString('TIMESHEETWEEK_ADDON_PDF')) {
                         dolibarr_del_const($db, 'TIMESHEETWEEK_ADDON_PDF', $conf->entity);
@@ -314,16 +299,18 @@ if ($action === 'delmodel' && !empty($value)) {
         }
 }
 
-$selected = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
-$defaultpdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
-$dirmodels = array_merge(array('/'), (array) $conf->modules_parts['models']);
+// EN: Read the selected options so we can highlight them in the UI.
+// FR: Lit les options sélectionnées pour les mettre en avant dans l'interface.
+$selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
+$defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
+$directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
-// EN: Instantiate a lightweight object to validate numbering modules.
-// FR: Instancie un objet léger pour valider les modules de numérotation.
+// EN: Prepare a lightweight object to test numbering module activation.
+// FR: Prépare un objet léger pour tester l'activation des modules de numérotation.
 $sampleTimesheet = new TimesheetWeek($db);
 
-// EN: Retrieve active document models from the database.
-// FR: Récupère les modèles de documents actifs depuis la base de données.
+// EN: Fetch the enabled document models from the database.
+// FR: Récupère les modèles de documents activés depuis la base.
 $enabledModels = array();
 $sql = 'SELECT nom FROM '.MAIN_DB_PREFIX."document_model WHERE type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
 $resql = $db->query($sql);
@@ -334,11 +321,11 @@ if ($resql) {
         $db->free($resql);
 }
 
-// EN: Prepare metadata arrays for rendering.
-// FR: Prépare les tableaux de métadonnées pour l'affichage.
-$numberingModules = timesheetweek_collect_numbering_modules($dirmodels, $langs, $sampleTimesheet, $selected);
-$documentModels = timesheetweek_collect_document_models($dirmodels, $langs, $enabledModels, $defaultpdf);
-$pageToken = function_exists('newToken') ? newToken() : ''; // Defensive check for legacy.
+// EN: Build the metadata arrays used by the HTML rendering below.
+// FR: Construit les tableaux de métadonnées utilisés par l'affichage HTML ci-dessous.
+$numberingModules = timesheetweekListNumberingModules($directories, $langs, $sampleTimesheet, $selectedNumbering);
+$documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
+$pageToken = function_exists('newToken') ? newToken() : '';
 
 $title = $langs->trans('ModuleSetup', 'TimesheetWeek');
 $helpurl = '';
@@ -394,7 +381,6 @@ foreach ($numberingModules as $moduleInfo) {
 
         print '<td class="small">'.(!empty($descHtml) ? $descHtml : '&nbsp;').'</td>';
         print '<td class="small">'.(!empty($moduleInfo['example']) ? dol_escape_htmltag($moduleInfo['example']) : '&nbsp;').'</td>';
-
         print '<td class="center">'.img_picto($moduleInfo['active'] ? $langs->trans('Enabled') : $langs->trans('Disabled'), $moduleInfo['active'] ? 'status1' : 'status0').'</td>';
         print '</tr>';
 }
