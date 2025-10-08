@@ -33,10 +33,12 @@ TimesheetWeekAboutPage = TimesheetWeek about page
 # Sample page
 #
 TimesheetWeekArea = Home TimesheetWeek
+Timesheet = Timesheet
 TimesheetWeek = Timesheet week
 TimesheetWeekList = Timesheet weeks
 ListTimesheetWeek = Timesheet weeks
 NewTimesheetWeek = New timesheet week
+QuickCreateTimesheetWeek = Quick-create a weekly timesheet
 List TimesheetWeek = Timesheet weeks
 New TimesheetWeek = New timesheet week
 ShowTimesheetWeek = Show timesheet week %s
