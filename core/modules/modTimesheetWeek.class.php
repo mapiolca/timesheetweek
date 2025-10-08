@@ -128,6 +128,11 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        // EN: Register multicompany sharing contexts to expose sharing options.
+                                        // FR: Enregistrer les contextes multicompany pour exposer les options de partage.
+                                        'multicompanyexternalmodulesharing',
+                                        'multicompanyexternalmodules',
+                                        'multicompanysharingoptions',
                                 ),
                                 'entity' => '0',
                         ),

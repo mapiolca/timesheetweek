@@ -84,4 +84,108 @@ class ActionsTimesheetweek
 
         return 0;
     }
+
+    /**
+     * Prepare and store multicompany sharing configuration.
+     * Préparer et stocker la configuration de partage multicompany.
+     *
+     * @return void
+     */
+    private function registerMulticompanySharingDefinition()
+    {
+        global $conf, $langs;
+
+        // EN: Safeguard the results container to merge data without overwriting existing hooks.
+        // FR: Sécuriser le conteneur de résultats pour fusionner les données sans écraser les hooks existants.
+        if (!is_array($this->results)) {
+            $this->results = array();
+        }
+
+        // EN: Ensure translations are available for the multicompany labels.
+        // FR: S'assurer que les traductions sont disponibles pour les libellés multicompany.
+        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+        // EN: Define the sharing payload describing timesheet and numbering options.
+        // FR: Définir la charge utile de partage décrivant les options de feuille de temps et de numérotation.
+        $sharingKey = 'timesheetweek';
+        $definition = array(
+            $sharingKey => array(
+                'sharingelements' => array(
+                    'timesheetweek' => array(
+                        'type' => 'element',
+                        'icon' => 'calendar-check-o',
+                        'lang' => 'timesheetweek@timesheetweek',
+                        'tooltip' => 'ShareTimesheetWeekTooltip',
+                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                    ),
+                    'timesheetweeknumbering' => array(
+                        'type' => 'object',
+                        'icon' => 'hashtag',
+                        'lang' => 'timesheetweek@timesheetweek',
+                        'tooltip' => 'ShareTimesheetWeekNumberingTooltip',
+                        'mandatory' => 'timesheetweek',
+                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                        'display' => '! empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
+                        'input' => array(
+                            'global' => array(
+                                'hide' => true,
+                                'del' => true,
+                            ),
+                            'timesheetweek' => array(
+                                'showhide' => true,
+                                'del' => true,
+                            ),
+                        ),
+                    ),
+                ),
+                'sharingmodulename' => array(
+                    'timesheetweek' => 'timesheetweek',
+                    'timesheetweeknumbering' => 'timesheetweek',
+                ),
+            ),
+        );
+
+        // EN: Merge the definition with any pre-existing sharing data exposed by other hooks.
+        // FR: Fusionner la définition avec d'éventuelles données de partage déjà exposées par d'autres hooks.
+        $this->results = array_replace_recursive($this->results, $definition);
+    }
+
+    /**
+     * Provide multicompany sharing options through the dedicated hook.
+     * Fournir les options de partage multicompany via le hook dédié.
+     */
+    public function multicompanyExternalModulesSharing($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Register the sharing definition for the multicompany extension.
+        // FR: Enregistrer la définition de partage pour l'extension multicompany.
+        $this->registerMulticompanySharingDefinition();
+
+        return 0;
+    }
+
+    /**
+     * Alias hook to support alternate multicompany triggers.
+     * Hook alias pour supporter des déclencheurs multicompany alternatifs.
+     */
+    public function multicompanyExternalModuleSharing($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Delegate to the primary multicompany sharing registration.
+        // FR: Déléguer à l'enregistrement principal du partage multicompany.
+        $this->registerMulticompanySharingDefinition();
+
+        return 0;
+    }
+
+    /**
+     * Additional alias covering broader multicompany sharing requests.
+     * Alias supplémentaire couvrant les requêtes de partage multicompany plus larges.
+     */
+    public function multicompanySharingOptions($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Reuse the shared definition to keep behaviour consistent across hooks.
+        // FR: Réutiliser la définition partagée pour conserver un comportement cohérent entre les hooks.
+        $this->registerMulticompanySharingDefinition();
+
+        return 0;
+    }
 }

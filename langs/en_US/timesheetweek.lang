@@ -21,6 +21,14 @@ TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip
 TIMESHEETWEEK_MYPARAM2=My param 2
 TIMESHEETWEEK_MYPARAM2Tooltip=My param 2 tooltip
 
+#
+# Multicompany sharing
+#
+ShareTimesheetWeek = Share weekly timesheets
+ShareTimesheetWeekTooltip = Allow entities to access the same weekly timesheets across the group.
+ShareTimesheetWeekNumbering = Share weekly timesheet numbering
+ShareTimesheetWeekNumberingTooltip = Synchronize numbering sequences for weekly timesheets between entities.
+
 
 #
 # About page
