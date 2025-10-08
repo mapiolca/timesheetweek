@@ -327,13 +327,33 @@ if ($action === 'add') {
 	}
 
 	if ($action === 'add') {
-		$res = $object->create($user);
-		if ($res > 0) {
-			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-			exit;
-		} else {
-			setEventMessages($object->error, $object->errors, 'errors');
-			$action = 'create';
+		$shouldCreate = true; // EN: Flag to know if creation must proceed. FR: Indicateur pour savoir si la création doit continuer.
+		if ($object->year > 0 && $object->week > 0) {
+			$existing = new TimesheetWeek($db);
+			// EN: Look for an existing timesheet for the same user and week.
+			// FR: Recherche une feuille existante pour le même utilisateur et la même semaine.
+			$existingRes = $existing->fetchByUserWeek($object->fk_user, $object->year, $object->week);
+			if ($existingRes > 0) {
+				setEventMessages($langs->trans('TimesheetWeekRedirectExisting'), null, 'warnings');
+				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$existing->id);
+				exit;
+			}
+			if ($existingRes < 0) {
+				setEventMessages($existing->error, $existing->errors, 'errors');
+				$action = 'create';
+				$shouldCreate = false;
+			}
+		}
+
+		if ($shouldCreate) {
+			$res = $object->create($user);
+			if ($res > 0) {
+				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+				exit;
+			} else {
+				setEventMessages($object->error, $object->errors, 'errors');
+				$action = 'create';
+			}
 		}
 	}
 }

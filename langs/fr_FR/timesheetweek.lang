@@ -72,6 +72,7 @@ TimesheetUnsealed = Feuille de temps descellée.
 StatusSetToDraft = Feuille de temps repassée en brouillon.
 ActionNotAllowedOnThisStatus = Cette action n'est pas autorisée pour le statut actuel.
 CannotSetDraftWhenSealed = Une feuille scellée doit être descellée avant de repasser en brouillon.
+TimesheetWeekRedirectExisting = Une feuille de temps existe déjà pour cette semaine. Redirection vers la feuille existante.
 Draft = Brouillon
 Submitted = Soumise
 Approved = Approuvée

@@ -3,6 +3,7 @@
 ## Features
 
 - Statut "Scellée" / "Sealed" pour verrouiller les feuilles approuvées.
+- Redirection automatique vers la feuille existante en cas de doublon / Automatic redirect to the existing sheet when a duplicate is requested.
 
 Description of the module...
 

@@ -149,11 +149,55 @@ class TimesheetWeek extends CommonObject
                 return $this->id;
 	}
 
-	/**
-	 * Fetch by id or ref
-	 * @param int|null $id
-	 * @param string|null $ref
-	 * @return int
+        /**
+         * EN: Fetch the existing timesheet for a user/week within an entity.
+         * FR: Récupère la feuille existante pour un utilisateur/semaine au sein d'une entité.
+         *
+         * @param int      $userId  Target user id
+         * @param int      $year    Target ISO year
+         * @param int      $week    Target ISO week number
+         * @param int|null $entity  Optional entity identifier
+         * @return int               >0 if found (id), 0 if not found, <0 on error
+         */
+        public function fetchByUserWeek($userId, $year, $week, $entity = null)
+        {
+                global $conf;
+
+                $this->error = '';
+                $this->errors = array();
+
+                // EN: Determine the entity used for the lookup.
+                // FR: Détermine l'entité utilisée pour la recherche.
+                $entityId = ($entity !== null) ? (int) $entity : (int) $conf->entity;
+
+                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX.$this->table_element;
+                $sql .= " WHERE entity=".(int) $entityId;
+                $sql .= " AND fk_user=".(int) $userId;
+                $sql .= " AND year=".(int) $year;
+                $sql .= " AND week=".(int) $week;
+                $sql .= " LIMIT 1";
+
+                // EN: Execute the lookup to detect an existing record.
+                // FR: Exécute la recherche pour détecter un enregistrement existant.
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                $obj = $this->db->fetch_object($resql);
+                if (!$obj) {
+                        return 0;
+                }
+
+                return $this->fetch((int) $obj->rowid);
+        }
+
+        /**
+         * Fetch by id or ref
+         * @param int|null $id
+         * @param string|null $ref
+         * @return int
 	 */
 	public function fetch($id = null, $ref = null)
 	{
