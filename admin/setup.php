@@ -335,9 +335,9 @@ llxHeader('', $title, $helpurl);
 $head = timesheetweekAdminPrepareHead();
 // EN: Render the admin header with the bookcal pictogram to match the module identity.
 // FR: Affiche l'en-tête d'administration avec le pictogramme bookcal pour refléter l'identité du module.
-print dol_get_fiche_head($head, 'settings', $title, -1, 'bookcal@timesheetweek');
+print dol_get_fiche_head($head, 'settings', $langs->trans($title), -1, 'timesheetweek@timesheetweek');
 
-print load_fiche_titre($langs->trans('TimesheetWeekSetup'), '', 'bookcal@timesheetweek');
+print load_fiche_titre($langs->trans('TimesheetWeekSetup'), '', 'timesheetweek@timesheetweek');
 print '<div class="opacitymedium">'.$langs->trans('TimesheetWeekSetupPage').'</div>';
 print '<br>';
 
