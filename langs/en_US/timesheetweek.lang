@@ -33,6 +33,7 @@ TimesheetWeekAboutPage = TimesheetWeek about page
 # Sample page
 #
 TimesheetWeekArea = Home TimesheetWeek
+Timesheet = Timesheet
 TimesheetWeek = Timesheet week
 TimesheetWeekList = Timesheet weeks
 ListTimesheetWeek = Timesheet weeks
