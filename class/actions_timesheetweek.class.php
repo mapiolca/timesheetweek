@@ -80,9 +80,9 @@ class ActionsTimesheetweek
             'title' => 'QuickCreateTimesheetWeek@timesheetweek',
             'name' => 'TimesheetWeek@timesheetweek',
             'picto' => 'bookcal',
-            // EN: Activate the quick add entry only when modules and rights allow it.
-            // FR: Activer l'entrée de création rapide uniquement lorsque les modules et droits le permettent.
-            'activation' => isModEnabled('product') && $hasWriteRight,
+            // EN: Activate the quick add entry only when the module is enabled and rights allow it.
+            // FR: Activer l'entrée de création rapide uniquement lorsque le module est actif et que les droits le permettent.
+            'activation' => isModEnabled('timesheetweek') && $hasWriteRight,
             'position' => 100,
         );
 
