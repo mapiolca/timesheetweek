@@ -14,6 +14,10 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
 
+// EN: Detect if the Multicompany module is enabled to expose entity-specific data.
+// FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
+$multicompanyEnabled = !empty($conf->multicompany->enabled);
+
 /**
  * Params
  */
@@ -36,6 +40,49 @@ $search_ref   = trim(GETPOST('search_ref','alphanohtml'));
 $search_user  = GETPOSTINT('search_user');
 $search_year  = GETPOSTINT('search_year');
 $search_week  = GETPOSTINT('search_week');
+// EN: Retrieve the ISO year-week values for the multi-select filter and validate them.
+// FR: Récupère les valeurs ISO année-semaine pour le filtre multi-sélection et les valide.
+$rawWeekyearFilter = GETPOST('search_weekyear', 'array', 2);
+if (!is_array($rawWeekyearFilter)) {
+        $legacyWeekyear = trim(GETPOST('search_weekyear', 'alphanohtml'));
+        $rawWeekyearFilter = $legacyWeekyear !== '' ? array($legacyWeekyear) : array();
+}
+
+$search_weekyears = array();
+$searchWeekTuples = array();
+foreach ($rawWeekyearFilter as $candidateWeekyear) {
+        $candidateWeekyear = trim((string) $candidateWeekyear);
+        if ($candidateWeekyear === '') {
+                continue;
+        }
+        if (preg_match('/^(\d{4})-W(\d{2})$/', $candidateWeekyear, $matches)) {
+                $isoWeekyear = $matches[1].'-W'.$matches[2];
+                if (!in_array($isoWeekyear, $search_weekyears, true)) {
+                        // EN: Preserve each valid ISO entry for rendering and SQL filtering.
+                        // FR: Conserve chaque entrée ISO valide pour le rendu et le filtrage SQL.
+                        $search_weekyears[] = $isoWeekyear;
+                        $searchWeekTuples[] = array('year' => (int) $matches[1], 'week' => (int) $matches[2]);
+                }
+        }
+}
+// EN: Capture the entity filters when Multicompany support is available, ensuring backward compatibility with legacy single values.
+// FR: Capture les filtres d'entité lorsque la compatibilité Multicompany est disponible, en assurant la rétrocompatibilité avec les valeurs uniques historiques.
+$search_entities = array();
+if ($multicompanyEnabled) {
+        $rawEntityFilter = GETPOST('search_entity', 'array', 2);
+        if (!is_array($rawEntityFilter)) {
+                $legacyEntity = GETPOSTINT('search_entity');
+                $rawEntityFilter = $legacyEntity > 0 ? array($legacyEntity) : array();
+        }
+        foreach ($rawEntityFilter as $entityCandidate) {
+                $entityId = (int) $entityCandidate;
+                if ($entityId >= 0 && !in_array($entityId, $search_entities, true)) {
+                        // EN: Keep each allowed entity identifier only once to mirror the native Dolibarr multiselect behaviour.
+                        // FR: Conserve chaque identifiant d'entité une seule fois afin de refléter le comportement natif du multiselect Dolibarr.
+                        $search_entities[] = $entityId;
+                }
+        }
+}
 $search_status = GETPOST('search_status', 'array', 2);
 $search_status = is_array($search_status) ? $search_status : array();
 $hasStatusRequest = function_exists('GETPOSTISSET') ? GETPOSTISSET('search_status') : (isset($_GET['search_status']) || isset($_POST['search_status']));
@@ -62,14 +109,65 @@ $form = new Form($db);
 $tswstatic = new TimesheetWeek($db);
 $usertmp = new User($db);
 
+// EN: Preload the list of entities allowed for the module to feed the multiselect filter.
+// FR: Précharge la liste des entités autorisées pour le module afin d'alimenter le filtre multisélection.
+$entityFilterOptions = array();
+if ($multicompanyEnabled) {
+        $allowedEntityIds = array();
+        $allowedEntityString = getEntity('timesheetweek');
+        if (!empty($allowedEntityString)) {
+                foreach (explode(',', $allowedEntityString) as $candidate) {
+                        $candidate = trim($candidate);
+                        if ($candidate === '') {
+                                continue;
+                        }
+                        $candidateId = (int) $candidate;
+                        if ($candidateId > 0 && !in_array($candidateId, $allowedEntityIds, true)) {
+                                // EN: Keep only positive entity identifiers to match entries available in the entity dictionary.
+                                // FR: Conserve uniquement les identifiants d'entité positifs afin de correspondre aux entrées disponibles dans le dictionnaire des entités.
+                                $allowedEntityIds[] = $candidateId;
+                        }
+                }
+        }
+
+        $sqlEntity = 'SELECT rowid, label FROM '.MAIN_DB_PREFIX."entity";
+        if (!empty($allowedEntityIds)) {
+                $sqlEntity .= ' WHERE rowid IN ('.implode(',', $allowedEntityIds).')';
+        }
+        $sqlEntity .= ' ORDER BY label ASC';
+
+        $resEntity = $db->query($sqlEntity);
+        if ($resEntity) {
+                while ($entityRow = $db->fetch_object($resEntity)) {
+                        $label = trim((string) $entityRow->label);
+                        if ($label === '') {
+                                // EN: Fall back to a generic label when the entity dictionary does not provide a name.
+                                // FR: Revient à un libellé générique lorsque le dictionnaire d'entités ne fournit pas de nom.
+                                $label = $langs->trans('Entity').' #'.(int) $entityRow->rowid;
+                        }
+                        $entityFilterOptions[(int) $entityRow->rowid] = $label;
+                }
+                $db->free($resEntity);
+        }
+}
+
 /**
  * Arrayfields (select columns)
  */
 $arrayfields = array(
-	't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
-	'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
-	't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
-	't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
+        't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
+        'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
+);
+
+if ($multicompanyEnabled) {
+        // EN: Display the entity column immediately after the employee to avoid it drifting to the far right.
+        // FR: Affiche la colonne entité juste après l'employé pour éviter qu'elle ne parte à l'extrême droite.
+        $arrayfields['t.entity'] = array('label' => $langs->trans('Entity'), 'checked' => 1);
+}
+
+$arrayfields += array(
+        't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
+        't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
         't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
         't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
         // EN: Zone counters columns for list display.
@@ -84,7 +182,7 @@ $arrayfields = array(
         't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
         't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
-	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
+        't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
 
 // Update arrayfields from request (column selector)
@@ -107,6 +205,15 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
     $search_user = 0;
     $search_year = 0;
     $search_week = 0;
+    // EN: Reset the ISO multi-week selector when clearing filters from the toolbar.
+    // FR: Réinitialise le sélecteur multi-semaines ISO lors de la suppression des filtres via la barre d'outils.
+    $search_weekyears = array();
+    $searchWeekTuples = array();
+    if ($multicompanyEnabled) {
+        // EN: Clear the entity filter alongside other search parameters.
+        // FR: Réinitialise le filtre d'entité en même temps que les autres paramètres de recherche.
+        $search_entities = array();
+    }
     $search_status = array();
 }
 
@@ -114,6 +221,11 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
  * SQL
  */
 $sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+if ($multicompanyEnabled) {
+        // EN: Include the entity column and its label in the result set when Multicompany is active.
+        // FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
+        $sql .= " t.entity, e.label as entity_label,";
+}
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
 $sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
@@ -121,11 +233,41 @@ $sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
+if ($multicompanyEnabled) {
+        // EN: Resolve the entity name to display native Dolibarr badges in the list.
+        // FR: Récupère le nom de l'entité pour afficher les badges natifs de Dolibarr dans la liste.
+        $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."entity as e ON e.rowid = t.entity";
+}
 $sql .= " WHERE 1=1";
+// EN: Restrict the listing to the entities allowed for the timesheet module.
+// FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
+$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
 if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
 if ($search_week > 0)       $sql .= " AND t.week = ".((int)$search_week);
+if (!empty($searchWeekTuples)) {
+        // EN: Apply each selected ISO week constraint as an OR group.
+        // FR: Applique chaque contrainte de semaine ISO sélectionnée sous forme de groupe OR.
+        $weekConditions = array();
+        foreach ($searchWeekTuples as $tuple) {
+                $weekConditions[] = '(t.year = '.((int) $tuple['year']).' AND t.week = '.((int) $tuple['week']).')';
+        }
+        if (!empty($weekConditions)) {
+                $sql .= ' AND ('.implode(' OR ', $weekConditions).')';
+        }
+}
+if ($multicompanyEnabled && !empty($search_entities)) {
+        $entityConditions = array();
+        foreach ($search_entities as $entityId) {
+                $entityConditions[] = (int) $entityId;
+        }
+        if (!empty($entityConditions)) {
+                // EN: Narrow the query to the selected entities when the Multicompany filter is used.
+                // FR: Restreint la requête aux entités sélectionnées lorsque le filtre Multicompany est utilisé.
+                $sql .= ' AND t.entity IN ('.implode(',', $entityConditions).')';
+        }
+}
 if (!empty($search_status)) {
     $statusFilter = array();
     foreach ($search_status as $statusValue) {
@@ -158,6 +300,20 @@ if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
 if ($search_user)  $param .= '&search_user='.(int)$search_user;
 if ($search_year)  $param .= '&search_year='.(int)$search_year;
 if ($search_week)  $param .= '&search_week='.(int)$search_week;
+if (!empty($search_weekyears)) {
+        // EN: Persist each selected ISO week across pagination links.
+        // FR: Conserve chaque semaine ISO sélectionnée lors de la pagination.
+        foreach ($search_weekyears as $isoWeekyear) {
+                $param .= '&search_weekyear[]='.urlencode($isoWeekyear);
+        }
+}
+if ($multicompanyEnabled && !empty($search_entities)) {
+        // EN: Preserve each selected entity during pagination and sorting.
+        // FR: Préserve chaque entité sélectionnée lors de la pagination et du tri.
+        foreach ($search_entities as $entityId) {
+                $param .= '&search_entity[]='.(int) $entityId;
+        }
+}
 if (!empty($search_status)) {
     foreach ($search_status as $statusValue) {
         $param .= '&search_status[]='.(int) $statusValue;
@@ -203,15 +359,44 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
 }
 if (!empty($arrayfields['user']['checked'])) {
-	print '<td class="liste_titre maxwidthonsmartphone">';
-	print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
-	print '</td>';
+        print '<td class="liste_titre maxwidthonsmartphone">';
+        print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
+        print '</td>';
+}
+if (!empty($arrayfields['t.entity']['checked'])) {
+        print '<td class="liste_titre center">';
+        if (!empty($entityFilterOptions)) {
+                // EN: Reuse the native Dolibarr multiselect to align the entity filter with the Multicompany user interface.
+                // FR: Réutilise le multiselect natif de Dolibarr pour aligner le filtre d'entité avec l'interface Multicompany.
+                print $form->multiselectarray('search_entity', $entityFilterOptions, $search_entities, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+        } else {
+                // EN: Display an empty cell when no entity is available, keeping the layout consistent.
+                // FR: Affiche une cellule vide lorsqu'aucune entité n'est disponible, afin de conserver la mise en page.
+                print '&nbsp;';
+        }
+        print '</td>';
 }
 if (!empty($arrayfields['t.year']['checked'])) {
-	print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
+        print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
 }
 if (!empty($arrayfields['t.week']['checked'])) {
-	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
+        // EN: Determine which year should drive the ISO week selector (either the filter or the current year).
+        // FR: Détermine l'année qui doit piloter le sélecteur ISO de semaine (filtre ou année courante).
+        $currentWeekSelectorYear = $search_year > 0 ? $search_year : 0;
+        if ($currentWeekSelectorYear === 0 && !empty($searchWeekTuples)) {
+                // EN: Align the selector year with the first selected ISO tuple when available.
+                // FR: Aligne l'année du sélecteur sur la première paire ISO sélectionnée lorsque disponible.
+                $currentWeekSelectorYear = (int) $searchWeekTuples[0]['year'];
+        }
+        $selectedWeekValues = $search_weekyears;
+        if (empty($selectedWeekValues) && $search_week > 0 && $search_year > 0) {
+                // EN: Display the typed year/week combination in the selector for visual feedback.
+                // FR: Affiche la combinaison année/semaine saisie dans le sélecteur pour le retour visuel.
+                $selectedWeekValues[] = sprintf('%04d-W%02d', $search_year, $search_week);
+        }
+        // EN: Reuse the Dolibarr week selector in multi-select mode for consistent UX with the card view.
+        // FR: Réutilise le sélecteur de semaine Dolibarr en mode multi-sélection pour harmoniser l'UX avec la fiche.
+        print '<td class="liste_titre center">'.getWeekSelectorDolibarr($form, 'search_weekyear', $selectedWeekValues, $currentWeekSelectorYear, true, true).'</td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {
         print '<td class="liste_titre right">&nbsp;</td>';
@@ -274,10 +459,15 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", "", $param, '', $sortfield, $sortorder);
 }
 if (!empty($arrayfields['user']['checked'])) {
-	print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", "", $param, '', $sortfield, $sortorder);
+        print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", "", $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['t.entity']['checked'])) {
+        // EN: Display the entity header for Multicompany-aware listings.
+        // FR: Affiche l'entête d'entité pour les listes compatibles Multicompany.
+        print_liste_field_titre($arrayfields['t.entity']['label'], $_SERVER["PHP_SELF"], "t.entity", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.year']['checked'])) {
-	print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", "", $param, '', $sortfield, $sortorder, 'center ');
+        print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.week']['checked'])) {
 	print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -354,18 +544,34 @@ while ($i < $imax) {
 	}
 
 	// Employee
-	if (!empty($arrayfields['user']['checked'])) {
-		$usertmp->id = $obj->uid;
-		$usertmp->firstname = $obj->firstname;
-		$usertmp->lastname = $obj->lastname;
-		$usertmp->login = $obj->login;
-		print '<td>'.$usertmp->getNomUrl(-1).'</td>';
-	}
+        if (!empty($arrayfields['user']['checked'])) {
+                $usertmp->id = $obj->uid;
+                $usertmp->firstname = $obj->firstname;
+                $usertmp->lastname = $obj->lastname;
+                $usertmp->login = $obj->login;
+                print '<td>'.$usertmp->getNomUrl(-1).'</td>';
+        }
 
-	// Year
-	if (!empty($arrayfields['t.year']['checked'])) {
-		print '<td class="center">'.(int)$obj->year.'</td>';
-	}
+        if (!empty($arrayfields['t.entity']['checked'])) {
+                $entityName = '';
+                if (property_exists($obj, 'entity_label')) {
+                        $entityName = trim((string) $obj->entity_label);
+                }
+                if ($entityName === '') {
+                        // EN: Provide a fallback label when the entity dictionary does not expose a name.
+                        // FR: Fournit un libellé de secours lorsque le dictionnaire d'entités n'expose pas de nom.
+                        $entityName = $langs->trans('Entity').' #'.(int) $obj->entity;
+                }
+                // EN: Mimic the native Dolibarr rendering for entity badges in Multicompany context.
+                // FR: Reproduit le rendu natif de Dolibarr pour les badges d'entité en contexte Multicompany.
+                $entityBadge = '<div class="refidno multicompany-entity-card-container"><span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($entityName).'</span></div>';
+                print '<td class="center">'.$entityBadge.'</td>';
+        }
+
+        // Year
+        if (!empty($arrayfields['t.year']['checked'])) {
+                print '<td class="center">'.(int)$obj->year.'</td>';
+        }
 	// Week
 	if (!empty($arrayfields['t.week']['checked'])) {
 		print '<td class="center">'.(int)$obj->week.'</td>';

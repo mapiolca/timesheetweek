@@ -402,8 +402,11 @@ if ($action === 'save' && $id > 0) {
 			$zone = (int) GETPOST('zone_'.$day, 'int');
 			$meal = GETPOST('meal_'.$day) ? 1 : 0;
 
-			$sqlSel = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line 
-				WHERE fk_timesheet_week=".(int)$object->id." AND fk_task=".(int)$taskid." AND day_date='".$db->escape($datestr)."'";
+                        $sqlSel = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line
+                                WHERE fk_timesheet_week=".(int)$object->id." AND fk_task=".(int)$taskid." AND day_date='".$db->escape($datestr)."'";
+                        // EN: Secure the lookup by enforcing the entity restriction of the module.
+                        // FR: Sécurise la recherche en appliquant la restriction d'entité du module.
+                        $sqlSel .= " AND entity IN (".getEntity('timesheetweek').")";
 			$resSel = $db->query($sqlSel);
 			$existingId = 0;
 			if ($resSel && $db->num_rows($resSel) > 0) {
@@ -413,9 +416,12 @@ if ($action === 'save' && $id > 0) {
 
 			if ($h > 0 && $taskid > 0) {
 				if ($existingId > 0) {
-					$sqlUpd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line 
-						SET hours=".((float)$h).", zone=".(int)$zone.", meal=".(int)$meal."
-						WHERE rowid=".$existingId;
+                                        $sqlUpd = "UPDATE ".MAIN_DB_PREFIX."timesheet_week_line
+                                                SET hours=".((float)$h).", zone=".(int)$zone.", meal=".(int)$meal."
+                                                WHERE rowid=".$existingId;
+                                        // EN: Guarantee that the update only affects rows from authorized entities.
+                                        // FR: Garantit que la mise à jour ne concerne que les lignes des entités autorisées.
+                                        $sqlUpd .= " AND entity IN (".getEntity('timesheetweek').")";
 					if (!$db->query($sqlUpd)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
@@ -423,14 +429,17 @@ if ($action === 'save' && $id > 0) {
 						exit;
 					}
 				} else {
-					$sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (fk_timesheet_week, fk_task, day_date, hours, zone, meal) VALUES (".
-						(int)$object->id.", ".
-						(int)$taskid.", ".
-						"'".$db->escape($datestr)."', ".
-						((float)$h).", ".
-						(int)$zone.", ".
-						(int)$meal.
-					")";
+                                        // EN: Store the line within the same entity as its parent timesheet to stay consistent.
+                                        // FR: Enregistre la ligne dans la même entité que sa feuille parente pour rester cohérent.
+                                        $sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (entity, fk_timesheet_week, fk_task, day_date, hours, zone, meal) VALUES (".
+                                                (int) $object->entity.", ".
+                                                (int)$object->id.", ".
+                                                (int)$taskid.", ".
+                                                "'".$db->escape($datestr)."', ".
+                                                ((float)$h).", ".
+                                                (int)$zone.", ".
+                                                (int)$meal.
+                                        ")";
 					if (!$db->query($sqlIns)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
@@ -441,7 +450,9 @@ if ($action === 'save' && $id > 0) {
 				$processed++;
 			} else {
 				if ($existingId > 0) {
-					$db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId);
+                                        // EN: Delete the line only if it belongs to an allowed entity scope.
+                                        // FR: Supprime la ligne uniquement si elle appartient à une entité autorisée.
+                                        $db->query("DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE rowid=".$existingId." AND entity IN (".getEntity('timesheetweek').")");
 					$processed++;
 				}
 			}
@@ -488,9 +499,12 @@ if ($action === 'submit' && $id > 0) {
 		accessforbidden();
 	}
 
-	$totalHours = 0.0;
-	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-	$resSum = $db->query($sqlSum);
+        $totalHours = 0.0;
+        $sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
+        // EN: Keep the aggregation limited to the current entity scope for correctness.
+        // FR: Limite l'agrégation à l'entité courante pour garantir la cohérence.
+        $sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
+        $resSum = $db->query($sqlSum);
 	if ($resSum) {
 		$o = $db->fetch_object($resSum);
 		$totalHours = (float) $o->sh;
@@ -816,7 +830,36 @@ JS;
         if (!empty($object->id)) {
                 $morehtmlstatus = $object->getLibStatut(5);
         }
-        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', $morehtmlright, '', $morehtmlstatus);
+
+        $morehtmlref = '';
+        if (!empty($conf->multicompany->enabled) && (int) $object->entity !== (int) $conf->entity) {
+                // EN: Fetch the entity label to display the native Multicompany badge below the reference.
+                // FR: Récupère le libellé de l'entité pour afficher le badge Multicompany natif sous la référence.
+                $entityName = '';
+                $entityId = (int) $object->entity;
+                if ($entityId > 0) {
+                        $sqlEntity = 'SELECT label FROM '.MAIN_DB_PREFIX."entity WHERE rowid = ".$entityId;
+                        $resEntity = $db->query($sqlEntity);
+                        if ($resEntity) {
+                                $entityRow = $db->fetch_object($resEntity);
+                                if ($entityRow) {
+                                        $entityName = trim((string) $entityRow->label);
+                                }
+                                $db->free($resEntity);
+                        }
+                        if ($entityName === '') {
+                                // EN: Fall back to a generic label when the entity dictionary is empty.
+                                // FR: Revient à un libellé générique lorsque le dictionnaire d'entités est vide.
+                                $entityName = $langs->trans('Entity').' #'.$entityId;
+                        }
+                        $entityBadge = '<div class="refidno multicompany-entity-card-container"><span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($entityName).'</span></div>';
+                        // EN: Inject the entity badge underneath the reference to mimic Dolibarr's native layout.
+                        // FR: Insère le badge d'entité sous la référence pour reproduire la mise en page native de Dolibarr.
+                        $morehtmlref .= '<br>'.$entityBadge;
+                }
+        }
+
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
         print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
@@ -953,9 +996,12 @@ JS;
 	$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours)?(float)$uEmpDisp->weeklyhours:35.0);
 	$th = (float) $object->total_hours;
 	$ot = (float) $object->overtime_hours;
-	if ($th <= 0) {
-		$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-		$resSum = $db->query($sqlSum);
+        if ($th <= 0) {
+                $sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
+                // EN: Respect entity boundaries when recomputing totals lazily.
+                // FR: Respecte les frontières d'entité lors du recalcul paresseux des totaux.
+                $sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
+                $resSum = $db->query($sqlSum);
 		if ($resSum) {
 			$o = $db->fetch_object($resSum);
 			$th = (float) $o->sh;
@@ -994,9 +1040,12 @@ JS;
 	$taskIdsFromLines = array();
 	$linesCount = 0;
 
-	$sqlLines = "SELECT fk_task, day_date, hours, zone, meal 
-		FROM ".MAIN_DB_PREFIX."timesheet_week_line
-		WHERE fk_timesheet_week=".(int)$object->id;
+        $sqlLines = "SELECT fk_task, day_date, hours, zone, meal
+                FROM ".MAIN_DB_PREFIX."timesheet_week_line
+                WHERE fk_timesheet_week=".(int)$object->id;
+        // EN: Limit the fetched lines to those belonging to authorized entities.
+        // FR: Limite les lignes récupérées à celles appartenant aux entités autorisées.
+        $sqlLines .= " AND entity IN (".getEntity('timesheetweek').")";
 	$resLines = $db->query($sqlLines);
 	if ($resLines) {
 		while ($o = $db->fetch_object($resLines)) {
@@ -1385,7 +1434,9 @@ JS;
                 if ($object->status == tw_status('draft')) {
                         // Compter les lignes
                         $nbLines = 0;
-                        $rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id);
+                        // EN: Count lines only within authorized entities before enabling submission.
+                        // FR: Compte les lignes uniquement dans les entités autorisées avant d'autoriser la soumission.
+                        $rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
                         if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
                         if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
                                 echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
