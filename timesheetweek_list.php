@@ -65,9 +65,24 @@ foreach ($rawWeekyearFilter as $candidateWeekyear) {
                 }
         }
 }
-// EN: Capture the entity filter when Multicompany support is available.
-// FR: Capture le filtre d'entité lorsque la compatibilité Multicompany est disponible.
-$search_entity = $multicompanyEnabled ? GETPOSTINT('search_entity') : 0;
+// EN: Capture the entity filters when Multicompany support is available, ensuring backward compatibility with legacy single values.
+// FR: Capture les filtres d'entité lorsque la compatibilité Multicompany est disponible, en assurant la rétrocompatibilité avec les valeurs uniques historiques.
+$search_entities = array();
+if ($multicompanyEnabled) {
+        $rawEntityFilter = GETPOST('search_entity', 'array', 2);
+        if (!is_array($rawEntityFilter)) {
+                $legacyEntity = GETPOSTINT('search_entity');
+                $rawEntityFilter = $legacyEntity > 0 ? array($legacyEntity) : array();
+        }
+        foreach ($rawEntityFilter as $entityCandidate) {
+                $entityId = (int) $entityCandidate;
+                if ($entityId >= 0 && !in_array($entityId, $search_entities, true)) {
+                        // EN: Keep each allowed entity identifier only once to mirror the native Dolibarr multiselect behaviour.
+                        // FR: Conserve chaque identifiant d'entité une seule fois afin de refléter le comportement natif du multiselect Dolibarr.
+                        $search_entities[] = $entityId;
+                }
+        }
+}
 $search_status = GETPOST('search_status', 'array', 2);
 $search_status = is_array($search_status) ? $search_status : array();
 $hasStatusRequest = function_exists('GETPOSTISSET') ? GETPOSTISSET('search_status') : (isset($_GET['search_status']) || isset($_POST['search_status']));
@@ -93,6 +108,48 @@ if (!$user->hasRight('timesheetweek','timesheetweek','read')) accessforbidden();
 $form = new Form($db);
 $tswstatic = new TimesheetWeek($db);
 $usertmp = new User($db);
+
+// EN: Preload the list of entities allowed for the module to feed the multiselect filter.
+// FR: Précharge la liste des entités autorisées pour le module afin d'alimenter le filtre multisélection.
+$entityFilterOptions = array();
+if ($multicompanyEnabled) {
+        $allowedEntityIds = array();
+        $allowedEntityString = getEntity('timesheetweek');
+        if (!empty($allowedEntityString)) {
+                foreach (explode(',', $allowedEntityString) as $candidate) {
+                        $candidate = trim($candidate);
+                        if ($candidate === '') {
+                                continue;
+                        }
+                        $candidateId = (int) $candidate;
+                        if ($candidateId > 0 && !in_array($candidateId, $allowedEntityIds, true)) {
+                                // EN: Keep only positive entity identifiers to match entries available in the entity dictionary.
+                                // FR: Conserve uniquement les identifiants d'entité positifs afin de correspondre aux entrées disponibles dans le dictionnaire des entités.
+                                $allowedEntityIds[] = $candidateId;
+                        }
+                }
+        }
+
+        $sqlEntity = 'SELECT rowid, label FROM '.MAIN_DB_PREFIX."entity";
+        if (!empty($allowedEntityIds)) {
+                $sqlEntity .= ' WHERE rowid IN ('.implode(',', $allowedEntityIds).')';
+        }
+        $sqlEntity .= ' ORDER BY label ASC';
+
+        $resEntity = $db->query($sqlEntity);
+        if ($resEntity) {
+                while ($entityRow = $db->fetch_object($resEntity)) {
+                        $label = trim((string) $entityRow->label);
+                        if ($label === '') {
+                                // EN: Fall back to a generic label when the entity dictionary does not provide a name.
+                                // FR: Revient à un libellé générique lorsque le dictionnaire d'entités ne fournit pas de nom.
+                                $label = $langs->trans('Entity').' #'.(int) $entityRow->rowid;
+                        }
+                        $entityFilterOptions[(int) $entityRow->rowid] = $label;
+                }
+                $db->free($resEntity);
+        }
+}
 
 /**
  * Arrayfields (select columns)
@@ -155,7 +212,7 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
     if ($multicompanyEnabled) {
         // EN: Clear the entity filter alongside other search parameters.
         // FR: Réinitialise le filtre d'entité en même temps que les autres paramètres de recherche.
-        $search_entity = 0;
+        $search_entities = array();
     }
     $search_status = array();
 }
@@ -165,9 +222,9 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
  */
 $sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
 if ($multicompanyEnabled) {
-        // EN: Include the entity column in the result set when Multicompany is active.
-        // FR: Inclut la colonne entité dans le jeu de résultats lorsque Multicompany est actif.
-        $sql .= " t.entity,";
+        // EN: Include the entity column and its label in the result set when Multicompany is active.
+        // FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
+        $sql .= " t.entity, e.label as entity_label,";
 }
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
@@ -176,6 +233,11 @@ $sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
+if ($multicompanyEnabled) {
+        // EN: Resolve the entity name to display native Dolibarr badges in the list.
+        // FR: Récupère le nom de l'entité pour afficher les badges natifs de Dolibarr dans la liste.
+        $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."entity as e ON e.rowid = t.entity";
+}
 $sql .= " WHERE 1=1";
 // EN: Restrict the listing to the entities allowed for the timesheet module.
 // FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
@@ -195,10 +257,16 @@ if (!empty($searchWeekTuples)) {
                 $sql .= ' AND ('.implode(' OR ', $weekConditions).')';
         }
 }
-if ($multicompanyEnabled && $search_entity > 0) {
-        // EN: Apply the entity constraint when Multicompany filtering is requested.
-        // FR: Applique la contrainte d'entité lorsque le filtrage Multicompany est demandé.
-        $sql .= " AND t.entity = ".((int) $search_entity);
+if ($multicompanyEnabled && !empty($search_entities)) {
+        $entityConditions = array();
+        foreach ($search_entities as $entityId) {
+                $entityConditions[] = (int) $entityId;
+        }
+        if (!empty($entityConditions)) {
+                // EN: Narrow the query to the selected entities when the Multicompany filter is used.
+                // FR: Restreint la requête aux entités sélectionnées lorsque le filtre Multicompany est utilisé.
+                $sql .= ' AND t.entity IN ('.implode(',', $entityConditions).')';
+        }
 }
 if (!empty($search_status)) {
     $statusFilter = array();
@@ -239,10 +307,12 @@ if (!empty($search_weekyears)) {
                 $param .= '&search_weekyear[]='.urlencode($isoWeekyear);
         }
 }
-if ($multicompanyEnabled && $search_entity) {
-        // EN: Preserve the entity filter during pagination and sorting.
-        // FR: Préserve le filtre d'entité lors de la pagination et du tri.
-        $param .= '&search_entity='.(int) $search_entity;
+if ($multicompanyEnabled && !empty($search_entities)) {
+        // EN: Preserve each selected entity during pagination and sorting.
+        // FR: Préserve chaque entité sélectionnée lors de la pagination et du tri.
+        foreach ($search_entities as $entityId) {
+                $param .= '&search_entity[]='.(int) $entityId;
+        }
 }
 if (!empty($search_status)) {
     foreach ($search_status as $statusValue) {
@@ -294,9 +364,17 @@ if (!empty($arrayfields['user']['checked'])) {
         print '</td>';
 }
 if (!empty($arrayfields['t.entity']['checked'])) {
-        // EN: Provide a numeric input to filter by entity identifier.
-        // FR: Fournit un champ numérique pour filtrer par identifiant d'entité.
-        print '<td class="liste_titre center"><input class="flat" type="number" name="search_entity" value="'.($search_entity>0?(int)$search_entity:'').'" min="1" style="width:80px"></td>';
+        print '<td class="liste_titre center">';
+        if (!empty($entityFilterOptions)) {
+                // EN: Reuse the native Dolibarr multiselect to align the entity filter with the Multicompany user interface.
+                // FR: Réutilise le multiselect natif de Dolibarr pour aligner le filtre d'entité avec l'interface Multicompany.
+                print $form->multiselectarray('search_entity', $entityFilterOptions, $search_entities, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+        } else {
+                // EN: Display an empty cell when no entity is available, keeping the layout consistent.
+                // FR: Affiche une cellule vide lorsqu'aucune entité n'est disponible, afin de conserver la mise en page.
+                print '&nbsp;';
+        }
+        print '</td>';
 }
 if (!empty($arrayfields['t.year']['checked'])) {
         print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
@@ -475,9 +553,19 @@ while ($i < $imax) {
         }
 
         if (!empty($arrayfields['t.entity']['checked'])) {
-                // EN: Render the entity identifier to highlight cross-entity records.
-                // FR: Affiche l'identifiant d'entité pour mettre en avant les enregistrements inter-entités.
-                print '<td class="center">'.(int) $obj->entity.'</td>';
+                $entityName = '';
+                if (property_exists($obj, 'entity_label')) {
+                        $entityName = trim((string) $obj->entity_label);
+                }
+                if ($entityName === '') {
+                        // EN: Provide a fallback label when the entity dictionary does not expose a name.
+                        // FR: Fournit un libellé de secours lorsque le dictionnaire d'entités n'expose pas de nom.
+                        $entityName = $langs->trans('Entity').' #'.(int) $obj->entity;
+                }
+                // EN: Mimic the native Dolibarr rendering for entity badges in Multicompany context.
+                // FR: Reproduit le rendu natif de Dolibarr pour les badges d'entité en contexte Multicompany.
+                $entityBadge = '<div class="refidno multicompany-entity-card-container"><span class="fa fa-globe"></span><span class="multiselect-selected-title-text">'.dol_escape_htmltag($entityName).'</span></div>';
+                print '<td class="center">'.$entityBadge.'</td>';
         }
 
         // Year
