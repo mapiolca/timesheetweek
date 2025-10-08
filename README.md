@@ -10,6 +10,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Redirection automatique vers la feuille existante en cas de tentative de doublon afin d'éviter les saisies multiples.
 - Suivi des compteurs hebdomadaires de zones et de paniers directement sur les feuilles et recalcul automatique à chaque enregistrement.
 - Affichage des compteurs dans la liste hebdomadaire et ajout du libellé « Zone » sur chaque sélecteur quotidien pour clarifier la saisie.
+- Ligne de total en bas de la liste hebdomadaire pour additionner heures, zones, paniers et afficher la colonne de date de validation.
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
 - Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
@@ -45,6 +46,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Automatic redirect to the existing timesheet when a duplicate creation is attempted.
 - Weekly counters for zones and meal allowances with automatic recomputation on each save.
 - Counter display inside the weekly list plus a « Zone » caption on each daily selector for better input guidance.
+- Total row at the bottom of the weekly list to sum hours, zones, meals and expose the validation date column.
 - Quick creation shortcut available from the top-right « Add » menu.
 - Multicompany compatibility for sharing timesheets and numbering sequences, with dedicated sharing options and native-aligned multi-select filters.
 - Entity details shown on lists and cards in Multicompany environments with a badge under the reference when the entity differs.
