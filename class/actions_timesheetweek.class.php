@@ -31,8 +31,8 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Add TimesheetWeek entry into the quick add dropdown of the top menu.
-     * Ajouter une entrée TimesheetWeek dans le menu rapide du bandeau supérieur.
+     * Add TimesheetWeek entry into the quick add dropdown of the top right menu.
+     * Ajouter une entrée TimesheetWeek dans le menu rapide du bandeau supérieur droit.
      *
      * @param array          $parameters Hook parameters / Paramètres du hook
      * @param CommonObject   $object     Current object / Objet courant
@@ -41,9 +41,15 @@ class ActionsTimesheetweek
      *
      * @return int Status / Statut
      */
-    public function printTopMenuQuickAddDropdown($parameters, &$object, &$action, $hookmanager)
+    public function printTopRightMenu($parameters, &$object, &$action, $hookmanager)
     {
         global $langs, $user;
+
+        // EN: Only add the entry when the quick add dropdown is being rendered.
+        // FR: Ajouter l'entrée uniquement lorsque le menu déroulant de création rapide est rendu.
+        if (empty($parameters['currentcontext']) || $parameters['currentcontext'] !== 'quickadddropdown') {
+            return 0;
+        }
 
         // EN: Load module translations to display the quick add label.
         // FR: Charger les traductions du module pour afficher le libellé de création rapide.

@@ -123,11 +123,11 @@ class modTimesheetWeek extends DolibarrModules
 			),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
-                        // EN: Register the quick creation hook for the top menu dropdown.
-                        // FR: Enregistrer le hook de création rapide pour le menu supérieur.
+                        // EN: Register the top right menu hook to inject quick creation entry.
+                        // FR: Enregistrer le hook du menu supérieur droit pour injecter l'entrée de création rapide.
                         'hooks' => array(
                                 'data' => array(
-                                        'topmenu-quickadd-dropdown',
+                                        'toprightmenu',
                                 ),
                                 'entity' => '0',
                         ),
