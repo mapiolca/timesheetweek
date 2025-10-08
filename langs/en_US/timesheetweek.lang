@@ -70,6 +70,7 @@ TimesheetUnsealed = Timesheet unsealed.
 StatusSetToDraft = Timesheet set back to draft status.
 ActionNotAllowedOnThisStatus = This action is not allowed on the current status.
 CannotSetDraftWhenSealed = A sealed timesheet must be unsealed before returning to draft status.
+TimesheetWeekRedirectExisting = A timesheet already exists for this week. Redirecting to the existing sheet.
 Draft = Draft
 Submitted = Submitted
 Approved = Approved

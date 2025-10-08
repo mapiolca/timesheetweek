@@ -8,6 +8,7 @@
 - Affichage du libellé "Zone" devant chaque sélecteur quotidien.
 - Ajout de la traduction "Meals" en "Repas".
 - Ajout du script de mise à jour SQL (`sql/update_all.sql`) pour créer les compteurs hebdomadaires sur les données existantes.
+- Redirection automatique vers la feuille existante en cas de création en doublon / Automatic redirect to the existing sheet when attempting a duplicate creation.
 
 ## 1.0
 
