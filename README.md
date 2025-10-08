@@ -12,6 +12,7 @@ Description of the module...
 - Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
 - Création rapide d'une feuille d'heures depuis le raccourci "Ajouter" du menu supérieur.
 - Compatibilité Multicompany pour partager les feuilles de temps et leur numérotation / Multicompany compatibility to share weekly timesheets and their numbering.
+- Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity information in list and card when using Multicompany.
 
 <!--
 ![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}

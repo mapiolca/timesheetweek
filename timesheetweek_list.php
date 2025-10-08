@@ -14,6 +14,10 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
 
+// EN: Detect if the Multicompany module is enabled to expose entity-specific data.
+// FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
+$multicompanyEnabled = !empty($conf->multicompany->enabled);
+
 /**
  * Params
  */
@@ -36,6 +40,9 @@ $search_ref   = trim(GETPOST('search_ref','alphanohtml'));
 $search_user  = GETPOSTINT('search_user');
 $search_year  = GETPOSTINT('search_year');
 $search_week  = GETPOSTINT('search_week');
+// EN: Capture the entity filter when Multicompany support is available.
+// FR: Capture le filtre d'entité lorsque la compatibilité Multicompany est disponible.
+$search_entity = $multicompanyEnabled ? GETPOSTINT('search_entity') : 0;
 $search_status = GETPOST('search_status', 'array', 2);
 $search_status = is_array($search_status) ? $search_status : array();
 $hasStatusRequest = function_exists('GETPOSTISSET') ? GETPOSTISSET('search_status') : (isset($_GET['search_status']) || isset($_POST['search_status']));
@@ -66,10 +73,10 @@ $usertmp = new User($db);
  * Arrayfields (select columns)
  */
 $arrayfields = array(
-	't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
-	'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
-	't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
-	't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
+        't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
+        'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
+        't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
+        't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
         't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
         't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
         // EN: Zone counters columns for list display.
@@ -84,8 +91,14 @@ $arrayfields = array(
         't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
         't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
-	't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
+        't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
+
+if ($multicompanyEnabled) {
+        // EN: Inject the entity column right after the employee column for Multicompany visibility.
+        // FR: Insère la colonne d'entité juste après la colonne employé pour la visibilité Multicompany.
+        $arrayfields = array_slice($arrayfields, 0, 2, true) + array('t.entity' => array('label' => $langs->trans('Entity'), 'checked' => 1)) + array_slice($arrayfields, 2, null, true);
+}
 
 // Update arrayfields from request (column selector)
 include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
@@ -107,6 +120,11 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
     $search_user = 0;
     $search_year = 0;
     $search_week = 0;
+    if ($multicompanyEnabled) {
+        // EN: Clear the entity filter alongside other search parameters.
+        // FR: Réinitialise le filtre d'entité en même temps que les autres paramètres de recherche.
+        $search_entity = 0;
+    }
     $search_status = array();
 }
 
@@ -114,6 +132,11 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
  * SQL
  */
 $sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+if ($multicompanyEnabled) {
+        // EN: Include the entity column in the result set when Multicompany is active.
+        // FR: Inclut la colonne entité dans le jeu de résultats lorsque Multicompany est actif.
+        $sql .= " t.entity,";
+}
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
 $sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
@@ -126,6 +149,11 @@ if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
 if ($search_week > 0)       $sql .= " AND t.week = ".((int)$search_week);
+if ($multicompanyEnabled && $search_entity > 0) {
+        // EN: Apply the entity constraint when Multicompany filtering is requested.
+        // FR: Applique la contrainte d'entité lorsque le filtrage Multicompany est demandé.
+        $sql .= " AND t.entity = ".((int) $search_entity);
+}
 if (!empty($search_status)) {
     $statusFilter = array();
     foreach ($search_status as $statusValue) {
@@ -158,6 +186,11 @@ if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
 if ($search_user)  $param .= '&search_user='.(int)$search_user;
 if ($search_year)  $param .= '&search_year='.(int)$search_year;
 if ($search_week)  $param .= '&search_week='.(int)$search_week;
+if ($multicompanyEnabled && $search_entity) {
+        // EN: Preserve the entity filter during pagination and sorting.
+        // FR: Préserve le filtre d'entité lors de la pagination et du tri.
+        $param .= '&search_entity='.(int) $search_entity;
+}
 if (!empty($search_status)) {
     foreach ($search_status as $statusValue) {
         $param .= '&search_status[]='.(int) $statusValue;
@@ -203,12 +236,17 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
 }
 if (!empty($arrayfields['user']['checked'])) {
-	print '<td class="liste_titre maxwidthonsmartphone">';
-	print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
-	print '</td>';
+        print '<td class="liste_titre maxwidthonsmartphone">';
+        print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
+        print '</td>';
+}
+if (!empty($arrayfields['t.entity']['checked'])) {
+        // EN: Provide a numeric input to filter by entity identifier.
+        // FR: Fournit un champ numérique pour filtrer par identifiant d'entité.
+        print '<td class="liste_titre center"><input class="flat" type="number" name="search_entity" value="'.($search_entity>0?(int)$search_entity:'').'" min="1" style="width:80px"></td>';
 }
 if (!empty($arrayfields['t.year']['checked'])) {
-	print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
+        print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
 }
 if (!empty($arrayfields['t.week']['checked'])) {
 	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
@@ -274,10 +312,15 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print_liste_field_titre($arrayfields['t.ref']['label'], $_SERVER["PHP_SELF"], "t.ref", "", $param, '', $sortfield, $sortorder);
 }
 if (!empty($arrayfields['user']['checked'])) {
-	print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", "", $param, '', $sortfield, $sortorder);
+        print_liste_field_titre($arrayfields['user']['label'], $_SERVER["PHP_SELF"], "u.lastname", "", $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['t.entity']['checked'])) {
+        // EN: Display the entity header for Multicompany-aware listings.
+        // FR: Affiche l'entête d'entité pour les listes compatibles Multicompany.
+        print_liste_field_titre($arrayfields['t.entity']['label'], $_SERVER["PHP_SELF"], "t.entity", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.year']['checked'])) {
-	print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", "", $param, '', $sortfield, $sortorder, 'center ');
+        print_liste_field_titre($arrayfields['t.year']['label'], $_SERVER["PHP_SELF"], "t.year", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.week']['checked'])) {
 	print_liste_field_titre($arrayfields['t.week']['label'], $_SERVER["PHP_SELF"], "t.week", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -354,18 +397,24 @@ while ($i < $imax) {
 	}
 
 	// Employee
-	if (!empty($arrayfields['user']['checked'])) {
-		$usertmp->id = $obj->uid;
-		$usertmp->firstname = $obj->firstname;
-		$usertmp->lastname = $obj->lastname;
-		$usertmp->login = $obj->login;
-		print '<td>'.$usertmp->getNomUrl(-1).'</td>';
-	}
+        if (!empty($arrayfields['user']['checked'])) {
+                $usertmp->id = $obj->uid;
+                $usertmp->firstname = $obj->firstname;
+                $usertmp->lastname = $obj->lastname;
+                $usertmp->login = $obj->login;
+                print '<td>'.$usertmp->getNomUrl(-1).'</td>';
+        }
 
-	// Year
-	if (!empty($arrayfields['t.year']['checked'])) {
-		print '<td class="center">'.(int)$obj->year.'</td>';
-	}
+        if (!empty($arrayfields['t.entity']['checked'])) {
+                // EN: Render the entity identifier to highlight cross-entity records.
+                // FR: Affiche l'identifiant d'entité pour mettre en avant les enregistrements inter-entités.
+                print '<td class="center">'.(int) $obj->entity.'</td>';
+        }
+
+        // Year
+        if (!empty($arrayfields['t.year']['checked'])) {
+                print '<td class="center">'.(int)$obj->year.'</td>';
+        }
 	// Week
 	if (!empty($arrayfields['t.week']['checked'])) {
 		print '<td class="center">'.(int)$obj->week.'</td>';

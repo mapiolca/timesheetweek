@@ -816,7 +816,15 @@ JS;
         if (!empty($object->id)) {
                 $morehtmlstatus = $object->getLibStatut(5);
         }
-        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', '', $morehtmlright, '', $morehtmlstatus);
+
+        $morehtmlref = '';
+        if (!empty($conf->multicompany->enabled)) {
+                // EN: Append the entity identifier inside the banner when Multicompany is enabled.
+                // FR: Ajoute l'identifiant d'entité dans la bannière lorsque Multicompany est activé.
+                $morehtmlref .= '<br>'.$langs->trans('Entity').': '.dol_escape_htmltag((string) $object->entity);
+        }
+
+        dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', '', $morehtmlref, $morehtmlright, '', $morehtmlstatus);
         print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
