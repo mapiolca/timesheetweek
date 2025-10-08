@@ -94,7 +94,7 @@ class modTimesheetWeek extends DolibarrModules
 		$this->picto = 'bookcal';
 
 		// Define some features supported by module (triggers, login, substitutions, menus, css, etc...)
-		$this->module_parts = array(
+                $this->module_parts = array(
 			// Set this to 1 if module has its own trigger directory (core/triggers)
                         'triggers' => 1,
 			// Set this to 1 if module has its own login method file (core/login)
@@ -123,13 +123,11 @@ class modTimesheetWeek extends DolibarrModules
 			),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
-			'hooks' => array(
-				//   'data' => array(
-				//       'hookcontext1',
-				//       'hookcontext2',
-				//   ),
-				//   'entity' => '0',
-			),
+                        'hooks' => array(
+                                'data' => array(
+                                        'multicompanysharing',
+                                ),
+                        ),
 			/* END MODULEBUILDER HOOKSCONTEXTS */
 			// Set this to 1 if features of module are opened to external users
 			'moduleforexternal' => 0,
@@ -600,13 +598,126 @@ class modTimesheetWeek extends DolibarrModules
 		);
 		$this->import_run_sql_after_array[$r] = array();
 		$r++; */
-		/* END MODULEBUILDER IMPORT MYOBJECT */
-	}
+        /* END MODULEBUILDER IMPORT MYOBJECT */
+    }
 
-	/**
-	 *  Function called when module is enabled.
-	 *  The init function add constants, boxes, permissions and menus (defined in constructor) into Dolibarr database.
-	 *  It also creates data directories
+    /**
+     * EN: Build the Multicompany sharing configuration provided by this module.
+     * FR: Construire la configuration de partage Multisociété fournie par ce module.
+     *
+     * @return array
+     */
+    private function getMulticompanySharingParameters()
+    {
+        if (!function_exists('timesheetweek_build_multicompany_sharing_config')) {
+            dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+        }
+
+        // EN: Reuse the shared helper so definitions stay consistent across hooks.
+        // FR: Réutiliser l'aide partagée afin de garder des définitions cohérentes entre les hooks.
+        return timesheetweek_build_multicompany_sharing_config();
+    }
+
+    /**
+     * EN: Register the sharing configuration inside the Multicompany constant.
+     * FR: Enregistrer la configuration de partage dans la constante Multisociété.
+     *
+     * @return int
+     */
+    private function registerMulticompanySharingOptions()
+    {
+        global $conf;
+
+        // EN: Skip registration when the Multicompany module is disabled.
+        // FR: Ignorer l'enregistrement lorsque le module Multisociété est désactivé.
+        if (empty($conf->multicompany->enabled) && !isModEnabled('multicompany')) {
+            return 1;
+        }
+
+        $params = $this->getMulticompanySharingParameters();
+        if (empty($params)) {
+            return 1;
+        }
+
+        $current = array();
+        if (!empty($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING)) {
+            $decoded = json_decode($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING, true);
+            if (is_array($decoded)) {
+                $current = $decoded;
+            }
+        }
+
+        $current = array_merge($current, $params);
+
+        $jsonformat = json_encode($current);
+        if ($jsonformat === false) {
+            dol_syslog(__METHOD__.': failed to encode sharing parameters to JSON', LOG_ERR);
+            return 0;
+        }
+
+        $res = dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', 0);
+        if ($res > 0) {
+            // EN: Keep the in-memory configuration synchronised with the stored value.
+            // FR: Garder la configuration en mémoire synchronisée avec la valeur stockée.
+            $conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING = $jsonformat;
+        }
+
+        return $res;
+    }
+
+    /**
+     * EN: Remove the sharing configuration from the Multicompany constant.
+     * FR: Retirer la configuration de partage de la constante Multisociété.
+     *
+     * @return int
+     */
+    private function unregisterMulticompanySharingOptions()
+    {
+        global $conf;
+
+        // EN: No action required if Multicompany is absent.
+        // FR: Aucune action nécessaire si Multisociété est absent.
+        if (empty($conf->multicompany->enabled) && !isModEnabled('multicompany')) {
+            return 1;
+        }
+
+        if (empty($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING)) {
+            return 1;
+        }
+
+        $decoded = json_decode($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING, true);
+        if (!is_array($decoded) || empty($decoded['timesheetweek'])) {
+            return 1;
+        }
+
+        unset($decoded['timesheetweek']);
+
+        if (empty($decoded)) {
+            // EN: Preserve an object structure when no external sharings remain.
+            // FR: Préserver une structure objet lorsqu'aucun partage externe ne reste.
+            $decoded = new stdClass();
+        }
+
+        $jsonformat = json_encode($decoded);
+        if ($jsonformat === false) {
+            dol_syslog(__METHOD__.': failed to encode sharing parameters to JSON', LOG_ERR);
+            return 0;
+        }
+
+        $res = dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', 0);
+        if ($res > 0) {
+            // EN: Synchronise the in-memory configuration with the stored JSON string.
+            // FR: Synchroniser la configuration en mémoire avec la chaîne JSON enregistrée.
+            $conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING = $jsonformat;
+        }
+
+        return $res;
+    }
+
+    /**
+     *  Function called when module is enabled.
+     *  The init function add constants, boxes, permissions and menus (defined in constructor) into Dolibarr database.
+     *  It also creates data directories
 	 *
 	 *  @param      string  $options    Options when enabling module ('', 'noboxes')
 	 *  @return     int<-1,1>          	1 if OK, <=0 if KO
@@ -668,7 +779,12 @@ class modTimesheetWeek extends DolibarrModules
 			}
 		}
 
-		return $this->_init($sql, $options);
+        $result = $this->_init($sql, $options);
+        if ($result > 0) {
+            $this->registerMulticompanySharingOptions();
+        }
+
+        return $result;
 	}
 
 	/**
@@ -681,7 +797,12 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		$sql = array();
-		return $this->_remove($sql, $options);
-	}
+        $sql = array();
+        $result = $this->_remove($sql, $options);
+        if ($result > 0) {
+            $this->unregisterMulticompanySharingOptions();
+        }
+
+        return $result;
+    }
 }

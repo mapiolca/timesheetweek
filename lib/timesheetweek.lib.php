@@ -22,6 +22,72 @@
  */
 
 /**
+ * EN: Provide the Multicompany sharing configuration for TimesheetWeek.
+ * FR: Fournir la configuration de partage Multisociété pour TimesheetWeek.
+ *
+ * @return array
+ */
+function timesheetweek_build_multicompany_sharing_config()
+{
+        global $conf;
+
+        // EN: Stop when the module is disabled to avoid polluting the Multicompany setup.
+        // FR: Arrêter lorsque le module est désactivé pour éviter de polluer la configuration Multisociété.
+        if (empty($conf->timesheetweek->enabled)) {
+                return array();
+        }
+
+        return array(
+                'timesheetweek' => array(
+                        'sharingelements' => array(
+                                'timesheetweek' => array(
+                                        'type' => 'object',
+                                        'icon' => 'calendar-check-o',
+                                        'lang' => 'timesheetweek@timesheetweek',
+                                        'transkey' => 'TimesheetWeekSharingTimesheet',
+                                        'tooltip' => 'TimesheetWeekSharingTimesheetTooltip',
+                                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                                        'display' => '! empty($conf->global->MULTICOMPANY_SHARINGS_ENABLED)',
+                                        'input' => array(
+                                                'global' => array(
+                                                        'hide' => true,
+                                                        'del' => true,
+                                                ),
+                                        ),
+                                ),
+                                'timesheetweek_numbering' => array(
+                                        'type' => 'object',
+                                        'icon' => 'hashtag',
+                                        'lang' => 'timesheetweek@timesheetweek',
+                                        'transkey' => 'TimesheetWeekSharingNumbering',
+                                        'tooltip' => 'TimesheetWeekSharingNumberingTooltip',
+                                        'mandatory' => 'timesheetweek',
+                                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                                        'display' => '! empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
+                                        'input' => array(
+                                                'global' => array(
+                                                        'hide' => true,
+                                                        'del' => true,
+                                                ),
+                                                'timesheetweek' => array(
+                                                        'showhide' => true,
+                                                        'del' => true,
+                                                ),
+                                        ),
+                                ),
+                        ),
+                        'sharingmodulename' => array(
+                                'timesheetweek' => 'timesheetweek',
+                                'timesheetweek_numbering' => 'timesheetweek',
+                        ),
+                        'addzero' => array(
+                                'timesheetweek',
+                        ),
+                ),
+        );
+}
+
+/**
  * Prepare admin pages header
  *
  * @return array<array{string,string,string}>

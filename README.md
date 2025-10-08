@@ -3,6 +3,7 @@
 ## Features
 
 - Statut "Scellée" / "Sealed" pour verrouiller les feuilles approuvées.
+- Compatibilité Multisociété pour partager les feuilles de temps et leur numérotation.
 
 Description of the module...
 
