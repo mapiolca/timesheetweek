@@ -40,6 +40,15 @@ $search_ref   = trim(GETPOST('search_ref','alphanohtml'));
 $search_user  = GETPOSTINT('search_user');
 $search_year  = GETPOSTINT('search_year');
 $search_week  = GETPOSTINT('search_week');
+// EN: Retrieve the combined year-week selector value used by the new week filter.
+// FR: Récupère la valeur combinée année-semaine utilisée par le nouveau filtre de semaine.
+$search_weekyear = trim(GETPOST('search_weekyear', 'alphanohtml'));
+if ($search_weekyear !== '' && preg_match('/^(\d{4})-W(\d{2})$/', $search_weekyear, $matches)) {
+        // EN: Keep year and week in sync with the ISO selector to drive SQL filters.
+        // FR: Synchronise l'année et la semaine avec le sélecteur ISO pour piloter les filtres SQL.
+        $search_year = (int) $matches[1];
+        $search_week = (int) $matches[2];
+}
 // EN: Capture the entity filter when Multicompany support is available.
 // FR: Capture le filtre d'entité lorsque la compatibilité Multicompany est disponible.
 $search_entity = $multicompanyEnabled ? GETPOSTINT('search_entity') : 0;
@@ -75,6 +84,15 @@ $usertmp = new User($db);
 $arrayfields = array(
         't.ref'          => array('label' => $langs->trans("Ref"),          'checked' => 1),
         'user'           => array('label' => $langs->trans("Employee"),     'checked' => 1),
+);
+
+if ($multicompanyEnabled) {
+        // EN: Display the entity column immediately after the employee to avoid it drifting to the far right.
+        // FR: Affiche la colonne entité juste après l'employé pour éviter qu'elle ne parte à l'extrême droite.
+        $arrayfields['t.entity'] = array('label' => $langs->trans('Entity'), 'checked' => 1);
+}
+
+$arrayfields += array(
         't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
         't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
         't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
@@ -93,12 +111,6 @@ $arrayfields = array(
 	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
         't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
-
-if ($multicompanyEnabled) {
-        // EN: Inject the entity column right after the employee column for Multicompany visibility.
-        // FR: Insère la colonne d'entité juste après la colonne employé pour la visibilité Multicompany.
-        $arrayfields = array_slice($arrayfields, 0, 2, true) + array('t.entity' => array('label' => $langs->trans('Entity'), 'checked' => 1)) + array_slice($arrayfields, 2, null, true);
-}
 
 // Update arrayfields from request (column selector)
 include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
@@ -120,6 +132,9 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
     $search_user = 0;
     $search_year = 0;
     $search_week = 0;
+    // EN: Reset the ISO week selector when clearing filters from the toolbar.
+    // FR: Réinitialise le sélecteur ISO de semaine lors de la suppression des filtres via la barre d'outils.
+    $search_weekyear = '';
     if ($multicompanyEnabled) {
         // EN: Clear the entity filter alongside other search parameters.
         // FR: Réinitialise le filtre d'entité en même temps que les autres paramètres de recherche.
@@ -186,6 +201,11 @@ if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
 if ($search_user)  $param .= '&search_user='.(int)$search_user;
 if ($search_year)  $param .= '&search_year='.(int)$search_year;
 if ($search_week)  $param .= '&search_week='.(int)$search_week;
+if ($search_weekyear !== '') {
+        // EN: Persist the ISO week selector when navigating between pages.
+        // FR: Conserve le sélecteur ISO de semaine lors de la navigation entre les pages.
+        $param .= '&search_weekyear='.urlencode($search_weekyear);
+}
 if ($multicompanyEnabled && $search_entity) {
         // EN: Preserve the entity filter during pagination and sorting.
         // FR: Préserve le filtre d'entité lors de la pagination et du tri.
@@ -249,7 +269,15 @@ if (!empty($arrayfields['t.year']['checked'])) {
         print '<td class="liste_titre center"><input class="flat" type="number" name="search_year" value="'.($search_year>0?(int)$search_year:'').'" style="width:80px"></td>';
 }
 if (!empty($arrayfields['t.week']['checked'])) {
-	print '<td class="liste_titre center"><input class="flat" type="number" name="search_week" value="'.($search_week>0?(int)$search_week:'').'" min="1" max="53" style="width:70px"></td>';
+        // EN: Determine which year should drive the ISO week selector (either the filter or the current year).
+        // FR: Détermine l'année qui doit piloter le sélecteur ISO de semaine (filtre ou année courante).
+        $currentWeekSelectorYear = $search_year > 0 ? $search_year : 0;
+        // EN: Preserve the ISO formatted value so the selector stays aligned with the active filters.
+        // FR: Préserve la valeur au format ISO pour que le sélecteur reste aligné avec les filtres actifs.
+        $selectedWeekValue = $search_weekyear !== '' ? $search_weekyear : ($search_week > 0 && $search_year > 0 ? sprintf('%04d-W%02d', $search_year, $search_week) : '');
+        // EN: Reuse the Dolibarr week selector for consistent UX with the card view.
+        // FR: Réutilise le sélecteur de semaine Dolibarr pour harmoniser l'UX avec la fiche.
+        print '<td class="liste_titre center">'.getWeekSelectorDolibarr($form, 'search_weekyear', $selectedWeekValue, $currentWeekSelectorYear, true).'</td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {
         print '<td class="liste_titre right">&nbsp;</td>';

@@ -13,6 +13,7 @@
 - Compatibilité Multicompany pour partager les feuilles de temps et leur numérotation / Multicompany compatibility to share weekly timesheets and numbering sequences.
 - Inscription et retrait automatiques de la configuration Multicompany lors de l'activation/désactivation du module / Automatic registration and cleanup of the Multicompany configuration on module enable/disable.
 - Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity details on list and card when Multicompany is active.
+- Harmonisation du filtre de semaine avec celui de la fiche via le sélecteur ISO / Harmonized week filter with the card using the ISO selector.
 
 ## 1.0
 
