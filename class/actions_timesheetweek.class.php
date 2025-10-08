@@ -5,6 +5,10 @@
  */
 class ActionsTimesheetweek
 {
+    // EN: Identifier used by the Multicompany sharing payload.
+    // FR: Identifiant utilisé par la charge utile de partage Multicompany.
+    public const MULTICOMPANY_SHARING_ROOT_KEY = 'timesheetweek';
+
     /** @var DoliDB */
     public $db;
 
@@ -86,30 +90,19 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Prepare and store multicompany sharing configuration.
-     * Préparer et stocker la configuration de partage multicompany.
+     * Build the Multicompany sharing payload for the module.
+     * Construire la charge utile de partage Multicompany pour le module.
      *
-     * @return void
+     * @return array
      */
-    private function registerMulticompanySharingDefinition()
+    public static function getMulticompanySharingDefinition()
     {
-        global $conf, $langs;
+        global $conf;
 
-        // EN: Safeguard the results container to merge data without overwriting existing hooks.
-        // FR: Sécuriser le conteneur de résultats pour fusionner les données sans écraser les hooks existants.
-        if (!is_array($this->results)) {
-            $this->results = array();
-        }
-
-        // EN: Ensure translations are available for the multicompany labels.
-        // FR: S'assurer que les traductions sont disponibles pour les libellés multicompany.
-        $langs->loadLangs(array('timesheetweek@timesheetweek'));
-
-        // EN: Define the sharing payload describing timesheet and numbering options.
-        // FR: Définir la charge utile de partage décrivant les options de feuille de temps et de numérotation.
-        $sharingKey = 'timesheetweek';
-        $definition = array(
-            $sharingKey => array(
+        // EN: Prepare the payload describing both the element and numbering sharing options.
+        // FR: Préparer la charge utile décrivant les options de partage des éléments et de la numérotation.
+        return array(
+            self::MULTICOMPANY_SHARING_ROOT_KEY => array(
                 'sharingelements' => array(
                     'timesheetweek' => array(
                         'type' => 'element',
@@ -144,10 +137,31 @@ class ActionsTimesheetweek
                 ),
             ),
         );
+    }
 
-        // EN: Merge the definition with any pre-existing sharing data exposed by other hooks.
-        // FR: Fusionner la définition avec d'éventuelles données de partage déjà exposées par d'autres hooks.
-        $this->results = array_replace_recursive($this->results, $definition);
+    /**
+     * Prepare and store multicompany sharing configuration.
+     * Préparer et stocker la configuration de partage multicompany.
+     *
+     * @return void
+     */
+    private function registerMulticompanySharingDefinition()
+    {
+        global $langs;
+
+        // EN: Safeguard the results container to merge data without overwriting existing hooks.
+        // FR: Sécuriser le conteneur de résultats pour fusionner les données sans écraser les hooks existants.
+        if (!is_array($this->results)) {
+            $this->results = array();
+        }
+
+        // EN: Ensure translations are available for the multicompany labels.
+        // FR: S'assurer que les traductions sont disponibles pour les libellés multicompany.
+        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+        // EN: Merge the static definition with any pre-existing sharing data.
+        // FR: Fusionner la définition statique avec les données de partage déjà présentes.
+        $this->results = array_replace_recursive($this->results, self::getMulticompanySharingDefinition());
     }
 
     /**
