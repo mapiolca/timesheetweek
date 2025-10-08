@@ -14,6 +14,7 @@
 - Inscription et retrait automatiques de la configuration Multicompany lors de l'activation/désactivation du module / Automatic registration and cleanup of the Multicompany configuration on module enable/disable.
 - Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity details on list and card when Multicompany is active.
 - Harmonisation du filtre de semaine avec celui de la fiche via le sélecteur ISO / Harmonized week filter with the card using the ISO selector.
+- Passage du filtre de semaine en multi-sélection pour regrouper plusieurs périodes dans la liste / Week filter upgraded to multi-select to group several periods in the list.
 
 ## 1.0
 

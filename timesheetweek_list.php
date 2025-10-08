@@ -40,14 +40,30 @@ $search_ref   = trim(GETPOST('search_ref','alphanohtml'));
 $search_user  = GETPOSTINT('search_user');
 $search_year  = GETPOSTINT('search_year');
 $search_week  = GETPOSTINT('search_week');
-// EN: Retrieve the combined year-week selector value used by the new week filter.
-// FR: Récupère la valeur combinée année-semaine utilisée par le nouveau filtre de semaine.
-$search_weekyear = trim(GETPOST('search_weekyear', 'alphanohtml'));
-if ($search_weekyear !== '' && preg_match('/^(\d{4})-W(\d{2})$/', $search_weekyear, $matches)) {
-        // EN: Keep year and week in sync with the ISO selector to drive SQL filters.
-        // FR: Synchronise l'année et la semaine avec le sélecteur ISO pour piloter les filtres SQL.
-        $search_year = (int) $matches[1];
-        $search_week = (int) $matches[2];
+// EN: Retrieve the ISO year-week values for the multi-select filter and validate them.
+// FR: Récupère les valeurs ISO année-semaine pour le filtre multi-sélection et les valide.
+$rawWeekyearFilter = GETPOST('search_weekyear', 'array', 2);
+if (!is_array($rawWeekyearFilter)) {
+        $legacyWeekyear = trim(GETPOST('search_weekyear', 'alphanohtml'));
+        $rawWeekyearFilter = $legacyWeekyear !== '' ? array($legacyWeekyear) : array();
+}
+
+$search_weekyears = array();
+$searchWeekTuples = array();
+foreach ($rawWeekyearFilter as $candidateWeekyear) {
+        $candidateWeekyear = trim((string) $candidateWeekyear);
+        if ($candidateWeekyear === '') {
+                continue;
+        }
+        if (preg_match('/^(\d{4})-W(\d{2})$/', $candidateWeekyear, $matches)) {
+                $isoWeekyear = $matches[1].'-W'.$matches[2];
+                if (!in_array($isoWeekyear, $search_weekyears, true)) {
+                        // EN: Preserve each valid ISO entry for rendering and SQL filtering.
+                        // FR: Conserve chaque entrée ISO valide pour le rendu et le filtrage SQL.
+                        $search_weekyears[] = $isoWeekyear;
+                        $searchWeekTuples[] = array('year' => (int) $matches[1], 'week' => (int) $matches[2]);
+                }
+        }
 }
 // EN: Capture the entity filter when Multicompany support is available.
 // FR: Capture le filtre d'entité lorsque la compatibilité Multicompany est disponible.
@@ -132,9 +148,10 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
     $search_user = 0;
     $search_year = 0;
     $search_week = 0;
-    // EN: Reset the ISO week selector when clearing filters from the toolbar.
-    // FR: Réinitialise le sélecteur ISO de semaine lors de la suppression des filtres via la barre d'outils.
-    $search_weekyear = '';
+    // EN: Reset the ISO multi-week selector when clearing filters from the toolbar.
+    // FR: Réinitialise le sélecteur multi-semaines ISO lors de la suppression des filtres via la barre d'outils.
+    $search_weekyears = array();
+    $searchWeekTuples = array();
     if ($multicompanyEnabled) {
         // EN: Clear the entity filter alongside other search parameters.
         // FR: Réinitialise le filtre d'entité en même temps que les autres paramètres de recherche.
@@ -164,6 +181,17 @@ if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
 if ($search_week > 0)       $sql .= " AND t.week = ".((int)$search_week);
+if (!empty($searchWeekTuples)) {
+        // EN: Apply each selected ISO week constraint as an OR group.
+        // FR: Applique chaque contrainte de semaine ISO sélectionnée sous forme de groupe OR.
+        $weekConditions = array();
+        foreach ($searchWeekTuples as $tuple) {
+                $weekConditions[] = '(t.year = '.((int) $tuple['year']).' AND t.week = '.((int) $tuple['week']).')';
+        }
+        if (!empty($weekConditions)) {
+                $sql .= ' AND ('.implode(' OR ', $weekConditions).')';
+        }
+}
 if ($multicompanyEnabled && $search_entity > 0) {
         // EN: Apply the entity constraint when Multicompany filtering is requested.
         // FR: Applique la contrainte d'entité lorsque le filtrage Multicompany est demandé.
@@ -201,10 +229,12 @@ if ($search_ref)   $param .= '&search_ref='.urlencode($search_ref);
 if ($search_user)  $param .= '&search_user='.(int)$search_user;
 if ($search_year)  $param .= '&search_year='.(int)$search_year;
 if ($search_week)  $param .= '&search_week='.(int)$search_week;
-if ($search_weekyear !== '') {
-        // EN: Persist the ISO week selector when navigating between pages.
-        // FR: Conserve le sélecteur ISO de semaine lors de la navigation entre les pages.
-        $param .= '&search_weekyear='.urlencode($search_weekyear);
+if (!empty($search_weekyears)) {
+        // EN: Persist each selected ISO week across pagination links.
+        // FR: Conserve chaque semaine ISO sélectionnée lors de la pagination.
+        foreach ($search_weekyears as $isoWeekyear) {
+                $param .= '&search_weekyear[]='.urlencode($isoWeekyear);
+        }
 }
 if ($multicompanyEnabled && $search_entity) {
         // EN: Preserve the entity filter during pagination and sorting.
@@ -272,12 +302,20 @@ if (!empty($arrayfields['t.week']['checked'])) {
         // EN: Determine which year should drive the ISO week selector (either the filter or the current year).
         // FR: Détermine l'année qui doit piloter le sélecteur ISO de semaine (filtre ou année courante).
         $currentWeekSelectorYear = $search_year > 0 ? $search_year : 0;
-        // EN: Preserve the ISO formatted value so the selector stays aligned with the active filters.
-        // FR: Préserve la valeur au format ISO pour que le sélecteur reste aligné avec les filtres actifs.
-        $selectedWeekValue = $search_weekyear !== '' ? $search_weekyear : ($search_week > 0 && $search_year > 0 ? sprintf('%04d-W%02d', $search_year, $search_week) : '');
-        // EN: Reuse the Dolibarr week selector for consistent UX with the card view.
-        // FR: Réutilise le sélecteur de semaine Dolibarr pour harmoniser l'UX avec la fiche.
-        print '<td class="liste_titre center">'.getWeekSelectorDolibarr($form, 'search_weekyear', $selectedWeekValue, $currentWeekSelectorYear, true).'</td>';
+        if ($currentWeekSelectorYear === 0 && !empty($searchWeekTuples)) {
+                // EN: Align the selector year with the first selected ISO tuple when available.
+                // FR: Aligne l'année du sélecteur sur la première paire ISO sélectionnée lorsque disponible.
+                $currentWeekSelectorYear = (int) $searchWeekTuples[0]['year'];
+        }
+        $selectedWeekValues = $search_weekyears;
+        if (empty($selectedWeekValues) && $search_week > 0 && $search_year > 0) {
+                // EN: Display the typed year/week combination in the selector for visual feedback.
+                // FR: Affiche la combinaison année/semaine saisie dans le sélecteur pour le retour visuel.
+                $selectedWeekValues[] = sprintf('%04d-W%02d', $search_year, $search_week);
+        }
+        // EN: Reuse the Dolibarr week selector in multi-select mode for consistent UX with the card view.
+        // FR: Réutilise le sélecteur de semaine Dolibarr en mode multi-sélection pour harmoniser l'UX avec la fiche.
+        print '<td class="liste_titre center">'.getWeekSelectorDolibarr($form, 'search_weekyear', $selectedWeekValues, $currentWeekSelectorYear, true, true).'</td>';
 }
 if (!empty($arrayfields['t.total_hours']['checked'])) {
         print '<td class="liste_titre right">&nbsp;</td>';
