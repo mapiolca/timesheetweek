@@ -14,6 +14,7 @@ Description of the module...
 - Compatibilité Multicompany pour partager les feuilles de temps et leur numérotation / Multicompany compatibility to share weekly timesheets and their numbering.
 - Inscription automatique de la configuration Multicompany lors de l'activation et nettoyage lors de la désactivation / Automatic registration of the Multicompany configuration on activation and cleanup on deactivation.
 - Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity information in list and card when using Multicompany.
+- Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured SQL queries on sheets and lines with entity scoping for Multicompany.
 - Harmonisation du filtre de semaine de la liste avec la fiche via le sélecteur ISO / Harmonized week filter between list and card using the ISO selector.
 - Filtre de semaine en multi-sélection pour combiner plusieurs périodes directement depuis la liste / Multi-select week filter to combine several periods directly from the list.
 

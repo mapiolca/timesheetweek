@@ -177,6 +177,9 @@ $sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 $sql .= " WHERE 1=1";
+// EN: Restrict the listing to the entities allowed for the timesheet module.
+// FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
+$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
 if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);

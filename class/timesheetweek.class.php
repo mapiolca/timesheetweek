@@ -132,7 +132,10 @@ class TimesheetWeek extends CommonObject
 		// Replace provisional ref with (PROV<ID>)
 		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
 			$this->ref = '(PROV'.$this->id.')';
-			$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
+                        $up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
+                        // EN: Prevent provisional reference updates outside the allowed entities.
+                        // FR: Empêche la mise à jour de référence provisoire hors des entités autorisées.
+                        $up .= " AND entity IN (".getEntity('timesheetweek').")";
 			if (!$this->db->query($up)) {
 				$this->db->rollback();
 				$this->error = $this->db->lasterror();
@@ -172,6 +175,9 @@ class TimesheetWeek extends CommonObject
 
                 $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX.$this->table_element;
                 $sql .= " WHERE entity=".(int) $entityId;
+                // EN: Double check the entity against the module permissions matrix.
+                // FR: Vérifie en plus que l'entité figure dans la matrice des permissions du module.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
                 $sql .= " AND fk_user=".(int) $userId;
                 $sql .= " AND year=".(int) $year;
                 $sql .= " AND week=".(int) $week;
@@ -207,7 +213,10 @@ class TimesheetWeek extends CommonObject
                 $sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
                 $sql .= " t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element." as t";
-		$sql .= " WHERE 1=1";
+                $sql .= " WHERE 1=1";
+                // EN: Restrict fetch operations to the entities enabled for this module.
+                // FR: Restreint les opérations de récupération aux entités autorisées pour ce module.
+                $sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
 		if ($id) {
 			$sql .= " AND t.rowid=".(int) $id;
 		} elseif ($ref) {
@@ -262,8 +271,11 @@ class TimesheetWeek extends CommonObject
 
 		if (empty($this->id)) return 0;
 
-		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
-		$sql .= " WHERE fk_timesheet_week=".(int) $this->id;
+                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week_line";
+                $sql .= " WHERE fk_timesheet_week=".(int) $this->id;
+                // EN: Protect the fetch to ensure lines belong to an allowed entity scope.
+                // FR: Protège le chargement pour s'assurer que les lignes appartiennent à une entité autorisée.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
 		$sql .= " ORDER BY day_date ASC, rowid ASC";
 
 		$res = $this->db->query($sql);
@@ -320,8 +332,11 @@ class TimesheetWeek extends CommonObject
                 $sets[] = "meal_count=".(int) ($this->meal_count ?: 0);
                 $sets[] = "tms='".$this->db->idate($now)."'";
 
-		$sql .= " ".implode(', ', $sets);
-		$sql .= " WHERE rowid=".(int) $this->id;
+                $sql .= " ".implode(', ', $sets);
+                $sql .= " WHERE rowid=".(int) $this->id;
+                // EN: Ensure updates only target rows within authorized entities.
+                // FR: Garantit que les mises à jour ne visent que les lignes des entités autorisées.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
@@ -339,14 +354,20 @@ class TimesheetWeek extends CommonObject
 	{
 		$this->db->begin();
 
-		$dl = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
+                $dl = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
+                // EN: Secure the cascade deletion to the permitted entities only.
+                // FR: Sécurise la suppression en cascade aux seules entités autorisées.
+                $dl .= " AND entity IN (".getEntity('timesheetweek').")";
 		if (!$this->db->query($dl)) {
 			$this->db->rollback();
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
 
-		$sql = "DELETE FROM ".MAIN_DB_PREFIX.$this->table_element." WHERE rowid=".(int) $this->id;
+                $sql = "DELETE FROM ".MAIN_DB_PREFIX.$this->table_element." WHERE rowid=".(int) $this->id;
+                // EN: Limit the deletion of the header to the entities allowed for the module.
+                // FR: Limite la suppression de l'en-tête aux entités autorisées pour le module.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
                 if (!$this->db->query($sql)) {
                         $this->db->rollback();
                         $this->error = $this->db->lasterror();
@@ -440,8 +461,11 @@ class TimesheetWeek extends CommonObject
                 $sql .= ", zone1_count=".(int) $this->zone1_count.", zone2_count=".(int) $this->zone2_count;
                 $sql .= ", zone3_count=".(int) $this->zone3_count.", zone4_count=".(int) $this->zone4_count;
                 $sql .= ", zone5_count=".(int) $this->zone5_count.", meal_count=".(int) $this->meal_count;
-		$sql .= " WHERE rowid=".(int) $this->id;
-		return $this->db->query($sql) ? 1 : -1;
+                $sql .= " WHERE rowid=".(int) $this->id;
+                // EN: Constrain totals updates to the allowed entities for safety.
+                // FR: Contraint les mises à jour des totaux aux entités autorisées pour plus de sécurité.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
+                return $this->db->query($sql) ? 1 : -1;
 	}
 
 	/**
@@ -451,7 +475,10 @@ class TimesheetWeek extends CommonObject
 	public function hasAtLeastOneLine()
 	{
 		if (is_array($this->lines) && count($this->lines)) return true;
-		$sql = "SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
+                $sql = "SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
+                // EN: Count only lines belonging to the permitted entities for submission checks.
+                // FR: Compte uniquement les lignes des entités autorisées pour les vérifications de soumission.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
 		$res = $this->db->query($sql);
 		if (!$res) return false;
 		$obj = $this->db->fetch_object($res);
@@ -489,6 +516,9 @@ class TimesheetWeek extends CommonObject
                         }
                         $this->ref = $newref;
                         $upref = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET ref='".$this->db->escape($this->ref)."' WHERE rowid=".(int) $this->id;
+                        // EN: Secure definitive reference assignment to authorized entities.
+                        // FR: Sécurise l'attribution de la référence définitive aux entités autorisées.
+                        $upref .= " AND entity IN (".getEntity('timesheetweek').")";
                         if (!$this->db->query($upref)) {
                                 $this->db->rollback();
                                 $this->error = $this->db->lasterror();
@@ -497,6 +527,9 @@ class TimesheetWeek extends CommonObject
                 }
 
                 $up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                // EN: Apply the status change strictly within the accessible entities.
+                // FR: Applique le changement de statut strictement au sein des entités accessibles.
+                $up .= " AND entity IN (".getEntity('timesheetweek').")";
                 if (!$this->db->query($up)) {
                         $this->db->rollback();
                         $this->error = $this->db->lasterror();
@@ -534,6 +567,9 @@ class TimesheetWeek extends CommonObject
 
                 $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
                         " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                // EN: Enforce the entity scope while reverting to draft.
+                // FR: Impose la portée d'entité lors du retour en brouillon.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
                 if (!$this->db->query($sql)) {
                         $this->db->rollback();
                         $this->error = $this->db->lasterror();
@@ -590,6 +626,9 @@ class TimesheetWeek extends CommonObject
                 $sql .= ", tms='".$this->db->idate($now)."'";
                 $sql .= $setvalid;
                 $sql .= " WHERE rowid=".(int) $this->id;
+                // EN: Restrict the approval to timesheets inside permitted entities.
+                // FR: Restreint l'approbation aux feuilles situées dans les entités autorisées.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
                 if (!$this->db->query($sql)) {
                         $this->db->rollback();
@@ -1020,7 +1059,10 @@ class TimesheetWeek extends CommonObject
 		$ww = str_pad((int) $this->week, 2, '0', STR_PAD_LEFT);
 
 		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX.$this->table_element;
-		$sql .= " WHERE entity=".(int) $conf->entity;
+                $sql .= " WHERE entity=".(int) $conf->entity;
+                // EN: Ensure the fallback generation still respects allowed entities.
+                // FR: Garantit que la génération de secours respecte les entités autorisées.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
 		$sql .= " AND year=".(int) $this->year." AND week=".(int) $this->week;
 		$sql .= " AND ref LIKE 'FH".$yyyy.$ww."-%'";
 		$sql .= " ORDER BY ref DESC";

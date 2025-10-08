@@ -15,6 +15,7 @@
 - Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity details on list and card when Multicompany is active.
 - Harmonisation du filtre de semaine avec celui de la fiche via le sélecteur ISO / Harmonized week filter with the card using the ISO selector.
 - Passage du filtre de semaine en multi-sélection pour regrouper plusieurs périodes dans la liste / Week filter upgraded to multi-select to group several periods in the list.
+- Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured timesheet and line SQL queries with entity scoping for Multicompany.
 
 ## 1.0
 
