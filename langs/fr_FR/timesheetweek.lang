@@ -30,7 +30,6 @@ ShareTimesheetWeekTooltip = Autoriser les entités à accéder aux mêmes feuill
 ShareTimesheetWeekNumbering = Partager la numérotation des feuilles de temps hebdomadaires
 ShareTimesheetWeekNumberingTooltip = Synchroniser les séquences de numérotation des feuilles de temps hebdomadaires entre les entités.
 SelectWeekPlaceholder = -- Sélectionnez une semaine --
-SelectWeeksPlaceholder = Sélectionnez une ou plusieurs semaines
 
 #
 # Page À propos

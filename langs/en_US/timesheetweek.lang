@@ -29,7 +29,6 @@ ShareTimesheetWeekTooltip = Allow entities to access the same weekly timesheets 
 ShareTimesheetWeekNumbering = Share weekly timesheet numbering
 ShareTimesheetWeekNumberingTooltip = Synchronize numbering sequences for weekly timesheets between entities.
 SelectWeekPlaceholder = -- Select a week --
-SelectWeeksPlaceholder = Select one or more weeks
 
 
 #

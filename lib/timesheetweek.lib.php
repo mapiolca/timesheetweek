@@ -328,79 +328,91 @@ function getWeekSelectorDolibarr($form, $htmlname, $selected = 0, $year = 0, $in
 {
         global $langs;
 
-        // EN: Prepare the selected values for either single or multiple mode.
-        // FR: Prépare les valeurs sélectionnées pour le mode simple ou multiple.
-        $selectedYear = 0;
-        $selectedWeek = 0;
-        $selectedValues = array();
-
         if ($multiple) {
-                // EN: Normalise the selection list when multiple weeks can be chosen.
-                // FR: Normalise la liste de sélection lorsque plusieurs semaines peuvent être choisies.
+                // EN: Normalise the ISO year-week values and reuse Dolibarr's native multi-select layout.
+                // FR: Normalise les valeurs ISO année-semaine et réutilise la présentation multi-sélection native de Dolibarr.
                 if (!is_array($selected)) {
                         $selected = $selected !== '' ? array($selected) : array();
                 }
 
+                $selectedValues = array();
                 foreach ($selected as $candidate) {
                         if (is_string($candidate) && preg_match('/^(\d{4})-W(\d{2})$/', $candidate, $matches)) {
-                                $isoKey = $matches[1].'-W'.$matches[2];
-                                $selectedValues[$isoKey] = true;
+                                $selectedValues[$matches[1].'-W'.$matches[2]] = true;
                         }
                 }
 
                 if (empty($year)) {
-                        // EN: Use the current ISO year to populate the selector when no year is specified.
-                        // FR: Utilise l'année ISO courante pour alimenter le sélecteur lorsqu'aucune année n'est précisée.
+                        // EN: Default to the current ISO year when no context year is supplied.
+                        // FR: Utilise l'année ISO courante lorsqu'aucune année de contexte n'est fournie.
                         $year = (int) date('o');
                 }
+
+                $options = array();
+                for ($week = 1; $week <= 53; $week++) {
+                        $dto = new DateTime();
+                        $dto->setISODate($year, $week);
+                        $start = dol_print_date($dto->getTimestamp(), 'day');
+                        $dto->modify('+6 days');
+                        $end = dol_print_date($dto->getTimestamp(), 'day');
+
+                        $isoKey = $year.'-W'.str_pad((string) $week, 2, '0', STR_PAD_LEFT);
+                        $options[$isoKey] = $langs->trans('Week').' '.$week.' ('.$start.' → '.$end.')';
+                }
+
+                return $form->multiselectarray(
+                        $htmlname,
+                        $options,
+                        array_keys($selectedValues),
+                        0,
+                        0,
+                        'minwidth150 maxwidth200',
+                        0,
+                        0,
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        1
+                );
+        }
+
+        // EN: Prepare the selected week and year for the single-choice selector.
+        // FR: Prépare la semaine et l'année sélectionnées pour le sélecteur mono-choix.
+        $selectedYear = 0;
+        $selectedWeek = 0;
+
+        if (is_string($selected) && preg_match('/^(\d{4})-W(\d{2})$/', $selected, $matches)) {
+                $selectedYear = (int) $matches[1];
+                $selectedWeek = (int) $matches[2];
         } else {
-                // EN: Accept either an integer week number or an ISO year-week string (YYYY-Www).
-                // FR: Accepte soit un numéro de semaine entier, soit une chaîne ISO année-semaine (AAAA-Sww).
-                if (is_string($selected) && preg_match('/^(\d{4})-W(\d{2})$/', $selected, $matches)) {
-                        $selectedYear = (int) $matches[1];
-                        $selectedWeek = (int) $matches[2];
-                } else {
-                        $selectedWeek = (int) $selected;
-                }
-
-                if (empty($year)) {
-                        // EN: Prefer the parsed year when available, otherwise default to the current ISO year.
-                        // FR: Privilégie l'année analysée si disponible, sinon utilise l'année ISO courante.
-                        $year = $selectedYear > 0 ? $selectedYear : (int) date('o');
-                }
-
-                if ($selectedYear <= 0) {
-                        // EN: Align the selection year with the generated year when none was provided explicitly.
-                        // FR: Aligne l'année sélectionnée avec l'année générée lorsqu'aucune n'est fournie explicitement.
-                        $selectedYear = $year;
-                }
-
-                if ($selectedWeek <= 0) {
-                        // EN: Default to the current week unless an empty placeholder is requested.
-                        // FR: Par défaut utilise la semaine courante sauf si un choix vide est demandé.
-                        $selectedWeek = $includeEmpty ? 0 : (int) date('W');
-                }
+                $selectedWeek = (int) $selected;
         }
 
-        $nameAttribute = $htmlname;
-        if ($multiple && substr($htmlname, -2) !== '[]') {
-                // EN: Append [] so PHP receives the selected weeks as an array.
-                // FR: Ajoute [] pour que PHP reçoive les semaines sélectionnées sous forme de tableau.
-                $nameAttribute .= '[]';
+        if (empty($year)) {
+                // EN: Use the parsed year when possible, otherwise rely on the current ISO year.
+                // FR: Utilise l'année extraite lorsque possible, sinon se base sur l'année ISO courante.
+                $year = $selectedYear > 0 ? $selectedYear : (int) date('o');
         }
 
-        $extraAttributes = '';
-        if ($multiple) {
-                // EN: Expose Select2 metadata for a richer multi-select experience.
-                // FR: Expose des métadonnées Select2 pour une expérience multi-sélection enrichie.
-                $extraAttributes = ' multiple data-placeholder="'.dol_escape_htmltag($langs->trans('SelectWeeksPlaceholder')).'"';
+        if ($selectedYear <= 0) {
+                // EN: Align the selected year with the rendered year when none is provided explicitly.
+                // FR: Aligne l'année sélectionnée avec l'année affichée lorsqu'aucune n'est fournie explicitement.
+                $selectedYear = $year;
         }
 
-        $out = '<select class="flat minwidth200'.($multiple ? ' select2' : '').'" name="'.$nameAttribute.'" id="'.$htmlname.'"'.$extraAttributes.'>';
+        if ($selectedWeek <= 0) {
+                // EN: Default to the current week except when an empty option must be shown.
+                // FR: Utilise la semaine courante sauf si une option vide doit être proposée.
+                $selectedWeek = $includeEmpty ? 0 : (int) date('W');
+        }
 
-        if ($includeEmpty && !$multiple) {
+        $out = '<select class="flat minwidth200" name="'.$htmlname.'" id="'.$htmlname.'">';
+
+        if ($includeEmpty) {
                 // EN: Offer an empty option so list filters can be cleared.
-                // FR: Offre une option vide pour permettre de réinitialiser les filtres de liste.
+                // FR: Ajoute une option vide pour permettre de réinitialiser les filtres de liste.
                 $out .= '<option value=""'.($selectedWeek === 0 ? ' selected' : '').'>'.dol_escape_htmltag($langs->trans('SelectWeekPlaceholder')).'</option>';
         }
 
@@ -411,16 +423,9 @@ function getWeekSelectorDolibarr($form, $htmlname, $selected = 0, $year = 0, $in
                 $dto->modify('+6 days');
                 $end = dol_print_date($dto->getTimestamp(), 'day');
 
-                $label = $langs->trans("Week").' '.$week.' ('.$start.' → '.$end.')';
+                $label = $langs->trans('Week').' '.$week.' ('.$start.' → '.$end.')';
                 $val = $year.'-W'.str_pad((string) $week, 2, '0', STR_PAD_LEFT);
-
-                if ($multiple) {
-                        // EN: Mark each ISO entry as selected when building the multi-choice selector.
-                        // FR: Marque chaque entrée ISO comme sélectionnée lors de la construction du sélecteur multi-choix.
-                        $isselected = isset($selectedValues[$val]);
-                } else {
-                        $isselected = ($selectedWeek === $week && $selectedYear === $year);
-                }
+                $isselected = ($selectedWeek === $week && $selectedYear === $year);
                 $out .= '<option value="'.$val.'"'.($isselected ? ' selected' : '').'>'.$label.'</option>';
         }
 
