@@ -4,12 +4,14 @@
 
 - Statut "Scellée" / "Sealed" pour verrouiller les feuilles approuvées.
 - Compatibilité Multisociété pour partager les feuilles de temps et leur numérotation.
+- Redirection automatique vers la feuille existante en cas de doublon / Automatic redirect to the existing sheet when a duplicate is requested.
 
 Description of the module...
 
 - Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
 - Recalcul automatique des compteurs de zones et de paniers lors de chaque enregistrement.
 - Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
+- Création rapide d'une feuille d'heures depuis le raccourci "Ajouter" du menu supérieur.
 
 <!--
 ![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}
