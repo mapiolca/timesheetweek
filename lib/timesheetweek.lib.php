@@ -316,37 +316,122 @@ JS;
  * Génère un <select> listant les semaines de l'année courante
  * au format visuel Dolibarr (classe flat + select2)
  *
- * @param Form   $form      Objet Form Dolibarr
- * @param string $htmlname  Nom du champ select
- * @param int    $selected  Numéro de semaine par défaut
- * @param int    $year      Année (par défaut année courante)
+ * @param Form        $form      Objet Form Dolibarr
+ * @param string      $htmlname  Nom du champ select
+ * @param int|array   $selected  Numéro(s) de semaine sélectionné(s)
+ * @param int         $year      Année (par défaut année courante)
+ * @param bool        $includeEmpty Indique si une option vide est requise
+ * @param bool        $multiple  Active le mode multi-sélection
  * @return string
  */
-function getWeekSelectorDolibarr($form, $htmlname, $selected = 0, $year = 0)
+function getWeekSelectorDolibarr($form, $htmlname, $selected = 0, $year = 0, $includeEmpty = false, $multiple = false)
 {
-	global $langs;
+        global $langs;
 
-	if (empty($year)) $year = (int) date('o');     // Année ISO
-	if (empty($selected)) $selected = (int) date('W'); // Semaine ISO courante
+        if ($multiple) {
+                // EN: Normalise the ISO year-week values and reuse Dolibarr's native multi-select layout.
+                // FR: Normalise les valeurs ISO année-semaine et réutilise la présentation multi-sélection native de Dolibarr.
+                if (!is_array($selected)) {
+                        $selected = $selected !== '' ? array($selected) : array();
+                }
 
-	$out = '<select class="flat minwidth200" name="'.$htmlname.'" id="'.$htmlname.'">';
+                $selectedValues = array();
+                foreach ($selected as $candidate) {
+                        if (is_string($candidate) && preg_match('/^(\d{4})-W(\d{2})$/', $candidate, $matches)) {
+                                $selectedValues[$matches[1].'-W'.$matches[2]] = true;
+                        }
+                }
 
-	for ($week = 1; $week <= 53; $week++) {
-		$dto = new DateTime();
-		$dto->setISODate($year, $week); // Lundi de la semaine
-		$start = dol_print_date($dto->getTimestamp(), 'day');
-		$dto->modify('+6 days');
-		$end = dol_print_date($dto->getTimestamp(), 'day');
+                if (empty($year)) {
+                        // EN: Default to the current ISO year when no context year is supplied.
+                        // FR: Utilise l'année ISO courante lorsqu'aucune année de contexte n'est fournie.
+                        $year = (int) date('o');
+                }
 
-		$label = $langs->trans("Week").' '.$week.' ('.$start.' → '.$end.')';
-		$val = $year.'-W'.str_pad((string) $week, 2, '0', STR_PAD_LEFT);
+                $options = array();
+                for ($week = 1; $week <= 53; $week++) {
+                        $dto = new DateTime();
+                        $dto->setISODate($year, $week);
+                        $start = dol_print_date($dto->getTimestamp(), 'day');
+                        $dto->modify('+6 days');
+                        $end = dol_print_date($dto->getTimestamp(), 'day');
 
-		$out .= '<option value="'.$val.'"'.($week === (int) $selected ? ' selected' : '').'>'.$label.'</option>';
-	}
+                        $isoKey = $year.'-W'.str_pad((string) $week, 2, '0', STR_PAD_LEFT);
+                        $options[$isoKey] = $langs->trans('Week').' '.$week.' ('.$start.' → '.$end.')';
+                }
 
-	$out .= '</select>';
+                return $form->multiselectarray(
+                        $htmlname,
+                        $options,
+                        array_keys($selectedValues),
+                        0,
+                        0,
+                        'minwidth150 maxwidth200',
+                        0,
+                        0,
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        1
+                );
+        }
 
-	return $out;
+        // EN: Prepare the selected week and year for the single-choice selector.
+        // FR: Prépare la semaine et l'année sélectionnées pour le sélecteur mono-choix.
+        $selectedYear = 0;
+        $selectedWeek = 0;
+
+        if (is_string($selected) && preg_match('/^(\d{4})-W(\d{2})$/', $selected, $matches)) {
+                $selectedYear = (int) $matches[1];
+                $selectedWeek = (int) $matches[2];
+        } else {
+                $selectedWeek = (int) $selected;
+        }
+
+        if (empty($year)) {
+                // EN: Use the parsed year when possible, otherwise rely on the current ISO year.
+                // FR: Utilise l'année extraite lorsque possible, sinon se base sur l'année ISO courante.
+                $year = $selectedYear > 0 ? $selectedYear : (int) date('o');
+        }
+
+        if ($selectedYear <= 0) {
+                // EN: Align the selected year with the rendered year when none is provided explicitly.
+                // FR: Aligne l'année sélectionnée avec l'année affichée lorsqu'aucune n'est fournie explicitement.
+                $selectedYear = $year;
+        }
+
+        if ($selectedWeek <= 0) {
+                // EN: Default to the current week except when an empty option must be shown.
+                // FR: Utilise la semaine courante sauf si une option vide doit être proposée.
+                $selectedWeek = $includeEmpty ? 0 : (int) date('W');
+        }
+
+        $out = '<select class="flat minwidth200" name="'.$htmlname.'" id="'.$htmlname.'">';
+
+        if ($includeEmpty) {
+                // EN: Offer an empty option so list filters can be cleared.
+                // FR: Ajoute une option vide pour permettre de réinitialiser les filtres de liste.
+                $out .= '<option value=""'.($selectedWeek === 0 ? ' selected' : '').'>'.dol_escape_htmltag($langs->trans('SelectWeekPlaceholder')).'</option>';
+        }
+
+        for ($week = 1; $week <= 53; $week++) {
+                $dto = new DateTime();
+                $dto->setISODate($year, $week); // Lundi de la semaine
+                $start = dol_print_date($dto->getTimestamp(), 'day');
+                $dto->modify('+6 days');
+                $end = dol_print_date($dto->getTimestamp(), 'day');
+
+                $label = $langs->trans('Week').' '.$week.' ('.$start.' → '.$end.')';
+                $val = $year.'-W'.str_pad((string) $week, 2, '0', STR_PAD_LEFT);
+                $isselected = ($selectedWeek === $week && $selectedYear === $year);
+                $out .= '<option value="'.$val.'"'.($isselected ? ' selected' : '').'>'.$label.'</option>';
+        }
+
+        $out .= '</select>';
+
+        return $out;
 }
 
 function timesheetweekShowPerWeek($db, $userId, $year, $week)

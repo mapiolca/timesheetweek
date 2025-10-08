@@ -128,6 +128,11 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        // EN: Register multicompany sharing contexts to expose sharing options.
+                                        // FR: Enregistrer les contextes multicompany pour exposer les options de partage.
+                                        'multicompanyexternalmodulesharing',
+                                        'multicompanyexternalmodules',
+                                        'multicompanysharingoptions',
                                 ),
                                 'entity' => '0',
                         ),
@@ -669,7 +674,40 @@ class modTimesheetWeek extends DolibarrModules
 			}
 		}
 
-		return $this->_init($sql, $options);
+                // EN: Register Multicompany sharing metadata when the module is enabled.
+                // FR: Enregistrer les métadonnées de partage Multicompany lors de l'activation du module.
+                dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+
+                // EN: Start from the current external module sharing configuration or an empty set.
+                // FR: Partir de la configuration de partage des modules externes actuelle ou d'un ensemble vide.
+                $externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
+                if (!is_array($externalmodule)) {
+                        // EN: Guarantee an array structure even when the constant is missing or invalid.
+                        // FR: Garantir une structure de tableau même lorsque la constante est absente ou invalide.
+                        $externalmodule = array();
+                }
+
+                // EN: Initialize the parameters container before filling it with sharing data.
+                // FR: Initialiser le conteneur de paramètres avant de le remplir avec les données de partage.
+                $params = array();
+                if (class_exists('ActionsTimesheetweek')) {
+                        // EN: Reuse the hook helper to expose the sharing parameters to Multicompany.
+                        // FR: Réutiliser l'assistant de hook pour exposer les paramètres de partage à Multicompany.
+                        $params = ActionsTimesheetweek::getMulticompanySharingDefinition();
+                }
+
+                if (!empty($params)) {
+                        // EN: Merge TimesheetWeek definitions with any existing external module configuration.
+                        // FR: Fusionner les définitions TimesheetWeek avec toute configuration de module externe existante.
+                        $externalmodule = array_merge($externalmodule, $params);
+
+                        // EN: Persist the refreshed configuration in the Dolibarr constants table.
+                        // FR: Persister la configuration actualisée dans la table des constantes de Dolibarr.
+                        $jsonformat = json_encode($externalmodule);
+                        dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
+                }
+
+                return $this->_init($sql, $options);
 	}
 
 	/**
@@ -682,7 +720,37 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		$sql = array();
-		return $this->_remove($sql, $options);
-	}
+                // EN: Access the global configuration to manipulate stored constants.
+                // FR: Accéder à la configuration globale pour manipuler les constantes stockées.
+                global $conf;
+
+                // EN: Load the hook helper to clean the sharing definition on deactivation.
+                // FR: Charger l'assistant de hook pour nettoyer la définition de partage à la désactivation.
+                dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+
+                // EN: Decode the current external module sharing configuration safely.
+                // FR: Décoder prudemment la configuration de partage des modules externes actuelle.
+                $externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
+                if (!is_array($externalmodule)) {
+                        // EN: Fallback to an empty array when the stored value is not valid JSON.
+                        // FR: Revenir à un tableau vide lorsque la valeur stockée n'est pas un JSON valide.
+                        $externalmodule = array();
+                }
+
+                // EN: Determine the key used to store TimesheetWeek sharing data.
+                // FR: Déterminer la clé utilisée pour stocker les données de partage TimesheetWeek.
+                $sharingKey = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::MULTICOMPANY_SHARING_ROOT_KEY : 'timesheetweek';
+
+                // EN: Remove the module definition so Multicompany forgets our sharing options.
+                // FR: Retirer la définition du module pour que Multicompany oublie nos options de partage.
+                unset($externalmodule[$sharingKey]);
+
+                // EN: Persist the cleaned configuration back into Dolibarr constants.
+                // FR: Persister la configuration nettoyée dans les constantes Dolibarr.
+                $jsonformat = json_encode($externalmodule);
+                dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
+
+                $sql = array();
+                return $this->_remove($sql, $options);
+        }
 }

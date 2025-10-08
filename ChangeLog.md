@@ -10,6 +10,15 @@
 - Ajout du script de mise à jour SQL (`sql/update_all.sql`) pour créer les compteurs hebdomadaires sur les données existantes.
 - Redirection automatique vers la feuille existante en cas de création en doublon / Automatic redirect to the existing sheet when attempting a duplicate creation.
 - Ajout d'un accès rapide à la création de feuille d'heures via le menu supérieur.
+- Compatibilité Multicompany pour partager les feuilles de temps et leur numérotation / Multicompany compatibility to share weekly timesheets and numbering sequences.
+- Inscription et retrait automatiques de la configuration Multicompany lors de l'activation/désactivation du module / Automatic registration and cleanup of the Multicompany configuration on module enable/disable.
+- Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany, avec badge natif sous la référence en cas d'entité différente / Display entity details on list and card when Multicompany is active, with a native badge under the reference when the entity differs.
+- Harmonisation du filtre de semaine avec celui de la fiche via le sélecteur ISO / Harmonized week filter with the card using the ISO selector.
+- Passage du filtre de semaine en multi-sélection pour regrouper plusieurs périodes dans la liste / Week filter upgraded to multi-select to group several periods in the list.
+- Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured timesheet and line SQL queries with entity scoping for Multicompany.
+- Filtre Multicompany de l'environnement aligné sur le multiselect natif dans la liste / Multicompany environment filter aligned with the native multiselect in the list.
+- Réorganisation des options de partage Multicompany pour séparer les feuilles et la numérotation avec les pictogrammes adaptés / Reorganised Multicompany sharing options to separate sheets and numbering with suitable pictograms.
+- Inversion des couleurs des statuts "Scellée" et "Refusée" pour reprendre les repères Dolibarr / Swapped colors of "Sealed" and "Refused" statuses to match Dolibarr visual cues.
 
 ## 1.0
 

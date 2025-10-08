@@ -5,6 +5,10 @@
  */
 class ActionsTimesheetweek
 {
+    // EN: Identifier used by the Multicompany sharing payload.
+    // FR: Identifiant utilisé par la charge utile de partage Multicompany.
+    public const MULTICOMPANY_SHARING_ROOT_KEY = 'timesheetweek';
+
     /** @var DoliDB */
     public $db;
 
@@ -81,6 +85,124 @@ class ActionsTimesheetweek
             'activation' => isModEnabled('timesheetweek') && ($hasWriteRight),
             'position' => 100,
         );
+
+        return 0;
+    }
+
+    /**
+     * Build the Multicompany sharing payload for the module.
+     * Construire la charge utile de partage Multicompany pour le module.
+     *
+     * @return array
+     */
+    public static function getMulticompanySharingDefinition()
+    {
+        global $conf;
+
+        // EN: Prepare the payload describing both the element and numbering sharing options.
+        // FR: Préparer la charge utile décrivant les options de partage des éléments et de la numérotation.
+        return array(
+            self::MULTICOMPANY_SHARING_ROOT_KEY => array(
+                'sharingelements' => array(
+                    'timesheetweek' => array(
+                        'type' => 'element',
+                        'icon' => 'bookcal',
+                        'lang' => 'timesheetweek@timesheetweek',
+                        'tooltip' => 'ShareTimesheetWeekTooltip',
+                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                    ),
+                ),
+                // EN: Expose the numbering share inside the dedicated document numbering section.
+                // FR: Exposer le partage de numérotation dans la section dédiée aux numérotations de documents.
+                'sharingdocumentnumbering' => array(
+                    'timesheetweeknumbering' => array(
+                        'type' => 'object',
+                        'icon' => 'fa fa-cogs',
+                        'lang' => 'timesheetweek@timesheetweek',
+                        'tooltip' => 'ShareTimesheetWeekNumberingTooltip',
+                        'mandatory' => 'timesheetweek',
+                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                        'display' => '! empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
+                        'input' => array(
+                            'global' => array(
+                                'hide' => true,
+                                'del' => true,
+                            ),
+                            'timesheetweek' => array(
+                                'showhide' => true,
+                                'del' => true,
+                            ),
+                        ),
+                    ),
+                ),
+                'sharingmodulename' => array(
+                    'timesheetweek' => 'timesheetweek',
+                    'timesheetweeknumbering' => 'timesheetweek',
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Prepare and store multicompany sharing configuration.
+     * Préparer et stocker la configuration de partage multicompany.
+     *
+     * @return void
+     */
+    private function registerMulticompanySharingDefinition()
+    {
+        global $langs;
+
+        // EN: Safeguard the results container to merge data without overwriting existing hooks.
+        // FR: Sécuriser le conteneur de résultats pour fusionner les données sans écraser les hooks existants.
+        if (!is_array($this->results)) {
+            $this->results = array();
+        }
+
+        // EN: Ensure translations are available for the multicompany labels.
+        // FR: S'assurer que les traductions sont disponibles pour les libellés multicompany.
+        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+        // EN: Merge the static definition with any pre-existing sharing data.
+        // FR: Fusionner la définition statique avec les données de partage déjà présentes.
+        $this->results = array_replace_recursive($this->results, self::getMulticompanySharingDefinition());
+    }
+
+    /**
+     * Provide multicompany sharing options through the dedicated hook.
+     * Fournir les options de partage multicompany via le hook dédié.
+     */
+    public function multicompanyExternalModulesSharing($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Register the sharing definition for the multicompany extension.
+        // FR: Enregistrer la définition de partage pour l'extension multicompany.
+        $this->registerMulticompanySharingDefinition();
+
+        return 0;
+    }
+
+    /**
+     * Alias hook to support alternate multicompany triggers.
+     * Hook alias pour supporter des déclencheurs multicompany alternatifs.
+     */
+    public function multicompanyExternalModuleSharing($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Delegate to the primary multicompany sharing registration.
+        // FR: Déléguer à l'enregistrement principal du partage multicompany.
+        $this->registerMulticompanySharingDefinition();
+
+        return 0;
+    }
+
+    /**
+     * Additional alias covering broader multicompany sharing requests.
+     * Alias supplémentaire couvrant les requêtes de partage multicompany plus larges.
+     */
+    public function multicompanySharingOptions($parameters, &$object, &$action, $hookmanager)
+    {
+        // EN: Reuse the shared definition to keep behaviour consistent across hooks.
+        // FR: Réutiliser la définition partagée pour conserver un comportement cohérent entre les hooks.
+        $this->registerMulticompanySharingDefinition();
 
         return 0;
     }
