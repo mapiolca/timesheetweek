@@ -5,7 +5,7 @@
 #
 
 # Libellé du module 'ModuleTimesheetWeekName'
-ModuleTimesheetWeekName = TimesheetWeek
+ModuleTimesheetWeekName = Feuille de temps hebdomadaire TimesheetWeek
 # Description du module 'ModuleTimesheetWeekDesc'
 ModuleTimesheetWeekDesc = Description du module TimesheetWeek
 
@@ -15,6 +15,11 @@ ModuleTimesheetWeekDesc = Description du module TimesheetWeek
 TimesheetWeekSetup = Paramétrage TimesheetWeek
 Settings = Paramètres
 TimesheetWeekSetupPage = Page de configuration TimesheetWeek
+TimesheetWeekNumberingHelp = Choisissez le masque de numérotation qui générera les références des feuilles hebdomadaires.
+TimesheetWeekNumberingEmpty = Aucun module de numérotation disponible.
+TimesheetWeekNumberingActivate = Activer ce masque
+TimesheetWeekPDFModelsHelp = Activez les modèles PDF générables depuis une feuille hebdomadaire.
+TimesheetWeekPDFModelsEmpty = Aucun modèle PDF disponible.
 NewSection=Nouvelle section
 TIMESHEETWEEK_MYPARAM1 = Mon paramètre 1
 TIMESHEETWEEK_MYPARAM1Tooltip = Info-bulle de mon paramètre 1
@@ -41,6 +46,18 @@ SelectWeekPlaceholder = -- Sélectionnez une semaine --
 About = À propos
 TimesheetWeekAbout = À propos de TimesheetWeek
 TimesheetWeekAboutPage = Page à propos de TimesheetWeek
+TimesheetWeekAboutGeneral = Informations générales
+TimesheetWeekAboutVersion = Version
+TimesheetWeekAboutFamily = Famille
+TimesheetWeekAboutDescription = Description
+TimesheetWeekAboutMaintainer = Éditeur
+TimesheetWeekAboutResources = Ressources
+TimesheetWeekAboutDocumentation = Documentation
+TimesheetWeekAboutDocumentationLink = Consulter le README
+TimesheetWeekAboutSupport = Support
+TimesheetWeekAboutSupportValue = Contactez votre intégrateur ou le support Dolistore pour toute demande.
+TimesheetWeekAboutContact = Site éditeur
+TimesheetWeekDescription = Module TimesheetWeek pour gérer la saisie, l'approbation et la synthèse des feuilles de temps semaine par semaine.
 
 #
 # Page d'exemple
@@ -132,13 +149,14 @@ Sendbymail = Envoyer par mail
 TimesheetWeekNotificationSubmitSubject = Feuille de temps %s soumise
 TimesheetWeekNotificationSubmitBody = Bonjour %s,\n\nLe salarié %s a soumis la feuille de temps %s pour la semaine %s/%s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
 TimesheetWeekNotificationApproveSubject = Feuille de temps %s approuvée
-TimesheetWeekNotificationApproveBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s a été approuvée par %s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
+TimesheetWeekNotificationApproveBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s est désormais approuvée par %s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
 TimesheetWeekNotificationRefuseSubject = Feuille de temps %s refusée
 TimesheetWeekNotificationRefuseBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s a été refusée par %s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
 TimesheetWeekNotificationMissingRecipient = Aucun destinataire défini pour la notification (%s).
 TimesheetWeekNotificationMailError = Impossible d'envoyer la notification e-mail : %s
 TimesheetWeekNotificationNoEmail = Le destinataire %s n'a pas d'adresse e-mail.
-TimesheetWeekNotificationValidatorFallback = Validateur
+Validator = Utilisateur responsable de l'approbation
+TimesheetWeekNotificationValidatorFallback = Utilisateur responsable de l'approbation
 TimesheetWeekNotificationEmployeeFallback = Salarié
 TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur de notification %s.
 Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
@@ -152,7 +170,7 @@ TimesheetWeekTemplateSubmitSubject = Feuille de temps __TIMESHEETWEEK_REF__ soum
 TimesheetWeekTemplateSubmitBody = Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
 TimesheetWeekTemplateApproveLabel = Notification d'approbation de feuille de temps
 TimesheetWeekTemplateApproveSubject = Feuille de temps __TIMESHEETWEEK_REF__ approuvée
-TimesheetWeekTemplateApproveBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est désormais approuvée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
 TimesheetWeekTemplateRefuseLabel = Notification de refus de feuille de temps
 TimesheetWeekTemplateRefuseSubject = Feuille de temps __TIMESHEETWEEK_REF__ refusée
 TimesheetWeekTemplateRefuseBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__

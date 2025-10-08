@@ -1,10 +1,13 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## Non publié
+## 1.0
 
+- Ajout du statut "Scellée" / "Sealed" et des permissions associées.
+- Initial version.
 - Ajout des compteurs de zones et de paniers dans l'entête des feuilles hebdomadaires.
 - Recalcul automatique des compteurs de zones et de paniers à chaque enregistrement d'une feuille hebdomadaire.
 - Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
+- Ligne de total dans la liste hebdomadaire pour additionner heures, heures supplémentaires, zones et paniers, plus affichage de la date de validation.
 - Affichage du libellé "Zone" devant chaque sélecteur quotidien.
 - Ajout de la traduction "Meals" en "Repas".
 - Ajout du script de mise à jour SQL (`sql/update_all.sql`) pour créer les compteurs hebdomadaires sur les données existantes.
@@ -19,8 +22,8 @@
 - Filtre Multicompany de l'environnement aligné sur le multiselect natif dans la liste / Multicompany environment filter aligned with the native multiselect in the list.
 - Réorganisation des options de partage Multicompany pour séparer les feuilles et la numérotation avec les pictogrammes adaptés / Reorganised Multicompany sharing options to separate sheets and numbering with suitable pictograms.
 - Inversion des couleurs des statuts "Scellée" et "Refusée" pour reprendre les repères Dolibarr / Swapped colors of "Sealed" and "Refused" statuses to match Dolibarr visual cues.
-
-## 1.0
-
-- Ajout du statut "Scellée" / "Sealed" et des permissions associées.
-- Initial version
+- Refonte de la page de configuration en suivant le modèle DiffusionPlans pour harmoniser la gestion des masques de numérotation et des modèles PDF avec Dolibarr / Setup page redesigned following the DiffusionPlans template to align numbering masks and PDF templates with Dolibarr standards.
+- Activation des masques de numérotation via des commutateurs Dolibarr natifs / Numbering masks activated through native Dolibarr switches.
+- Ajout d'un onglet « À propos » récapitulant version, éditeur et ressources du module / Added an « À propos » tab listing version, publisher and module resources.
+- README bilingue (FR/EN) entièrement mis à jour / Fully refreshed bilingual (FR/EN) README.
+- Notification d'approbation en français corrigée pour utiliser l'accent « approuvée » sans entité HTML / French approval notification updated to use the plain "approuvée" accent instead of an HTML entity.

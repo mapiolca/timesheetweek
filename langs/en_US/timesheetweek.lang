@@ -5,7 +5,7 @@
 #
 
 # Module label 'ModuleTimesheetWeekName'
-ModuleTimesheetWeekName = TimesheetWeek
+ModuleTimesheetWeekName = TimesheetWeek weekly timesheets
 # Module description 'ModuleTimesheetWeekDesc'
 ModuleTimesheetWeekDesc = TimesheetWeek description
 
@@ -15,6 +15,11 @@ ModuleTimesheetWeekDesc = TimesheetWeek description
 TimesheetWeekSetup = TimesheetWeek setup
 Settings = Settings
 TimesheetWeekSetupPage = TimesheetWeek setup page
+TimesheetWeekNumberingHelp = Choose the numbering mask that will generate references for weekly timesheets.
+TimesheetWeekNumberingEmpty = No numbering module is available.
+TimesheetWeekNumberingActivate = Activate this mask
+TimesheetWeekPDFModelsHelp = Enable the PDF templates that can be generated from a weekly timesheet.
+TimesheetWeekPDFModelsEmpty = No PDF template is available.
 NewSection=New section
 TIMESHEETWEEK_MYPARAM1 = My param 1
 TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip
@@ -41,6 +46,18 @@ SelectWeekPlaceholder = -- Select a week --
 About = About
 TimesheetWeekAbout = About TimesheetWeek
 TimesheetWeekAboutPage = TimesheetWeek about page
+TimesheetWeekAboutGeneral = General information
+TimesheetWeekAboutVersion = Version
+TimesheetWeekAboutFamily = Family
+TimesheetWeekAboutDescription = Description
+TimesheetWeekAboutMaintainer = Publisher
+TimesheetWeekAboutResources = Resources
+TimesheetWeekAboutDocumentation = Documentation
+TimesheetWeekAboutDocumentationLink = Open the README
+TimesheetWeekAboutSupport = Support
+TimesheetWeekAboutSupportValue = Reach your integrator or the Dolistore support team for any request.
+TimesheetWeekAboutContact = Publisher website
+TimesheetWeekDescription = TimesheetWeek module to manage entry, approval and reporting of weekly timesheets.
 
 #
 # Sample page
@@ -138,7 +155,8 @@ TimesheetWeekNotificationRefuseBody = Hello %s,\n\nYour timesheet %s for week %s
 TimesheetWeekNotificationMissingRecipient = No recipient available for notification (%s).
 TimesheetWeekNotificationMailError = Unable to send notification email: %s
 TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
-TimesheetWeekNotificationValidatorFallback = Validator
+Validator = User responsible for approval
+TimesheetWeekNotificationValidatorFallback = User responsible for approval
 TimesheetWeekNotificationEmployeeFallback = Employee
 TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %s.
 Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted

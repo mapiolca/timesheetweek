@@ -181,7 +181,10 @@ $arrayfields += array(
         // FR: Colonne du compteur de paniers pour l'affichage de la liste.
         't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
         't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
-	't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
+        // EN: Validation timestamp column to expose approval dates in the list.
+        // FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
+        't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
+        't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
         't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
 
@@ -427,8 +430,13 @@ if (!empty($arrayfields['t.meal_count']['checked'])) {
 if (!empty($arrayfields['t.date_creation']['checked'])) {
         print '<td class="liste_titre center">&nbsp;</td>';
 }
+if (!empty($arrayfields['t.date_validation']['checked'])) {
+        // EN: Validation date has no filter because approvals are historical events.
+        // FR: La date de validation n'a pas de filtre car les approbations sont des événements historiques.
+        print '<td class="liste_titre center">&nbsp;</td>';
+}
 if (!empty($arrayfields['t.tms']['checked'])) {
-	print '<td class="liste_titre center">&nbsp;</td>';
+        print '<td class="liste_titre center">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.status']['checked'])) {
         $statusOptions = array(
@@ -503,8 +511,11 @@ if (!empty($arrayfields['t.meal_count']['checked'])) {
 if (!empty($arrayfields['t.date_creation']['checked'])) {
         print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", "", $param, '', $sortfield, $sortorder, 'center ');
 }
+if (!empty($arrayfields['t.date_validation']['checked'])) {
+        print_liste_field_titre($arrayfields['t.date_validation']['label'], $_SERVER["PHP_SELF"], "t.date_validation", "", $param, '', $sortfield, $sortorder, 'center ');
+}
 if (!empty($arrayfields['t.tms']['checked'])) {
-	print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
+        print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.status']['checked'])) {
 	print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -517,11 +528,23 @@ print '</tr>'."\n";
 /**
  * Rows
  */
+$totalsAccumulator = array(
+        // EN: Track sums to display a total row at the bottom of the listing.
+        // FR: Suit les sommes pour afficher une ligne totale en bas de la liste.
+        'total_hours'      => 0.0,
+        'overtime_hours'   => 0.0,
+        'zone1_count'      => 0,
+        'zone2_count'      => 0,
+        'zone3_count'      => 0,
+        'zone4_count'      => 0,
+        'zone5_count'      => 0,
+        'meal_count'       => 0,
+);
 $i = 0;
 $imax = ($limit ? min($num, $limit) : $num);
 while ($i < $imax) {
-	$obj = $db->fetch_object($resql);
-	if (!$obj) break;
+        $obj = $db->fetch_object($resql);
+        if (!$obj) break;
 
 	print '<tr class="oddeven">';
 
@@ -618,33 +641,126 @@ while ($i < $imax) {
         if (!empty($arrayfields['t.date_creation']['checked'])) {
                 print '<td class="center">'.($obj->date_creation ? dol_print_date($db->jdate($obj->date_creation),'dayhour') : '').'</td>';
         }
-	// Modification
-	if (!empty($arrayfields['t.tms']['checked'])) {
-		print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
-	}
+        // EN: Display the approval date when the sheet has been validated.
+        // FR: Affiche la date d'approbation lorsque la feuille a été validée.
+        if (!empty($arrayfields['t.date_validation']['checked'])) {
+                print '<td class="center">'.($obj->date_validation ? dol_print_date($db->jdate($obj->date_validation),'dayhour') : '').'</td>';
+        }
+        // Modification
+        if (!empty($arrayfields['t.tms']['checked'])) {
+                print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
+        }
 	// Status (badge)
-	if (!empty($arrayfields['t.status']['checked'])) {
-		$tswstatic->status = $obj->status;
-		print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-	}
-	// Right selection checkbox column (if setting to put it right)
-	if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-		print '<td class="nowrap center">';
-		if ($massactionbutton || $massaction) {
-			$selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
+        if (!empty($arrayfields['t.status']['checked'])) {
+                $tswstatic->status = $obj->status;
+                print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+        }
+        // EN: Accumulate values to expose totals at the bottom of the table.
+        // FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
+        $totalsAccumulator['total_hours'] += (float) $obj->total_hours;
+        $totalsAccumulator['overtime_hours'] += (float) $obj->overtime_hours;
+        $totalsAccumulator['zone1_count'] += (int) $obj->zone1_count;
+        $totalsAccumulator['zone2_count'] += (int) $obj->zone2_count;
+        $totalsAccumulator['zone3_count'] += (int) $obj->zone3_count;
+        $totalsAccumulator['zone4_count'] += (int) $obj->zone4_count;
+        $totalsAccumulator['zone5_count'] += (int) $obj->zone5_count;
+        $totalsAccumulator['meal_count'] += (int) $obj->meal_count;
+        // Right selection checkbox column (if setting to put it right)
+        if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+                print '<td class="nowrap center">';
+                if ($massactionbutton || $massaction) {
+                        $selected = in_array($obj->rowid, $arrayofselected) ? 1 : 0;
 			print '<input id="cb'.$obj->rowid.'" class="flat checkforselect" type="checkbox" name="toselect[]" value="'.$obj->rowid.'"'.($selected ? ' checked="checked"' : '').'>';
 		}
 		print '</td>';
 	}
 
-	print '</tr>';
-	$i++;
+        print '</tr>';
+        $i++;
 }
 
-if ($num == 0) {
-	$colspan = 1;
-	foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
-	print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
+if ($imax > 0) {
+        // EN: Render the totals row for hours, zones and meal counters.
+        // FR: Affiche la ligne de totaux pour les heures, les zones et les paniers.
+        $totalLabelPrinted = false;
+        print '<tr class="liste_total">';
+        if (getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+                print '<td class="liste_total">&nbsp;</td>';
+        }
+        if (!empty($arrayfields['t.ref']['checked'])) {
+                print '<td class="liste_total">'.($totalLabelPrinted ? '&nbsp;' : $langs->trans('Total')).'</td>';
+                $totalLabelPrinted = true;
+        }
+        if (!empty($arrayfields['user']['checked'])) {
+                print '<td class="liste_total">'.($totalLabelPrinted ? '&nbsp;' : $langs->trans('Total')).'</td>';
+                $totalLabelPrinted = true;
+        }
+        if (!empty($arrayfields['t.entity']['checked'])) {
+                print '<td class="liste_total center">'.($totalLabelPrinted ? '&nbsp;' : $langs->trans('Total')).'</td>';
+                $totalLabelPrinted = true;
+        }
+        if (!empty($arrayfields['t.year']['checked'])) {
+                print '<td class="liste_total center">'.($totalLabelPrinted ? '&nbsp;' : $langs->trans('Total')).'</td>';
+                $totalLabelPrinted = true;
+        }
+        if (!empty($arrayfields['t.week']['checked'])) {
+                print '<td class="liste_total center">'.($totalLabelPrinted ? '&nbsp;' : $langs->trans('Total')).'</td>';
+                $totalLabelPrinted = true;
+        }
+        if (!empty($arrayfields['t.total_hours']['checked'])) {
+                $hours = (float) $totalsAccumulator['total_hours'];
+                $hoursInt = floor($hours);
+                $minutes = round(($hours - $hoursInt) * 60);
+                if ($minutes == 60) { $hoursInt++; $minutes = 0; }
+                $formattedHours = sprintf('%02d:%02d', $hoursInt, $minutes);
+                print '<td class="liste_total right">'.$formattedHours.'</td>';
+        }
+        if (!empty($arrayfields['t.overtime_hours']['checked'])) {
+                $hours = (float) $totalsAccumulator['overtime_hours'];
+                $hoursInt = floor($hours);
+                $minutes = round(($hours - $hoursInt) * 60);
+                if ($minutes == 60) { $hoursInt++; $minutes = 0; }
+                $formattedHours = sprintf('%02d:%02d', $hoursInt, $minutes);
+                print '<td class="liste_total right">'.$formattedHours.'</td>';
+        }
+        if (!empty($arrayfields['t.zone1_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['zone1_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.zone2_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['zone2_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.zone3_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['zone3_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.zone4_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['zone4_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.zone5_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['zone5_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.meal_count']['checked'])) {
+                print '<td class="liste_total right">'.(int) $totalsAccumulator['meal_count'].'</td>';
+        }
+        if (!empty($arrayfields['t.date_creation']['checked'])) {
+                print '<td class="liste_total center">&nbsp;</td>';
+        }
+        if (!empty($arrayfields['t.date_validation']['checked'])) {
+                print '<td class="liste_total center">&nbsp;</td>';
+        }
+        if (!empty($arrayfields['t.tms']['checked'])) {
+                print '<td class="liste_total center">&nbsp;</td>';
+        }
+        if (!empty($arrayfields['t.status']['checked'])) {
+                print '<td class="liste_total center">&nbsp;</td>';
+        }
+        if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+                print '<td class="liste_total">&nbsp;</td>';
+        }
+        print '</tr>';
+} else {
+        $colspan = 1;
+        foreach ($arrayfields as $k=>$v) if (!empty($v['checked'])) $colspan++;
+        print '<tr><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 }
 
 print '</table>';
