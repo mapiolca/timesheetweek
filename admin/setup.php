@@ -334,11 +334,12 @@ llxHeader('', $title, $helpurl, '', 0, 0, '', '', '', 'mod-timesheetweek page-ad
 
 // Subheader
 $linkback = '<a href="'.($backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1').'">'.$langs->trans("BackToModuleList").'</a>';
-print dol_get_fiche_head($head, 'settings', $langs->trans($title), -1, 'timesheetweek@timesheetweek');
 print load_fiche_titre($langs->trans($title), $linkback, 'title_setup');
 
 // Configuration header
 $head = timesheetweekAdminPrepareHead();
+print dol_get_fiche_head($head, 'settings', $langs->trans($title), -1, 'timesheetweek@timesheetweek');
+
 print '<div class="opacitymedium">'.$langs->trans('TimesheetWeekSetupPage').'</div>';
 print '<br>';
 
