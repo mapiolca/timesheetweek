@@ -77,7 +77,9 @@ class ActionsTimesheetweek
         // EN: Inject the quick creation entry with translated metadata.
         // FR: Injecter l'entrée de création rapide avec des métadonnées traduites.
         $this->results[0] = array(
-            'url' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1) . '?action=create',
+            // EN: Link directly to the custom module path exposed by Dolibarr.
+            // FR: Lien direct vers le chemin custom du module exposé par Dolibarr.
+            'url' => '/custom/timesheetweek/timesheetweek_card.php?action=create',
             'title' => 'QuickCreateTimesheetWeek@timesheetweek',
             'name' => 'TimesheetWeek@timesheetweek',
             'picto' => 'bookcal',
