@@ -327,13 +327,33 @@ if ($action === 'add') {
 	}
 
 	if ($action === 'add') {
-		$res = $object->create($user);
-		if ($res > 0) {
-			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
-			exit;
-		} else {
-			setEventMessages($object->error, $object->errors, 'errors');
-			$action = 'create';
+		$shouldCreate = true; // EN: Flag to know if creation must proceed. FR: Indicateur pour savoir si la création doit continuer.
+		if ($object->year > 0 && $object->week > 0) {
+			$existing = new TimesheetWeek($db);
+			// EN: Look for an existing timesheet for the same user and week.
+			// FR: Recherche une feuille existante pour le même utilisateur et la même semaine.
+			$existingRes = $existing->fetchByUserWeek($object->fk_user, $object->year, $object->week);
+			if ($existingRes > 0) {
+				setEventMessages($langs->trans('TimesheetWeekRedirectExisting'), null, 'warnings');
+				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$existing->id);
+				exit;
+			}
+			if ($existingRes < 0) {
+				setEventMessages($existing->error, $existing->errors, 'errors');
+				$action = 'create';
+				$shouldCreate = false;
+			}
+		}
+
+		if ($shouldCreate) {
+			$res = $object->create($user);
+			if ($res > 0) {
+				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+				exit;
+			} else {
+				setEventMessages($object->error, $object->errors, 'errors');
+				$action = 'create';
+			}
 		}
 	}
 }
@@ -428,23 +448,20 @@ if ($action === 'save' && $id > 0) {
 		}
 	}
 
-	// Totaux
-	$totalHours = 0.0;
-	$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-	$resSum = $db->query($sqlSum);
-	if ($resSum) {
-		$o = $db->fetch_object($resSum);
-		$totalHours = (float) $o->sh;
-	}
+        // EN: Reload the lines to work with the freshly stored data before aggregating.
+        // FR: Recharge les lignes pour travailler sur les données fraîchement enregistrées avant l'agrégation.
+        $linesReloaded = $object->fetchLines();
+        if ($linesReloaded < 0) {
+                $db->rollback();
+                setEventMessages($object->error ? $object->error : $db->lasterror(), $object->errors, 'errors');
+                header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+                exit;
+        }
 
-	$uEmp = new User($db);
-	$uEmp->fetch($object->fk_user);
-	$contract = !empty($uEmp->weeklyhours) ? (float)$uEmp->weeklyhours : 35.0;
-	$overtime = max(0.0, $totalHours - $contract);
-
-	$object->total_hours    = $totalHours;
-	$object->overtime_hours = $overtime;
-	$upd = $object->update($user);
+        // EN: Recompute totals and counters so they follow the exact same flow as hours and overtime.
+        // FR: Recalcule les totaux et les compteurs afin qu'ils suivent exactement le même flux que les heures et les heures supplémentaires.
+        $object->computeTotals();
+        $upd = $object->update($user);
 	if ($upd < 0) {
 		$db->rollback();
 		setEventMessages($object->error, $object->errors, 'errors');
@@ -1177,13 +1194,20 @@ JS;
 		echo '<tr class="liste_titre">';
 		echo '<td></td>';
 		foreach ($days as $d) {
-			echo '<td class="center">';
-			echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
-			for ($z=1; $z<=5; $z++) {
-				$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
-				echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
-			}
-			echo '</select><br>';
+                        echo '<td class="center">';
+                        // EN: Prefix zone selector with its label to improve understanding.
+                        // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
+                        echo '<span class="zone-select">'.$langs->trans("Zone").' ';
+                        echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+                        // EN: Provide an empty choice so the default zone selector starts blank.
+                        // FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
+                        $selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
+                        echo '<option value=""'.$selEmpty.'></option>';
+                        for ($z=1; $z<=5; $z++) {
+                                $sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
+                                echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
+                        }
+                        echo '</select></span><br>';
 			$checked = $dayMeal[$d] ? ' checked' : '';
 			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
 			echo '</td>';

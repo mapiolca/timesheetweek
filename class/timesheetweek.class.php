@@ -48,8 +48,14 @@ class TimesheetWeek extends CommonObject
 	public $tms;
 	public $date_validation;
 
-	public $total_hours = 0.0;      // total week hours
-	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
+        public $total_hours = 0.0;      // total week hours
+        public $overtime_hours = 0.0;   // overtime based on user weeklyhours
+        public $zone1_count = 0;         // zone 1 days count / nombre de jours en zone 1
+        public $zone2_count = 0;         // zone 2 days count / nombre de jours en zone 2
+        public $zone3_count = 0;         // zone 3 days count / nombre de jours en zone 3
+        public $zone4_count = 0;         // zone 4 days count / nombre de jours en zone 4
+        public $zone5_count = 0;         // zone 5 days count / nombre de jours en zone 5
+        public $meal_count = 0;          // meal days count / nombre de jours avec panier
 
 	/** @var TimesheetWeekLine[] */
 	public $lines = array();
@@ -90,7 +96,7 @@ class TimesheetWeek extends CommonObject
 		$now = dol_now();
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX.$this->table_element."(";
-		$sql .= "ref, entity, fk_user, year, week, status, note, date_creation, fk_user_valid, total_hours, overtime_hours";
+                $sql .= "ref, entity, fk_user, year, week, status, note, date_creation, fk_user_valid, total_hours, overtime_hours, zone1_count, zone2_count, zone3_count, zone4_count, zone5_count, meal_count";
 		$sql .= ") VALUES (";
 		$sql .= " '".$this->db->escape($this->ref ? $this->ref : '(PROV)')."',";
 		$sql .= " ".((int) $this->entity).",";
@@ -101,8 +107,14 @@ class TimesheetWeek extends CommonObject
 		$sql .= " ".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL").",";
 		$sql .= " '".$this->db->idate($now)."',";
 		$sql .= " ".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL").",";
-		$sql .= " ".((float) ($this->total_hours ?: 0)).",";
-		$sql .= " ".((float) ($this->overtime_hours ?: 0));
+                $sql .= " ".((float) ($this->total_hours ?: 0)).",";
+                $sql .= " ".((float) ($this->overtime_hours ?: 0)).",";
+                $sql .= " ".((int) ($this->zone1_count ?: 0)).",";
+                $sql .= " ".((int) ($this->zone2_count ?: 0)).",";
+                $sql .= " ".((int) ($this->zone3_count ?: 0)).",";
+                $sql .= " ".((int) ($this->zone4_count ?: 0)).",";
+                $sql .= " ".((int) ($this->zone5_count ?: 0)).",";
+                $sql .= " ".((int) ($this->meal_count ?: 0));
 		$sql .= ")";
 
 		$this->db->begin();
@@ -137,19 +149,63 @@ class TimesheetWeek extends CommonObject
                 return $this->id;
 	}
 
-	/**
-	 * Fetch by id or ref
-	 * @param int|null $id
-	 * @param string|null $ref
-	 * @return int
+        /**
+         * EN: Fetch the existing timesheet for a user/week within an entity.
+         * FR: Récupère la feuille existante pour un utilisateur/semaine au sein d'une entité.
+         *
+         * @param int      $userId  Target user id
+         * @param int      $year    Target ISO year
+         * @param int      $week    Target ISO week number
+         * @param int|null $entity  Optional entity identifier
+         * @return int               >0 if found (id), 0 if not found, <0 on error
+         */
+        public function fetchByUserWeek($userId, $year, $week, $entity = null)
+        {
+                global $conf;
+
+                $this->error = '';
+                $this->errors = array();
+
+                // EN: Determine the entity used for the lookup.
+                // FR: Détermine l'entité utilisée pour la recherche.
+                $entityId = ($entity !== null) ? (int) $entity : (int) $conf->entity;
+
+                $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX.$this->table_element;
+                $sql .= " WHERE entity=".(int) $entityId;
+                $sql .= " AND fk_user=".(int) $userId;
+                $sql .= " AND year=".(int) $year;
+                $sql .= " AND week=".(int) $week;
+                $sql .= " LIMIT 1";
+
+                // EN: Execute the lookup to detect an existing record.
+                // FR: Exécute la recherche pour détecter un enregistrement existant.
+                $resql = $this->db->query($sql);
+                if (!$resql) {
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
+
+                $obj = $this->db->fetch_object($resql);
+                if (!$obj) {
+                        return 0;
+                }
+
+                return $this->fetch((int) $obj->rowid);
+        }
+
+        /**
+         * Fetch by id or ref
+         * @param int|null $id
+         * @param string|null $ref
+         * @return int
 	 */
 	public function fetch($id = null, $ref = null)
 	{
 		$this->error = '';
 		$this->errors = array();
 
-		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-		$sql .= " t.total_hours, t.overtime_hours";
+                $sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+                $sql .= " t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element." as t";
 		$sql .= " WHERE 1=1";
 		if ($id) {
@@ -182,8 +238,14 @@ class TimesheetWeek extends CommonObject
 		$this->tms = $this->db->jdate($obj->tms);
 		$this->date_validation = $this->db->jdate($obj->date_validation);
 		$this->fk_user_valid = (int) $obj->fk_user_valid;
-		$this->total_hours = (float) $obj->total_hours;
-		$this->overtime_hours = (float) $obj->overtime_hours;
+                $this->total_hours = (float) $obj->total_hours;
+                $this->overtime_hours = (float) $obj->overtime_hours;
+                $this->zone1_count = (int) $obj->zone1_count;
+                $this->zone2_count = (int) $obj->zone2_count;
+                $this->zone3_count = (int) $obj->zone3_count;
+                $this->zone4_count = (int) $obj->zone4_count;
+                $this->zone5_count = (int) $obj->zone5_count;
+                $this->meal_count = (int) $obj->meal_count;
 
 		$this->fetchLines();
 
@@ -244,13 +306,19 @@ class TimesheetWeek extends CommonObject
 		if ($this->ref) $sets[] = "ref='".$this->db->escape($this->ref)."'";
 		if ($this->fk_user) $sets[] = "fk_user=".(int) $this->fk_user;
 		if ($this->year) $sets[] = "year=".(int) $this->year;
-		if ($this->week) $sets[] = "week=".(int) $this->week;
-		if ($this->status !== null) $sets[] = "status=".(int) $this->status;
-		$sets[] = "note=".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL");
-		$sets[] = "fk_user_valid=".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL");
-		$sets[] = "total_hours=".(float) ($this->total_hours ?: 0);
-		$sets[] = "overtime_hours=".(float) ($this->overtime_hours ?: 0);
-		$sets[] = "tms='".$this->db->idate($now)."'";
+                if ($this->week) $sets[] = "week=".(int) $this->week;
+                if ($this->status !== null) $sets[] = "status=".(int) $this->status;
+                $sets[] = "note=".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL");
+                $sets[] = "fk_user_valid=".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL");
+                $sets[] = "total_hours=".(float) ($this->total_hours ?: 0);
+                $sets[] = "overtime_hours=".(float) ($this->overtime_hours ?: 0);
+                $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
+                $sets[] = "zone2_count=".(int) ($this->zone2_count ?: 0);
+                $sets[] = "zone3_count=".(int) ($this->zone3_count ?: 0);
+                $sets[] = "zone4_count=".(int) ($this->zone4_count ?: 0);
+                $sets[] = "zone5_count=".(int) ($this->zone5_count ?: 0);
+                $sets[] = "meal_count=".(int) ($this->meal_count ?: 0);
+                $sets[] = "tms='".$this->db->idate($now)."'";
 
 		$sql .= " ".implode(', ', $sets);
 		$sql .= " WHERE rowid=".(int) $this->id;
@@ -300,14 +368,53 @@ class TimesheetWeek extends CommonObject
 	 */
 	public function computeTotals()
 	{
-		$total = 0.0;
-		if (!is_array($this->lines) || !count($this->lines)) {
-			$this->fetchLines();
-		}
-		foreach ($this->lines as $l) {
-			$total += (float) $l->hours;
-		}
-		$this->total_hours = $total;
+                $total = 0.0;
+                $zoneBuckets = array(1=>0, 2=>0, 3=>0, 4=>0, 5=>0);
+                $mealDays = 0;
+                $dayAggregates = array();
+                if (!is_array($this->lines) || !count($this->lines)) {
+                        $this->fetchLines();
+                }
+                foreach ($this->lines as $l) {
+                        $total += (float) $l->hours;
+                        // EN: Aggregate data per day to prevent counting duplicated task entries.
+                        // FR: Agrège les données par jour pour éviter de compter plusieurs fois les mêmes tâches.
+                        $dayKey = !empty($l->day_date) ? $l->day_date : null;
+                        if ($dayKey === null) {
+                                continue;
+                        }
+                        if (!isset($dayAggregates[$dayKey])) {
+                                $dayAggregates[$dayKey] = array(
+                                        'zone' => (int) $l->zone,
+                                        'meal' => ((int) $l->meal > 0 ? 1 : 0)
+                                );
+                        } else {
+                                if ((int) $l->zone > 0) {
+                                        $dayAggregates[$dayKey]['zone'] = (int) $l->zone;
+                                }
+                                if ((int) $l->meal > 0) {
+                                        $dayAggregates[$dayKey]['meal'] = 1;
+                                }
+                        }
+                }
+                foreach ($dayAggregates as $info) {
+                        $zoneVal = (int) ($info['zone'] ?? 0);
+                        if ($zoneVal >= 1 && $zoneVal <= 5) {
+                                $zoneBuckets[$zoneVal]++;
+                        }
+                        if (!empty($info['meal'])) {
+                                $mealDays++;
+                        }
+                }
+                $this->total_hours = $total;
+                // EN: Persist the aggregated metrics onto the main object for later storage.
+                // FR: Enregistre les indicateurs agrégés sur l'objet principal pour une sauvegarde ultérieure.
+                $this->zone1_count = $zoneBuckets[1];
+                $this->zone2_count = $zoneBuckets[2];
+                $this->zone3_count = $zoneBuckets[3];
+                $this->zone4_count = $zoneBuckets[4];
+                $this->zone5_count = $zoneBuckets[5];
+                $this->meal_count = $mealDays;
 
 		// Weekly contracted hours from user
 		$weekly = 35.0;
@@ -318,7 +425,7 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 		$ot = $total - $weekly;
-		$this->overtime_hours = ($ot > 0) ? $ot : 0.0;
+                $this->overtime_hours = ($ot > 0) ? $ot : 0.0;
 	}
 
 	/**
@@ -329,7 +436,10 @@ class TimesheetWeek extends CommonObject
 	{
 		$this->computeTotals();
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
-		$sql .= " SET total_hours=".(float) $this->total_hours.", overtime_hours=".(float) $this->overtime_hours;
+                $sql .= " SET total_hours=".(float) $this->total_hours.", overtime_hours=".(float) $this->overtime_hours;
+                $sql .= ", zone1_count=".(int) $this->zone1_count.", zone2_count=".(int) $this->zone2_count;
+                $sql .= ", zone3_count=".(int) $this->zone3_count.", zone4_count=".(int) $this->zone4_count;
+                $sql .= ", zone5_count=".(int) $this->zone5_count.", meal_count=".(int) $this->meal_count;
 		$sql .= " WHERE rowid=".(int) $this->id;
 		return $this->db->query($sql) ? 1 : -1;
 	}

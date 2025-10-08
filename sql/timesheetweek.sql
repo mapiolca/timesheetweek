@@ -11,8 +11,14 @@ CREATE TABLE llx_timesheet_week (
 	date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
 	date_validation DATETIME DEFAULT NULL,
 	fk_user_valid INT DEFAULT NULL,
-	total_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
-	overtime_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
+        total_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
+        overtime_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
+        zone1_count SMALLINT NOT NULL DEFAULT 0,
+        zone2_count SMALLINT NOT NULL DEFAULT 0,
+        zone3_count SMALLINT NOT NULL DEFAULT 0,
+        zone4_count SMALLINT NOT NULL DEFAULT 0,
+        zone5_count SMALLINT NOT NULL DEFAULT 0,
+        meal_count SMALLINT NOT NULL DEFAULT 0,
 	tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 	-- Unicité par entité
