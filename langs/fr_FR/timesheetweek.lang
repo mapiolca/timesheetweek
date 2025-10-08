@@ -5,9 +5,12 @@
 #
 
 # Libellé du module 'ModuleTimesheetWeekName'
-ModuleTimesheetWeekName = Feuille de temps hebdomadaire TimesheetWeek
+ModuleTimesheetWeekName = Feuille de temps hebdomadaire
 # Description du module 'ModuleTimesheetWeekDesc'
-ModuleTimesheetWeekDesc = Description du module TimesheetWeek
+ModuleTimesheetWeekDesc = Module pour gérer les feuilles de temps dans Dolibarr
+
+Resources
+ Readme
 
 #
 # Page d'administration
