@@ -9,9 +9,6 @@ ModuleTimesheetWeekName = Feuille de temps hebdomadaire
 # Description du module 'ModuleTimesheetWeekDesc'
 ModuleTimesheetWeekDesc = Module pour gérer les feuilles de temps dans Dolibarr
 
-Resources
- Readme
-
 #
 # Page d'administration
 #
