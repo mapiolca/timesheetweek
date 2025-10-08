@@ -1,108 +1,76 @@
 # TIMESHEETWEEK FOR [DOLIBARR ERP & CRM](https://www.dolibarr.org)
 
-## Features
+## 🇫🇷 Présentation
 
-- Statut "Scellée" / "Sealed" pour verrouiller les feuilles approuvées.
-- Redirection automatique vers la feuille existante en cas de doublon / Automatic redirect to the existing sheet when a duplicate is requested.
+TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-Description of the module...
+### Fonctionnalités principales
 
-- Suivi des compteurs hebdomadaires de zones et de paniers pour chaque feuille de temps.
-- Recalcul automatique des compteurs de zones et de paniers lors de chaque enregistrement.
-- Affichage des compteurs de zones et de paniers dans la liste des feuilles hebdomadaires.
-- Création rapide d'une feuille d'heures depuis le raccourci "Ajouter" du menu supérieur.
-- Compatibilité Multicompany pour partager les feuilles de temps et leur numérotation / Multicompany compatibility to share weekly timesheets and their numbering.
-- Inscription automatique de la configuration Multicompany lors de l'activation et nettoyage lors de la désactivation / Automatic registration of the Multicompany configuration on activation and cleanup on deactivation.
-- Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany, avec badge natif sous la référence lorsque l'entité diffère / Display entity information in list and card when using Multicompany, with a native badge under the reference when the entity differs.
-- Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured SQL queries on sheets and lines with entity scoping for Multicompany.
-- Filtre multisélection de l'environnement respectant l'interface native de Dolibarr en Multicompany / Multiselect environment filter following Dolibarr native Multicompany interface.
-- Réorganisation des options Multicompany pour distinguer partage et numérotation avec les pictogrammes natifs / Reorganised Multicompany sharing options to split sharing and numbering with native pictograms.
-- Inversion des couleurs des statuts "Scellée" et "Refusée" pour correspondre au code couleur Dolibarr / Swapped colors of "Sealed" and "Refused" statuses to follow Dolibarr color codes.
-- Harmonisation du filtre de semaine de la liste avec la fiche via le sélecteur ISO / Harmonized week filter between list and card using the ISO selector.
-- Filtre de semaine en multi-sélection pour combiner plusieurs périodes directement depuis la liste / Multi-select week filter to combine several periods directly from the list.
+- Statut « Scellée » pour verrouiller les feuilles approuvées et empêcher toute modification ultérieure, avec les permissions associées.
+- Redirection automatique vers la feuille existante en cas de tentative de doublon afin d'éviter les saisies multiples.
+- Suivi des compteurs hebdomadaires de zones et de paniers directement sur les feuilles et recalcul automatique à chaque enregistrement.
+- Affichage des compteurs dans la liste hebdomadaire et ajout du libellé « Zone » sur chaque sélecteur quotidien pour clarifier la saisie.
+- Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
+- Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
+- Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
+- Sécurisation des requêtes SQL par entité et filtres multi-entités alignés sur les pratiques Dolibarr.
+- Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
+- Inversion des couleurs des statuts « Scellée » et « Refusée » pour respecter les codes couleur Dolibarr.
+- Refonte complète de la page de configuration pour la gestion des masques de numérotation et des modèles PDF selon les codes graphiques Dolibarr.
+- README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
 
-<!--
-![Screenshot timesheetweek](img/screenshot_timesheetweek.png?raw=true "TimesheetWeek"){imgmd}
--->
+### Installation
+
+1. **Pré-requis** : disposer d'une instance Dolibarr fonctionnelle. Les versions supportées correspondent à celles indiquées dans le fichier `modTimesheetWeek.class.php`.
+2. **Déploiement via l'interface** : depuis `Accueil > Configuration > Modules > Déployer un module externe`, importez l'archive `module_timesheetweek-x.y.z.zip` téléchargée sur [Dolistore](https://www.dolistore.com) ou obtenue via votre circuit de diffusion.
+3. **Déploiement manuel** : copiez le répertoire du module dans `htdocs/custom/timesheetweek`, puis purgez le cache des modules depuis l'administration Dolibarr.
+4. **Activation** : connectez-vous en tant que super administrateur, activez le module dans `Configuration > Modules > Projets/Temps`, puis exécutez le script `sql/update_all.sql` pour ajouter les compteurs aux données existantes.
+
+### Configuration
+
+- Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour choisir le masque de numérotation actif et activer les modèles PDF souhaités.
+- Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
+
+### Traductions
+
+Les fichiers de traduction sont disponibles dans `langs/en_US` et `langs/fr_FR`. Toute nouvelle chaîne doit être renseignée simultanément dans les deux langues conformément aux pratiques Dolibarr.
+
+## 🇬🇧 Overview
+
+TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
+
+### Main features
+
+- Statut « Scellée » (Sealed status) to lock approved timesheets together with the related permissions.
+- Automatic redirect to the existing timesheet when a duplicate creation is attempted.
+- Weekly counters for zones and meal allowances with automatic recomputation on each save.
+- Counter display inside the weekly list plus a « Zone » caption on each daily selector for better input guidance.
+- Quick creation shortcut available from the top-right « Add » menu.
+- Multicompany compatibility for sharing timesheets and numbering sequences, with dedicated sharing options and native-aligned multi-select filters.
+- Entity details shown on lists and cards in Multicompany environments with a badge under the reference when the entity differs.
+- Entity-scoped SQL queries and Multicompany filters harmonised with Dolibarr best practices.
+- ISO week selector shared between list and card views, now supporting multi-selection to combine several periods.
+- Swapped colours for « Scellée » and « Refusée » statuses to match Dolibarr visual cues.
+- Fully redesigned setup page for numbering masks and PDF templates, using Dolibarr's graphical and functional patterns.
+- Bilingual (FR/EN) README to streamline rollout and user onboarding.
+
+### Installation
+
+1. **Prerequisites**: a running Dolibarr instance that matches the compatibility range declared in `modTimesheetWeek.class.php`.
+2. **Deploy from the GUI**: go to `Home > Setup > Modules > Deploy external module` and upload the `module_timesheetweek-x.y.z.zip` archive from [Dolistore](https://www.dolistore.com) or your distribution channel.
+3. **Manual deployment**: copy the module directory into `htdocs/custom/timesheetweek`, then refresh the module cache from Dolibarr's administration area.
+4. **Activation**: log in as a super administrator, enable the module from `Setup > Modules > Projects/Timesheets`, and run the `sql/update_all.sql` script so legacy timesheets gain the new counters.
+
+### Configuration
+
+- Visit `Setup > Modules > TimesheetWeek` to select the numbering mask and to activate the PDF models you want to expose to users.
+- In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
+
+### Translations
+
+Translation sources are stored under `langs/en_US` and `langs/fr_FR`. Please keep both locales aligned for every new string to stay compatible with Dolibarr's translation workflow.
 
 Other external modules are available on [Dolistore.com](https://www.dolistore.com).
-
-## Translations
-
-Translations can be completed manually by editing files in the module directories under `langs`.
-
-<!--
-This module contains also a sample configuration for Transifex, under the hidden directory [.tx](.tx), so it is possible to manage translation using this service.
-
-For more information, see the [translator's documentation](https://wiki.dolibarr.org/index.php/Translator_documentation).
-
-There is a [Transifex project](https://transifex.com/projects/p/dolibarr-module-template) for this module.
--->
-
-
-## Installation
-
-Prerequisites: You must have Dolibarr ERP & CRM software installed. You can download it from [Dolibarr.org](https://www.dolibarr.org).
-You can also get a ready-to-use instance in the cloud from https://saas.dolibarr.org
-
-
-### From the ZIP file and GUI interface
-
-If the module is a ready-to-deploy zip file, so with a name `module_xxx-version.zip` (e.g., when downloading it from a marketplace like [Dolistore](https://www.dolistore.com)),
-go to menu `Home> Setup> Modules> Deploy external module` and upload the zip file.
-
-<!--
-
-Note: If this screen tells you that there is no "custom" directory, check that your setup is correct:
-
-- In your Dolibarr installation directory, edit the `htdocs/conf/conf.php` file and check that following lines are not commented:
-
-    ```php
-    //$dolibarr_main_url_root_alt ...
-    //$dolibarr_main_document_root_alt ...
-    ```
-
-- Uncomment them if necessary (delete the leading `//`) and assign the proper value according to your Dolibarr installation
-
-    For example :
-
-    - UNIX:
-        ```php
-        $dolibarr_main_url_root_alt = '/custom';
-        $dolibarr_main_document_root_alt = '/var/www/Dolibarr/htdocs/custom';
-        ```
-
-    - Windows:
-        ```php
-        $dolibarr_main_url_root_alt = '/custom';
-        $dolibarr_main_document_root_alt = 'C:/My Web Sites/Dolibarr/htdocs/custom';
-        ```
--->
-
-<!--
-
-### From a GIT repository
-
-Clone the repository in `$dolibarr_main_document_root_alt/timesheetweek`
-
-```shell
-cd ....../custom
-git clone git@github.com:gitlogin/timesheetweek.git timesheetweek
-```
-
--->
-
-### Final steps
-
-Using your browser:
-
-  - Log into Dolibarr as a super-administrator
-  - Go to "Setup"> "Modules"
-  - You should now be able to find and enable the module
-  - EN: Run the `sql/update_all.sql` script to ensure older timesheets receive the new counters
-  - FR: Exécutez le script `sql/update_all.sql` pour que les feuilles existantes profitent des nouveaux compteurs
-
-
 
 ## Licenses
 
@@ -112,4 +80,4 @@ GPLv3 or (at your option) any later version. See file COPYING for more informati
 
 ### Documentation
 
-All texts and readme's are licensed under [GFDL](https://www.gnu.org/licenses/fdl-1.3.en.html).
+All texts and README files are licensed under [GFDL](https://www.gnu.org/licenses/fdl-1.3.en.html).
