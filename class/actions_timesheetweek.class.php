@@ -18,6 +18,14 @@ class ActionsTimesheetweek
     public $resprints = '';
 
     /**
+     * Hook results container.
+     * Tableau des résultats du hook.
+     *
+     * @var array
+     */
+    public $results = array();
+
+    /**
      * Constructor.
      * Constructeur.
      *
@@ -31,8 +39,8 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Add TimesheetWeek entry into the quick add dropdown of the top right menu.
-     * Ajouter une entrée TimesheetWeek dans le menu rapide du bandeau supérieur droit.
+     * Inject TimesheetWeek entry into the quick add dropdown menu.
+     * Injecter une entrée TimesheetWeek dans le menu déroulant de création rapide.
      *
      * @param array          $parameters Hook parameters / Paramètres du hook
      * @param CommonObject   $object     Current object / Objet courant
@@ -41,44 +49,42 @@ class ActionsTimesheetweek
      *
      * @return int Status / Statut
      */
-    public function printTopRightMenu($parameters, &$object, &$action, $hookmanager)
+    public function menuDropdownQuickaddItems($parameters, &$object, &$action, $hookmanager)
     {
-        global $langs, $user;
+        global $conf, $langs, $user;
 
-        // EN: Only add the entry when the quick add dropdown is being rendered.
-        // FR: Ajouter l'entrée uniquement lorsque le menu déroulant de création rapide est rendu.
-        if (empty($parameters['currentcontext']) || $parameters['currentcontext'] !== 'quickadddropdown') {
+        // EN: Reset hook containers before populating the dropdown.
+        // FR: Réinitialiser les conteneurs du hook avant de remplir le menu déroulant.
+        $this->results = array();
+        $this->resprints = '';
+
+        // EN: Skip the quick entry when the module is disabled.
+        // FR: Ignorer l'entrée rapide lorsque le module est désactivé.
+        if (empty($conf->timesheetweek->enabled) || !isModEnabled('timesheetweek')) {
             return 0;
         }
 
-        // EN: Load module translations to display the quick add label.
-        // FR: Charger les traductions du module pour afficher le libellé de création rapide.
+        // EN: Load module translations to expose localized labels.
+        // FR: Charger les traductions du module pour exposer les libellés localisés.
         $langs->loadLangs(array('timesheetweek@timesheetweek'));
 
-        // EN: Stop if the user has no write permission on weekly timesheets.
-        // FR: Stopper si l'utilisateur n'a aucun droit d'écriture sur les feuilles hebdomadaires.
+        // EN: Stop if the user has no permission to write any weekly timesheet.
+        // FR: Arrêter si l'utilisateur n'a aucun droit d'écriture sur les feuilles hebdomadaires.
         if (empty($user->rights->timesheetweek->write) && empty($user->rights->timesheetweek->writeChild) && empty($user->rights->timesheetweek->writeAll)) {
             return 0;
         }
 
-        // EN: Build the URL leading to the creation form.
-        // FR: Construire l'URL menant au formulaire de création.
-        $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1) . '?action=create';
+        // EN: Inject the quick creation entry with translated metadata.
+        // FR: Injecter l'entrée de création rapide avec des métadonnées traduites.
+        $this->results[0] = array(
+            'url' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1) . '?action=create',
+            'title' => 'QuickCreateTimesheetWeek@timesheetweek',
+            'name' => 'TimesheetWeek@timesheetweek',
+            'picto' => 'bookcal',
+            'activation' => isModEnabled('timesheetweek'),
+            'position' => 100,
+        );
 
-        // EN: Prepare the translated label for the quick action.
-        // FR: Préparer le libellé traduit pour l'action rapide.
-        $label = $langs->trans('QuickCreateTimesheetWeek');
-
-        // EN: Reuse the module pictogram to keep the look consistent.
-        // FR: Réutiliser le pictogramme du module pour conserver la cohérence visuelle.
-        $icon = img_picto('', 'bookcal@timesheetweek', 'class="pictofixedwidth"');
-
-        // EN: Print the quick add entry with escaped content.
-        // FR: Afficher l'entrée de création rapide avec un contenu échappé.
-        $this->resprints .= '<a class="dropdown-item" href="' . dol_escape_htmltag($url) . '">' . $icon . dol_escape_htmltag($label) . '</a>';
-
-        // EN: Allow other modules to continue injecting their entries.
-        // FR: Laisser les autres modules poursuivre l'injection de leurs entrées.
         return 0;
     }
 }
