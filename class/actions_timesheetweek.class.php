@@ -106,14 +106,18 @@ class ActionsTimesheetweek
                 'sharingelements' => array(
                     'timesheetweek' => array(
                         'type' => 'element',
-                        'icon' => 'calendar-check-o',
+                        'icon' => 'bookcal',
                         'lang' => 'timesheetweek@timesheetweek',
                         'tooltip' => 'ShareTimesheetWeekTooltip',
                         'enable' => '! empty($conf->timesheetweek->enabled)',
                     ),
+                ),
+                // EN: Expose the numbering share inside the dedicated document numbering section.
+                // FR: Exposer le partage de numérotation dans la section dédiée aux numérotations de documents.
+                'sharingdocumentnumbering' => array(
                     'timesheetweeknumbering' => array(
                         'type' => 'object',
-                        'icon' => 'hashtag',
+                        'icon' => 'fa fa-cogs',
                         'lang' => 'timesheetweek@timesheetweek',
                         'tooltip' => 'ShareTimesheetWeekNumberingTooltip',
                         'mandatory' => 'timesheetweek',

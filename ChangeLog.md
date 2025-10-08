@@ -17,6 +17,7 @@
 - Passage du filtre de semaine en multi-sélection pour regrouper plusieurs périodes dans la liste / Week filter upgraded to multi-select to group several periods in the list.
 - Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured timesheet and line SQL queries with entity scoping for Multicompany.
 - Filtre Multicompany de l'environnement aligné sur le multiselect natif dans la liste / Multicompany environment filter aligned with the native multiselect in the list.
+- Réorganisation des options de partage Multicompany pour séparer les feuilles et la numérotation avec les pictogrammes adaptés / Reorganised Multicompany sharing options to separate sheets and numbering with suitable pictograms.
 
 ## 1.0
 

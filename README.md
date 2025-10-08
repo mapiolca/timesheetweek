@@ -16,6 +16,7 @@ Description of the module...
 - Affichage de l'entité dans la liste et la fiche lorsqu'on utilise Multicompany / Display entity information in list and card when using Multicompany.
 - Sécurisation des requêtes SQL sur les feuilles et lignes par entité pour Multicompany / Secured SQL queries on sheets and lines with entity scoping for Multicompany.
 - Filtre multisélection de l'environnement respectant l'interface native de Dolibarr en Multicompany / Multiselect environment filter following Dolibarr native Multicompany interface.
+- Réorganisation des options Multicompany pour distinguer partage et numérotation avec les pictogrammes natifs / Reorganised Multicompany sharing options to split sharing and numbering with native pictograms.
 - Harmonisation du filtre de semaine de la liste avec la fiche via le sélecteur ISO / Harmonized week filter between list and card using the ISO selector.
 - Filtre de semaine en multi-sélection pour combiner plusieurs périodes directement depuis la liste / Multi-select week filter to combine several periods directly from the list.
 
