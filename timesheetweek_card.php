@@ -1225,10 +1225,20 @@ JS;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-		echo '<div class="div-table-responsive">';
-		echo '<table class="noborder centpercent">';
+                echo '<div class="div-table-responsive">';
+                // EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
+                // FR: Limite l'aide de centrage vertical et horizontal aux cellules spécifiques nécessitant l'alignement (jours/zones/paniers/heures/totaux).
+                echo '<style>';
+                echo '.grille-saisie-temps .cellule-jour,';
+                echo '.grille-saisie-temps .cellule-zone-panier,';
+                echo '.grille-saisie-temps .cellule-temps,';
+                echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
+                echo '</style>';
+                echo '<table class="noborder centpercent grille-saisie-temps">';
 
-		// Header jours
+                // EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
+                // FR: Applique l'aide de centrage vertical sur chaque en-tête de jour pour conserver des libellés alignés visuellement.
+                // Header jours
 		echo '<tr class="liste_titre">';
                 echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
                 foreach ($days as $d) {
@@ -1245,20 +1255,24 @@ JS;
                         // EN: Translate the full day name to avoid ambiguous abbreviations.
                         // FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
                         $dayLabel = $langs->trans($dayLabelKey);
-                        echo '<th>'.$dayLabel;
+                        echo '<th class="cellule-jour">'.$dayLabel;
                         if ($labelDate !== '') {
                                 echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
                         }
                         echo '</th>';
                 }
-		echo '<th class="right">'.$langs->trans("Total").'</th>';
+                echo '<th class="center cellule-total">'.$langs->trans("Total").'</th>';
 		echo '</tr>';
 
-		// Ligne zone + panier (préfills depuis lignes)
-		echo '<tr class="liste_titre">';
-		echo '<td></td>';
-		foreach ($days as $d) {
-                        echo '<td class="center">';
+                // EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
+                // FR: Ajoute l'aide de centrage vertical sur les cellules zone et repas afin que les deux contrôles restent centrés quelle que soit leur hauteur.
+                // Ligne zone + panier (préfills depuis lignes)
+                echo '<tr class="liste_titre">';
+                echo '<td></td>';
+                foreach ($days as $d) {
+                        // EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
+                        // FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
+                        echo '<td class="center cellule-zone-panier">';
                         // EN: Prefix zone selector with its label to improve understanding.
                         // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
                         echo '<span class="zone-select">'.$langs->trans("Zone").' ';
@@ -1318,8 +1332,10 @@ JS;
 				echo '</td>';
 
 				$rowTotal = 0.0;
-				foreach ($days as $d) {
-					$iname = 'hours_'.$task['task_id'].'_'.$d;
+                                foreach ($days as $d) {
+                                        // EN: Attach the vertical-centering helper to each time entry cell for consistent layouts.
+                                        // FR: Attache l'aide de centrage vertical à chaque cellule de temps pour des mises en page cohérentes.
+                                        $iname = 'hours_'.$task['task_id'].'_'.$d;
 					$val = '';
 					$keydate = $weekdates[$d];
 					if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
@@ -1327,35 +1343,45 @@ JS;
 						$rowTotal += (float)$hoursBy[(int)$task['task_id']][$keydate];
 					}
 					$readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
-					echo '<td class="center"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
+                                        echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
 				}
-				$grandInit += $rowTotal;
-				echo '<td class="right task-total">'.formatHours($rowTotal).'</td>';
+                                $grandInit += $rowTotal;
+                                // EN: Center task totals so they stay aligned with other centered figures.
+                                // FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
+                                echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
 				echo '</tr>';
 			}
 		}
 
 		$grand = ($object->total_hours > 0 ? (float)$object->total_hours : $grandInit);
 
-		echo '<tr class="liste_total">';
-		echo '<td class="right">'.$langs->trans("Total").'</td>';
-		foreach ($days as $d) echo '<td class="right day-total">00:00</td>';
-		echo '<td class="right grand-total">'.formatHours($grand).'</td>';
+                echo '<tr class="liste_total">';
+                // EN: Center overall totals and daily sums for consistent middle alignment.
+                // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
+                echo '<td class="center cellule-total">'.$langs->trans("Total").'</td>';
+                foreach ($days as $d) echo '<td class="center day-total cellule-total">00:00</td>';
+                echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
 		echo '</tr>';
 
-		echo '<tr class="liste_total">';
-		echo '<td class="right">'.$langs->trans("Meals").'</td>';
-		$initMeals = array_sum($dayMeal);
-		echo '<td colspan="'.count($days).'" class="right meal-total">'.$initMeals.'</td>';
-		echo '<td></td>';
-		echo '</tr>';
+                // EN: Use the vertical-centering helper on totals to keep computed values aligned with their labels.
+                // FR: Utilise l'aide de centrage vertical sur les totaux pour conserver les valeurs calculées alignées avec leurs libellés.
+                echo '<tr class="liste_total">';
+                // EN: Center meal counters to match the rest of the grid alignment.
+                // FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
+                echo '<td class="center cellule-total">'.$langs->trans("Meals").'</td>';
+                $initMeals = array_sum($dayMeal);
+                echo '<td colspan="'.count($days).'" class="center meal-total cellule-total">'.$initMeals.'</td>';
+                echo '<td class="cellule-total"></td>';
+                echo '</tr>';
 
-		echo '<tr class="liste_total">';
-		echo '<td class="right">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
-		$ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
-		echo '<td colspan="'.count($days).'" class="right overtime-total">'.formatHours($ot).'</td>';
-		echo '<td></td>';
-		echo '</tr>';
+                echo '<tr class="liste_total">';
+                // EN: Center overtime summary cells so every footer row follows the same alignment pattern.
+                // FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
+                echo '<td class="center cellule-total">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
+                $ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
+                echo '<td colspan="'.count($days).'" class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
+                echo '<td class="cellule-total"></td>';
+                echo '</tr>';
 
 		echo '</table>';
 		echo '</div>';
