@@ -3,6 +3,7 @@
 ## 1.0.1
 
 - Affichage complet des jours de la semaine sur la feuille hebdomadaire grâce aux nouvelles traductions.
+- Alignement vertical du contenu de la grille de saisie hebdomadaire pour une lecture homogène / Vertical alignment of the weekly entry grid content for consistent readability.
 
 ## 1.0
 

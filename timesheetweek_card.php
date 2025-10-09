@@ -1225,8 +1225,11 @@ JS;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-		echo '<div class="div-table-responsive">';
-		echo '<table class="noborder centpercent">';
+                echo '<div class="div-table-responsive">';
+                // EN: Inject a French-named helper class to vertically center the timesheet grid content for easier reading.
+                // FR: Injecte une classe d'aide nommée en français pour centrer verticalement le contenu de la grille de saisie et faciliter la lecture.
+                echo '<style>.grille-saisie-temps td, .grille-saisie-temps th { vertical-align: middle; }</style>';
+                echo '<table class="noborder centpercent grille-saisie-temps">';
 
 		// Header jours
 		echo '<tr class="liste_titre">';
