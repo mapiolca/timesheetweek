@@ -3,6 +3,8 @@
 ## 1.0.1
 
 - Affichage complet des jours de la semaine sur la feuille hebdomadaire grâce aux nouvelles traductions.
+- Alignement vertical des cellules de jours, zones, paniers, temps et totaux pour une lecture homogène / Vertical alignment of day, zone, meal, time and total cells for consistent readability.
+- Alignement centré (horizontal et vertical) de toutes les cellules de saisie du jour au total pour une grille plus lisible / Centered alignment (horizontal and vertical) of every entry cell from day columns to totals for an easier-to-read grid.
 
 ## 1.0
 
