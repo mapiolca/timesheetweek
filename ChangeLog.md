@@ -10,6 +10,7 @@
 - Ligne de total dans la liste hebdomadaire pour additionner heures, heures supplémentaires, zones et paniers, plus affichage de la date de validation.
 - Affichage du libellé "Zone" devant chaque sélecteur quotidien.
 - Ajout de la traduction "Meals" en "Repas".
+- Affichage des jours de la semaine en toutes lettres avec leur traduction complète.
 - Ajout du script de mise à jour SQL (`sql/update_all.sql`) pour créer les compteurs hebdomadaires sur les données existantes.
 - Redirection automatique vers la feuille existante en cas de création en doublon / Automatic redirect to the existing sheet when attempting a duplicate creation.
 - Ajout d'un accès rapide à la création de feuille d'heures via le menu supérieur.
