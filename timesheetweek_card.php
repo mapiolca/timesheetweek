@@ -1114,6 +1114,17 @@ JS;
         }
 
         $days = array("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday");
+        // EN: Map ISO day names to dedicated translation keys for full labels.
+        // FR: Associe les noms ISO aux clés de traduction dédiées pour les libellés complets.
+        $dayLabelKeys = array(
+                'Monday'    => 'TimesheetWeekDayMonday',
+                'Tuesday'   => 'TimesheetWeekDayTuesday',
+                'Wednesday' => 'TimesheetWeekDayWednesday',
+                'Thursday'  => 'TimesheetWeekDayThursday',
+                'Friday'    => 'TimesheetWeekDayFriday',
+                'Saturday'  => 'TimesheetWeekDaySaturday',
+                'Sunday'    => 'TimesheetWeekDaySunday',
+        );
         $weekdates = array();
         $weekStartDate = null;
         $weekEndDate = null;
@@ -1230,7 +1241,11 @@ JS;
                                         $labelDate = dol_print_date($tmpTs, 'day');
                                 }
                         }
-                        echo '<th>'.$langs->trans(substr($d,0,3));
+                        $dayLabelKey = isset($dayLabelKeys[$d]) ? $dayLabelKeys[$d] : $d;
+                        // EN: Translate the full day name to avoid ambiguous abbreviations.
+                        // FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
+                        $dayLabel = $langs->trans($dayLabelKey);
+                        echo '<th>'.$dayLabel;
                         if ($labelDate !== '') {
                                 echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
                         }
