@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.1
+
+- Affichage complet des jours de la semaine sur la feuille hebdomadaire grâce aux nouvelles traductions.
+
 ## 1.0
 
 - Ajout du statut "Scellée" / "Sealed" et des permissions associées.
