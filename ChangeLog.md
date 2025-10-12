@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.2
+- Corrige un problème dans les options de partage du module "Multicompany"
+
 ## 1.0.1
 
 - Affichage complet des jours de la semaine sur la feuille hebdomadaire grâce aux nouvelles traductions.
