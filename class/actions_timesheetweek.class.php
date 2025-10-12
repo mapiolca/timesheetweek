@@ -106,32 +106,31 @@ class ActionsTimesheetweek
                 'sharingelements' => array(
                     'timesheetweek' => array(
                         'type' => 'element',
-                        'icon' => 'bookcal',
+                        'icon' => 'calendar',
                         'lang' => 'timesheetweek@timesheetweek',
                         'tooltip' => 'ShareTimesheetWeekTooltip',
-                        'enable' => '! empty($conf->timesheetweek->enabled)',
+                        'enable' => '!empty($conf->timesheetweek->enabled)',
                     ),
-                ),
                 // EN: Expose the numbering share inside the dedicated document numbering section.
                 // FR: Exposer le partage de numérotation dans la section dédiée aux numérotations de documents.
-                'sharingdocumentnumbering' => array(
                     'timesheetweeknumbering' => array(
-                        'type' => 'object',
-                        'icon' => 'fa fa-cogs',
+                        'type' => 'objectnumber',
+                        'icon' => 'cogs',
                         'lang' => 'timesheetweek@timesheetweek',
                         'tooltip' => 'ShareTimesheetWeekNumberingTooltip',
-                        'mandatory' => 'timesheetweek',
-                        'enable' => '! empty($conf->timesheetweek->enabled)',
-                        'display' => '! empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
+                        //'mandatory' => 'timesheetweek',
+                        'enable' => '!empty($conf->timesheetweek->enabled)',
+                        //'display' => '!empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
                         'input' => array(
                             'global' => array(
                                 'hide' => true,
                                 'del' => true,
                             ),
-                            'timesheetweek' => array(
+                            /*'timesheetweek' => array(
                                 'showhide' => true,
+                                'hide' => true,
                                 'del' => true,
-                            ),
+                            ),*/
                         ),
                     ),
                 ),
