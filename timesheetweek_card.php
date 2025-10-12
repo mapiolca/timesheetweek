@@ -1358,7 +1358,7 @@ JS;
                 echo '<tr class="liste_total">';
                 // EN: Center overall totals and daily sums for consistent middle alignment.
                 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
-                echo '<td class="center cellule-total">'.$langs->trans("Total").'</td>';
+                echo '<td class="left">'.$langs->trans("Total").'</td>';
                 foreach ($days as $d) echo '<td class="center day-total cellule-total">00:00</td>';
                 echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
 		echo '</tr>';
@@ -1368,19 +1368,20 @@ JS;
                 echo '<tr class="liste_total">';
                 // EN: Center meal counters to match the rest of the grid alignment.
                 // FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
-                echo '<td class="center cellule-total">'.$langs->trans("Meals").'</td>';
+                echo '<td class="left">'.$langs->trans("Meals").'</td>';
                 $initMeals = array_sum($dayMeal);
-                echo '<td colspan="'.count($days).'" class="center meal-total cellule-total">'.$initMeals.'</td>';
-                echo '<td class="cellule-total"></td>';
+                echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
+                echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
                 echo '</tr>';
 
                 echo '<tr class="liste_total">';
                 // EN: Center overtime summary cells so every footer row follows the same alignment pattern.
                 // FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
-                echo '<td class="center cellule-total">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
+                echo '<td class="left">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
                 $ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
-                echo '<td colspan="'.count($days).'" class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
-                echo '<td class="cellule-total"></td>';
+                //echo '<td class="cellule-total"></td>';
+                echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
+                echo '<td colspan="" class="center grand-total cellule-total">'.formatHours($ot).'</td>';
                 echo '</tr>';
 
 		echo '</table>';
