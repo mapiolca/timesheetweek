@@ -1381,7 +1381,7 @@ JS;
                 $ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
                 //echo '<td class="cellule-total"></td>';
                 echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
-                echo '<td colspan="" class="center grand-total cellule-total">'.formatHours($ot).'</td>';
+                echo '<td colspan="" class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
                 echo '</tr>';
 
 		echo '</table>';
