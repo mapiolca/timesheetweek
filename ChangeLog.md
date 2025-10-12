@@ -1,7 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.0.2
-- Corrige un problème dans les options de partage du module "Multicompany"
+- Corrige un problème dans les options de partage du module "Multicompany".
+- Repositionne les totaux correctement.
 
 ## 1.0.1
 
