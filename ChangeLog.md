@@ -3,6 +3,7 @@
 ## 1.0.2
 - Corrige un problème dans les options de partage du module "Multicompany".
 - Repositionne les totaux correctement.
+- Inversion de position de "Nouvelle Feuille d'heure" et "Liste" dans le menu gauche.
 
 ## 1.0.1
 
