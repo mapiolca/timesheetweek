@@ -4,6 +4,7 @@
 - Corrige un problème dans les options de partage du module "Multicompany".
 - Repositionne les totaux correctement.
 - Inversion de position de "Nouvelle Feuille d'heure" et "Liste" dans le menu gauche.
+- Corrige un problème pouvant masquer les tâches clôturées dans les Fiches passées. / Fix an issue that could hide closed tasks in passed timesheet.
 
 ## 1.0.1
 
