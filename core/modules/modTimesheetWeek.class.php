@@ -462,21 +462,6 @@ class modTimesheetWeek extends DolibarrModules
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=hrm,fk_leftmenu=timesheetweek',
 			'type' => 'left',
-			'titre' => 'TimesheetWeekList',
-			'mainmenu' => 'hrm',
-			'leftmenu' => 'timesheetweek_timesheetweek_list',
-			'url' => '/timesheetweek/timesheetweek_list.php',
-			'langs' => 'timesheetweek@timesheetweek',
-			'position' => 1000 + $r,
-			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
-			'target' => '',
-			'user' => 2,
-			'object' => 'TimesheetWeek'
-		);
-		$this->menu[$r++] = array(
-			'fk_menu' => 'fk_mainmenu=hrm,fk_leftmenu=timesheetweek',
-			'type' => 'left',
 			'titre' => 'TimesheetWeekNew',
 			'mainmenu' => 'hrm',
 			'leftmenu' => 'timesheetweek_timesheetweek_new',
@@ -485,6 +470,21 @@ class modTimesheetWeek extends DolibarrModules
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
 			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=hrm,fk_leftmenu=timesheetweek',
+			'type' => 'left',
+			'titre' => 'TimesheetWeekList',
+			'mainmenu' => 'hrm',
+			'leftmenu' => 'timesheetweek_timesheetweek_list',
+			'url' => '/timesheetweek/timesheetweek_list.php',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
