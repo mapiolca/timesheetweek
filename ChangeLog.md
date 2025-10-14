@@ -1,5 +1,18 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.3
+- Sécurise les droits hiérarchiques pour lire, créer, modifier, supprimer et valider les feuilles des seuls collaborateurs gérés. / Secures hierarchy rights to read, create, update, delete and validate only managed employees' timesheets.
+- Restreint la liste hebdomadaire aux salariés autorisés et ajoute des filtres compatibles Multicompany. / Restricts the weekly list to authorised employees and adds Multicompany-compatible filters.
+- Limite le filtre salarié aux collaborateurs visibles par l'utilisateur et respecte le périmètre Multicompany. / Limits the employee filter to collaborators visible to the user and honours the Multicompany scope.
+- Protège l'endpoint AJAX contre les mises à jour hors périmètre hiérarchique avec un retour localisé. / Protects the AJAX endpoint against out-of-scope updates with a localised response.
+- Corrige l'affichage en renvoyant une erreur JSON cohérente lors d'un refus de permission. / Fixes the display by returning a consistent JSON error when permission is denied.
+- Déclenche la vérification d'accès dès le chargement de la liste pour stopper immédiatement les utilisateurs non autorisés. / Triggers the access check as soon as the list loads to stop unauthorised users immediately.
+- Corrige l'affichage des photos et statuts utilisateurs dans les listes, filtres et formulaires en respectant le périmètre hiérarchique. / Fixes user pictures and statuses within lists, filters and forms while respecting the managerial scope.
+- Masque l'identifiant interne dans le filtre salarié pour un rendu aligné sur Dolibarr. / Hides the internal ID in the employee filter for a Dolibarr-aligned rendering.
+- Corrige le filtre salarié pour éviter les erreurs SQL tout en respectant le périmètre visible. / Fixes the employee filter to prevent SQL errors while respecting the visible scope.
+- Évite le double affichage des menus lors d'un refus de permission sur la fiche hebdomadaire. / Prevents double menu rendering when the weekly card access is denied.
+- Affiche les avatars des salariés et validateurs sur la fiche hebdomadaire pour un rendu cohérent. / Displays employee and validator avatars on the weekly card for a consistent rendering.
+
 ## 1.0.2
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.
 - Repositionne les totaux correctement. / Correctly repositions totals.

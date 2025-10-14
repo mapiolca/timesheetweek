@@ -103,19 +103,6 @@ $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
 /** helpers permissions **/
-function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
-	if ($all) return true;
-	if ($own && ((int)$userid === (int)$user->id)) return true;
-	if ($child) {
-		$subs = $user->getAllChildIds(1);
-		if (is_array($subs) && in_array((int)$userid, $subs, true)) return true;
-	}
-	return false;
-}
-function tw_is_manager_of($userid, User $user) {
-	$subs = $user->getAllChildIds(1);
-	return (is_array($subs) && in_array((int)$userid, $subs, true));
-}
 function tw_can_validate_timesheet(
         TimesheetWeek $o,
         User $user,
@@ -751,11 +738,19 @@ if ($object->id > 0) {
 // ----------------- View -----------------
 $form = new Form($db);
 $title = $langs->trans("TimesheetWeek");
-llxHeader('', $title);
+
+// EN: Render the header only after permission guards to avoid duplicated menus on errors.
+// FR: Affiche l'en-tête uniquement après les gardes de permissions pour éviter les menus dupliqués en cas d'erreur.
 
 // ---- CREATE MODE ----
 if ($action === 'create') {
-	if (!$permWriteAny) accessforbidden();
+	if (!$permWriteAny) {
+		// EN: Stop unauthorized creation attempts before any layout is printed.
+		// FR: Stoppe les tentatives de création non autorisées avant tout affichage de mise en page.
+		accessforbidden();
+	}
+
+	llxHeader('', $title);
 
 	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
 
@@ -768,7 +763,10 @@ if ($action === 'create') {
 	// Employé
 	echo '<tr>';
 	echo '<td class="titlefield">'.$langs->trans("Employee").'</td>';
-	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td>';
+	// EN: Display the employee selector with avatars to align with Dolibarr UX.
+	// FR: Affiche le sélecteur salarié avec avatars pour rester cohérent avec l'UX Dolibarr.
+	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+
 	echo '</tr>';
 
 	// Semaine
@@ -781,7 +779,10 @@ if ($action === 'create') {
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	echo '<tr>';
 	echo '<td>'.$langs->trans("Validator").'</td>';
-	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200').'</td>';
+	// EN: Pre-select the default validator with picture support for clarity.
+	// FR: Pré-sélectionne le validateur par défaut avec prise en charge de la photo pour plus de clarté.
+	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+
 	echo '</tr>';
 
 	// Note
@@ -817,11 +818,15 @@ JS;
 } else if ($id > 0) {
 	// ---- READ MODE (fiche + grille) ----
 	if (!tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)) {
+		// EN: Reject access to foreign sheets before emitting the global page structure.
+		// FR: Refuse l'accès aux feuilles étrangères avant d'émettre la structure globale de la page.
 		accessforbidden();
 	}
 
+	llxHeader('', $title);
+
 	// Head + banner
-        $head = timesheetweekPrepareHead($object);
+	$head = timesheetweekPrepareHead($object);
         print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
         $linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
@@ -910,24 +915,29 @@ JS;
 
         // Employé
         echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
-	if ($action === 'editfk_user' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
-		echo '<input type="hidden" name="action" value="setfk_user">';
-		echo $form->select_dolusers($object->fk_user, 'fk_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		echo '</form>';
-	} else {
-		if ($object->fk_user > 0) {
-			$u = new User($db); $u->fetch($object->fk_user);
-			echo $u->getNomUrl(1);
+        		if ($action === 'editfk_user' && $canEditInline) {
+			echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+			echo '<input type="hidden" name="token" value="'.newToken().'">';
+			echo '<input type="hidden" name="action" value="setfk_user">';
+			// EN: Keep avatar rendering when editing the employee inline.
+			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
+			echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+			echo '</form>';
+		} else {
+			if ($object->fk_user > 0) {
+				$u = new User($db);
+				$u->fetch($object->fk_user);
+				// EN: Display the Dolibarr avatar and badge to stay consistent with core cards.
+				// FR: Affiche l'avatar Dolibarr et le badge pour rester cohérent avec les fiches cœur.
+				echo $u->getNomUrl(-1);
+			}
+			if ($canEditInline) {
+				echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+			}
 		}
-		if ($canEditInline) {
-			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
-		}
-	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Semaine
 	echo '<tr><td>'.$langs->trans("Week").'</td><td>';
@@ -946,7 +956,7 @@ JS;
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Note
 	echo '<tr><td>'.$langs->trans("Note").'</td><td>';
@@ -964,28 +974,33 @@ JS;
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Validator
 	echo '<tr><td>'.$langs->trans("Validator").'</td><td>';
-	if ($action === 'editvalidator' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
-		echo '<input type="hidden" name="action" value="setvalidator">';
-		echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
-		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		echo '</form>';
-	} else {
-		if ($object->fk_user_valid > 0) {
-			$v = new User($db); $v->fetch($object->fk_user_valid);
-			echo $v->getNomUrl(1);
+		if ($action === 'editvalidator' && $canEditInline) {
+			echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+			echo '<input type="hidden" name="token" value="'.newToken().'">';
+			echo '<input type="hidden" name="action" value="setvalidator">';
+			// EN: Preserve photo display while updating the validator inline.
+			// FR: Préserve l'affichage de la photo lors de la mise à jour du validateur en ligne.
+			echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+			echo '</form>';
+		} else {
+			if ($object->fk_user_valid > 0) {
+				$v = new User($db);
+				$v->fetch($object->fk_user_valid);
+				// EN: Render the validator with avatar to match Dolibarr consistency.
+				// FR: Affiche le validateur avec avatar pour respecter la cohérence Dolibarr.
+				echo $v->getNomUrl(-1);
+			}
+			if ($canEditInline) {
+				echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+			}
 		}
-		if ($canEditInline) {
-			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
-		}
-	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	echo '</table>';
 	echo '</div>';

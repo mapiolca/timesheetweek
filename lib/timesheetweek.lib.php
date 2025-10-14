@@ -174,14 +174,80 @@ function timesheetweekPrepareHead($object)
  */
 function tw_replace_anchor_text($linkHtml, $label)
 {
-        $escaped = dol_escape_htmltag($label);
-        if (empty($linkHtml)) {
-                return $escaped;
-        }
+	$escaped = dol_escape_htmltag($label);
+	if (empty($linkHtml)) {
+		return $escaped;
+	}
 
-        return preg_replace('/>([^<]*)</u', '>'.$escaped.'<', $linkHtml, 1);
+	return preg_replace('/>([^<]*)</u', '>'.$escaped.'<', $linkHtml, 1);
+}
+/**
+ * EN: Remove any textual hint of the internal Dolibarr user ID from an HTML select.
+ * FR: Supprime toute mention textuelle de l'identifiant interne Dolibarr d'un utilisateur dans un select HTML.
+ *
+ * @param string $html
+ * @return string
+ */
+function tw_strip_user_id_from_select($html)
+{
+	if ($html === '' || $html === null) {
+		return (string) $html;
+	}
+
+	return preg_replace_callback('/(<option\b[^>]*>)([^<]*)(<\/option>)/i', function ($matches) {
+		$text = (string) $matches[2];
+		// EN: Remove common ID patterns appended by core helpers ("(id: 5)", "#5", "[5]").
+		// FR: Supprime les motifs d'ID courants ajoutés par les helpers cœur ("(id: 5)", "#5", "[5]").
+		$cleaned = preg_replace(array('/\s*\(id:\s*\d+\)/i', '/\s*#\s*\d+/', '/\s*\[\s*\d+\s*\]/'), '', $text);
+		return $matches[1].$cleaned.$matches[3];
+	}, $html);
 }
 
+/**
+ * EN: Keep only the authorised user identifiers within an HTML select while preserving placeholders.
+ * FR: Conserve uniquement les identifiants utilisateurs autorisés dans un select HTML en préservant les placeholders.
+ *
+ * @param string $html
+ * @param array  $allowedUserIds
+ * @param int    $selectedUserId
+ * @return string
+ */
+function tw_filter_select_by_user_ids($html, array $allowedUserIds, $selectedUserId = 0)
+{
+	if ($html === '' || $html === null) {
+		return (string) $html;
+	}
+
+	$allowedMap = array();
+	foreach ($allowedUserIds as $candidate) {
+		$candidateId = (int) $candidate;
+		if ($candidateId > 0) {
+			$allowedMap[$candidateId] = true;
+		}
+	}
+
+	$selectedUserId = (int) $selectedUserId;
+	if ($selectedUserId > 0) {
+		$allowedMap[$selectedUserId] = true;
+	}
+
+	$pattern = '/<option\b[^>]*value="?(-?\d+)"?[^>]*>.*?<\/option>/i';
+
+	return preg_replace_callback($pattern, function ($matches) use ($allowedMap) {
+		$value = (int) $matches[1];
+		if ($value <= 0) {
+			// EN: Preserve empty, "all" and sentinel options to keep the widget functional.
+			// FR: Préserve les options vides, "tous" et sentinelles pour maintenir le widget fonctionnel.
+			return $matches[0];
+		}
+		if (!isset($allowedMap[$value])) {
+			// EN: Remove any employee outside the authorised perimeter.
+			// FR: Retire tout salarié hors du périmètre autorisé.
+			return '';
+		}
+		return $matches[0];
+	}, $html);
+}
 /**
  * Return the project link formatted as "Ref - Label"
  *
@@ -233,6 +299,73 @@ function tw_get_task_nomurl(Task $task, $withpicto = 0, $withproject = false)
         }
 
         return $anchor;
+}
+
+/**
+ * EN: Cache and return the identifiers of the users managed by the current user.
+ * FR: Met en cache et renvoie les identifiants des utilisateurs gérés par l'utilisateur courant.
+ *
+ * @param User $user Current Dolibarr user object
+ * @return int[] List of subordinate user identifiers
+ */
+function tw_get_user_child_ids(User $user)
+{
+	static $cache = array();
+	$userId = (int) $user->id;
+	if (!isset($cache[$userId])) {
+		$rawList = $user->getAllChildIds(1);
+		if (!is_array($rawList)) {
+			$rawList = array();
+		}
+		$cache[$userId] = array();
+		foreach ($rawList as $candidate) {
+			$childId = (int) $candidate;
+			if ($childId > 0 && !in_array($childId, $cache[$userId], true)) {
+				// EN: Store each subordinate identifier only once to keep SQL filters strict.
+				// FR: Conserve chaque identifiant de subordonné une seule fois pour garder des filtres SQL stricts.
+				$cache[$userId][] = $childId;
+			}
+		}
+	}
+	return $cache[$userId];
+}
+
+/**
+ * EN: Determine whether the current user manages the provided employee identifier.
+ * FR: Détermine si l'utilisateur courant gère l'identifiant d'employé fourni.
+ *
+ * @param int  $targetUserId Identifier of the employee to test
+ * @param User $user         Current Dolibarr user object
+ * @return bool              True when the employee is a subordinate
+ */
+function tw_is_manager_of($targetUserId, User $user)
+{
+	return in_array((int) $targetUserId, tw_get_user_child_ids($user), true);
+}
+
+/**
+ * EN: Check if the current user can act on the target employee with own/child/all permissions.
+ * FR: Vérifie si l'utilisateur courant peut agir sur l'employé cible via les permissions propre/enfant/toutes.
+ *
+ * @param int  $targetUserId Employee identifier to check
+ * @param bool $own          Allowance on own resources
+ * @param bool $child        Allowance on subordinate resources
+ * @param bool $all          Allowance on all resources
+ * @param User $user         Current Dolibarr user object
+ * @return bool              True if the action is permitted
+ */
+function tw_can_act_on_user($targetUserId, $own, $child, $all, User $user)
+{
+	if ($all) {
+		return true;
+	}
+	if ($own && ((int) $targetUserId === (int) $user->id)) {
+		return true;
+	}
+	if ($child && tw_is_manager_of($targetUserId, $user)) {
+		return true;
+	}
+	return false;
 }
 
 /**
