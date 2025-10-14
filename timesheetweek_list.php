@@ -1,9 +1,47 @@
 <?php
+/* Copyright (C) 2025  Pierre Ardoin <developpeur@lesmetiersdubatiment.fr>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 // Load Dolibarr environment
 $res = 0;
 if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
 if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
 if (!$res) die("Include of main fails");
+
+// EN: Check permissions before loading any additional resources to abort early.
+// FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
+$permRead = $user->hasRight('timesheetweek','timesheetweek','read');
+$permReadChild = $user->hasRight('timesheetweek','timesheetweek','readChild');
+$permReadAll = $user->hasRight('timesheetweek','timesheetweek','readAll');
+$permWrite = $user->hasRight('timesheetweek','timesheetweek','write');
+$permWriteChild = $user->hasRight('timesheetweek','timesheetweek','writeChild');
+$permWriteAll = $user->hasRight('timesheetweek','timesheetweek','writeAll');
+$permDelete = $user->hasRight('timesheetweek','timesheetweek','delete');
+$permDeleteChild = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
+$permDeleteAll = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
+$permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
+$permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
+$permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$canSeeAllEmployees = (!empty($user->admin) || $permReadAll || $permWriteAll || $permDeleteAll || $permValidateAll);
+$permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete ||
+$permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
+if (!$permViewAny) {
+	accessforbidden();
+}
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
@@ -14,9 +52,24 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
 
+// EN: Collect the identifiers of employees the user is authorised to manage.
+// FR: Rassemble les identifiants des salariés que l'utilisateur est autorisé à gérer.
+$allowedUserIds = array();
+if (!$canSeeAllEmployees) {
+	if ($permRead || $permWrite || $permDelete || $permValidate || $permValidateOwn) {
+		$allowedUserIds[] = (int) $user->id;
+	}
+	if ($permReadChild || $permWriteChild || $permDeleteChild || $permValidateChild) {
+		$allowedUserIds = array_merge($allowedUserIds, tw_get_user_child_ids($user));
+	}
+	$allowedUserIds = array_values(array_unique(array_filter($allowedUserIds, function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+}
 // EN: Detect if the Multicompany module is enabled to expose entity-specific data.
 // FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
 $multicompanyEnabled = !empty($conf->multicompany->enabled);
+
 
 /**
  * Params
@@ -98,11 +151,6 @@ $search_status = array_values(array_unique(array_filter($search_status, function
 $search_status = array_map('strval', $search_status);
 
 /**
- * Security
- */
-if (!$user->hasRight('timesheetweek','timesheetweek','read')) accessforbidden();
-
-/**
  * Objects
  */
 $form = new Form($db);
@@ -150,7 +198,6 @@ if ($multicompanyEnabled) {
                 $db->free($resEntity);
         }
 }
-
 /**
  * Arrayfields (select columns)
  */
@@ -233,7 +280,7 @@ if ($multicompanyEnabled) {
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
 $sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
 $sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
+$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 if ($multicompanyEnabled) {
@@ -245,6 +292,17 @@ $sql .= " WHERE 1=1";
 // EN: Restrict the listing to the entities allowed for the timesheet module.
 // FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
 $sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
+if (!$canSeeAllEmployees) {
+	if (!empty($allowedUserIds)) {
+		// EN: Restrict the SQL query to employees that belong to the manager's scope.
+		// FR: Restreint la requête SQL aux salariés qui relèvent du périmètre du responsable.
+		$sql .= ' AND t.fk_user IN ('.implode(',', $allowedUserIds).')';
+	} else {
+		// EN: Block access when the user has no visible employees within the current entity selection.
+		// FR: Bloque l'accès lorsque l'utilisateur n'a aucun salarié visible dans la sélection d'entités courante.
+		$sql .= ' AND 1=0';
+	}
+}
 if ($search_ref !== '')     $sql .= natural_search('t.ref', $search_ref);
 if ($search_user > 0)       $sql .= " AND t.fk_user = ".((int)$search_user);
 if ($search_year > 0)       $sql .= " AND t.year = ".((int)$search_year);
@@ -362,9 +420,19 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
 }
 if (!empty($arrayfields['user']['checked'])) {
-        print '<td class="liste_titre maxwidthonsmartphone">';
-        print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
-        print '</td>';
+	print '<td class="liste_titre maxwidthonsmartphone">';
+	// EN: Render the Dolibarr user selector with photos while keeping it within the authorised scope.
+	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
+	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	if (!$canSeeAllEmployees) {
+		// EN: Remove any option outside the authorised employees while preserving placeholders.
+		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
+		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $allowedUserIds, $search_user);
+	}
+	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
+	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.
+	print tw_strip_user_id_from_select($employeeSelectHtml);
+	print '</td>';
 }
 if (!empty($arrayfields['t.entity']['checked'])) {
         print '<td class="liste_titre center">';
@@ -567,13 +635,17 @@ while ($i < $imax) {
 	}
 
 	// Employee
-        if (!empty($arrayfields['user']['checked'])) {
-                $usertmp->id = $obj->uid;
-                $usertmp->firstname = $obj->firstname;
-                $usertmp->lastname = $obj->lastname;
-                $usertmp->login = $obj->login;
-                print '<td>'.$usertmp->getNomUrl(-1).'</td>';
-        }
+	if (!empty($arrayfields['user']['checked'])) {
+		$usertmp->id = $obj->uid;
+		$usertmp->firstname = $obj->firstname;
+		$usertmp->lastname = $obj->lastname;
+		$usertmp->login = $obj->login;
+		// EN: Feed status and photo so getNomUrl can expose the avatar and badge correctly.
+		// FR: Renseigne le statut et la photo pour que getNomUrl affiche correctement l'avatar et le badge.
+		$usertmp->statut = isset($obj->user_status) ? (int) $obj->user_status : $usertmp->statut;
+		$usertmp->photo = $obj->user_photo;
+		print '<td>'.$usertmp->getNomUrl(-1).'</td>';
+	}
 
         if (!empty($arrayfields['t.entity']['checked'])) {
                 $entityName = '';
