@@ -21,17 +21,8 @@ if (!$res && file_exists("../main.inc.php")) $res = include "../main.inc.php";
 if (!$res && file_exists("../../main.inc.php")) $res = include "../../main.inc.php";
 if (!$res) die("Include of main fails");
 
-require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-
-dol_include_once('/timesheetweek/class/timesheetweek.class.php');
-dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
-
-$langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
-
-// EN: Evaluate permissions to restrict listing to allowed employees.
-// FR: Évalue les permissions pour restreindre la liste aux salariés autorisés.
+// EN: Check permissions before loading any additional resources to abort early.
+// FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
 $permRead = $user->hasRight('timesheetweek','timesheetweek','read');
 $permReadChild = $user->hasRight('timesheetweek','timesheetweek','readChild');
 $permReadAll = $user->hasRight('timesheetweek','timesheetweek','readAll');
@@ -46,10 +37,21 @@ $permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn'
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
 $permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
 $canSeeAllEmployees = (!empty($user->admin) || $permReadAll || $permWriteAll || $permDeleteAll || $permValidateAll);
-$permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete || $permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
+$permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete ||
+$permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
 if (!$permViewAny) {
 	accessforbidden();
 }
+
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+
+dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+
+$langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
+
 // EN: Collect the identifiers of employees the user is authorised to manage.
 // FR: Rassemble les identifiants des salariés que l'utilisateur est autorisé à gérer.
 $allowedUserIds = array();

@@ -6,6 +6,7 @@
 - Limite le filtre salarié aux collaborateurs visibles par l'utilisateur et respecte le périmètre Multicompany. / Limits the employee filter to collaborators visible to the user and honours the Multicompany scope.
 - Protège l'endpoint AJAX contre les mises à jour hors périmètre hiérarchique avec un retour localisé. / Protects the AJAX endpoint against out-of-scope updates with a localised response.
 - Corrige l'affichage en renvoyant une erreur JSON cohérente lors d'un refus de permission. / Fixes the display by returning a consistent JSON error when permission is denied.
+- Déclenche la vérification d'accès dès le chargement de la liste pour stopper immédiatement les utilisateurs non autorisés. / Triggers the access check as soon as the list loads to stop unauthorised users immediately.
 
 ## 1.0.2
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.
