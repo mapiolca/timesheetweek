@@ -7,6 +7,8 @@
 - Protège l'endpoint AJAX contre les mises à jour hors périmètre hiérarchique avec un retour localisé. / Protects the AJAX endpoint against out-of-scope updates with a localised response.
 - Corrige l'affichage en renvoyant une erreur JSON cohérente lors d'un refus de permission. / Fixes the display by returning a consistent JSON error when permission is denied.
 - Déclenche la vérification d'accès dès le chargement de la liste pour stopper immédiatement les utilisateurs non autorisés. / Triggers the access check as soon as the list loads to stop unauthorised users immediately.
+- Corrige l'affichage des photos et statuts utilisateurs dans les listes, filtres et formulaires en respectant le périmètre hiérarchique. / Fixes user pictures and statuses within lists, filters and forms while respecting the managerial scope.
+- Masque l'identifiant interne dans le filtre salarié pour un rendu aligné sur Dolibarr. / Hides the internal ID in the employee filter for a Dolibarr-aligned rendering.
 
 ## 1.0.2
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.

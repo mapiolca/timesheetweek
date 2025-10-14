@@ -755,7 +755,10 @@ if ($action === 'create') {
 	// Employé
 	echo '<tr>';
 	echo '<td class="titlefield">'.$langs->trans("Employee").'</td>';
-	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1).'</td>';
+	// EN: Display the employee selector with avatars to align with Dolibarr UX.
+	// FR: Affiche le sélecteur salarié avec avatars pour rester cohérent avec l'UX Dolibarr.
+	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+
 	echo '</tr>';
 
 	// Semaine
@@ -768,7 +771,10 @@ if ($action === 'create') {
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
 	echo '<tr>';
 	echo '<td>'.$langs->trans("Validator").'</td>';
-	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200').'</td>';
+	// EN: Pre-select the default validator with picture support for clarity.
+	// FR: Pré-sélectionne le validateur par défaut avec prise en charge de la photo pour plus de clarté.
+	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+
 	echo '</tr>';
 
 	// Note
@@ -901,7 +907,9 @@ JS;
 		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setfk_user">';
-		echo $form->select_dolusers($object->fk_user, 'fk_user', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+			// EN: Keep avatar rendering when editing the employee inline.
+			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
+				echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
 		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';
@@ -959,7 +967,9 @@ JS;
 		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setvalidator">';
-		echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, null, 0, '', '', 0, 0, 0, '', 0, '', 'maxwidth200');
+			// EN: Preserve photo display while updating the validator inline.
+			// FR: Préserve l'affichage de la photo lors de la mise à jour du validateur en ligne.
+				echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
 		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';

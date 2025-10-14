@@ -174,14 +174,34 @@ function timesheetweekPrepareHead($object)
  */
 function tw_replace_anchor_text($linkHtml, $label)
 {
-        $escaped = dol_escape_htmltag($label);
-        if (empty($linkHtml)) {
-                return $escaped;
-        }
+	$escaped = dol_escape_htmltag($label);
+	if (empty($linkHtml)) {
+		return $escaped;
+	}
 
-        return preg_replace('/>([^<]*)</u', '>'.$escaped.'<', $linkHtml, 1);
+	return preg_replace('/>([^<]*)</u', '>'.$escaped.'<', $linkHtml, 1);
 }
+/**
+ * EN: Remove any textual hint of the internal Dolibarr user ID from an HTML select.
+ * FR: Supprime toute mention textuelle de l'identifiant interne Dolibarr d'un utilisateur dans un select HTML.
+ *
+ * @param string $html
+ * @return string
+ */
+function tw_strip_user_id_from_select($html)
+{
+	if ($html === '' || $html === null) {
+		return (string) $html;
+	}
 
+	return preg_replace_callback('/(<option\b[^>]*>)([^<]*)(<\/option>)/i', function ($matches) {
+		$text = (string) $matches[2];
+		// EN: Remove common ID patterns appended by core helpers ("(id: 5)", "#5", "[5]").
+		// FR: Supprime les motifs d'ID courants ajoutés par les helpers cœur ("(id: 5)", "#5", "[5]").
+		$cleaned = preg_replace(array('/\s*\(id:\s*\d+\)/i', '/\s*#\s*\d+/', '/\s*\[\s*\d+\s*\]/'), '', $text);
+		return $matches[1].$cleaned.$matches[3];
+	}, $html);
+}
 /**
  * Return the project link formatted as "Ref - Label"
  *

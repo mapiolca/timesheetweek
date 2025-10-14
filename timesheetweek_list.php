@@ -198,36 +198,23 @@ if ($multicompanyEnabled) {
                 $db->free($resEntity);
         }
 }
-// EN: Precompute the employee filter restricted to the visible scope.
-// FR: Pré-calculer le filtre salarié limité au périmètre visible.
-$employeeFilterOptions = null;
+// EN: Build the SQL filter injected into select_dolusers to keep the dropdown scoped.
+// FR: Construit le filtre SQL injecté dans select_dolusers pour conserver la liste déroulante dans le périmètre.
+$employeeFilterSql = '';
+if ($multicompanyEnabled) {
+	// EN: Restrict the selector to the entities allowed for the current user context.
+	// FR: Restreint le sélecteur aux entités autorisées dans le contexte utilisateur courant.
+	$employeeFilterSql .= ' AND u.entity IN ('.getEntity('user').')';
+}
 if (!$canSeeAllEmployees) {
-	$employeeFilterOptions = array();
 	if (!empty($allowedUserIds)) {
-		$sqlEmployeeFilter = 'SELECT u.rowid, u.firstname, u.lastname, u.login FROM '.MAIN_DB_PREFIX.'user as u';
-		$sqlEmployeeFilter .= ' WHERE u.rowid IN ('.implode(',', $allowedUserIds).')';
-		if ($multicompanyEnabled) {
-			// EN: Apply Multicompany scoping to the user list for consistent cross-entity filtering.
-			// FR: Applique le périmètre Multicompany à la liste des utilisateurs pour un filtrage inter-entités cohérent.
-			$sqlEmployeeFilter .= ' AND u.entity IN ('.getEntity('user').')';
-		}
-		$sqlEmployeeFilter .= ' ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC';
-		$resEmployeeFilter = $db->query($sqlEmployeeFilter);
-		if ($resEmployeeFilter) {
-			while ($employeeRow = $db->fetch_object($resEmployeeFilter)) {
-				$label = dolGetFirstLastname($employeeRow->firstname, $employeeRow->lastname);
-				if ($label === '') {
-					$label = trim((string) $employeeRow->login);
-				}
-				if ($label === '') {
-					$label = $langs->trans('User');
-				} elseif (!empty($employeeRow->login)) {
-					$label .= ' ('.$employeeRow->login.')';
-				}
-				$employeeFilterOptions[(int) $employeeRow->rowid] = $label;
-			}
-			$db->free($resEmployeeFilter);
-		}
+		// EN: Limit the dropdown to the employees the manager can supervise.
+		// FR: Limite la liste déroulante aux salariés que le responsable peut superviser.
+		$employeeFilterSql .= ' AND u.rowid IN ('.implode(',', $allowedUserIds).')';
+	} else {
+		// EN: Force an empty result when the user has no subordinate in scope.
+		// FR: Force un résultat vide lorsque l'utilisateur n'a aucun subordonné dans son périmètre.
+		$employeeFilterSql .= ' AND 1=0';
 	}
 }
 
@@ -314,7 +301,7 @@ if ($multicompanyEnabled) {
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
 $sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
 $sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login";
+$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 if ($multicompanyEnabled) {
@@ -455,13 +442,12 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 }
 if (!empty($arrayfields['user']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone">';
-	if (is_array($employeeFilterOptions)) {
-		// EN: Limit the dropdown to employees visible to the current user.
-		// FR: Limite la liste déroulante aux salariés visibles par l'utilisateur courant.
-		print $form->selectarray('search_user', $employeeFilterOptions, ($search_user > 0 ? (int) $search_user : ''), 1, 0, 0, '', 0, 0, 0, 'maxwidth200');
-	} else {
-		print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
-	}
+	// EN: Render the Dolibarr user selector with photos while keeping it within the authorised scope.
+	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
+	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, $employeeFilterSql, 0, 'maxwidth200', '', '', '', 1);
+	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
+	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.
+	print tw_strip_user_id_from_select($employeeSelectHtml);
 	print '</td>';
 }
 if (!empty($arrayfields['t.entity']['checked'])) {
@@ -665,13 +651,17 @@ while ($i < $imax) {
 	}
 
 	// Employee
-        if (!empty($arrayfields['user']['checked'])) {
-                $usertmp->id = $obj->uid;
-                $usertmp->firstname = $obj->firstname;
-                $usertmp->lastname = $obj->lastname;
-                $usertmp->login = $obj->login;
-                print '<td>'.$usertmp->getNomUrl(-1).'</td>';
-        }
+	if (!empty($arrayfields['user']['checked'])) {
+		$usertmp->id = $obj->uid;
+		$usertmp->firstname = $obj->firstname;
+		$usertmp->lastname = $obj->lastname;
+		$usertmp->login = $obj->login;
+		// EN: Feed status and photo so getNomUrl can expose the avatar and badge correctly.
+		// FR: Renseigne le statut et la photo pour que getNomUrl affiche correctement l'avatar et le badge.
+		$usertmp->statut = isset($obj->user_status) ? (int) $obj->user_status : $usertmp->statut;
+		$usertmp->photo = $obj->user_photo;
+		print '<td>'.$usertmp->getNomUrl(-1).'</td>';
+	}
 
         if (!empty($arrayfields['t.entity']['checked'])) {
                 $entityName = '';
