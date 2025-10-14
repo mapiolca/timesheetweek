@@ -202,6 +202,52 @@ function tw_strip_user_id_from_select($html)
 		return $matches[1].$cleaned.$matches[3];
 	}, $html);
 }
+
+/**
+ * EN: Keep only the authorised user identifiers within an HTML select while preserving placeholders.
+ * FR: Conserve uniquement les identifiants utilisateurs autorisés dans un select HTML en préservant les placeholders.
+ *
+ * @param string $html
+ * @param array  $allowedUserIds
+ * @param int    $selectedUserId
+ * @return string
+ */
+function tw_filter_select_by_user_ids($html, array $allowedUserIds, $selectedUserId = 0)
+{
+	if ($html === '' || $html === null) {
+		return (string) $html;
+	}
+
+	$allowedMap = array();
+	foreach ($allowedUserIds as $candidate) {
+		$candidateId = (int) $candidate;
+		if ($candidateId > 0) {
+			$allowedMap[$candidateId] = true;
+		}
+	}
+
+	$selectedUserId = (int) $selectedUserId;
+	if ($selectedUserId > 0) {
+		$allowedMap[$selectedUserId] = true;
+	}
+
+	$pattern = '/<option\b[^>]*value="?(-?\d+)"?[^>]*>.*?<\/option>/i';
+
+	return preg_replace_callback($pattern, function ($matches) use ($allowedMap) {
+		$value = (int) $matches[1];
+		if ($value <= 0) {
+			// EN: Preserve empty, "all" and sentinel options to keep the widget functional.
+			// FR: Préserve les options vides, "tous" et sentinelles pour maintenir le widget fonctionnel.
+			return $matches[0];
+		}
+		if (!isset($allowedMap[$value])) {
+			// EN: Remove any employee outside the authorised perimeter.
+			// FR: Retire tout salarié hors du périmètre autorisé.
+			return '';
+		}
+		return $matches[0];
+	}, $html);
+}
 /**
  * Return the project link formatted as "Ref - Label"
  *

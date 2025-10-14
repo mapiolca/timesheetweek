@@ -198,27 +198,6 @@ if ($multicompanyEnabled) {
                 $db->free($resEntity);
         }
 }
-// EN: Build the SQL filter injected into select_dolusers to keep the dropdown scoped.
-// FR: Construit le filtre SQL injecté dans select_dolusers pour conserver la liste déroulante dans le périmètre.
-$employeeFilterSql = '';
-if ($multicompanyEnabled) {
-	// EN: Restrict the selector to the entities allowed for the current user context.
-	// FR: Restreint le sélecteur aux entités autorisées dans le contexte utilisateur courant.
-	$employeeFilterSql .= ' AND u.entity IN ('.getEntity('user').')';
-}
-if (!$canSeeAllEmployees) {
-	if (!empty($allowedUserIds)) {
-		// EN: Limit the dropdown to the employees the manager can supervise.
-		// FR: Limite la liste déroulante aux salariés que le responsable peut superviser.
-		$employeeFilterSql .= ' AND u.rowid IN ('.implode(',', $allowedUserIds).')';
-	} else {
-		// EN: Force an empty result when the user has no subordinate in scope.
-		// FR: Force un résultat vide lorsque l'utilisateur n'a aucun subordonné dans son périmètre.
-		$employeeFilterSql .= ' AND 1=0';
-	}
-}
-
-
 /**
  * Arrayfields (select columns)
  */
@@ -444,7 +423,12 @@ if (!empty($arrayfields['user']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone">';
 	// EN: Render the Dolibarr user selector with photos while keeping it within the authorised scope.
 	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
-	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, $employeeFilterSql, 0, 'maxwidth200', '', '', '', 1);
+	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	if (!$canSeeAllEmployees) {
+		// EN: Remove any option outside the authorised employees while preserving placeholders.
+		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
+		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $allowedUserIds, $search_user);
+	}
 	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
 	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.
 	print tw_strip_user_id_from_select($employeeSelectHtml);
