@@ -2,7 +2,7 @@
 /* Copyright (C) 2004-2018	Laurent Destailleur			<eldy@users.sourceforge.net>
  * Copyright (C) 2018-2019	Nicolas ZABOURI				<info@inovea-conseil.com>
  * Copyright (C) 2019-2024	Frédéric France				<frederic.france@free.fr>
- * Copyright (C) 2025		Pierre ARDOIN
+ * Copyright (C) 2025		Pierre Ardoin           <developpeur@lesmetiersdubatiment.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-                $this->version = '1.0.2'; // EN: Bump module version after adding full weekday translations.
-                                         // FR: Incrémente la version du module après l'ajout des traductions complètes des jours.
+		$this->version = '1.0.3'; // EN: Bump module version to ship hierarchy permission fixes.
+								 // FR: Incrémente la version du module pour livrer les correctifs de permissions hiérarchiques.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 

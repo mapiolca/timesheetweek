@@ -1,7 +1,7 @@
 <?php
 /* Copyright (C) 2022       Laurent Destailleur     <eldy@users.sourceforge.net>
  * Copyright (C) 2024       Frédéric France         <frederic.france@free.fr>
- * Copyright (C) 2025 Pierre ARDOIN
+ * Copyright (C) 2025       Pierre Ardoin           <developpeur@lesmetiersdubatiment.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,9 +108,19 @@ if ($objectId && $field && isset($value)) {
 	$object->$field = $value;
 	$result = $object->update($user);
 	if ($result < 0) {
-		print json_encode(['status' => 'error', 'message' => 'Error updating '. $field]);
+		// EN: Return a translated error when the update fails.
+		// FR: Retourne une erreur traduite lorsque la mise à jour échoue.
+		print json_encode(array(
+			'status' => 'error',
+			'message' => $langs->transnoentities('TimesheetWeekAjaxUpdateError', $field)
+		));
 	} else {
-		print json_encode(['status' => 'success', 'message' => $field . ' updated successfully']);
+		// EN: Confirm the update with a translated success message.
+		// FR: Confirme la mise à jour avec un message de succès traduit.
+		print json_encode(array(
+			'status' => 'success',
+			'message' => $langs->transnoentities('TimesheetWeekAjaxUpdateSuccess', $field)
+		));
 	}
 }
 
