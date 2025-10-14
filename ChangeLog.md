@@ -3,6 +3,7 @@
 ## 1.0.3
 - Sécurise les droits hiérarchiques pour lire, créer, modifier, supprimer et valider les feuilles des seuls collaborateurs gérés. / Secures hierarchy rights to read, create, update, delete and validate only managed employees' timesheets.
 - Restreint la liste hebdomadaire aux salariés autorisés et ajoute des filtres compatibles Multicompany. / Restricts the weekly list to authorised employees and adds Multicompany-compatible filters.
+- Limite le filtre salarié aux collaborateurs visibles par l'utilisateur et respecte le périmètre Multicompany. / Limits the employee filter to collaborators visible to the user and honours the Multicompany scope.
 - Protège l'endpoint AJAX contre les mises à jour hors périmètre hiérarchique avec un retour localisé. / Protects the AJAX endpoint against out-of-scope updates with a localised response.
 - Corrige l'affichage en renvoyant une erreur JSON cohérente lors d'un refus de permission. / Fixes the display by returning a consistent JSON error when permission is denied.
 

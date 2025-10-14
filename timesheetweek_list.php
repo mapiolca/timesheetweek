@@ -196,6 +196,39 @@ if ($multicompanyEnabled) {
                 $db->free($resEntity);
         }
 }
+// EN: Precompute the employee filter restricted to the visible scope.
+// FR: Pré-calculer le filtre salarié limité au périmètre visible.
+$employeeFilterOptions = null;
+if (!$canSeeAllEmployees) {
+	$employeeFilterOptions = array();
+	if (!empty($allowedUserIds)) {
+		$sqlEmployeeFilter = 'SELECT u.rowid, u.firstname, u.lastname, u.login FROM '.MAIN_DB_PREFIX.'user as u';
+		$sqlEmployeeFilter .= ' WHERE u.rowid IN ('.implode(',', $allowedUserIds).')';
+		if ($multicompanyEnabled) {
+			// EN: Apply Multicompany scoping to the user list for consistent cross-entity filtering.
+			// FR: Applique le périmètre Multicompany à la liste des utilisateurs pour un filtrage inter-entités cohérent.
+			$sqlEmployeeFilter .= ' AND u.entity IN ('.getEntity('user').')';
+		}
+		$sqlEmployeeFilter .= ' ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC';
+		$resEmployeeFilter = $db->query($sqlEmployeeFilter);
+		if ($resEmployeeFilter) {
+			while ($employeeRow = $db->fetch_object($resEmployeeFilter)) {
+				$label = dolGetFirstLastname($employeeRow->firstname, $employeeRow->lastname);
+				if ($label === '') {
+					$label = trim((string) $employeeRow->login);
+				}
+				if ($label === '') {
+					$label = $langs->trans('User');
+				} elseif (!empty($employeeRow->login)) {
+					$label .= ' ('.$employeeRow->login.')';
+				}
+				$employeeFilterOptions[(int) $employeeRow->rowid] = $label;
+			}
+			$db->free($resEmployeeFilter);
+		}
+	}
+}
+
 
 /**
  * Arrayfields (select columns)
@@ -419,9 +452,15 @@ if (!empty($arrayfields['t.ref']['checked'])) {
 	print '<td class="liste_titre"><input class="flat" type="text" name="search_ref" value="'.dol_escape_htmltag($search_ref).'" size="12"></td>';
 }
 if (!empty($arrayfields['user']['checked'])) {
-        print '<td class="liste_titre maxwidthonsmartphone">';
-        print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
-        print '</td>';
+	print '<td class="liste_titre maxwidthonsmartphone">';
+	if (is_array($employeeFilterOptions)) {
+		// EN: Limit the dropdown to employees visible to the current user.
+		// FR: Limite la liste déroulante aux salariés visibles par l'utilisateur courant.
+		print $form->selectarray('search_user', $employeeFilterOptions, ($search_user > 0 ? (int) $search_user : ''), 1, 0, 0, '', 0, 0, 0, 'maxwidth200');
+	} else {
+		print $form->select_dolusers($search_user, 'search_user', 1, null, 0, '', '', '0', 0, 0, '', 0, '', 'maxwidth200');
+	}
+	print '</td>';
 }
 if (!empty($arrayfields['t.entity']['checked'])) {
         print '<td class="liste_titre center">';
