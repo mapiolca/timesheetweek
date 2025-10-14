@@ -738,11 +738,19 @@ if ($object->id > 0) {
 // ----------------- View -----------------
 $form = new Form($db);
 $title = $langs->trans("TimesheetWeek");
-llxHeader('', $title);
+
+// EN: Render the header only after permission guards to avoid duplicated menus on errors.
+// FR: Affiche l'en-tête uniquement après les gardes de permissions pour éviter les menus dupliqués en cas d'erreur.
 
 // ---- CREATE MODE ----
 if ($action === 'create') {
-	if (!$permWriteAny) accessforbidden();
+	if (!$permWriteAny) {
+		// EN: Stop unauthorized creation attempts before any layout is printed.
+		// FR: Stoppe les tentatives de création non autorisées avant tout affichage de mise en page.
+		accessforbidden();
+	}
+
+	llxHeader('', $title);
 
 	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
 
@@ -810,11 +818,15 @@ JS;
 } else if ($id > 0) {
 	// ---- READ MODE (fiche + grille) ----
 	if (!tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)) {
+		// EN: Reject access to foreign sheets before emitting the global page structure.
+		// FR: Refuse l'accès aux feuilles étrangères avant d'émettre la structure globale de la page.
 		accessforbidden();
 	}
 
+	llxHeader('', $title);
+
 	// Head + banner
-        $head = timesheetweekPrepareHead($object);
+	$head = timesheetweekPrepareHead($object);
         print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
         $linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
