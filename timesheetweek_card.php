@@ -915,26 +915,29 @@ JS;
 
         // Employé
         echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
-	if ($action === 'editfk_user' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
-		echo '<input type="hidden" name="action" value="setfk_user">';
+        		if ($action === 'editfk_user' && $canEditInline) {
+			echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+			echo '<input type="hidden" name="token" value="'.newToken().'">';
+			echo '<input type="hidden" name="action" value="setfk_user">';
 			// EN: Keep avatar rendering when editing the employee inline.
 			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
-				echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
-		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		echo '</form>';
-	} else {
-		if ($object->fk_user > 0) {
-			$u = new User($db); $u->fetch($object->fk_user);
-			echo $u->getNomUrl(1);
+			echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+			echo '</form>';
+		} else {
+			if ($object->fk_user > 0) {
+				$u = new User($db);
+				$u->fetch($object->fk_user);
+				// EN: Display the Dolibarr avatar and badge to stay consistent with core cards.
+				// FR: Affiche l'avatar Dolibarr et le badge pour rester cohérent avec les fiches cœur.
+				echo $u->getNomUrl(-1);
+			}
+			if ($canEditInline) {
+				echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+			}
 		}
-		if ($canEditInline) {
-			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editfk_user" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
-		}
-	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Semaine
 	echo '<tr><td>'.$langs->trans("Week").'</td><td>';
@@ -953,7 +956,7 @@ JS;
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Note
 	echo '<tr><td>'.$langs->trans("Note").'</td><td>';
@@ -971,30 +974,33 @@ JS;
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
 		}
 	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	// Validator
 	echo '<tr><td>'.$langs->trans("Validator").'</td><td>';
-	if ($action === 'editvalidator' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
-		echo '<input type="hidden" name="action" value="setvalidator">';
+		if ($action === 'editvalidator' && $canEditInline) {
+			echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+			echo '<input type="hidden" name="token" value="'.newToken().'">';
+			echo '<input type="hidden" name="action" value="setvalidator">';
 			// EN: Preserve photo display while updating the validator inline.
 			// FR: Préserve l'affichage de la photo lors de la mise à jour du validateur en ligne.
-				echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
-		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
-		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
-		echo '</form>';
-	} else {
-		if ($object->fk_user_valid > 0) {
-			$v = new User($db); $v->fetch($object->fk_user_valid);
-			echo $v->getNomUrl(1);
+			echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
+			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
+			echo '</form>';
+		} else {
+			if ($object->fk_user_valid > 0) {
+				$v = new User($db);
+				$v->fetch($object->fk_user_valid);
+				// EN: Render the validator with avatar to match Dolibarr consistency.
+				// FR: Affiche le validateur avec avatar pour respecter la cohérence Dolibarr.
+				echo $v->getNomUrl(-1);
+			}
+			if ($canEditInline) {
+				echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
+			}
 		}
-		if ($canEditInline) {
-			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editvalidator" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
-		}
-	}
-	echo '</td></tr>';
+		echo '</td></tr>';
 
 	echo '</table>';
 	echo '</div>';

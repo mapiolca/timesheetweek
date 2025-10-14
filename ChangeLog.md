@@ -11,6 +11,7 @@
 - Masque l'identifiant interne dans le filtre salarié pour un rendu aligné sur Dolibarr. / Hides the internal ID in the employee filter for a Dolibarr-aligned rendering.
 - Corrige le filtre salarié pour éviter les erreurs SQL tout en respectant le périmètre visible. / Fixes the employee filter to prevent SQL errors while respecting the visible scope.
 - Évite le double affichage des menus lors d'un refus de permission sur la fiche hebdomadaire. / Prevents double menu rendering when the weekly card access is denied.
+- Affiche les avatars des salariés et validateurs sur la fiche hebdomadaire pour un rendu cohérent. / Displays employee and validator avatars on the weekly card for a consistent rendering.
 
 ## 1.0.2
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.
