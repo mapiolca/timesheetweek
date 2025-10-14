@@ -236,6 +236,73 @@ function tw_get_task_nomurl(Task $task, $withpicto = 0, $withproject = false)
 }
 
 /**
+ * EN: Cache and return the identifiers of the users managed by the current user.
+ * FR: Met en cache et renvoie les identifiants des utilisateurs gérés par l'utilisateur courant.
+ *
+ * @param User $user Current Dolibarr user object
+ * @return int[] List of subordinate user identifiers
+ */
+function tw_get_user_child_ids(User $user)
+{
+	static $cache = array();
+	$userId = (int) $user->id;
+	if (!isset($cache[$userId])) {
+		$rawList = $user->getAllChildIds(1);
+		if (!is_array($rawList)) {
+			$rawList = array();
+		}
+		$cache[$userId] = array();
+		foreach ($rawList as $candidate) {
+			$childId = (int) $candidate;
+			if ($childId > 0 && !in_array($childId, $cache[$userId], true)) {
+				// EN: Store each subordinate identifier only once to keep SQL filters strict.
+				// FR: Conserve chaque identifiant de subordonné une seule fois pour garder des filtres SQL stricts.
+				$cache[$userId][] = $childId;
+			}
+		}
+	}
+	return $cache[$userId];
+}
+
+/**
+ * EN: Determine whether the current user manages the provided employee identifier.
+ * FR: Détermine si l'utilisateur courant gère l'identifiant d'employé fourni.
+ *
+ * @param int  $targetUserId Identifier of the employee to test
+ * @param User $user         Current Dolibarr user object
+ * @return bool              True when the employee is a subordinate
+ */
+function tw_is_manager_of($targetUserId, User $user)
+{
+	return in_array((int) $targetUserId, tw_get_user_child_ids($user), true);
+}
+
+/**
+ * EN: Check if the current user can act on the target employee with own/child/all permissions.
+ * FR: Vérifie si l'utilisateur courant peut agir sur l'employé cible via les permissions propre/enfant/toutes.
+ *
+ * @param int  $targetUserId Employee identifier to check
+ * @param bool $own          Allowance on own resources
+ * @param bool $child        Allowance on subordinate resources
+ * @param bool $all          Allowance on all resources
+ * @param User $user         Current Dolibarr user object
+ * @return bool              True if the action is permitted
+ */
+function tw_can_act_on_user($targetUserId, $own, $child, $all, User $user)
+{
+	if ($all) {
+		return true;
+	}
+	if ($own && ((int) $targetUserId === (int) $user->id)) {
+		return true;
+	}
+	if ($child && tw_is_manager_of($targetUserId, $user)) {
+		return true;
+	}
+	return false;
+}
+
+/**
  * Génère un <select> listant les semaines de l'année courante
  * avec leur numéro + plage du/au
  *

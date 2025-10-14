@@ -103,19 +103,6 @@ $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
 /** helpers permissions **/
-function tw_can_act_on_user($userid, $own, $child, $all, User $user) {
-	if ($all) return true;
-	if ($own && ((int)$userid === (int)$user->id)) return true;
-	if ($child) {
-		$subs = $user->getAllChildIds(1);
-		if (is_array($subs) && in_array((int)$userid, $subs, true)) return true;
-	}
-	return false;
-}
-function tw_is_manager_of($userid, User $user) {
-	$subs = $user->getAllChildIds(1);
-	return (is_array($subs) && in_array((int)$userid, $subs, true));
-}
 function tw_can_validate_timesheet(
         TimesheetWeek $o,
         User $user,

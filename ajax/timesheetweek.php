@@ -56,6 +56,7 @@ if (!$res) {
 	die("Include of main fails");
 }
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
  * @var Conf $conf
@@ -73,8 +74,13 @@ $value = GETPOST('value', 'aZ09');
 // @phan-suppress-next-line PhanUndeclaredClass
 $object = new TimesheetWeek($db);
 
-// Security check
-if (!$user->hasRight('timesheetweek', 'timesheetweek', 'write')) {
+// EN: Evaluate write permissions, including subordinate scope, before processing the request.
+// FR: Évalue les permissions d'écriture, y compris sur les subordonnés, avant de traiter la requête.
+$permWrite = $user->hasRight('timesheetweek', 'timesheetweek', 'write');
+$permWriteChild = $user->hasRight('timesheetweek', 'timesheetweek', 'writeChild');
+$permWriteAll = $user->hasRight('timesheetweek', 'timesheetweek', 'writeAll');
+$canWriteAll = (!empty($user->admin) || $permWriteAll);
+if (!($permWrite || $permWriteChild || $canWriteAll)) {
 	accessforbidden();
 }
 
@@ -88,12 +94,19 @@ top_httphead();
 
 // Update the object field with the new value
 if ($objectId && $field && isset($value)) {
-	$object->fetch($objectId);
-	if ($object->id > 0) {
-		$object->$field = $value;
+	$fetchResult = $object->fetch($objectId);
+	if ($fetchResult <= 0 || empty($object->id)) {
+		// EN: Return a JSON error when the target timesheet cannot be retrieved.
+		// FR: Retourne une erreur JSON lorsque la feuille de temps cible ne peut pas être récupérée.
+		print json_encode(['status' => 'error', 'message' => $langs->transnoentities('ErrorRecordNotFound')]);
+		$db->close();
+		exit;
 	}
+	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $canWriteAll, $user)) {
+		accessforbidden();
+	}
+	$object->$field = $value;
 	$result = $object->update($user);
-
 	if ($result < 0) {
 		print json_encode(['status' => 'error', 'message' => 'Error updating '. $field]);
 	} else {
