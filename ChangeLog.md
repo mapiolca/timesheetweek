@@ -1,6 +1,7 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.0.3
+- Corrige l'initialisation du compteur FH en chargeant les librairies Dolibarr adéquates. / Fixes FH counter initialisation by loading the appropriate Dolibarr libraries.
 - Sécurise les droits hiérarchiques pour lire, créer, modifier, supprimer et valider les feuilles des seuls collaborateurs gérés. / Secures hierarchy rights to read, create, update, delete and validate only managed employees' timesheets.
 - Restreint la liste hebdomadaire aux salariés autorisés et ajoute des filtres compatibles Multicompany. / Restricts the weekly list to authorised employees and adds Multicompany-compatible filters.
 - Limite le filtre salarié aux collaborateurs visibles par l'utilisateur et respecte le périmètre Multicompany. / Limits the employee filter to collaborators visible to the user and honours the Multicompany scope.
