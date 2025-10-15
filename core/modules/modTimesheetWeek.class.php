@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.3'; // EN: Bump module version to ship hierarchy permission fixes.
-								 // FR: Incrémente la version du module pour livrer les correctifs de permissions hiérarchiques.
+		$this->version = '1.0.4'; // EN: Release FH counter fix ensuring Dolibarr admin library loads.
+						 // FR: Publie la correction du compteur FH en garantissant le chargement de la librairie admin Dolibarr.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
