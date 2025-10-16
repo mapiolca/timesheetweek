@@ -64,7 +64,7 @@ TimesheetWeekDescription = Module TimesheetWeek pour gérer la saisie, l'approba
 #
 TimesheetWeekArea = Accueil TimesheetWeek
 TimesheetWeek = Feuille de temps hebdomadaire
-# TimesheetWeekList = Feuilles de temps hebdomadaires
+TimesheetWeek_List = Liste des feuilles de temps hebdomadaires
 ListTimesheetWeek = Feuilles de temps hebdomadaires
 NewTimesheetWeek = Nouvelle feuille de temps hebdomadaire
 QuickCreateTimesheetWeek = Création rapide d'une feuille de temps hebdomadaire
