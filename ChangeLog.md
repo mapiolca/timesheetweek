@@ -1,5 +1,10 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.6
+- Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
+- Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
+- Conserve la sélection de limite dans la liste lors des filtrages. / Keeps the list limit selection when filters are submitted.
+
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
 

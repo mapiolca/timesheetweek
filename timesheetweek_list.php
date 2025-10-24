@@ -403,6 +403,9 @@ print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 print '<input type="hidden" name="page" value="'.$page.'">';
 print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
+// EN: Preserve the selected list limit across filter submissions to keep the pagination consistent.
+// FR: Conserve la limite de liste sélectionnée lors des filtrages pour maintenir une pagination cohérente.
+print '<input type="hidden" name="limit" id="limit" value="'.((int) $limit).'">';
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
