@@ -11,6 +11,7 @@
 - Corrige l'erreur JavaScript générée par les apostrophes du sélecteur de limite. / Fixes the JavaScript error triggered by the limit selector apostrophes.
 - Soumet la liste immédiatement grâce au comportement `selectlimit` natif tout en conservant la limite choisie. / Submits the list instantly through the native `selectlimit` behaviour while preserving the chosen limit.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
+- Conserve le choix de pagination via le paramètre `limit` dans les liens de navigation. / Keeps the pagination choice through the `limit` parameter in navigation links.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.

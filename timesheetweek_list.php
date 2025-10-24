@@ -415,6 +415,9 @@ if (!empty($search_status)) {
         $param .= '&search_status[]='.(int) $statusValue;
     }
 }
+// EN: Keep the selected limit within pagination links to honour the user's choice.
+// FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
+$param .= '&limit='.(int) $limit;
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
