@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.5
+- Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
+
 ## 1.0.4
 - Assure le chargement de la librairie admin Dolibarr avant l'appel à `dolibarr_set_const` dans le compteur FH. / Ensures the Dolibarr admin library loads before calling `dolibarr_set_const` in the FH counter.
 

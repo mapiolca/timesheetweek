@@ -350,7 +350,7 @@ $num = $resql ? $db->num_rows($resql) : 0;
 /**
  * Header
  */
-$title = $langs->trans("TimesheetWeekList");
+$title = $langs->trans("TimesheetWeek_List");
 llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist page-list');
 
 /**
