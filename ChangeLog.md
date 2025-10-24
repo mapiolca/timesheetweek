@@ -3,19 +3,9 @@
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
 - Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
-- Conserve la sélection de limite dans la liste lors des filtrages. / Keeps the list limit selection when filters are submitted.
-- Rafraîchit automatiquement la liste lors d'un changement de nombre de lignes. / Automatically refreshes the list when the line count selector changes.
 - Réaligne le sélecteur de limite sur le script standard Dolibarr pour conserver l'ergonomie native. / Realigns the limit selector with the standard Dolibarr script to preserve the native ergonomics.
-- Initialise select2 et la pagination via la logique Dolibarr afin d'appliquer le même rendu que les listes cœur. / Initialises select2 and pagination through the Dolibarr logic to reproduce the core lists rendering.
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
-- Corrige l'erreur JavaScript générée par les apostrophes du sélecteur de limite. / Fixes the JavaScript error triggered by the limit selector apostrophes.
-- Soumet la liste immédiatement grâce au comportement `selectlimit` natif tout en conservant la limite choisie. / Submits the list instantly through the native `selectlimit` behaviour while preserving the chosen limit.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
-- Conserve le choix de pagination via le paramètre `limit` dans les liens de navigation. / Keeps the pagination choice through the `limit` parameter in navigation links.
-- S'appuie uniquement sur les styles Dolibarr pour la pagination en supprimant la feuille dédiée. / Relies solely on Dolibarr styles for pagination by removing the dedicated stylesheet.
-- Force la couleur noire de la pagination via la classe Dolibarr `colorblack`. / Forces the pagination color to black through the Dolibarr `colorblack` class.
-- Préserve la couleur native du bouton « Créer » tout en forçant la pagination en noir. / Keeps the native « Create » button color while forcing the pagination to black.
-- Retire la classe `colorblack` de l'icône du bouton « Créer » pour conserver son apparence standard. / Removes the `colorblack` class from the « Create » button icon to keep its standard appearance.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
