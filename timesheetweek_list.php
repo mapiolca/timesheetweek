@@ -962,7 +962,10 @@ jQuery(function ($) {
 		// EN: Apply the Dolibarr black helper class on pagination containers and links.
 		// FR: Applique la classe Dolibarr de couleur noire sur les conteneurs et liens de pagination.
 		$paginationArea.addClass("colorblack");
-		$paginationArea.find("a, span").addClass("colorblack");
+		// EN: Keep the Dolibarr create button color by excluding action anchors from the black helper class.
+		// FR: Préserve la couleur du bouton de création Dolibarr en excluant les ancres d'action de la classe noire.
+		$paginationArea.find("a:not([class*='butAction'])").addClass("colorblack");
+		$paginationArea.find("span").addClass("colorblack");
 	}
 });
 </script>

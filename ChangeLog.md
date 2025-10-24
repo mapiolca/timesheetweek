@@ -14,6 +14,7 @@
 - Conserve le choix de pagination via le paramètre `limit` dans les liens de navigation. / Keeps the pagination choice through the `limit` parameter in navigation links.
 - S'appuie uniquement sur les styles Dolibarr pour la pagination en supprimant la feuille dédiée. / Relies solely on Dolibarr styles for pagination by removing the dedicated stylesheet.
 - Force la couleur noire de la pagination via la classe Dolibarr `colorblack`. / Forces the pagination color to black through the Dolibarr `colorblack` class.
+- Préserve la couleur native du bouton « Créer » tout en forçant la pagination en noir. / Keeps the native « Create » button color while forcing the pagination to black.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
