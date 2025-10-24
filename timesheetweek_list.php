@@ -36,6 +36,7 @@ $permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
 $permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
 $permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$permSeal = $user->hasRight('timesheetweek','timesheetweek','seal');
 $canSeeAllEmployees = (!empty($user->admin) || $permReadAll || $permWriteAll || $permDeleteAll || $permValidateAll);
 $permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete ||
 $permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
@@ -51,6 +52,79 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 $langs->loadLangs(array('timesheetweek@timesheetweek','other','users'));
+
+// EN: Provide the validation helper when not already loaded by another context.
+// FR: Fournit l'assistant de validation lorsqu'il n'est pas déjà chargé par un autre contexte.
+if (!function_exists('tw_can_validate_timesheet')) {
+	function tw_can_validate_timesheet(
+		TimesheetWeek $o,
+		User $user,
+		$permValidate,
+		$permValidateOwn,
+		$permValidateChild,
+		$permValidateAll,
+		$permWrite = false,
+		$permWriteChild = false,
+		$permWriteAll = false
+	) {
+		// EN: Mirror the permission fallback from the card to keep both screens aligned.
+		// FR: Reproduit le repli de permissions de la fiche pour garder les deux écrans cohérents.
+		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
+
+		if (!empty($user->admin)) {
+			$permValidateAll = true;
+			$hasExplicitValidation = true;
+		}
+
+		if (!$hasExplicitValidation) {
+			// EN: Reuse write permissions when historical validation rights are absent.
+			// FR: Réutilise les droits d'écriture lorsque les droits de validation historiques sont absents.
+			if ($permWriteAll) {
+				$permValidateAll = true;
+			}
+			if ($permWriteChild) {
+				$permValidateChild = true;
+			}
+
+			if ($permWrite || $permWriteChild || $permWriteAll) {
+				// EN: Allow validation when the user is set as validator on the sheet.
+				// FR: Autorise la validation lorsque l'utilisateur est désigné validateur sur la feuille.
+				if ((int) $o->fk_user_valid === (int) $user->id) {
+					$permValidate = true;
+				}
+
+				// EN: Restore legacy manager behaviour relying on writeChild rights.
+				// FR: Restaure l'ancien comportement des managers basé sur les droits writeChild.
+				if (!$permValidateChild && $permWriteChild) {
+					$permValidateChild = true;
+				}
+			}
+		}
+
+		if ($permValidateAll) return true;
+		if ($permValidateChild && tw_is_manager_of($o->fk_user, $user)) return true;
+		if ($permValidateOwn && ((int) $user->id === (int) $o->fk_user)) return true;
+		if ($permValidate && ((int) $user->id === (int) $o->fk_user_valid)) return true;
+
+		return false;
+	}
+}
+
+// EN: Translate low-level errors when mass actions fail.
+// FR: Traduit les erreurs bas niveau lors des échecs d'actions de masse.
+if (!function_exists('tw_list_translate_error')) {
+	function tw_list_translate_error($errorKey, $langs)
+	{
+		if (empty($errorKey)) {
+			return $langs->trans('Error');
+		}
+		$translated = $langs->trans($errorKey);
+		if ($translated === $errorKey) {
+			return $langs->trans('Error').' ('.dol_escape_htmltag($errorKey).')';
+		}
+		return $translated;
+	}
+}
 
 // EN: Collect the identifiers of employees the user is authorised to manage.
 // FR: Rassemble les identifiants des salariés que l'utilisateur est autorisé à gérer.
@@ -241,14 +315,208 @@ include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
 /**
  * Mass actions (UI)
  */
-$arrayofmassactions = array(
-	'approve_selection' => img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans("ApproveSelection"),
-	'refuse_selection'  => img_picto('', 'warning',  'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
-	'predelete'         => img_picto('', 'delete',   'class="pictofixedwidth"').$langs->trans("DeleteSelection"),
-);
+$arrayofmassactions = array();
+if ($permWrite || $permWriteChild || $permWriteAll) {
+	// EN: Allow bulk submission when the user can update timesheets.
+	// FR: Autorise la soumission en masse lorsque l'utilisateur peut mettre à jour les feuilles.
+	$arrayofmassactions['submit_selection'] = img_picto('', 'check', 'class="pictofixedwidth"').$langs->trans('MassActionTimesheetSubmit');
+}
+$hasValidationRights = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin) || $permWrite || $permWriteChild || $permWriteAll);
+if ($hasValidationRights) {
+	// EN: Offer approval and refusal shortcuts to authorised validators.
+	// FR: Propose des raccourcis d'acceptation et de refus aux validateurs habilités.
+	$arrayofmassactions['approve_selection'] = img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans('MassActionTimesheetApprove');
+	$arrayofmassactions['refuse_selection'] = img_picto('', 'warning', 'class="pictofixedwidth"').$langs->trans('MassActionTimesheetRefuse');
+}
+if ($permSeal) {
+	// EN: Display the sealing action only to users granted with the dedicated right.
+	// FR: Affiche l'action de scellement uniquement aux utilisateurs disposant du droit dédié.
+	$arrayofmassactions['seal_selection'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('MassActionTimesheetSeal');
+}
+if ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin)) {
+	// EN: Keep the existing delete action while restricting it to users with delete capabilities.
+	// FR: Conserve l'action de suppression en la limitant aux utilisateurs autorisés à supprimer.
+	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
+}
 $massactionbutton = $form->selectMassAction('', $arrayofmassactions);
 
 $arrayofselected = is_array($toselect) ? $toselect : array();
+
+// EN: Handle the selected IDs before the generic Dolibarr mass-action handler executes.
+// FR: Traite les identifiants sélectionnés avant que le gestionnaire d'actions de masse Dolibarr ne s'exécute.
+$massActionProcessed = false;
+if (!empty($massaction) && empty($cancel)) {
+	$selectedIds = array();
+	foreach ($arrayofselected as $candidateId) {
+		$candidateId = (int) $candidateId;
+		if ($candidateId > 0 && !in_array($candidateId, $selectedIds, true)) {
+			$selectedIds[] = $candidateId;
+		}
+	}
+
+	if (!empty($selectedIds)) {
+		// EN: Execute the submission mass action when available.
+		// FR: Exécute l'action de masse de validation lorsqu'elle est disponible.
+		if ($massaction === 'submit_selection') {
+			$massActionProcessed = true;
+			$successCount = 0;
+			$errorMessages = array();
+			foreach ($selectedIds as $sheetId) {
+				$timesheet = new TimesheetWeek($db);
+				$resultFetch = $timesheet->fetch($sheetId);
+				if ($resultFetch <= 0) {
+					if ($resultFetch === 0) {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionNotFound', '#'.$sheetId);
+					} else {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', '#'.$sheetId, tw_list_translate_error($timesheet->error, $langs));
+					}
+					continue;
+				}
+
+				$sheetRef = dol_escape_htmltag($timesheet->ref !== '' ? $timesheet->ref : '#'.$timesheet->id);
+				if (!tw_can_act_on_user($timesheet->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionPermissionDenied', $sheetRef);
+					continue;
+				}
+
+				$resultAction = $timesheet->submit($user);
+				if ($resultAction > 0) {
+					$successCount++;
+				} else {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', $sheetRef, tw_list_translate_error($timesheet->error, $langs));
+				}
+			}
+			if ($successCount > 0) {
+				setEventMessages($langs->trans('TimesheetWeekMassSubmitSuccess', $successCount), null, 'mesgs');
+			}
+			if (!empty($errorMessages)) {
+				setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $errorMessages)), null, 'errors');
+			}
+		}
+
+		// EN: Execute the approval mass action for authorised validators.
+		// FR: Exécute l'action de masse d'acceptation pour les validateurs autorisés.
+		if ($massaction === 'approve_selection') {
+			$massActionProcessed = true;
+			$successCount = 0;
+			$errorMessages = array();
+			foreach ($selectedIds as $sheetId) {
+				$timesheet = new TimesheetWeek($db);
+				$resultFetch = $timesheet->fetch($sheetId);
+				if ($resultFetch <= 0) {
+					if ($resultFetch === 0) {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionNotFound', '#'.$sheetId);
+					} else {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', '#'.$sheetId, tw_list_translate_error($timesheet->error, $langs));
+					}
+					continue;
+				}
+
+				$sheetRef = dol_escape_htmltag($timesheet->ref !== '' ? $timesheet->ref : '#'.$timesheet->id);
+				if (!tw_can_validate_timesheet($timesheet, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionPermissionDenied', $sheetRef);
+					continue;
+				}
+
+				$resultAction = $timesheet->approve($user);
+				if ($resultAction > 0) {
+					$successCount++;
+				} else {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', $sheetRef, tw_list_translate_error($timesheet->error, $langs));
+				}
+			}
+			if ($successCount > 0) {
+				setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $successCount), null, 'mesgs');
+			}
+			if (!empty($errorMessages)) {
+				setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $errorMessages)), null, 'errors');
+			}
+		}
+
+		// EN: Execute the refusal mass action for authorised validators.
+		// FR: Exécute l'action de masse de refus pour les validateurs autorisés.
+		if ($massaction === 'refuse_selection') {
+			$massActionProcessed = true;
+			$successCount = 0;
+			$errorMessages = array();
+			foreach ($selectedIds as $sheetId) {
+				$timesheet = new TimesheetWeek($db);
+				$resultFetch = $timesheet->fetch($sheetId);
+				if ($resultFetch <= 0) {
+					if ($resultFetch === 0) {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionNotFound', '#'.$sheetId);
+					} else {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', '#'.$sheetId, tw_list_translate_error($timesheet->error, $langs));
+					}
+					continue;
+				}
+
+				$sheetRef = dol_escape_htmltag($timesheet->ref !== '' ? $timesheet->ref : '#'.$timesheet->id);
+				if (!tw_can_validate_timesheet($timesheet, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionPermissionDenied', $sheetRef);
+					continue;
+				}
+
+				$resultAction = $timesheet->refuse($user);
+				if ($resultAction > 0) {
+					$successCount++;
+				} else {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', $sheetRef, tw_list_translate_error($timesheet->error, $langs));
+				}
+			}
+			if ($successCount > 0) {
+				setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $successCount), null, 'mesgs');
+			}
+			if (!empty($errorMessages)) {
+				setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $errorMessages)), null, 'errors');
+			}
+		}
+
+		// EN: Execute the sealing mass action for users with sealing rights.
+		// FR: Exécute l'action de masse de scellement pour les utilisateurs disposant du droit associé.
+		if ($massaction === 'seal_selection') {
+			$massActionProcessed = true;
+			$successCount = 0;
+			$errorMessages = array();
+			foreach ($selectedIds as $sheetId) {
+				$timesheet = new TimesheetWeek($db);
+				$resultFetch = $timesheet->fetch($sheetId);
+				if ($resultFetch <= 0) {
+					if ($resultFetch === 0) {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionNotFound', '#'.$sheetId);
+					} else {
+						$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', '#'.$sheetId, tw_list_translate_error($timesheet->error, $langs));
+					}
+					continue;
+				}
+
+				$sheetRef = dol_escape_htmltag($timesheet->ref !== '' ? $timesheet->ref : '#'.$timesheet->id);
+				if (!$permSeal) {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionPermissionDenied', $sheetRef);
+					continue;
+				}
+
+				$resultAction = $timesheet->seal($user);
+				if ($resultAction > 0) {
+					$successCount++;
+				} else {
+					$errorMessages[] = $langs->trans('TimesheetWeekMassActionGenericError', $sheetRef, tw_list_translate_error($timesheet->error, $langs));
+				}
+			}
+			if ($successCount > 0) {
+				setEventMessages($langs->trans('TimesheetWeekMassSealSuccess', $successCount), null, 'mesgs');
+			}
+			if (!empty($errorMessages)) {
+				setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $errorMessages)), null, 'errors');
+			}
+		}
+	}
+}
+if ($massActionProcessed) {
+	// EN: Reset the mass action to avoid running the generic include a second time.
+	// FR: Réinitialise l'action de masse pour éviter d'exécuter l'inclusion générique une seconde fois.
+	$massaction = '';
+}
 
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $search_ref = '';
