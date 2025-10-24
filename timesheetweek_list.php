@@ -270,17 +270,18 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 /**
  * SQL
  */
-$sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+$sqlfields = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
 if ($multicompanyEnabled) {
-        // EN: Include the entity column and its label in the result set when Multicompany is active.
-        // FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
-        $sql .= " t.entity, e.label as entity_label,";
+	// EN: Include the entity column and its label in the result set when Multicompany is active.
+	// FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
+	$sqlfields .= " t.entity, e.label as entity_label,";
 }
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
-$sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
-$sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
+$sqlfields .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
+$sqlfields .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+$sqlfields .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
+$sql = $sqlfields;
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 if ($multicompanyEnabled) {
@@ -330,20 +331,49 @@ if ($multicompanyEnabled && !empty($search_entities)) {
         }
 }
 if (!empty($search_status)) {
-    $statusFilter = array();
-    foreach ($search_status as $statusValue) {
-        $statusFilter[] = (int) $statusValue;
-    }
-    if (!empty($statusFilter)) {
-        $sql .= ' AND t.status IN ('.implode(',', $statusFilter).')';
-    }
+	$statusFilter = array();
+	foreach ($search_status as $statusValue) {
+		$statusFilter[] = (int) $statusValue;
+	}
+	if (!empty($statusFilter)) {
+		$sql .= ' AND t.status IN ('.implode(',', $statusFilter).')';
+	}
 }
+
+// EN: Duplicate the SQL without pagination to compute the total amount of records.
+// FR: Duplique la requête sans pagination pour calculer le nombre total d'enregistrements.
+$sqlList = $sql;
+$nbtotalofrecords = '';
+if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
+	// EN: Replace the field list by a COUNT(*) to follow the Dolibarr counting pattern.
+	// FR: Remplace la liste des champs par un COUNT(*) pour suivre le modèle de comptage de Dolibarr.
+	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
+	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
+	$resqlcount = $db->query($sqlforcount);
+	if ($resqlcount) {
+		$objforcount = $db->fetch_object($resqlcount);
+		$nbtotalofrecords = (int) $objforcount->nbtotalofrecords;
+		// EN: Release the count result resource to avoid leaking database handles.
+		// FR: Libère le résultat du comptage pour éviter de laisser des descripteurs ouverts.
+		$db->free($resqlcount);
+
+		if (($page * $limit) > (int) $nbtotalofrecords) {
+			// EN: Reset the pagination when the current offset exceeds the number of rows.
+			// FR: Réinitialise la pagination lorsque le décalage courant dépasse le nombre de lignes.
+			$page = 0;
+			$offset = 0;
+		}
+	} else {
+		dol_print_error($db);
+	}
+}
+
 if (!$sortfield) $sortfield = "t.rowid";
 if (!$sortorder) $sortorder = "DESC";
-$sql .= $db->order($sortfield, $sortorder);
-$sql .= $db->plimit($limit + 1, $offset);
+$sqlList .= $db->order($sortfield, $sortorder);
+$sqlList .= $db->plimit($limit + 1, $offset);
 
-$resql = $db->query($sql);
+$resql = $db->query($sqlList);
 if (!$resql) dol_print_error($db);
 $num = $resql ? $db->num_rows($resql) : 0;
 
@@ -380,10 +410,13 @@ if (!empty($search_status)) {
         $param .= '&search_status[]='.(int) $statusValue;
     }
 }
+// EN: Keep the selected limit within pagination links to honour the user's choice.
+// FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
+$param .= '&limit='.(int) $limit;
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, '', 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
 /**
  * Column selector on left of titles
@@ -403,6 +436,9 @@ print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 print '<input type="hidden" name="page" value="'.$page.'">';
 print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
+// EN: Preserve the selected list limit across filter submissions while avoiding duplicated DOM identifiers.
+// FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
+print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
@@ -423,7 +459,10 @@ if (!empty($arrayfields['user']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone">';
 	// EN: Render the Dolibarr user selector with photos while keeping it within the authorised scope.
 	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
-	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	// EN: Default the employee selector to an empty value when no filter is applied.
+	// FR: Définit une valeur vide par défaut pour le sélecteur salarié lorsqu'aucun filtre n'est appliqué.
+	$employeeSelectSelected = $search_user > 0 ? $search_user : '';
+	$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
 	if (!$canSeeAllEmployees) {
 		// EN: Remove any option outside the authorised employees while preserving placeholders.
 		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
@@ -839,6 +878,101 @@ print '</table>';
 print '</div>';
 
 print '</form>';
+
+// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
+// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
+$script = <<<'JAVASCRIPT'
+<script type="text/javascript">
+jQuery(function ($) {
+	// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
+	// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
+	var $limitSelect = $("select#limit");
+	if ($limitSelect.length && $.fn.select2) {
+		// EN: Reuse the select2 setup used in Dolibarr core lists to keep the same behaviour.
+		// FR: Réutilise la configuration select2 des listes cœur Dolibarr pour conserver le même comportement.
+		var normalizeString = function (value) {
+			return (value || "").toLowerCase();
+		};
+		$limitSelect.select2({
+			dir: "ltr",
+			width: "resolve",
+			minimumInputLength: 0,
+			language: (typeof select2arrayoflanguage === "undefined") ? "en" : select2arrayoflanguage,
+			matcher: function (params, data) {
+				if ($.trim(params.term) === "") {
+					return data;
+				}
+				var term = normalizeString(params.term);
+				var text = normalizeString(data.text || "");
+				var keywords = term.split(' ');
+				for (var i = 0; i < keywords.length; i++) {
+					if (text.indexOf(keywords[i]) === -1) {
+						return null;
+					}
+				}
+				return data;
+			},
+			theme: "default limit",
+			containerCssClass: ":all:",
+			selectionCssClass: ":all:",
+			dropdownCssClass: "ui-dialog",
+			templateResult: function (data, container) {
+				if (data.element) {
+					$(container).addClass($(data.element).attr("class"));
+				}
+				if (data.id == "-1" && $(data.element).attr("data-html") == undefined) {
+					return '&nbsp;';
+				}
+				if ($(data.element).attr("data-html") != undefined) {
+					if (typeof htmlEntityDecodeJs === 'function') {
+						return htmlEntityDecodeJs($(data.element).attr("data-html"));
+					}
+				}
+				return data.text;
+			},
+			templateSelection: function (selection) {
+				if (selection.id == "-1") {
+					return '<span class=\"placeholder\">' + selection.text + '</span>';
+				}
+				return selection.text;
+			},
+			escapeMarkup: function (markup) {
+				return markup;
+			}
+		});
+	}
+	// EN: Submit the parent form immediately when the limit changes to match Dolibarr lists.
+	// FR: Soumet immédiatement le formulaire parent lors d'un changement de limite pour correspondre aux listes Dolibarr.
+	$(".selectlimit").off("change.timesheetweekLimit").on("change.timesheetweekLimit", function () {
+		var $current = $(this);
+		var $targetForm = $current.parents('form:first');
+		if (!$targetForm.length) {
+			$targetForm = $("#searchFormList");
+		}
+		if ($targetForm.length) {
+			var $limitHidden = $("#limit-hidden");
+			if ($limitHidden.length) {
+				$limitHidden.val($current.val());
+			}
+			$targetForm.submit();
+		}
+	});
+	var $paginationArea = $(".pagination");
+	if ($paginationArea.length) {
+		// EN: Apply the Dolibarr black helper class on pagination containers and links.
+		// FR: Applique la classe Dolibarr de couleur noire sur les conteneurs et liens de pagination.
+		$paginationArea.addClass("colorblack");
+		// EN: Keep the Dolibarr create button color by excluding action anchors from the black helper class.
+		// FR: Préserve la couleur du bouton de création Dolibarr en excluant les ancres d'action de la classe noire.
+		$paginationArea.find("a:not([class*='butAction'])").addClass("colorblack");
+		// EN: Avoid forcing the icon span to black while keeping pagination counters dark.
+		// FR: Évite de forcer la couleur noire sur l'icône tout en conservant les compteurs de pagination foncés.
+		$paginationArea.find("span:not([class*='fa'])").addClass("colorblack");
+	}
+});
+</script>
+JAVASCRIPT;
+print $script;
 
 llxFooter();
 $db->close();

@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.5'; // EN: Rename install SQL to llx_timesheet_week.sql to fix database creation at activation.
-		// FR: Renomme le script SQL d'installation en llx_timesheet_week.sql pour corriger la création de base lors de l'activation.
+		$this->version = '1.0.6'; // EN: Reorders the left menu, adds agenda and project menu entries and fixes the list page limit selector.
+		// FR: Réorganise le menu gauche, ajoute les entrées de menus agenda et projet et corrige le sélecteur de limite dans la liste.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -115,9 +115,7 @@ class modTimesheetWeek extends DolibarrModules
 			// Set this to 1 if module has its own theme directory (theme)
 			'theme' => 0,
 			// Set this to relative path of css file if module has its own css file
-			'css' => array(
-				//    '/timesheetweek/css/timesheetweek.css.php',
-			),
+			'css' => array(),
 			// Set this to relative path of js file if module must load a js on all pages
 			'js' => array(
 				//   '/timesheetweek/js/timesheetweek.js.php',
@@ -489,6 +487,104 @@ class modTimesheetWeek extends DolibarrModules
 			'user' => 2,
 			'object' => 'TimesheetWeek'
 		);
+		// EN: Duplicate the left menu under the agenda main menu to match the HRM structure.
+		// FR: Duplique le menu gauche sous le menu principal agenda pour refléter la structure RH.
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=agenda',
+			'type' => 'left',
+			'titre' => 'TimesheetWeek',
+			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
+			'mainmenu' => 'agenda',
+			'leftmenu' => 'agenda_timesheetweek',
+			'url' => '/timesheetweek/timesheetweek_list.php',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=agenda,fk_leftmenu=agenda_timesheetweek',
+			'type' => 'left',
+			'titre' => 'TimesheetWeekNew',
+			'mainmenu' => 'agenda',
+			'leftmenu' => 'agenda_timesheetweek_new',
+			'url' => '/timesheetweek/timesheetweek_card.php?action=create',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=agenda,fk_leftmenu=agenda_timesheetweek',
+			'type' => 'left',
+			'titre' => 'TimesheetWeekList',
+			'mainmenu' => 'agenda',
+			'leftmenu' => 'agenda_timesheetweek_list',
+			'url' => '/timesheetweek/timesheetweek_list.php',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+
+		// EN: Duplicate the left menu under the project main menu to align with HRM and Agenda.
+		// FR: Duplique le menu gauche sous le menu principal Projet pour s'aligner sur RH et Agenda.
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=project',
+			'type' => 'left',
+			'titre' => 'TimesheetWeek',
+			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
+			'mainmenu' => 'project',
+			'leftmenu' => 'project_timesheetweek',
+			'url' => '/timesheetweek/timesheetweek_list.php',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=project,fk_leftmenu=project_timesheetweek',
+			'type' => 'left',
+			'titre' => 'TimesheetWeekNew',
+			'mainmenu' => 'project',
+			'leftmenu' => 'project_timesheetweek_new',
+			'url' => '/timesheetweek/timesheetweek_card.php?action=create',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+		$this->menu[$r++] = array(
+			'fk_menu' => 'fk_mainmenu=project,fk_leftmenu=project_timesheetweek',
+			'type' => 'left',
+			'titre' => 'TimesheetWeekList',
+			'mainmenu' => 'project',
+			'leftmenu' => 'project_timesheetweek_list',
+			'url' => '/timesheetweek/timesheetweek_list.php',
+			'langs' => 'timesheetweek@timesheetweek',
+			'position' => 1000 + $r,
+			'enabled' => 'isModEnabled("timesheetweek")',
+			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'target' => '',
+			'user' => 2,
+			'object' => 'TimesheetWeek'
+		);
+
 		/* END MODULEBUILDER LEFTMENU TIMESHEETWEEK */
 		/* BEGIN MODULEBUILDER LEFTMENU MYOBJECT */
 		/*
