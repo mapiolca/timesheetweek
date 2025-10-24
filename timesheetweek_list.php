@@ -881,94 +881,84 @@ print '</div>';
 
 print '</form>';
 
-// EN: Mirror the Dolibarr diffusion list pagination behaviour to provide the same UX expectations.
-// FR: Reproduit le comportement de pagination de la liste diffusion de Dolibarr pour offrir les mêmes attentes UX.
+// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
+// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
 $script = <<<'JAVASCRIPT'
 <script type="text/javascript">
-jQuery(function($) {
-var $limitSelect = $("select#limit");
-if ($limitSelect.length && $.fn.select2) {
-// EN: Mirror the select2 initialisation from stocktransfer_list.php to stay consistent with Dolibarr UX.
-// FR: Reproduit l'initialisation select2 de stocktransfer_list.php pour rester cohérent avec l'UX Dolibarr.
-var normalizeString = function (value) {
-return (value || "").toLowerCase();
-};
-$limitSelect.select2({
-dir: "ltr",
-width: "resolve",
-minimumInputLength: 0,
-language: (typeof select2arrayoflanguage === "undefined") ? "en" : select2arrayoflanguage,
-matcher: function (params, data) {
-if ($.trim(params.term) === "") {
-return data;
-}
-var term = normalizeString(params.term);
-var text = normalizeString(data.text || "");
-var keywords = term.split(" ");
-for (var i = 0; i < keywords.length; i++) {
-if (text.indexOf(keywords[i]) === -1) {
-return null;
-}
-}
-return data;
-},
-theme: "default limit",
-containerCssClass: ":all:",
-selectionCssClass: ":all:",
-dropdownCssClass: "ui-dialog",
-templateResult: function (data, container) {
-if (data.element) { $(container).addClass($(data.element).attr("class")); }
-if (data.id == "-1" && $(data.element).attr("data-html") == undefined) {
-return "&nbsp;";
-}
-if ($(data.element).attr("data-html") != undefined) {
-if (typeof htmlEntityDecodeJs === "function") {
-return htmlEntityDecodeJs($(data.element).attr("data-html"));
-}
-}
-return data.text;
-},
-templateSelection: function (selection) {
-if (selection.id == "-1") {
-return "<span class=\"placeholder\">" + selection.text + "</span>";
-}
-return selection.text;
-},
-escapeMarkup: function (markup) {
-return markup;
-}
-});
-}
-// EN: Trigger the Dolibarr refresh helper when the limit changes, just like stocktransfer_list.php.
-// FR: Déclenche l'assistant de rafraîchissement Dolibarr lors d'un changement de limite, comme stocktransfer_list.php.
-$(".selectlimit").off("change.timesheetweekLimit").on("change.timesheetweekLimit", function () {
-var $current = $(this);
-var selectedLimit = $current.val();
-var $targetForm = $current.parents("form:first");
-if (!$targetForm.length) {
-$targetForm = $("#searchFormList");
-}
-if ($targetForm.length) {
-var $limitHidden = $("#limit-hidden");
-if (!$limitHidden.length) {
-$limitHidden = $("<input>", {
-type: "hidden",
-name: "limit",
-id: "limit-hidden"
-}).appendTo($targetForm);
-}
-$limitHidden.val(selectedLimit);
-}
-	// EN: Prefer native Dolibarr helpers when available to refresh the listing.
-	// FR: Privilégie les assistants Dolibarr natifs lorsqu'ils sont disponibles pour rafraîchir la liste.
-	if (typeof submitForm === "function") {
-		submitForm("searchFormList", "");
-	} else if (typeof submitform === "function") {
-		submitform("searchFormList", "");
-	} else if ($targetForm.length) {
-		$targetForm.trigger("submit");
+jQuery(function ($) {
+	// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
+	// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
+	var $limitSelect = $("select#limit");
+	if ($limitSelect.length && $.fn.select2) {
+		// EN: Reuse the select2 setup used in Dolibarr core lists to keep the same behaviour.
+		// FR: Réutilise la configuration select2 des listes cœur Dolibarr pour conserver le même comportement.
+		var normalizeString = function (value) {
+			return (value || "").toLowerCase();
+		};
+		$limitSelect.select2({
+			dir: "ltr",
+			width: "resolve",
+			minimumInputLength: 0,
+			language: (typeof select2arrayoflanguage === "undefined") ? "en" : select2arrayoflanguage,
+			matcher: function (params, data) {
+				if ($.trim(params.term) === "") {
+					return data;
+				}
+				var term = normalizeString(params.term);
+				var text = normalizeString(data.text || "");
+				var keywords = term.split(' ');
+				for (var i = 0; i < keywords.length; i++) {
+					if (text.indexOf(keywords[i]) === -1) {
+						return null;
+					}
+				}
+				return data;
+			},
+			theme: "default limit",
+			containerCssClass: ":all:",
+			selectionCssClass: ":all:",
+			dropdownCssClass: "ui-dialog",
+			templateResult: function (data, container) {
+				if (data.element) {
+					$(container).addClass($(data.element).attr("class"));
+				}
+				if (data.id == "-1" && $(data.element).attr("data-html") == undefined) {
+					return '&nbsp;';
+				}
+				if ($(data.element).attr("data-html") != undefined) {
+					if (typeof htmlEntityDecodeJs === 'function') {
+						return htmlEntityDecodeJs($(data.element).attr("data-html"));
+					}
+				}
+				return data.text;
+			},
+			templateSelection: function (selection) {
+				if (selection.id == "-1") {
+					return '<span class=\"placeholder\">' + selection.text + '</span>';
+				}
+				return selection.text;
+			},
+			escapeMarkup: function (markup) {
+				return markup;
+			}
+		});
 	}
-});
+	// EN: Submit the parent form immediately when the limit changes to match Dolibarr lists.
+	// FR: Soumet immédiatement le formulaire parent lors d'un changement de limite pour correspondre aux listes Dolibarr.
+	$(".selectlimit").off("change.timesheetweekLimit").on("change.timesheetweekLimit", function () {
+		var $current = $(this);
+		var $targetForm = $current.parents('form:first');
+		if (!$targetForm.length) {
+			$targetForm = $("#searchFormList");
+		}
+		if ($targetForm.length) {
+			var $limitHidden = $("#limit-hidden");
+			if ($limitHidden.length) {
+				$limitHidden.val($current.val());
+			}
+			$targetForm.submit();
+		}
+	});
 });
 </script>
 JAVASCRIPT;

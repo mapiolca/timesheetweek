@@ -5,11 +5,11 @@
 - Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
 - Conserve la sélection de limite dans la liste lors des filtrages. / Keeps the list limit selection when filters are submitted.
 - Rafraîchit automatiquement la liste lors d'un changement de nombre de lignes. / Automatically refreshes the list when the line count selector changes.
-- Aligne le sélecteur de limite sur l'implémentation DiffusionPlans pour respecter l'expérience Dolibarr. / Aligns the limit selector with the DiffusionPlans implementation to honour Dolibarr experience.
-- Reprend le script de stocktransfer_list.php pour initialiser select2 et lancer immédiatement la mise à jour de la limite. / Reuses the stocktransfer_list.php script to initialise select2 and trigger the limit refresh instantly.
+- Réaligne le sélecteur de limite sur le script standard Dolibarr pour conserver l'ergonomie native. / Realigns the limit selector with the standard Dolibarr script to preserve the native ergonomics.
+- Initialise select2 et la pagination via la logique Dolibarr afin d'appliquer le même rendu que les listes cœur. / Initialises select2 and pagination through the Dolibarr logic to reproduce the core lists rendering.
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
 - Corrige l'erreur JavaScript générée par les apostrophes du sélecteur de limite. / Fixes the JavaScript error triggered by the limit selector apostrophes.
-- Garantit le rafraîchissement de la liste même sans helper submitform en utilisant un repli Dolibarr. / Ensures the list refreshes even when the submit helper is unavailable by using a Dolibarr fallback.
+- Soumet la liste immédiatement grâce au comportement `selectlimit` natif tout en conservant la limite choisie. / Submits the list instantly through the native `selectlimit` behaviour while preserving the chosen limit.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
 
 ## 1.0.5
