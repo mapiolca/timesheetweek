@@ -956,7 +956,15 @@ id: "limit-hidden"
 }
 $limitHidden.val(selectedLimit);
 }
-submitform("searchFormList", "");
+	// EN: Prefer native Dolibarr helpers when available to refresh the listing.
+	// FR: Privilégie les assistants Dolibarr natifs lorsqu'ils sont disponibles pour rafraîchir la liste.
+	if (typeof submitForm === "function") {
+		submitForm("searchFormList", "");
+	} else if (typeof submitform === "function") {
+		submitform("searchFormList", "");
+	} else if ($targetForm.length) {
+		$targetForm.trigger("submit");
+	}
 });
 });
 </script>
