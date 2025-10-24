@@ -880,85 +880,87 @@ print '</form>';
 
 // EN: Mirror the Dolibarr diffusion list pagination behaviour to provide the same UX expectations.
 // FR: Reproduit le comportement de pagination de la liste diffusion de Dolibarr pour offrir les mêmes attentes UX.
-$script = '<script type="text/javascript">' . "\n";
-$script .= 'jQuery(function($) {' . "\n";
-$script .= '\tvar $limitSelect = $("select#limit");' . "\n";
-$script .= '\tif ($limitSelect.length && $.fn.select2) {' . "\n";
-$script .= '\t\t// EN: Mirror the select2 initialisation from stocktransfer_list.php to stay consistent with Dolibarr UX.' . "\n";
-$script .= "\t\t// FR: Reproduit l'initialisation select2 de stocktransfer_list.php pour rester cohérent avec l'UX Dolibarr.\n";
-$script .= '\t\tvar normalizeString = function (value) {' . "\n";
-$script .= '\t\t\treturn (value || "").toLowerCase();' . "\n";
-$script .= '\t\t};' . "\n";
-$script .= '\t\t$limitSelect.select2({' . "\n";
-$script .= '\t\t\tdir: "ltr",' . "\n";
-$script .= '\t\t\twidth: "resolve",' . "\n";
-$script .= '\t\t\tminimumInputLength: 0,' . "\n";
-$script .= '\t\t\tlanguage: (typeof select2arrayoflanguage === "undefined") ? "en" : select2arrayoflanguage,' . "\n";
-$script .= '\t\t\tmatcher: function (params, data) {' . "\n";
-$script .= '\t\t\t\tif ($.trim(params.term) === "") {' . "\n";
-$script .= '\t\t\t\t\treturn data;' . "\n";
-$script .= '\t\t\t\t}' . "\n";
-$script .= '\t\t\t\tvar term = normalizeString(params.term);' . "\n";
-$script .= '\t\t\t\tvar text = normalizeString(data.text || "");' . "\n";
-$script .= '\t\t\t\tvar keywords = term.split(" ");' . "\n";
-$script .= '\t\t\t\tfor (var i = 0; i < keywords.length; i++) {' . "\n";
-$script .= '\t\t\t\t\tif (text.indexOf(keywords[i]) === -1) {' . "\n";
-$script .= '\t\t\t\t\t\treturn null;' . "\n";
-$script .= '\t\t\t\t\t}' . "\n";
-$script .= '\t\t\t\t}' . "\n";
-$script .= '\t\t\t\treturn data;' . "\n";
-$script .= '\t\t\t},' . "\n";
-$script .= '\t\t\ttheme: "default limit",' . "\n";
-$script .= '\t\t\tcontainerCssClass: ":all:",' . "\n";
-$script .= '\t\t\tselectionCssClass: ":all:",' . "\n";
-$script .= '\t\t\tdropdownCssClass: "ui-dialog",' . "\n";
-$script .= '\t\t\ttemplateResult: function (data, container) {' . "\n";
-$script .= '\t\t\t\tif (data.element) { $(container).addClass($(data.element).attr("class")); }' . "\n";
-$script .= '\t\t\t\tif (data.id == "-1" && $(data.element).attr("data-html") == undefined) {' . "\n";
-$script .= '\t\t\t\t\treturn "&nbsp;";' . "\n";
-$script .= '\t\t\t\t}' . "\n";
-$script .= '\t\t\t\tif ($(data.element).attr("data-html") != undefined) {' . "\n";
-$script .= '\t\t\t\t\tif (typeof htmlEntityDecodeJs === "function") {' . "\n";
-$script .= '\t\t\t\t\t\treturn htmlEntityDecodeJs($(data.element).attr("data-html"));' . "\n";
-$script .= '\t\t\t\t\t}' . "\n";
-$script .= '\t\t\t\t}' . "\n";
-$script .= '\t\t\t\treturn data.text;' . "\n";
-$script .= '\t\t\t},' . "\n";
-$script .= '\t\t\ttemplateSelection: function (selection) {' . "\n";
-$script .= '\t\t\t\tif (selection.id == "-1") {' . "\n";
-$script .= '\t\t\t\t\treturn "<span class=\"placeholder\">" + selection.text + "</span>";' . "\n";
-$script .= '\t\t\t\t}' . "\n";
-$script .= '\t\t\t\treturn selection.text;' . "\n";
-$script .= '\t\t\t},' . "\n";
-$script .= '\t\t\tescapeMarkup: function (markup) {' . "\n";
-$script .= '\t\t\t\treturn markup;' . "\n";
-$script .= '\t\t\t}' . "\n";
-$script .= '\t\t});' . "\n";
-$script .= '\t}' . "\n";
-$script .= '\t// EN: Trigger the Dolibarr refresh helper when the limit changes, just like stocktransfer_list.php.' . "\n";
-$script .= "\t// FR: Déclenche l'assistant de rafraîchissement Dolibarr lors d'un changement de limite, comme stocktransfer_list.php.\n";
-$script .= '\t$(".selectlimit").off("change.timesheetweekLimit").on("change.timesheetweekLimit", function () {' . "\n";
-$script .= '\t\tvar $current = $(this);' . "\n";
-$script .= '\t\tvar selectedLimit = $current.val();' . "\n";
-$script .= '\t\tvar $targetForm = $current.parents("form:first");' . "\n";
-$script .= '\t\tif (!$targetForm.length) {' . "\n";
-$script .= '\t\t\t$targetForm = $("#searchFormList");' . "\n";
-$script .= '\t\t}' . "\n";
-$script .= '\t\tif ($targetForm.length) {' . "\n";
-$script .= '\t\t\tvar $limitHidden = $("#limit-hidden");' . "\n";
-$script .= '\t\t\tif (!$limitHidden.length) {' . "\n";
-$script .= '\t\t\t\t$limitHidden = $("<input>", {' . "\n";
-$script .= '\t\t\t\t\ttype: "hidden",' . "\n";
-$script .= '\t\t\t\t\tname: "limit",' . "\n";
-$script .= '\t\t\t\t\tid: "limit-hidden"' . "\n";
-$script .= '\t\t\t\t}).appendTo($targetForm);' . "\n";
-$script .= '\t\t\t}' . "\n";
-$script .= '\t\t\t$limitHidden.val(selectedLimit);' . "\n";
-$script .= '\t\t}' . "\n";
-$script .= '\t\tsubmitform("searchFormList", "");' . "\n";
-$script .= '\t});' . "\n";
-$script .= '});' . "\n";
-$script .= '</script>';
+$script = <<<'JAVASCRIPT'
+<script type="text/javascript">
+jQuery(function($) {
+var $limitSelect = $("select#limit");
+if ($limitSelect.length && $.fn.select2) {
+// EN: Mirror the select2 initialisation from stocktransfer_list.php to stay consistent with Dolibarr UX.
+// FR: Reproduit l'initialisation select2 de stocktransfer_list.php pour rester cohérent avec l'UX Dolibarr.
+var normalizeString = function (value) {
+return (value || "").toLowerCase();
+};
+$limitSelect.select2({
+dir: "ltr",
+width: "resolve",
+minimumInputLength: 0,
+language: (typeof select2arrayoflanguage === "undefined") ? "en" : select2arrayoflanguage,
+matcher: function (params, data) {
+if ($.trim(params.term) === "") {
+return data;
+}
+var term = normalizeString(params.term);
+var text = normalizeString(data.text || "");
+var keywords = term.split(" ");
+for (var i = 0; i < keywords.length; i++) {
+if (text.indexOf(keywords[i]) === -1) {
+return null;
+}
+}
+return data;
+},
+theme: "default limit",
+containerCssClass: ":all:",
+selectionCssClass: ":all:",
+dropdownCssClass: "ui-dialog",
+templateResult: function (data, container) {
+if (data.element) { $(container).addClass($(data.element).attr("class")); }
+if (data.id == "-1" && $(data.element).attr("data-html") == undefined) {
+return "&nbsp;";
+}
+if ($(data.element).attr("data-html") != undefined) {
+if (typeof htmlEntityDecodeJs === "function") {
+return htmlEntityDecodeJs($(data.element).attr("data-html"));
+}
+}
+return data.text;
+},
+templateSelection: function (selection) {
+if (selection.id == "-1") {
+return "<span class=\"placeholder\">" + selection.text + "</span>";
+}
+return selection.text;
+},
+escapeMarkup: function (markup) {
+return markup;
+}
+});
+}
+// EN: Trigger the Dolibarr refresh helper when the limit changes, just like stocktransfer_list.php.
+// FR: Déclenche l'assistant de rafraîchissement Dolibarr lors d'un changement de limite, comme stocktransfer_list.php.
+$(".selectlimit").off("change.timesheetweekLimit").on("change.timesheetweekLimit", function () {
+var $current = $(this);
+var selectedLimit = $current.val();
+var $targetForm = $current.parents("form:first");
+if (!$targetForm.length) {
+$targetForm = $("#searchFormList");
+}
+if ($targetForm.length) {
+var $limitHidden = $("#limit-hidden");
+if (!$limitHidden.length) {
+$limitHidden = $("<input>", {
+type: "hidden",
+name: "limit",
+id: "limit-hidden"
+}).appendTo($targetForm);
+}
+$limitHidden.val(selectedLimit);
+}
+submitform("searchFormList", "");
+});
+});
+</script>
+JAVASCRIPT;
 print $script;
 
 llxFooter();
