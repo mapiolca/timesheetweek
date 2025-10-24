@@ -843,5 +843,23 @@ print '</div>';
 
 print '</form>';
 
+// EN: Sync the pagination limit selector with the hidden field and refresh the listing automatically.
+// FR: Synchronise le sélecteur de pagination avec le champ caché et rafraîchit automatiquement la liste.
+print '<script type="text/javascript">' . "\n";
+print '$(function() {' . "\n";
+print '\tvar $limitInput = $("#searchFormList input[name=\"limit\"]");' . "\n";
+print '\tif ($limitInput.length) {' . "\n";
+print '\t\tvar $limitSelect = $("select[name=\"limit\"]").not($limitInput);' . "\n";
+print '\t\t$limitSelect.off("change.timesheetweek").on("change.timesheetweek", function() {' . "\n";
+print '\t\t\tvar newLimit = $(this).val();' . "\n";
+print '\t\t\tif (newLimit !== null && newLimit !== "") {' . "\n";
+print '\t\t\t\t$limitInput.val(newLimit);' . "\n";
+print '\t\t\t}' . "\n";
+print '\t\t\t$("#searchFormList").trigger("submit");' . "\n";
+print '\t\t});' . "\n";
+print '\t}' . "\n";
+print '});' . "\n";
+print '</script>';
+
 llxFooter();
 $db->close();
