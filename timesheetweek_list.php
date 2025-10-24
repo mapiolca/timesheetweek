@@ -270,17 +270,18 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 /**
  * SQL
  */
-$sql  = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
+$sqlfields = "SELECT t.rowid, t.ref, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours,";
 if ($multicompanyEnabled) {
-        // EN: Include the entity column and its label in the result set when Multicompany is active.
-        // FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
-        $sql .= " t.entity, e.label as entity_label,";
+	// EN: Include the entity column and its label in the result set when Multicompany is active.
+	// FR: Inclut la colonne entité et son libellé dans le jeu de résultats lorsque Multicompany est actif.
+	$sqlfields .= " t.entity, e.label as entity_label,";
 }
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
-$sql .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
-$sql .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-$sql .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
+$sqlfields .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
+$sqlfields .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+$sqlfields .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
+$sql = $sqlfields;
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 if ($multicompanyEnabled) {
@@ -330,20 +331,49 @@ if ($multicompanyEnabled && !empty($search_entities)) {
         }
 }
 if (!empty($search_status)) {
-    $statusFilter = array();
-    foreach ($search_status as $statusValue) {
-        $statusFilter[] = (int) $statusValue;
-    }
-    if (!empty($statusFilter)) {
-        $sql .= ' AND t.status IN ('.implode(',', $statusFilter).')';
-    }
+	$statusFilter = array();
+	foreach ($search_status as $statusValue) {
+		$statusFilter[] = (int) $statusValue;
+	}
+	if (!empty($statusFilter)) {
+		$sql .= ' AND t.status IN ('.implode(',', $statusFilter).')';
+	}
 }
+
+// EN: Duplicate the SQL without pagination to compute the total amount of records.
+// FR: Duplique la requête sans pagination pour calculer le nombre total d'enregistrements.
+$sqlList = $sql;
+$nbtotalofrecords = '';
+if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
+	// EN: Replace the field list by a COUNT(*) to follow the Dolibarr counting pattern.
+	// FR: Remplace la liste des champs par un COUNT(*) pour suivre le modèle de comptage de Dolibarr.
+	$sqlforcount = preg_replace('/^'.preg_quote($sqlfields, '/').'/', 'SELECT COUNT(*) as nbtotalofrecords', $sql);
+	$sqlforcount = preg_replace('/GROUP BY .*$/', '', $sqlforcount);
+	$resqlcount = $db->query($sqlforcount);
+	if ($resqlcount) {
+		$objforcount = $db->fetch_object($resqlcount);
+		$nbtotalofrecords = (int) $objforcount->nbtotalofrecords;
+		// EN: Release the count result resource to avoid leaking database handles.
+		// FR: Libère le résultat du comptage pour éviter de laisser des descripteurs ouverts.
+		$db->free($resqlcount);
+
+		if (($page * $limit) > (int) $nbtotalofrecords) {
+			// EN: Reset the pagination when the current offset exceeds the number of rows.
+			// FR: Réinitialise la pagination lorsque le décalage courant dépasse le nombre de lignes.
+			$page = 0;
+			$offset = 0;
+		}
+	} else {
+		dol_print_error($db);
+	}
+}
+
 if (!$sortfield) $sortfield = "t.rowid";
 if (!$sortorder) $sortorder = "DESC";
-$sql .= $db->order($sortfield, $sortorder);
-$sql .= $db->plimit($limit + 1, $offset);
+$sqlList .= $db->order($sortfield, $sortorder);
+$sqlList .= $db->plimit($limit + 1, $offset);
 
-$resql = $db->query($sql);
+$resql = $db->query($sqlList);
 if (!$resql) dol_print_error($db);
 $num = $resql ? $db->num_rows($resql) : 0;
 
@@ -351,6 +381,11 @@ $num = $resql ? $db->num_rows($resql) : 0;
  * Header
  */
 $title = $langs->trans("TimesheetWeek_List");
+if ($nbtotalofrecords !== '') {
+	// EN: Append the total number of sheets to the title for immediate feedback.
+	// FR: Ajoute le nombre total de feuilles au titre pour offrir un retour immédiat.
+	$title .= ' ('.((int) $nbtotalofrecords).')';
+}
 llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist page-list');
 
 /**
@@ -383,7 +418,7 @@ if (!empty($search_status)) {
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, '', 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
 /**
  * Column selector on left of titles
