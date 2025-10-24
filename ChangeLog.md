@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.1
+- Ajoute les actions de masse pour valider, accepter, refuser et sceller les feuilles d'heures selon les permissions. / Adds mass actions to validate, approve, refuse and seal timesheets according to permissions.
+- Corrige l'encapsulation du formulaire pour les actions de masse afin d'éviter les erreurs JavaScript lors de leur utilisation. / Fixes the mass action form wrapping to avoid JavaScript errors when using them.
+
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
 - Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
