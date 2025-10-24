@@ -843,31 +843,21 @@ print '</div>';
 
 print '</form>';
 
-// EN: Sync the pagination limit selector with the hidden field and refresh the listing automatically.
-// FR: Synchronise le sélecteur de pagination avec le champ caché et rafraîchit automatiquement la liste.
+// EN: Sync the pagination limit selector with the hidden field and trigger the Dolibarr native submit helper on change.
+// FR: Synchronise le sélecteur de pagination avec le champ caché et déclenche l'aide native Dolibarr de soumission au changement.
 print '<script type="text/javascript">' . "\n";
 print '$(function() {' . "\n";
 print '\tvar $limitInput = $("#searchFormList input[name=\"limit\"]");' . "\n";
 print '\tif ($limitInput.length) {' . "\n";
-print '\t\tvar $limitSelect = $("select[name=\"limit\"]").not($limitInput);' . "\n";
+print '\t\tvar $limitSelect = $("#searchFormList select[name=\"limit\"]").not($limitInput);' . "\n";
 print '\t\t$limitSelect.off("change.timesheetweek").on("change.timesheetweek", function() {' . "\n";
 print '\t\t\tvar newLimit = $(this).val();' . "\n";
 print '\t\t\tif (newLimit !== null && newLimit !== "") {' . "\n";
 print '\t\t\t\t$limitInput.val(newLimit);' . "\n";
 print '\t\t\t}' . "\n";
-print '\t\t\t// EN: Trigger direct navigation when the limit changes to avoid waiting for manual submit.' . "\n";
-print '\t\t\t// FR: Déclenche la navigation directe lorsque la limite change pour éviter d\'attendre un envoi manuel.' . "\n";
-print '\t\t\tvar $form = $(this).closest("form");' . "\n";
-print '\t\t\tif ($form.length) {' . "\n";
-print '\t\t\t\tvar targetUrl = $form.attr("action");' . "\n";
-print '\t\t\t\tif (!targetUrl) {' . "\n";
-print '\t\t\t\t\ttargetUrl = window.location.pathname;' . "\n";
-print '\t\t\t\t}' . "\n";
-print '\t\t\t\tvar queryString = $form.serialize();' . "\n";
-print '\t\t\t\tvar separator = targetUrl.indexOf("?") === -1 ? "?" : "&";' . "\n";
-print '\t\t\t\twindow.location.href = queryString ? (targetUrl + separator + queryString) : targetUrl;' . "\n";
-print '\t\t\t\treturn;' . "\n";
-print '\t\t\t}' . "\n";
+print '\t\t\t// EN: Use the Dolibarr helper to submit the form immediately without manual confirmation.' . "\n";
+print '\t\t\t// FR: Utilise l\'assistant Dolibarr pour soumettre le formulaire immédiatement sans confirmation manuelle.' . "\n";
+print '\t\t\tsubmitform("searchFormList");' . "\n";
 print '\t\t});' . "\n";
 print '\t}' . "\n";
 print '});' . "\n";
