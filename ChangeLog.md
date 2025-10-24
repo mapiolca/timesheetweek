@@ -8,6 +8,7 @@
 - Aligne le sélecteur de limite sur l'implémentation DiffusionPlans pour respecter l'expérience Dolibarr. / Aligns the limit selector with the DiffusionPlans implementation to honour Dolibarr experience.
 - Reprend le script de stocktransfer_list.php pour initialiser select2 et lancer immédiatement la mise à jour de la limite. / Reuses the stocktransfer_list.php script to initialise select2 and trigger the limit refresh instantly.
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
+- Corrige l'erreur JavaScript générée par les apostrophes du sélecteur de limite. / Fixes the JavaScript error triggered by the limit selector apostrophes.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
