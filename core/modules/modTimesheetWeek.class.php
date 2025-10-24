@@ -116,7 +116,9 @@ class modTimesheetWeek extends DolibarrModules
 			'theme' => 0,
 			// Set this to relative path of css file if module has its own css file
 			'css' => array(
-				//    '/timesheetweek/css/timesheetweek.css.php',
+				// EN: Load the pagination stylesheet to align colours with Dolibarr.
+				// FR: Charge la feuille de style de pagination pour aligner les couleurs sur Dolibarr.
+				'/timesheetweek/css/timesheetweek.css.php',
 			),
 			// Set this to relative path of js file if module must load a js on all pages
 			'js' => array(
