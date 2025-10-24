@@ -403,9 +403,9 @@ print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
 print '<input type="hidden" name="page" value="'.$page.'">';
 print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
-// EN: Preserve the selected list limit across filter submissions to keep the pagination consistent.
-// FR: Conserve la limite de liste sélectionnée lors des filtrages pour maintenir une pagination cohérente.
-print '<input type="hidden" name="limit" id="limit" value="'.((int) $limit).'">';
+// EN: Preserve the selected list limit across filter submissions while avoiding duplicated DOM identifiers.
+// FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
+print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
@@ -843,23 +843,26 @@ print '</div>';
 
 print '</form>';
 
-// EN: Sync the pagination limit selector with the hidden field and trigger the Dolibarr native submit helper on change.
-// FR: Synchronise le sélecteur de pagination avec le champ caché et déclenche l'aide native Dolibarr de soumission au changement.
+// EN: Align the limit selector with the Dolibarr select2 behaviour and refresh the page instantly on change.
+// FR: Aligne le sélecteur de limite avec le comportement select2 de Dolibarr et rafraîchit la page immédiatement lors d'un changement.
 print '<script type="text/javascript">' . "\n";
-print '$(function() {' . "\n";
-print '\tvar $limitInput = $("#searchFormList input[name=\"limit\"]");' . "\n";
-print '\tif ($limitInput.length) {' . "\n";
-print '\t\tvar $limitSelect = $("#searchFormList select[name=\"limit\"]").not($limitInput);' . "\n";
-print '\t\t$limitSelect.off("change.timesheetweek").on("change.timesheetweek", function() {' . "\n";
-print '\t\t\tvar newLimit = $(this).val();' . "\n";
-print '\t\t\tif (newLimit !== null && newLimit !== "") {' . "\n";
-print '\t\t\t\t$limitInput.val(newLimit);' . "\n";
-print '\t\t\t}' . "\n";
-print '\t\t\t// EN: Use the Dolibarr helper to submit the form immediately without manual confirmation.' . "\n";
-print '\t\t\t// FR: Utilise l\'assistant Dolibarr pour soumettre le formulaire immédiatement sans confirmation manuelle.' . "\n";
-print '\t\t\tsubmitform("searchFormList");' . "\n";
-print '\t\t});' . "\n";
+print 'jQuery(function() {' . "\n";
+print '\tvar $limitInput = jQuery("#searchFormList input[name=\"limit\"]");' . "\n";
+print '\tvar $limitSelector = jQuery("select#limit");' . "\n";
+print '\tif ($limitSelector.length && jQuery.fn.select2) {' . "\n";
+print '\t\t// EN: Reuse Dolibarr select2 settings to keep a consistent pagination combo UI.' . "\n";
+print '\t\t// FR: Réutilise les paramètres select2 Dolibarr pour conserver une interface cohérente du sélecteur de pagination.' . "\n";
+print '\t\t$limitSelector.select2({ width: "resolve" });' . "\n";
 print '\t}' . "\n";
+print '\tjQuery(document).off("change.timesheetweekLimit", ".selectlimit").on("change.timesheetweekLimit", ".selectlimit", function() {' . "\n";
+print '\t\tvar $current = jQuery(this);' . "\n";
+print '\t\tif ($limitInput.length) {' . "\n";
+print '\t\t\t$limitInput.val($current.val());' . "\n";
+print '\t\t}' . "\n";
+print '\t\t// EN: Trigger the native Dolibarr submission helper to refresh the list with the new limit.' . "\n";
+print '\t\t// FR: Déclenche l\'assistant de soumission natif de Dolibarr pour rafraîchir la liste avec la nouvelle limite.' . "\n";
+print '\t\tsubmitform("searchFormList");' . "\n";
+print '\t});' . "\n";
 print '});' . "\n";
 print '</script>';
 
