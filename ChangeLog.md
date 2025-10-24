@@ -12,7 +12,7 @@
 - Soumet la liste immédiatement grâce au comportement `selectlimit` natif tout en conservant la limite choisie. / Submits the list instantly through the native `selectlimit` behaviour while preserving the chosen limit.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
 - Conserve le choix de pagination via le paramètre `limit` dans les liens de navigation. / Keeps the pagination choice through the `limit` parameter in navigation links.
-- Aligne les couleurs de pagination sur la palette Dolibarr via une feuille de style dédiée. / Aligns pagination colours with the Dolibarr palette through a dedicated stylesheet.
+- S'appuie uniquement sur les styles Dolibarr pour la pagination en supprimant la feuille dédiée. / Relies solely on Dolibarr styles for pagination by removing the dedicated stylesheet.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.
