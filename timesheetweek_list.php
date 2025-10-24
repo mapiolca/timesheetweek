@@ -957,6 +957,13 @@ jQuery(function ($) {
 			$targetForm.submit();
 		}
 	});
+	var $paginationArea = $(".pagination");
+	if ($paginationArea.length) {
+		// EN: Apply the Dolibarr black helper class on pagination containers and links.
+		// FR: Applique la classe Dolibarr de couleur noire sur les conteneurs et liens de pagination.
+		$paginationArea.addClass("colorblack");
+		$paginationArea.find("a, span").addClass("colorblack");
+	}
 });
 </script>
 JAVASCRIPT;
