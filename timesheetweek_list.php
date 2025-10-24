@@ -708,6 +708,12 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 // FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
 print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
 
+if ($massactionbutton || $massaction) {
+	// EN: Insert the standard Dolibarr mass action pre-template to wrap the toolbar within the form scope.
+	// FR: Insère le modèle pré-actions de masse Dolibarr standard pour encapsuler la barre d'outils dans le formulaire.
+	include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
+}
+
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
 
@@ -1144,6 +1150,12 @@ if ($imax > 0) {
 
 print '</table>';
 print '</div>';
+
+if ($massactionbutton || $massaction) {
+	// EN: Close the Dolibarr mass action container to keep compatibility with the core JavaScript helpers.
+	// FR: Termine le conteneur des actions de masse Dolibarr pour rester compatible avec les helpers JavaScript cœur.
+	include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_post.tpl.php';
+}
 
 print '</form>';
 
