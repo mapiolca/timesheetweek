@@ -965,7 +965,9 @@ jQuery(function ($) {
 		// EN: Keep the Dolibarr create button color by excluding action anchors from the black helper class.
 		// FR: Préserve la couleur du bouton de création Dolibarr en excluant les ancres d'action de la classe noire.
 		$paginationArea.find("a:not([class*='butAction'])").addClass("colorblack");
-		$paginationArea.find("span").addClass("colorblack");
+		// EN: Avoid forcing the icon span to black while keeping pagination counters dark.
+		// FR: Évite de forcer la couleur noire sur l'icône tout en conservant les compteurs de pagination foncés.
+		$paginationArea.find("span:not([class*='fa'])").addClass("colorblack");
 	}
 });
 </script>
