@@ -1164,9 +1164,43 @@ print '</form>';
 $script = <<<'JAVASCRIPT'
 <script type="text/javascript">
 jQuery(function ($) {
-	// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
-	// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
-	var $limitSelect = $("select#limit");
+// EN: Keep the mass action confirm button state aligned with the current selection and UI expectations.
+// FR: Aligne l'état du bouton de confirmation des actions de masse avec la sélection en cours et les attentes UI.
+var $massActionSelects = $("#searchFormList select[name='massaction']");
+if ($massActionSelects.length) {
+$massActionSelects.each(function () {
+var $select = $(this);
+var $form = $select.closest('form');
+var $confirmButtons = $form.find("button[name='confirmmassaction'], input[name='confirmmassaction']");
+// EN: Toggle the confirm buttons depending on the current dropdown value.
+// FR: Active ou désactive les boutons de confirmation selon la valeur actuelle du sélecteur.
+var updateMassActionState = function () {
+var selectedValue = $select.val();
+var hasSelection = !!selectedValue;
+$confirmButtons.prop('disabled', !hasSelection);
+if (hasSelection) {
+$confirmButtons.removeClass('disabled buttondisabled butActionRefused');
+if ($select.data('select2')) {
+// EN: Close the Select2 dropdown to mimic the Dolibarr core behaviour after choosing an action.
+// FR: Ferme le menu Select2 pour reproduire le comportement cœur de Dolibarr après le choix d'une action.
+$select.select2('close');
+}
+$select.trigger('blur');
+} else {
+$confirmButtons.addClass('disabled buttondisabled');
+}
+};
+$select.on('change.massaction', function () {
+// EN: Refresh the state each time the operator picks a mass action.
+// FR: Rafraîchit l'état à chaque sélection d'action de masse par l'opérateur.
+updateMassActionState();
+});
+updateMassActionState();
+});
+}
+// EN: Align the limit selector styling and refresh logic with the native Dolibarr implementation.
+// FR: Aligne le style et la logique de rafraîchissement du sélecteur de limite sur l'implémentation native de Dolibarr.
+var $limitSelect = $("select#limit");
 	if ($limitSelect.length && $.fn.select2) {
 		// EN: Reuse the select2 setup used in Dolibarr core lists to keep the same behaviour.
 		// FR: Réutilise la configuration select2 des listes cœur Dolibarr pour conserver le même comportement.
