@@ -10,6 +10,7 @@
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
 - Corrige l'erreur JavaScript générée par les apostrophes du sélecteur de limite. / Fixes the JavaScript error triggered by the limit selector apostrophes.
 - Garantit le rafraîchissement de la liste même sans helper submitform en utilisant un repli Dolibarr. / Ensures the list refreshes even when the submit helper is unavailable by using a Dolibarr fallback.
+- Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.

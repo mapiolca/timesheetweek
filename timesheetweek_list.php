@@ -461,7 +461,10 @@ if (!empty($arrayfields['user']['checked'])) {
 	print '<td class="liste_titre maxwidthonsmartphone">';
 	// EN: Render the Dolibarr user selector with photos while keeping it within the authorised scope.
 	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
-	$employeeSelectHtml = $form->select_dolusers($search_user, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	// EN: Default the employee selector to an empty value when no filter is applied.
+	// FR: Définit une valeur vide par défaut pour le sélecteur salarié lorsqu'aucun filtre n'est appliqué.
+	$employeeSelectSelected = $search_user > 0 ? $search_user : '';
+	$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
 	if (!$canSeeAllEmployees) {
 		// EN: Remove any option outside the authorised employees while preserving placeholders.
 		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
