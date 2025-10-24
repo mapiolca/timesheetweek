@@ -381,11 +381,6 @@ $num = $resql ? $db->num_rows($resql) : 0;
  * Header
  */
 $title = $langs->trans("TimesheetWeek_List");
-if ($nbtotalofrecords !== '') {
-	// EN: Append the total number of sheets to the title for immediate feedback.
-	// FR: Ajoute le nombre total de feuilles au titre pour offrir un retour immédiat.
-	$title .= ' ('.((int) $nbtotalofrecords).')';
-}
 llxHeader('', $title, '', '', 0, 0, array(), array(), '', 'bodyforlist page-list');
 
 /**
