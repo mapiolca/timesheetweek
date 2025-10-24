@@ -210,3 +210,11 @@ TimesheetWeekRightValidateChild = Validate subordinates' timesheets
 TimesheetWeekRightValidateAll = Validate all timesheets
 TimesheetWeekRightSeal = Seal timesheets
 TimesheetWeekRightUnseal = Unseal timesheets
+
+TimesheetWeekNotificationTemplates = Notification templates
+TimesheetWeekNotificationTemplatesHelp = Select the Dolibarr email template to use for each automatic notification.
+TimesheetWeekNotificationTemplatesEmpty = No email template is available yet.
+TimesheetWeekNotificationTemplateDefaultOption = Default template (%s)
+TimesheetWeekNotificationSubmittedLabel = Submission notification
+TimesheetWeekNotificationApprovedLabel = Approval notification
+TimesheetWeekNotificationRefusedLabel = Refusal notification

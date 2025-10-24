@@ -268,20 +268,19 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         $substitutions = $baseSubstitutions;
                         $substitutions['__RECIPIENT_FULLNAME__'] = $recipient->getFullName($langs);
 
-                        $template = null;
-                        $tplResult = 0;
-                        if (!empty($templateClass)) {
-                                $template = new $templateClass($this->db);
-                                $tplResult = $template->fetchByTrigger($action, $actionUser, $conf->entity);
-                                if ($tplResult <= 0 && !empty($templateKeys)) {
-                                        $template = $this->createDefaultTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
-                                        if ($template) {
-                                                $tplResult = 1;
-                                        }
-                                }
-                        }
+			$template = null;
+			$tplResult = 0;
+			if (!empty($templateClass)) {
+				// FR : Charge le modèle configuré ou crée le modèle par défaut s'il n'existe pas encore.
+				// EN : Load the configured template or create the default one when none exists yet.
+				$loaded = $this->loadNotificationTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
+				if (!empty($loaded['template'])) {
+					$template = $loaded['template'];
+					$tplResult = (int) $loaded['status'];
+				}
+			}
 
-                        $subject = '';
+			$subject = '';
                         $message = '';
                         $ccList = array();
                         $bccList = array();
@@ -667,7 +666,152 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 return $cache[$userId];
         }
 
-        /**
+   		/**
+		 * Load the notification template configured for a given trigger.
+		 *
+		 * FR : Charge le modèle de notification configuré pour un déclencheur donné.
+		 * EN : Load the notification template configured for a given trigger.
+		 *
+		 * @param string    $templateClass
+		 * @param array     $templateKeys
+		 * @param string    $action
+		 * @param User      $actionUser
+		 * @param Translate $langs
+		 * @param Conf      $conf
+		 *
+		 * @return array
+		 */
+		protected function loadNotificationTemplate($templateClass, array $templateKeys, $action, User $actionUser, $langs, $conf)
+		{
+			$result = array(
+				'template' => null,
+				'status' => 0,
+			);
+
+			if (empty($templateClass)) {
+				return $result;
+			}
+
+			$configuredId = $this->getConfiguredTemplateId($action, $conf);
+			if ($configuredId > 0) {
+				$template = new $templateClass($this->db);
+				if (method_exists($template, 'fetch')) {
+					$fetchResult = $template->fetch($configuredId);
+					if ($fetchResult > 0 && $this->isTemplateUsable($template, $conf->entity)) {
+						$result['template'] = $template;
+						$result['status'] = (int) $fetchResult;
+						return $result;
+					}
+				}
+			}
+
+			$template = new $templateClass($this->db);
+			if (method_exists($template, 'fetchByTrigger')) {
+				$fetchResult = $template->fetchByTrigger($action, $actionUser, $conf->entity);
+				if ($fetchResult > 0 && $this->isTemplateUsable($template, $conf->entity)) {
+					$result['template'] = $template;
+					$result['status'] = (int) $fetchResult;
+					return $result;
+				}
+			}
+
+			if (!empty($templateKeys)) {
+				$template = $this->createDefaultTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
+				if ($template) {
+					$result['template'] = $template;
+					$result['status'] = 1;
+				}
+			}
+
+			return $result;
+		}
+
+		/**
+		 * Resolve the configuration constant storing a template selection.
+		 *
+		 * FR : Détermine la constante de configuration stockant le modèle sélectionné.
+		 * EN : Resolve the configuration constant storing the selected template.
+		 *
+		 * @param string $action
+		 *
+		 * @return string
+		 */
+		protected function getTemplateConstName($action)
+		{
+			if ($action === 'TIMESHEETWEEK_SUBMITTED') {
+				return 'TIMESHEETWEEK_TEMPLATE_SUBMITTED';
+			}
+			if ($action === 'TIMESHEETWEEK_APPROVED') {
+				return 'TIMESHEETWEEK_TEMPLATE_APPROVED';
+			}
+			if ($action === 'TIMESHEETWEEK_REFUSED') {
+				return 'TIMESHEETWEEK_TEMPLATE_REFUSED';
+			}
+
+			return '';
+		}
+
+		/**
+		 * Read the configured template identifier for a notification action.
+		 *
+		 * FR : Récupère l'identifiant du modèle configuré pour une notification.
+		 * EN : Read the configured template identifier for a notification.
+		 *
+		 * @param string $action
+		 * @param Conf   $conf
+		 *
+		 * @return int
+		 */
+		protected function getConfiguredTemplateId($action, $conf)
+		{
+			$constName = $this->getTemplateConstName($action);
+			if (empty($constName)) {
+				return 0;
+			}
+
+			if (function_exists('getDolGlobalInt')) {
+				return (int) getDolGlobalInt($constName, 0);
+			}
+
+			if (!empty($conf->global->$constName)) {
+				return (int) $conf->global->$constName;
+			}
+
+			return 0;
+		}
+
+		/**
+		 * Determine whether a template can be used for the current entity.
+		 *
+		 * FR : Détermine si un modèle peut être utilisé pour l'entité courante.
+		 * EN : Determine whether a template can be used for the current entity.
+		 *
+		 * @param object $template
+		 * @param int    $entity
+		 *
+		 * @return bool
+		 */
+		protected function isTemplateUsable($template, $entity)
+		{
+			if (is_object($template) && property_exists($template, 'entity')) {
+				$tplEntity = (int) $template->entity;
+				if ($tplEntity > 0 && $tplEntity !== (int) $entity) {
+					return false;
+				}
+			}
+
+			if (is_object($template) && property_exists($template, 'active') && (int) $template->active === 0) {
+				return false;
+			}
+
+			if (is_object($template) && property_exists($template, 'enabled') && (int) $template->enabled === 0) {
+				return false;
+			}
+
+			return true;
+		}
+
+     /**
          * Create a default email template when none exists
          *
          * @param string    $templateClass

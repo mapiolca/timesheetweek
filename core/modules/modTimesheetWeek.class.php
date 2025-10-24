@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.5'; // EN: Rename install SQL to llx_timesheet_week.sql to fix database creation at activation.
-		// FR: Renomme le script SQL d'installation en llx_timesheet_week.sql pour corriger la création de base lors de l'activation.
+		$this->version = '1.1.0'; // EN: Add configurable email template selectors for notifications.
+		// FR: Ajoute les sélecteurs de modèles de courriel pour les notifications.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 

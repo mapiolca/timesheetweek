@@ -22,6 +22,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
 - README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
 
+- Sélecteur de modèles de courriel pour chaque notification automatique afin d'adopter les gabarits Dolibarr directement depuis la configuration.
+
 ### Installation
 
 1. **Pré-requis** : disposer d'une instance Dolibarr fonctionnelle. Les versions supportées correspondent à celles indiquées dans le fichier `modTimesheetWeek.class.php`.

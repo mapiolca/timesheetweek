@@ -1,3 +1,7 @@
+## 1.1
+- Ajoute la sélection des modèles de courriel Dolibarr pour chaque notification automatique directement depuis la configuration du module. / Adds configuration selectors to choose Dolibarr email templates for each automatic notification.
+- Convertit les notifications existantes en modèles de courriel par défaut pour assurer la compatibilité avec les gabarits Dolibarr. / Converts existing notifications into default email templates to align with Dolibarr patterns.
+
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.0.5

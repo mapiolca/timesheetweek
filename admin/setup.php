@@ -40,8 +40,23 @@ if (!$res) {
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
+	dol_include_once('/core/class/cemailtemplates.class.php');
+} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
+	dol_include_once('/core/class/emailtemplates.class.php');
+}
+
+$templateClass = '';
+if (class_exists('CEmailTemplates')) {
+	$templateClass = 'CEmailTemplates';
+} elseif (class_exists('EmailTemplates')) {
+	$templateClass = 'EmailTemplates';
+}
 
 // EN: Load translation files required for the configuration page.
 // FR: Charge les fichiers de traduction nécessaires à la page de configuration.
@@ -58,6 +73,8 @@ if (empty($user->admin)) {
 $action = GETPOST('action', 'aZ09');
 $value = GETPOST('value', 'alphanohtml');
 $token = GETPOST('token', 'alphanohtml');
+$notification = GETPOST('notification', 'alphanohtml');
+$templateId = GETPOSTINT('template_id');
 
 // EN: Helper to enable a PDF model in the database.
 // FR: Aide pour activer un modèle PDF dans la base.
@@ -239,9 +256,148 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
         return $models;
 }
 
+// EN: Map notification action codes to configuration constants.
+// FR: Lie les codes de notification aux constantes de configuration.
+function timesheetweekNotificationTemplateConst($code)
+{
+	$map = array(
+		'TIMESHEETWEEK_SUBMITTED' => 'TIMESHEETWEEK_TEMPLATE_SUBMITTED',
+		'TIMESHEETWEEK_APPROVED' => 'TIMESHEETWEEK_TEMPLATE_APPROVED',
+		'TIMESHEETWEEK_REFUSED' => 'TIMESHEETWEEK_TEMPLATE_REFUSED',
+	);
+
+	return isset($map[$code]) ? $map[$code] : '';
+}
+
+// EN: Ensure the default email template exists for a notification trigger.
+// FR: Garantit l'existence du modèle de courriel par défaut pour un déclencheur donné.
+function timesheetweekEnsureDefaultNotificationTemplate($templateClass, array $templateKeys, $code, User $user, Translate $langs, Conf $conf)
+{
+	global $db;
+
+	if (empty($templateClass) || empty($templateKeys['subject']) || empty($templateKeys['body'])) {
+		return 0;
+	}
+
+	$template = new $templateClass($db);
+	if (method_exists($template, 'fetchByTrigger')) {
+		$res = $template->fetchByTrigger($code, $user, $conf->entity);
+		if ($res > 0) {
+			return property_exists($template, 'id') ? (int) $template->id : (property_exists($template, 'rowid') ? (int) $template->rowid : 0);
+		}
+	}
+
+	$template = new $templateClass($db);
+	if (property_exists($template, 'entity')) {
+		$template->entity = (int) $conf->entity;
+	}
+	if (property_exists($template, 'module')) {
+		$template->module = 'timesheetweek';
+	}
+	if (property_exists($template, 'type_template') && empty($template->type_template)) {
+		$template->type_template = 'timesheetweek';
+	}
+	if (property_exists($template, 'code')) {
+		$template->code = $code;
+	}
+	$template->label = $langs->transnoentities($templateKeys['label']);
+	if (property_exists($template, 'topic')) {
+		$template->topic = $langs->transnoentities($templateKeys['subject']);
+	}
+	if (property_exists($template, 'subject')) {
+		$template->subject = $langs->transnoentities($templateKeys['subject']);
+	}
+	if (property_exists($template, 'content')) {
+		$template->content = $langs->transnoentities($templateKeys['body']);
+	}
+	if (property_exists($template, 'lang')) {
+		$template->lang = '';
+	}
+	if (property_exists($template, 'private')) {
+		$template->private = 0;
+	}
+	if (property_exists($template, 'fk_user')) {
+		$template->fk_user = (int) $user->id;
+	}
+	if (property_exists($template, 'active')) {
+		$template->active = 1;
+	}
+	if (property_exists($template, 'enabled')) {
+		$template->enabled = 1;
+	}
+	if (property_exists($template, 'email_from')) {
+		$template->email_from = '';
+	}
+	if (property_exists($template, 'email_to')) {
+		$template->email_to = '';
+	}
+	if (property_exists($template, 'email_cc')) {
+		$template->email_cc = '';
+	}
+	if (property_exists($template, 'email_bcc')) {
+		$template->email_bcc = '';
+	}
+	if (property_exists($template, 'joinfiles')) {
+		$template->joinfiles = 0;
+	}
+	if (property_exists($template, 'position')) {
+		$template->position = 0;
+	}
+
+	if (method_exists($template, 'create')) {
+		$res = $template->create($user);
+		if ($res > 0) {
+			return property_exists($template, 'id') ? (int) $template->id : (property_exists($template, 'rowid') ? (int) $template->rowid : 0);
+		}
+	}
+
+	return 0;
+}
+
+// EN: Retrieve the list of available email templates for the selector.
+// FR: Récupère la liste des modèles de courriel disponibles pour le sélecteur.
+function timesheetweekListEmailTemplates(Conf $conf)
+{
+	global $db;
+
+	$tables = array('c_email_templates', 'email_templates');
+	$tableName = '';
+	foreach ($tables as $candidate) {
+		$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.$candidate.' LIMIT 1';
+		$resql = $db->query($sql);
+		if ($resql) {
+			$db->free($resql);
+			$tableName = MAIN_DB_PREFIX.$candidate;
+			break;
+		}
+	}
+
+	if (empty($tableName)) {
+		return array();
+	}
+
+	$sql = 'SELECT rowid, label, lang, code FROM '.$tableName.' WHERE (entity IN (0, '.((int) $conf->entity).') OR entity IS NULL)';
+	$sql .= ' ORDER BY label ASC';
+	$resql = $db->query($sql);
+	$list = array();
+	if ($resql) {
+		while ($obj = $db->fetch_object($resql)) {
+			$list[] = array(
+				'id' => (int) $obj->rowid,
+				'label' => $obj->label,
+				'lang' => $obj->lang,
+				'code' => $obj->code,
+			);
+		}
+		$db->free($resql);
+	}
+
+	return $list;
+}
+
 // EN: Verify CSRF token when the request changes the configuration.
 // FR: Vérifie le jeton CSRF lorsque la requête modifie la configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel'), true)) {
+if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setemailtemplate'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -299,6 +455,28 @@ if ($action === 'delmodel' && !empty($value)) {
         }
 }
 
+// EN: Store the email template selection for a notification type.
+// FR: Enregistre le modèle de courriel choisi pour un type de notification.
+if ($action === 'setemailtemplate' && !empty($notification)) {
+	$constName = timesheetweekNotificationTemplateConst($notification);
+	if (empty($constName)) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		if ($templateId > 0) {
+			$result = dolibarr_set_const($db, $constName, $templateId, 'chaine', 0, '', $conf->entity);
+		} else {
+			$result = dolibarr_del_const($db, $constName, $conf->entity);
+			$result = ($result < 0) ? -1 : 1;
+		}
+
+		if ($result > 0) {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
+	}
+}
+
 // EN: Read the selected options so we can highlight them in the UI.
 // FR: Lit les options sélectionnées pour les mettre en avant dans l'interface.
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
@@ -323,9 +501,54 @@ if ($resql) {
 
 // EN: Build the metadata arrays used by the HTML rendering below.
 // FR: Construit les tableaux de métadonnées utilisés par l'affichage HTML ci-dessous.
+// EN: Describe each notification to expose its label, constant and template metadata.
+// FR: Décrit chaque notification pour exposer son libellé, sa constante et ses métadonnées de modèle.
+$notificationDefinitions = array(
+	'TIMESHEETWEEK_SUBMITTED' => array(
+		'const' => 'TIMESHEETWEEK_TEMPLATE_SUBMITTED',
+		'label' => 'TimesheetWeekNotificationSubmittedLabel',
+		'default_label' => 'TimesheetWeekTemplateSubmitLabel',
+		'template_keys' => array(
+			'label' => 'TimesheetWeekTemplateSubmitLabel',
+			'subject' => 'TimesheetWeekTemplateSubmitSubject',
+			'body' => 'TimesheetWeekTemplateSubmitBody',
+		),
+	),
+	'TIMESHEETWEEK_APPROVED' => array(
+		'const' => 'TIMESHEETWEEK_TEMPLATE_APPROVED',
+		'label' => 'TimesheetWeekNotificationApprovedLabel',
+		'default_label' => 'TimesheetWeekTemplateApproveLabel',
+		'template_keys' => array(
+			'label' => 'TimesheetWeekTemplateApproveLabel',
+			'subject' => 'TimesheetWeekTemplateApproveSubject',
+			'body' => 'TimesheetWeekTemplateApproveBody',
+		),
+	),
+	'TIMESHEETWEEK_REFUSED' => array(
+		'const' => 'TIMESHEETWEEK_TEMPLATE_REFUSED',
+		'label' => 'TimesheetWeekNotificationRefusedLabel',
+		'default_label' => 'TimesheetWeekTemplateRefuseLabel',
+		'template_keys' => array(
+			'label' => 'TimesheetWeekTemplateRefuseLabel',
+			'subject' => 'TimesheetWeekTemplateRefuseSubject',
+			'body' => 'TimesheetWeekTemplateRefuseBody',
+		),
+	),
+);
+
+// EN: Create default email templates when they do not already exist.
+// FR: Crée les modèles de courriel par défaut lorsqu'ils n'existent pas encore.
+foreach ($notificationDefinitions as $code => &$definition) {
+	$definition['default_id'] = timesheetweekEnsureDefaultNotificationTemplate($templateClass, $definition['template_keys'], $code, $user, $langs, $conf);
+}
+unset($definition);
+
 $numberingModules = timesheetweekListNumberingModules($directories, $langs, $sampleTimesheet, $selectedNumbering);
 $documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
+$emailTemplates = timesheetweekListEmailTemplates($conf);
 $pageToken = function_exists('newToken') ? newToken() : '';
+
+$form = new Form($db);
 
 $title = $langs->trans('ModuleSetup', 'Timesheetweek');
 $helpurl = '';
@@ -451,6 +674,62 @@ foreach ($documentModels as $modelInfo) {
 
 print '</table>';
 print '</div>';
+
+// EN: Render the email template selectors for each automatic notification.
+// FR: Affiche les sélecteurs de modèles de courriel pour chaque notification automatique.
+print '<br>';
+print load_fiche_titre($langs->trans('TimesheetWeekNotificationTemplates'), '', 'email');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekNotificationTemplatesHelp').'</div>';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Type').'</th>';
+print '<th>'.$langs->trans('MailTemplate').'</th>';
+print '</tr>';
+
+if (count($notificationDefinitions) === 0) {
+	print '<tr class="oddeven"><td colspan="2" class="opacitymedium">'.$langs->trans('TimesheetWeekNotificationTemplatesEmpty').'</td></tr>';
+} else {
+	foreach ($notificationDefinitions as $code => $definition) {
+		$selectedTemplate = 0;
+		if (function_exists('getDolGlobalInt')) {
+			$selectedTemplate = (int) getDolGlobalInt($definition['const'], 0);
+		} elseif (!empty($conf->global->{$definition['const']})) {
+			$selectedTemplate = (int) $conf->global->{$definition['const']};
+		}
+
+		$options = array();
+		$options[0] = $langs->trans('TimesheetWeekNotificationTemplateDefaultOption', $langs->trans($definition['default_label']));
+		foreach ($emailTemplates as $tpl) {
+			$label = $tpl['label'];
+			if (!empty($tpl['lang'])) {
+				$label .= ' ('.$tpl['lang'].')';
+			}
+			if (!empty($tpl['code'])) {
+				$label .= ' ['.$tpl['code'].']';
+			}
+			$options[$tpl['id']] = $label;
+		}
+
+		print '<tr class="oddeven">';
+		print '<td class="nowraponall">'.dol_escape_htmltag($langs->trans($definition['label'])).'</td>';
+		print '<td>';
+		print '<form method="post" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'" class="inline-block">';
+		print '<input type="hidden" name="token" value="'.dol_escape_htmltag($pageToken).'">';
+		print '<input type="hidden" name="action" value="setemailtemplate">';
+		print '<input type="hidden" name="notification" value="'.dol_escape_htmltag($code).'">';
+		print $form->selectarray('template_id', $options, $selectedTemplate, 0);
+		print ' <button type="submit" class="button small">'.$langs->trans('Save').'</button>';
+		print '</form>';
+		print '</td>';
+		print '</tr>';
+	}
+}
+
+print '</table>';
+print '</div>';
+
 
 print dol_get_fiche_end();
 

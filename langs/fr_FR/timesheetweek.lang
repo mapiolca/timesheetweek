@@ -209,3 +209,11 @@ TimesheetWeekRightValidateChild = Valider les feuilles des subordonnés
 TimesheetWeekRightValidateAll = Valider toutes les feuilles de temps
 TimesheetWeekRightSeal = Sceller les feuilles de temps
 TimesheetWeekRightUnseal = Desceller les feuilles de temps
+
+TimesheetWeekNotificationTemplates = Modèles de notifications
+TimesheetWeekNotificationTemplatesHelp = Sélectionnez le modèle de courriel Dolibarr pour chaque notification automatique.
+TimesheetWeekNotificationTemplatesEmpty = Aucun modèle n'est disponible pour le moment.
+TimesheetWeekNotificationTemplateDefaultOption = Modèle par défaut (%s)
+TimesheetWeekNotificationSubmittedLabel = Notification de soumission
+TimesheetWeekNotificationApprovedLabel = Notification d'approbation
+TimesheetWeekNotificationRefusedLabel = Notification de refus
