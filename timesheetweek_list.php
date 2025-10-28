@@ -37,6 +37,11 @@ $permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
 $permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
 $permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+// EN: Prepare Dolibarr's generic permission flags for mass-action helpers.
+// FR: Prépare les indicateurs de permission Dolibarr pour les helpers d'actions de masse.
+$permissiontoread = ($permRead || $permReadChild || $permReadAll);
+$permissiontoadd = ($permWrite || $permWriteChild || $permWriteAll);
+$permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
 $canSeeAllEmployees = (!empty($user->admin) || $permReadAll || $permWriteAll || $permDeleteAll || $permValidateAll);
 $permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete ||
 $permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
@@ -328,20 +333,16 @@ if ($canDisplayValidationActions) {
 if ($permSeal) {
 	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
 }
-// EN: Keep the delete confirmation for users entitled to delete sheets.
-// FR: Conserve la suppression pour les utilisateurs habilités à effacer des feuilles.
+// EN: Expose the draft-only bulk deletion with Dolibarr's confirmation flow when the operator may delete sheets.
+// FR: Expose la suppression massive limitée aux brouillons avec la confirmation Dolibarr lorsque l'opérateur peut supprimer des feuilles.
 if ($permissiontodelete) {
-	$arrayofmassactions['delete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
+	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
 }
 
 $massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
 $objectclass = 'TimesheetWeek';
 $objectlabel = 'TimesheetWeek';
 $object = new TimesheetWeek($db);
-
-$permissiontoread = ($permRead || $permReadChild || $permReadAll);
-$permissiontoadd = ($permWrite || $permWriteChild || $permWriteAll);
-$permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
 
 $uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
 ? $conf->timesheetweek->multidir_output[$conf->entity]
