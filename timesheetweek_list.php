@@ -266,7 +266,7 @@ $showmassactionbutton = 1;
 // Include générique (gère selectall, confirmations, map predelete->delete)
 include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
-//if ($massactionbutton || $massaction) print $formconfirm;
+if ($massactionbutton || $massaction) print $formconfirm;
 
 print '<!-- DEBUG massaction='.dol_escape_htmltag($massaction).' sel='.(int)count(GETPOST('toselect','array')).' -->';
 print ($formconfirm!='') ? '<!-- has formconfirm -->' : '<!-- no formconfirm -->';
