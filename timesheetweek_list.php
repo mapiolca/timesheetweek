@@ -543,7 +543,9 @@ if (!empty($pendingMassDeleteSelection)) {
 		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'delete')
 	);
 	foreach ($pendingMassDeleteSelection as $selectedId) {
-		$formConfirmFields[] = array('type' => 'hidden', 'name' => 'toselect[]', 'value' => (int) $selectedId);
+		// EN: Provide a valid DOM identifier for each hidden field to avoid jQuery selector errors with bracketed names.
+		// FR: Fournit un identifiant DOM valide pour chaque champ caché afin d'éviter les erreurs de sélecteur jQuery avec les noms entre crochets.
+		$formConfirmFields[] = array('type' => 'hidden', 'name' => 'toselect[]', 'id' => 'confirm_toselect_'.(int) $selectedId, 'value' => (int) $selectedId);
 	}
 	$formconfirm = $form->formconfirm(
 		$formConfirmUrl,
