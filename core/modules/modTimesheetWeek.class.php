@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.7'; // EN: Harmonizes mass action icons, enforces permissions and restricts bulk deletions to drafts.
-		// FR: Harmonise les icônes des actions de masse, applique les permissions et limite les suppressions groupées aux brouillons.
+		$this->version = '1.1.0'; // EN: Create summary PDF in massaction
+		// FR: Crée un PDF de résumé par une action de masse.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
