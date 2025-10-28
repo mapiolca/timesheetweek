@@ -569,6 +569,12 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		$langs->load('main');
 	}
 
+	// EN: Guarantee the Dolibarr "companies" dictionary is available to translate company details.
+	// FR: Garantit la disponibilité du dictionnaire « companies » pour traduire les informations société.
+	if (!property_exists($langs, 'loadedlangs') || empty($langs->loadedlangs['companies'])) {
+		$langs->load('companies');
+	}
+
 	$dataResult = tw_collect_summary_data($db, $timesheetIds, $user, $permReadOwn, $permReadChild, $permReadAll);
 	$rawWarnings = !empty($dataResult['errors']) ? $dataResult['errors'] : array();
 	$warnings = array();

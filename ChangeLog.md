@@ -10,6 +10,7 @@
 - Nomme le PDF de synthèse selon l'intervalle de semaines sélectionné pour retrouver rapidement la période couverte. / Names the summary PDF after the selected week range to quickly identify the covered period.
 - Sécurise la génération du PDF de synthèse en alignant le nom de fichier sur les règles Dolibarr pour éviter les erreurs de téléchargement. / Secures the summary PDF generation by aligning the filename with Dolibarr rules to prevent download errors.
 - Charge systématiquement le dictionnaire de langue « main » avant la synthèse PDF pour réutiliser les libellés Dolibarr partagés. / Systematically loads the "main" language dictionary before the PDF summary to reuse shared Dolibarr labels.
+- Charge systématiquement le dictionnaire de langue « companies » pour disposer des libellés société lors de la synthèse PDF. / Systematically loads the "companies" language dictionary to access company labels during the PDF summary.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
