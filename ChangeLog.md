@@ -7,6 +7,7 @@
 - Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
 - Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
 - Oriente le PDF de synthèse en A4 paysage, ajoute l'entête/pied Dolibarr avec logo et affiche la colonne « Approuvé par ». / Sets the summary PDF to A4 landscape, draws Dolibarr header/footer with logo, and displays the "Approved by" column.
+- Nomme le PDF de synthèse selon l'intervalle de semaines sélectionné pour retrouver rapidement la période couverte. / Names the summary PDF after the selected week range to quickly identify the covered period.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".

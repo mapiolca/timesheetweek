@@ -594,6 +594,38 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	});
 	$sortedUsers = array_values($dataset);
 
+	// EN: Track the lowest and highest ISO weeks among the selected records for filename generation.
+	// FR: Suit les semaines ISO minimale et maximale parmi les enregistrements sélectionnés pour le nom du fichier.
+	$earliestWeek = null;
+	$latestWeek = null;
+	foreach ($sortedUsers as $userSummary) {
+		if (empty($userSummary['records']) || !is_array($userSummary['records'])) {
+			continue;
+		}
+		foreach ($userSummary['records'] as $record) {
+			if (!isset($record['week']) || !isset($record['year'])) {
+				continue;
+			}
+			$weekValue = (int) $record['week'];
+			$yearValue = (int) $record['year'];
+			$compositeKey = sprintf('%04d%02d', $yearValue, $weekValue);
+			if ($earliestWeek === null || strcmp($compositeKey, $earliestWeek['key']) < 0) {
+				$earliestWeek = array(
+					'key' => $compositeKey,
+					'week' => $weekValue
+				);
+			}
+			if ($latestWeek === null || strcmp($compositeKey, $latestWeek['key']) > 0) {
+				$latestWeek = array(
+					'key' => $compositeKey,
+					'week' => $weekValue
+				);
+			}
+		}
+	}
+	$firstWeekLabel = $earliestWeek !== null ? sprintf('%02d', $earliestWeek['week']) : '00';
+	$lastWeekLabel = $latestWeek !== null ? sprintf('%02d', $latestWeek['week']) : $firstWeekLabel;
+
 	$uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
 		? $conf->timesheetweek->multidir_output[$conf->entity]
 		: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
@@ -604,7 +636,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	}
 
 	$timestamp = dol_now();
-	$filename = 'timesheetweek-summary-'.dol_print_date($timestamp, 'dayhourlog').'.pdf';
+	// EN: Use the translated template to generate the PDF filename with the computed ISO week range.
+	// FR: Utilise le modèle traduit pour générer le nom du PDF avec l'intervalle de semaines ISO calculé.
+	$filename = $langs->trans('TimesheetWeekSummaryFilename', $firstWeekLabel, $lastWeekLabel);
 	$filepath = $targetDir.'/'.$filename;
 
 	// EN: Prepare the title and metadata strings reused inside the header block.
