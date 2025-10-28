@@ -8,6 +8,7 @@
 - Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
 - Oriente le PDF de synthèse en A4 paysage, ajoute l'entête/pied Dolibarr avec logo et affiche la colonne « Approuvé par ». / Sets the summary PDF to A4 landscape, draws Dolibarr header/footer with logo, and displays the "Approved by" column.
 - Nomme le PDF de synthèse selon l'intervalle de semaines sélectionné pour retrouver rapidement la période couverte. / Names the summary PDF after the selected week range to quickly identify the covered period.
+- Sécurise la génération du PDF de synthèse en alignant le nom de fichier sur les règles Dolibarr pour éviter les erreurs de téléchargement. / Secures the summary PDF generation by aligning the filename with Dolibarr rules to prevent download errors.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".

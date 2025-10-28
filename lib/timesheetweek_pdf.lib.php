@@ -636,9 +636,17 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	}
 
 	$timestamp = dol_now();
-	// EN: Use the translated template to generate the PDF filename with the computed ISO week range.
-	// FR: Utilise le modèle traduit pour générer le nom du PDF avec l'intervalle de semaines ISO calculé.
-	$filename = $langs->trans('TimesheetWeekSummaryFilename', $firstWeekLabel, $lastWeekLabel);
+	// EN: Generate the human-readable filename using translations before sanitising it for storage.
+	// FR: Génère le nom lisible via les traductions avant de le nettoyer pour l'enregistrement.
+	$displayFilename = $langs->trans('TimesheetWeekSummaryFilename', $firstWeekLabel, $lastWeekLabel);
+	// EN: Sanitize the filename to match Dolibarr's document security checks and avoid missing file errors.
+	// FR: Nettoie le nom de fichier pour correspondre aux contrôles de sécurité Dolibarr et éviter les erreurs d'absence de fichier.
+	$filename = dol_sanitizeFileName($displayFilename);
+	if ($filename === '') {
+		// EN: Fallback on the original label when sanitisation returns an empty value (extreme edge cases).
+		// FR: Revient au libellé initial si le nettoyage renvoie une valeur vide (cas extrêmes).
+		$filename = dol_sanitizeFileName('timesheetweek-summary-'.$firstWeekLabel.'-'.$lastWeekLabel.'.pdf');
+	}
 	$filepath = $targetDir.'/'.$filename;
 
 	// EN: Prepare the title and metadata strings reused inside the header block.
