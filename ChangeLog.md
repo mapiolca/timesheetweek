@@ -2,6 +2,7 @@
 
 ## 1.0.7
 - Harmonise les pictogrammes d'approbation et de refus avec les icônes Dolibarr natives. / Harmonises the approval and refusal pictograms with native Dolibarr icons.
+- Ajoute la massaction « Générer le PDF de synthèse » afin de produire un récapitulatif multi-salariés dans un PDF conforme aux standards Dolibarr. / Adds the "Generate summary PDF" mass action to produce a multi-employee PDF recap compliant with Dolibarr standards.
 - Ajoute la massaction « Sceller » et applique les contrôles de permissions Dolibarr aux actions de masse. / Adds the "Seal" mass action and applies Dolibarr permission checks to bulk operations.
 - Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
 - Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.

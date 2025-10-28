@@ -333,6 +333,11 @@ if ($canDisplayValidationActions) {
 if ($permSeal) {
 	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
 }
+// EN: Allow PDF summary generation to any user allowed to read the listed sheets.
+// FR: Autorise la génération d'un PDF de synthèse à tout utilisateur habilité à lire les feuilles listées.
+if ($permissiontoread) {
+	$arrayofmassactions['generate_summary_pdf'] = img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans('GenerateSummaryPdf');
+}
 // EN: Expose the draft-only bulk deletion with Dolibarr's confirmation flow when the operator may delete sheets.
 // FR: Expose la suppression massive limitée aux brouillons avec la confirmation Dolibarr lorsque l'opérateur peut supprimer des feuilles.
 if ($permissiontodelete) {
@@ -497,6 +502,42 @@ if ($massaction === 'sceller') {
 		}
 		if ($ko) {
 			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+if ($massaction === 'generate_summary_pdf') {
+	$massActionProcessed = true;
+	if (!$permissiontoread) {
+		// EN: Block summary export when the user has no read permission.
+		// FR: Bloque l'export de synthèse lorsque l'utilisateur n'a pas le droit de lecture.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		if (empty($arrayofselected)) {
+			// EN: Notify operators that a selection is required before generating the summary.
+			// FR: Informe les opérateurs qu'une sélection est nécessaire avant de générer la synthèse.
+			setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
+		} else {
+			dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
+			$result = tw_generate_summary_pdf($db, $conf, $langs, $user, $arrayofselected, $permRead, $permReadChild, $permReadAll);
+			if (empty($result['success'])) {
+				// EN: Report generation issues to the operator.
+				// FR: Signale les problèmes de génération à l'opérateur.
+				if (!empty($result['errors'])) {
+					setEventMessages(null, $result['errors'], 'errors');
+				} else {
+					setEventMessages($langs->trans('ErrorUnknown'), null, 'errors');
+				}
+			} else {
+				if (!empty($result['warnings'])) {
+					setEventMessages(null, $result['warnings'], 'warnings');
+				}
+				if (!empty($result['relative'])) {
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']);
+					header('Location: '.$downloadUrl);
+					exit;
+				}
+				setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
+			}
 		}
 	}
 }
