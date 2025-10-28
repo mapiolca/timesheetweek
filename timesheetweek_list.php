@@ -338,7 +338,8 @@ if ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin)) {
 	// FR: Conserve l'action de suppression en la limitant aux utilisateurs autorisés à supprimer.
 	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
 }
-$massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+$massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
+include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
 $arrayofselected = is_array($toselect) ? $toselect : array();
 
@@ -512,6 +513,51 @@ if (!empty($massaction) && empty($cancel)) {
 		}
 	}
 }
+
+// EN: Mass action: delete selected timesheets
+// FR: Actions en masse : supprime les feuilles selectionnées
+if ($massaction === 'delete') {
+    $massActionProcessed = true;
+    if (!($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin))) {
+        setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+    } else {
+        $errors = array();
+        $successCount = 0;
+        $db->begin();
+        foreach ((array) $arrayofselected as $sheetId) {
+            $sheetId = (int) $sheetId;
+            if ($sheetId <= 0) continue;
+
+            $timesheet = new TimesheetWeek($db);
+            $resFetch = $timesheet->fetch($sheetId);
+            if ($resFetch <= 0) {
+                $errors[] = '#'.$sheetId;
+                continue;
+            }
+
+            // Vérif propriétaire si helper dispo
+            if (!function_exists('tw_can_act_on_user') || !tw_can_act_on_user($timesheet->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)) {
+                $errors[] = ($timesheet->ref !== '' ? $timesheet->ref : '#'.$sheetId);
+                continue;
+            }
+
+            $resDel = $timesheet->delete($user);
+            if ($resDel > 0) {
+                $successCount++;
+            } else {
+                $errors[] = ($timesheet->ref !== '' ? $timesheet->ref : '#'.$sheetId);
+            }
+        }
+        if ($successCount > 0) {
+            setEventMessages($langs->trans('RecordsDeleted', $successCount), null, 'mesgs');
+        }
+        if (!empty($errors)) {
+            setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $errors)), null, 'errors');
+        }
+        if (!empty($errors)) $db->rollback(); else $db->commit();
+    }
+}
+
 if ($massActionProcessed) {
 	// EN: Reset the mass action to avoid running the generic include a second time.
 	// FR: Réinitialise l'action de masse pour éviter d'exécuter l'inclusion générique une seconde fois.
@@ -701,6 +747,7 @@ $selectedfields .= (count($arrayofmassactions) ? $form->showCheckAddButtons('che
  */
 print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="massaction" value="">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
 print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
