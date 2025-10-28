@@ -268,6 +268,22 @@ include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
 // Après l’include, récupère la sélection
 $arrayofselected = is_array($toselect) ? $toselect : array();
+if (empty($arrayofselected)) {
+	// EN: Restore the selection kept by Dolibarr confirmation dialogs to process deletions correctly.
+	// FR: Restaure la sélection conservée par les boîtes de dialogue de confirmation Dolibarr pour traiter correctement les suppressions.
+	$toselectpost = GETPOST('toselectpost', 'array');
+	$arrayofselected = is_array($toselectpost) ? $toselectpost : array();
+}
+// EN: Sanitize the selected identifiers to keep only positive integers once.
+// FR: Assainit les identifiants sélectionnés pour ne conserver qu'une seule fois les entiers positifs.
+$cleanSelected = array();
+foreach ($arrayofselected as $selectedId) {
+	$selectedId = (int) $selectedId;
+	if ($selectedId > 0) {
+		$cleanSelected[$selectedId] = $selectedId;
+	}
+}
+$arrayofselected = array_values($cleanSelected);
 
 $massActionProcessed = false;
 
