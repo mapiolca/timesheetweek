@@ -146,7 +146,7 @@ TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totals
 TimesheetWeekSummaryTableTooTall = The summary for %s contains too many rows to fit on a single page.
 TimesheetWeekSummaryGenerated = Summary PDF ready.
-TimesheetWeekSummaryFilename = Weekly timesheets summary - Week #%s to %s.pdf
+TimesheetWeekSummaryFilename = Weekly timesheets summary - Week %s to %s.pdf
 TimesheetWeekSummaryHeaderWeekRange = Week #%1$s %2$s to %3$s %4$s
 
 TimesheetWeekStatusDraft = Draft

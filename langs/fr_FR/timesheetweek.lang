@@ -145,7 +145,7 @@ TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totaux
 TimesheetWeekSummaryTableTooTall = La synthèse pour %s contient trop de lignes pour tenir sur une seule page.
 TimesheetWeekSummaryGenerated = PDF de synthèse disponible.
-TimesheetWeekSummaryFilename = Synthèse hebdomadaire des feuilles de temps - Semaine n°%s à %s.pdf
+TimesheetWeekSummaryFilename = Synthese hebdomadaire des feuilles de temps - Semaine %s a %s.pdf
 TimesheetWeekSummaryHeaderWeekRange = Semaine n°%1$s %2$s à %3$s %4$s
 
 TimesheetWeekStatusDraft = Brouillon

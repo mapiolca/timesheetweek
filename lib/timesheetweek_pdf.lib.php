@@ -677,15 +677,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Generate the human-readable filename using translations before sanitising it for storage.
 	// FR: Génère le nom lisible via les traductions avant de le nettoyer pour l'enregistrement.
 	$displayFilename = $langs->trans('TimesheetWeekSummaryFilename', $firstWeekLabel, $lastWeekLabel);
-	// EN: Remove accents and special characters before running Dolibarr sanitisation.
-	// FR: Supprime les accents et caractères spéciaux avant l'assainissement Dolibarr.
+	// EN: Remove accents and special characters before running Dolibarr sanitisation while keeping readable spaces.
+	// FR: Supprime les accents et caractères spéciaux avant l'assainissement Dolibarr tout en conservant des espaces lisibles.
 	$asciiFilename = dol_string_unaccent($displayFilename);
 	$asciiFilename = preg_replace('/[^A-Za-z0-9._\\- ]+/', '', $asciiFilename);
 	$asciiFilename = trim(preg_replace('/\s+/', ' ', $asciiFilename));
 	if ($asciiFilename !== '') {
-		// EN: Replace spaces by hyphens to stabilise the generated filename pattern.
-		// FR: Remplace les espaces par des tirets pour stabiliser le modèle de nom généré.
-		$displayFilename = str_replace(' ', '-', $asciiFilename);
+		// EN: Reuse the cleaned ASCII string to preserve natural spacing in the filename.
+		// FR: Réutilise la chaîne ASCII nettoyée pour préserver les espaces naturels dans le nom de fichier.
+		$displayFilename = $asciiFilename;
 	}
 	// EN: Sanitize the filename to match Dolibarr's document security checks and avoid missing file errors.
 	// FR: Nettoie le nom de fichier pour correspondre aux contrôles de sécurité Dolibarr et éviter les erreurs d'absence de fichier.
