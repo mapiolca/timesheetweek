@@ -277,6 +277,18 @@ $toselectpost = GETPOST('toselectpost', 'array', 2);
 if (is_array($toselectpost)) {
 	$rawMassSelection = array_merge($rawMassSelection, $toselectpost);
 }
+// EN: Decode the packed selection received from the confirmation dialog to restore the targeted identifiers.
+// FR: Décode la sélection encapsulée reçue depuis la boîte de confirmation pour restaurer les identifiants ciblés.
+$massSelectionPayload = trim(GETPOST('mass_selection', 'alphanohtml'));
+if ($massSelectionPayload !== '') {
+	foreach (explode(',', $massSelectionPayload) as $payloadItem) {
+		$payloadItem = trim($payloadItem);
+		if ($payloadItem === '') {
+			continue;
+		}
+		$rawMassSelection[] = (int) $payloadItem;
+	}
+}
 // EN: Deduplicate positive identifiers only once to keep Dolibarr's expected structure.
 // FR: Déduplique les identifiants positifs une seule fois pour conserver la structure attendue par Dolibarr.
 $cleanSelected = array();
@@ -302,6 +314,11 @@ $confirmMassAction = GETPOST('confirmmassaction', 'alpha');
 if ($action === 'confirm_massaction' && $confirmMassAction !== 'yes') {
 	$massaction = '';
 }
+// EN: Switch to the final mass action once the user validates the confirmation popup.
+// FR: Bascule vers l'action de masse finale une fois que l'utilisateur valide la fenêtre de confirmation.
+if ($action === 'confirm_massaction' && $confirmMassAction === 'yes' && $massaction === 'predelete') {
+	$massaction = 'delete';
+}
 // EN: Store the original selection before prompting the user for confirmation.
 // FR: Stocke la sélection initiale avant de solliciter la confirmation de l'utilisateur.
 if ($massaction === 'predelete') {
@@ -311,9 +328,9 @@ if ($massaction === 'predelete') {
 	} elseif (empty($arrayofselected)) {
 		setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'warnings');
 		$massaction = '';
-} else {
-	$pendingMassDeleteSelection = $arrayofselected;
-}
+	} else {
+		$pendingMassDeleteSelection = $arrayofselected;
+	}
 }
 
 $massActionProcessed = false;
@@ -542,20 +559,9 @@ if (!empty($pendingMassDeleteSelection)) {
 		$formConfirmUrl .= '?'.$confirmQuery;
 	}
 	$formConfirmFields = array(
-		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'delete')
+		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'predelete'),
+		array('type' => 'hidden', 'name' => 'mass_selection', 'value' => implode(',', $pendingMassDeleteSelection))
 	);
-	$indexHidden = 0;
-	foreach ($pendingMassDeleteSelection as $selectedId) {
-		// EN: Preserve each selected identifier through confirmation with a valid DOM id.
-		// FR: Conserve chaque identifiant sélectionné pendant la confirmation avec un identifiant DOM valide.
-		$formConfirmFields[] = array(
-			'type' => 'hidden',
-			'name' => 'toselect[]',
-			'value' => (int) $selectedId,
-			'id' => 'timesheetweek_toselect_'.$indexHidden
-		);
-		$indexHidden++;
-	}
 	$formconfirm = $form->formconfirm(
 		$formConfirmUrl,
 		$langs->trans('DeleteSelection'),
