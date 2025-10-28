@@ -79,7 +79,7 @@ $massaction   = GETPOST('massaction', 'alpha');
 $show_files   = GETPOSTINT('show_files');
 $confirm      = GETPOST('confirm', 'alpha');
 $cancel       = GETPOST('cancel', 'alpha');
-$toselect     = GETPOST('toselect', 'array');
+$toselect     = GETPOST('toselect', 'array', 2);
 $contextpage  = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
 
 $sortfield    = GETPOST('sortfield', 'aZ09comma');
@@ -263,25 +263,31 @@ $upload_dir = $uploaddir;
 // Affiche le menu d’actions
 $showmassactionbutton = 1;
 
-// EN: Restore and clean the selection before the generic include so Dolibarr can display confirmations.
-// FR: Restaure et nettoie la sélection avant l'include générique pour que Dolibarr puisse afficher les confirmations.
-$arrayofselected = is_array($toselect) ? $toselect : array();
-if (empty($arrayofselected)) {
-	// EN: Restore the selection kept by Dolibarr confirmation dialogs to process deletions correctly.
-	// FR: Restaure la sélection conservée par les boîtes de dialogue de confirmation Dolibarr pour traiter correctement les suppressions.
-	$toselectpost = GETPOST('toselectpost', 'array');
-	$arrayofselected = is_array($toselectpost) ? $toselectpost : array();
+// EN: Gather and sanitise every possible mass-action selection source before including the generic handler.
+// FR: Rassemble et assainit toutes les sources possibles de sélection d'actions de masse avant d'inclure le gestionnaire générique.
+$rawMassSelection = array();
+if (is_array($toselect)) {
+	$rawMassSelection = array_merge($rawMassSelection, $toselect);
 }
-// EN: Sanitize the selected identifiers to keep only positive integers once.
-// FR: Assainit les identifiants sélectionnés pour ne conserver qu'une seule fois les entiers positifs.
+$selection = GETPOST('selection', 'array', 2);
+if (is_array($selection)) {
+	$rawMassSelection = array_merge($rawMassSelection, $selection);
+}
+$toselectpost = GETPOST('toselectpost', 'array', 2);
+if (is_array($toselectpost)) {
+	$rawMassSelection = array_merge($rawMassSelection, $toselectpost);
+}
+// EN: Deduplicate positive identifiers only once to keep Dolibarr's expected structure.
+// FR: Déduplique les identifiants positifs une seule fois pour conserver la structure attendue par Dolibarr.
 $cleanSelected = array();
-foreach ($arrayofselected as $selectedId) {
+foreach ($rawMassSelection as $selectedId) {
 	$selectedId = (int) $selectedId;
 	if ($selectedId > 0) {
 		$cleanSelected[$selectedId] = $selectedId;
 	}
 }
 $arrayofselected = array_values($cleanSelected);
+$toselect = $arrayofselected;
 
 // Include générique (gère selectall, confirmations, map predelete->delete)
 include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
