@@ -143,6 +143,7 @@ TimesheetWeekSummaryColumnZone5 = Déplacements Zone 5
 TimesheetWeekSummaryColumnApprovedBy = Approuvé par
 TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totaux
+TimesheetWeekSummaryTableTooTall = La synthèse pour %s contient trop de lignes pour tenir sur une seule page.
 TimesheetWeekSummaryGenerated = PDF de synthèse disponible.
 
 TimesheetWeekStatusDraft = Brouillon

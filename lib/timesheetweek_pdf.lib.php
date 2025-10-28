@@ -249,28 +249,66 @@ function tw_pdf_render_row($pdf, array $columnWidths, array $values, $lineHeight
 		// FR: Positionne chaque cellule manuellement pour garantir l'alignement des colonnes.
 		$pdf->SetXY($initialX + $offset, $initialY);
 		$pdf->MultiCell(
-			$width,
-			$rowHeight,
-			tw_pdf_format_cell_html($value),
-			$border,
-			$align,
-			$fill,
-			0,
-			'',
-			'',
-			true,
-			0,
-			true,
-			true,
-			$rowHeight,
-			'T',
-			false
+		$width,
+		$rowHeight,
+		tw_pdf_format_cell_html($value),
+		$border,
+		$align,
+		$fill,
+		0,
+		'',
+		'',
+		true,
+		0,
+		true,
+		true,
+		$rowHeight,
+		'T',
+		false
 		);
 		$offset += $width;
 	}
 	// EN: Move the cursor under the row for the next drawing operations.
 	// FR: Replace le curseur sous la ligne pour les prochaines opérations de dessin.
 	$pdf->SetXY($initialX, $initialY + $rowHeight);
+}
+
+/**
+ * EN: Estimate the full height required to display a user table without page breaks.
+ * FR: Estime la hauteur complète nécessaire pour afficher un tableau utilisateur sans saut de page.
+ *
+ * @param TCPDF $pdf
+ * @param Translate $langs
+ * @param User $userObject
+ * @param float[] $columnWidths
+ * @param string[] $columnLabels
+ * @param string[][] $recordRows
+ * @param string[] $totalsRow
+ * @param float $lineHeight
+ * @param float $contentWidth
+ * @return float
+ */
+function tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, array $columnWidths, array $columnLabels, array $recordRows, array $totalsRow, $lineHeight, $contentWidth)
+{
+	$bannerText = $langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs));
+	$bannerPlain = dol_string_nohtmltag(tw_pdf_format_cell_html($bannerText));
+	// EN: Evaluate banner height using the same line width as the MultiCell call.
+	// FR: Évalue la hauteur de la bannière en utilisant la même largeur de ligne que l'appel MultiCell.
+	$bannerLines = max(1, $pdf->getNumLines($bannerPlain, $contentWidth));
+	$bannerHeight = 6 * $bannerLines;
+	
+	// EN: Account for the spacing introduced before the table header.
+	// FR: Prend en compte l'espacement introduit avant l'entête du tableau.
+	$headerHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
+	$totalHeight = $bannerHeight + 2 + $headerHeight;
+	
+	foreach ($recordRows as $rowValues) {
+		$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $rowValues, $lineHeight);
+	}
+	
+	$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $totalsRow, $lineHeight);
+	
+	return $totalHeight;
 }
 
 /**
@@ -582,144 +620,103 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 
 	$isFirstUser = true;
 	foreach ($sortedUsers as $userSummary) {
-			$userObject = $userSummary['user'];
-			$records = $userSummary['records'];
-			$totals = $userSummary['totals'];
-
-			if ($isFirstUser) {
-				// EN: Skip the initial spacer so the first table begins on the opening page.
-				// FR: Ignore l'espacement initial pour que le premier tableau démarre sur la page d'ouverture.
-				$isFirstUser = false;
-			} else {
-				$pdf->Ln(4);
+		$userObject = $userSummary['user'];
+		$records = $userSummary['records'];
+		$totals = $userSummary['totals'];
+		
+		$recordRows = array();
+		foreach ($records as $record) {
+			$recordRows[] = array(
+			sprintf('%d / %d', $record['week'], $record['year']),
+			dol_print_date($record['week_start']->getTimestamp(), 'day'),
+			dol_print_date($record['week_end']->getTimestamp(), 'day'),
+			tw_format_hours_decimal($record['total_hours']),
+			tw_format_hours_decimal($record['contract_hours']),
+			tw_format_hours_decimal($record['overtime_hours']),
+			(string) $record['meal_count'],
+			(string) $record['zone1_count'],
+			(string) $record['zone2_count'],
+			(string) $record['zone3_count'],
+			(string) $record['zone4_count'],
+			(string) $record['zone5_count'],
+			$record['approved_by']
+			);
+		}
+		
+		$totalsRow = array(
+		$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+		'',
+		'',
+		tw_format_hours_decimal($totals['total_hours']),
+		tw_format_hours_decimal($totals['contract_hours']),
+		tw_format_hours_decimal($totals['overtime_hours']),
+		(string) $totals['meal_count'],
+		(string) $totals['zone1_count'],
+		(string) $totals['zone2_count'],
+		(string) $totals['zone3_count'],
+		(string) $totals['zone4_count'],
+		(string) $totals['zone5_count'],
+		''
+		);
+		
+$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth);
+		$spacingBeforeTable = $isFirstUser ? 0 : 4;
+		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
+		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
+			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+			$pageHeight = $pdf->getPageHeight();
+			$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
+			if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
+				// EN: Warn users when a table cannot fit even on a fresh page.
+				// FR: Avertit les utilisateurs lorsqu'un tableau ne tient pas même sur une page vierge.
+				$warnings[] = $langs->trans('TimesheetWeekSummaryTableTooTall', $userObject->getFullName($langs));
 			}
-			if ($pdf->GetY() + 40 > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
-				$pageHeight = $pdf->getPageHeight();
-			}
-
-			tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
-
-			// EN: Pre-calculate the header height to avoid unexpected page breaks.
-			// FR: Pré-calcule la hauteur de l'entête pour éviter les sauts de page imprévus.
-			$headerRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
-			if ($pdf->GetY() + 2 + $headerRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
-				$pageHeight = $pdf->getPageHeight();
-				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
-			}
-			$headerY = $pdf->GetY() + 2;
-			// EN: Position the table header just after the employee banner.
-			// FR: Positionne l'entête du tableau juste après l'en-tête salarié.
-			$pdf->SetY($headerY);
-			$pdf->SetFillColor(230, 230, 230);
-			$pdf->SetDrawColor(128, 128, 128);
-			$pdf->SetLineWidth(0.2);
-			$pdf->SetFont('', 'B', $defaultFontSize - 1);
+		}
+		
+		if ($isFirstUser) {
+			// EN: Skip the initial spacer so the first table begins on the opening page.
+			// FR: Ignore l'espacement initial pour que le premier tableau démarre sur la page d'ouverture.
+			$isFirstUser = false;
+		} else {
+			$pdf->Ln(4);
+		}
+		
+		tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
+		$headerY = $pdf->GetY() + 2;
+		// EN: Position the table header just after the employee banner.
+		// FR: Positionne l'entête du tableau juste après l'en-tête salarié.
+		$pdf->SetY($headerY);
+		$pdf->SetFillColor(230, 230, 230);
+		$pdf->SetDrawColor(128, 128, 128);
+		$pdf->SetLineWidth(0.2);
+		$pdf->SetFont('', 'B', $defaultFontSize - 1);
+		$pdf->SetX($margeGauche);
+		// EN: Draw the header row with uniform dimensions for every column.
+		// FR: Dessine la ligne d'entête avec des dimensions uniformes pour chaque colonne.
+		tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+		'fill' => true,
+		'alignments' => array_fill(0, count($columnLabels), 'C')
+		));
+		
+		$pdf->SetFont('', '', $defaultFontSize - 1);
+		$alignments = array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L');
+		// EN: Render each data row while keeping consistent heights across the table.
+		// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
+		foreach ($recordRows as $rowData) {
 			$pdf->SetX($margeGauche);
-			// EN: Draw the header row with uniform dimensions for every column.
-			// FR: Dessine la ligne d'entête avec des dimensions uniformes pour chaque colonne.
-			tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
-					'fill' => true,
-					'alignments' => array_fill(0, count($columnLabels), 'C')
+			tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
+			'alignments' => $alignments
 			));
-
-			$pdf->SetFont('', '', $defaultFontSize - 1);
-			$alignments = array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L');
-			// EN: Render each data row while keeping consistent heights across the table.
-			// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
-			foreach ($records as $record) {
-				$rowData = array(
-					sprintf('%d / %d', $record['week'], $record['year']),
-					dol_print_date($record['week_start']->getTimestamp(), 'day'),
-					dol_print_date($record['week_end']->getTimestamp(), 'day'),
-					tw_format_hours_decimal($record['total_hours']),
-					tw_format_hours_decimal($record['contract_hours']),
-					tw_format_hours_decimal($record['overtime_hours']),
-					(string) $record['meal_count'],
-					(string) $record['zone1_count'],
-					(string) $record['zone2_count'],
-					(string) $record['zone3_count'],
-					(string) $record['zone4_count'],
-					(string) $record['zone5_count'],
-					$record['approved_by']
-				);
-
-				$dataRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $rowData, $lineHeight);
-				// EN: Trigger a new page and redraw the header when the upcoming row would overflow.
-				// FR: Déclenche une nouvelle page et redessine l'entête si la prochaine ligne dépasse la marge.
-				if ($pdf->GetY() + $dataRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-					$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
-					$pageHeight = $pdf->getPageHeight();
-					tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
-					$pdf->Ln(2);
-					$pdf->SetFillColor(230, 230, 230);
-					$pdf->SetDrawColor(128, 128, 128);
-					$pdf->SetLineWidth(0.2);
-					$pdf->SetFont('', 'B', $defaultFontSize - 1);
-					$pdf->SetX($margeGauche);
-					// EN: Reprint the header to preserve column context after the page break.
-					// FR: Réimprime l'entête pour conserver le contexte des colonnes après le saut de page.
-					tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
-							'fill' => true,
-							'alignments' => array_fill(0, count($columnLabels), 'C')
-					));
-					$pdf->SetFont('', '', $defaultFontSize - 1);
-				}
-				$pdf->SetX($margeGauche);
-				// EN: Output the data row with harmonised heights and numeric alignment.
-				// FR: Affiche la ligne de données avec des hauteurs harmonisées et des alignements numériques.
-				tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
-							'alignments' => $alignments
-				));
-			}
-
-			// EN: Build the totals row to summarise the selected weeks per employee.
-			// FR: Construit la ligne de totaux pour résumer les semaines sélectionnées par salarié.
-				$totalsRow = array(
-					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
-					'',
-					'',
-					tw_format_hours_decimal($totals['total_hours']),
-					tw_format_hours_decimal($totals['contract_hours']),
-					tw_format_hours_decimal($totals['overtime_hours']),
-					(string) $totals['meal_count'],
-					(string) $totals['zone1_count'],
-					(string) $totals['zone2_count'],
-					(string) $totals['zone3_count'],
-					(string) $totals['zone4_count'],
-					(string) $totals['zone5_count'],
-					''
-				);
-			$totalsRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $totalsRow, $lineHeight);
-			// EN: Manage page breaks for totals to keep the layout consistent.
-			// FR: Gère les sauts de page pour la ligne de totaux afin de garder une mise en page cohérente.
-			if ($pdf->GetY() + $totalsRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
-				$pageHeight = $pdf->getPageHeight();
-				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
-				$pdf->Ln(2);
-				$pdf->SetFillColor(230, 230, 230);
-				$pdf->SetDrawColor(128, 128, 128);
-				$pdf->SetLineWidth(0.2);
-				$pdf->SetFont('', 'B', $defaultFontSize - 1);
-				$pdf->SetX($margeGauche);
-				// EN: Redisplay the header to accompany totals on a fresh page.
-				// FR: Réaffiche l'entête pour accompagner les totaux sur une nouvelle page.
-				tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
-							'fill' => true,
-							'alignments' => array_fill(0, count($columnLabels), 'C')
-				));
-				$pdf->SetFont('', '', $defaultFontSize - 1);
-			}
-			$pdf->SetFont('', 'B', $defaultFontSize - 1);
-			$pdf->SetX($margeGauche);
-			// EN: Print the totals row with left-aligned label and right-aligned figures.
-			// FR: Imprime la ligne de totaux avec libellé aligné à gauche et chiffres alignés à droite.
-			tw_pdf_render_row($pdf, $columnWidths, $totalsRow, $lineHeight, array(
-							'alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L')
-			));
-
+		}
+		
+		$pdf->SetFont('', 'B', $defaultFontSize - 1);
+		$pdf->SetX($margeGauche);
+		// EN: Print the totals row with left-aligned label and right-aligned figures.
+		// FR: Imprime la ligne de totaux avec libellé aligné à gauche et chiffres alignés à droite.
+		tw_pdf_render_row($pdf, $columnWidths, $totalsRow, $lineHeight, array(
+		'alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L')
+		));
+		
 	}
 	$pdf->Output($filepath, 'F');
 
