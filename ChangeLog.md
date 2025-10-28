@@ -6,6 +6,7 @@
 - Ajoute la massaction « Sceller » et applique les contrôles de permissions Dolibarr aux actions de masse. / Adds the "Seal" mass action and applies Dolibarr permission checks to bulk operations.
 - Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
 - Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
+- Oriente le PDF de synthèse en A4 paysage, ajoute l'entête/pied Dolibarr avec logo et affiche la colonne « Approuvé par ». / Sets the summary PDF to A4 landscape, draws Dolibarr header/footer with logo, and displays the "Approved by" column.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
