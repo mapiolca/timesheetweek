@@ -34,18 +34,58 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 defined('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR') || define('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR', 'summaries');
 
 /**
- * EN: Escape provided value into an UTF-8 safe HTML fragment for TCPDF output.
- * FR: Échappe la valeur fournie en fragment HTML UTF-8 sûr pour la sortie TCPDF.
+ * EN: Prepare the provided value so TCPDF renders readable text without leaking HTML tags.
+ * FR: Prépare la valeur fournie afin que TCPDF affiche un texte lisible sans laisser apparaître les balises HTML.
  *
- * @param string $value
+ * @param string         $value
+ * @param Translate|null $langs
  * @return string
  */
-function tw_pdf_format_cell_html($value)
+function tw_pdf_format_cell_html($value, $langs = null)
 {
-	// EN: Ensure the value is cast to string before escaping.
-	// FR: Garantit la conversion de la valeur en chaîne avant l'échappement.
+	// EN: Ensure the helper always manipulates a string value.
+	// FR: Garantit que l'assistant manipule toujours une valeur de type chaîne.
 	$value = (string) $value;
-	return '<span>'.dol_htmlentities($value, ENT_COMPAT | ENT_HTML401, 'UTF-8').'</span>';
+
+	// EN: Reuse the global translator when the caller does not provide one explicitly.
+	// FR: Réutilise le traducteur global lorsque l'appelant n'en fournit pas explicitement.
+	if (!($langs instanceof Translate) && !empty($GLOBALS['langs']) && $GLOBALS['langs'] instanceof Translate) {
+		$langs = $GLOBALS['langs'];
+	}
+
+	// EN: Convert the string into the current output charset to secure accent rendering.
+	// FR: Convertit la chaîne dans le jeu de caractères de sortie pour sécuriser l'affichage des accents.
+	if ($langs instanceof Translate) {
+		$value = $langs->convToOutputCharset($value);
+	} else {
+		$value = dol_string_to_utf8($value, 'UTF-8');
+	}
+
+	// EN: Decode existing HTML entities so we can strip remaining tags safely.
+	// FR: Décode les entités HTML existantes pour retirer proprement les balises restantes.
+	$value = html_entity_decode($value, ENT_COMPAT | ENT_HTML401, 'UTF-8');
+
+	// EN: Normalise HTML line breaks into plain new lines before removing tags.
+	// FR: Normalise les retours à la ligne HTML en retours simples avant de supprimer les balises.
+	$value = preg_replace('/<br\s*\/?>/i', "\n", $value);
+
+	// EN: Remove any leftover HTML tags to avoid leaking markup in the PDF.
+	// FR: Supprime toute balise HTML résiduelle afin d'éviter l'apparition de code dans le PDF.
+	$value = dol_string_nohtmltag($value);
+
+	// EN: Trim trailing spaces to keep the PDF layout tight and clean.
+	// FR: Supprime les espaces superflus pour conserver une mise en page PDF nette.
+	$value = trim($value);
+
+	// EN: Escape special characters while keeping the UTF-8 encoding intact.
+	// FR: Échappe les caractères spéciaux tout en conservant l'encodage UTF-8.
+	$value = dol_htmlentities($value, ENT_COMPAT | ENT_HTML401, 'UTF-8');
+
+	// EN: Replace line breaks with HTML tags so TCPDF honours multi-line content.
+	// FR: Remplace les retours à la ligne par des balises HTML pour que TCPDF respecte le contenu multi-lignes.
+	$value = preg_replace("/(\r\n|\r|\n)/", '<br />', $value);
+
+	return '<span>'.$value.'</span>';
 }
 
 /**
@@ -124,15 +164,15 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, array 
 		// FR: Se rabat sur le nom de l'entreprise lorsqu'aucun logo lisible n'est disponible.
 		$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
 		$pdf->SetFont('', 'B', $defaultFontSize);
-		$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($companyName, $langs), 0, 'L', 0, 1, '', '', true, 0, true);
 		$logoHeight = max($logoHeight, 12.0);
 	}
 
 	$pdf->SetFont('', 'B', $defaultFontSize + 3);
 	$pdf->SetXY($posX, $posY);
 	$pdf->SetTextColor(0, 0, 60);
-	$title = $options['title'] ?? $langs->transnoentities('TimesheetWeekSummaryTitle');
-	$pdf->MultiCell($boxWidth, 3, tw_pdf_format_cell_html($title), '', 'R');
+	$title = array_key_exists('title', $options) ? $options['title'] : $langs->transnoentities('TimesheetWeekSummaryTitle');
+	$pdf->MultiCell($boxWidth, 3, tw_pdf_format_cell_html($title, $langs), 0, 'R', 0, 1, '', '', true, 0, true);
 
 	$posDetails = $posY + 5;
 	$pdf->SetFont('', 'B', $defaultFontSize);
@@ -143,7 +183,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, array 
 	foreach ($detailLines as $index => $detailLine) {
 		$pdf->SetXY($posX, $posDetails);
 		$pdf->SetTextColor(0, 0, 60);
-		$pdf->MultiCell($boxWidth, 4, tw_pdf_format_cell_html($detailLine), '', 'R');
+		$pdf->MultiCell($boxWidth, 4, tw_pdf_format_cell_html($detailLine, $langs), 0, 'R', 0, 1, '', '', true, 0, true);
 		$posDetails += 4;
 		if ($index === 0) {
 			$pdf->SetFont('', '', $defaultFontSize - 2);
@@ -187,11 +227,11 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
 
 	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
 	$pdf->SetXY($leftMargin, $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 0, '', '', true, 0, true);
+	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($companyName, $langs), 0, 'L', 0, 0, '', '', true, 0, true);
 
 	$pageLabel = $langs->trans('Page').' '.$pdf->getAliasNumPage().'/'.$pdf->getAliasNbPages();
 	$pdf->SetXY($leftMargin + ($usableWidth / 2), $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($pageLabel), 0, 'R', 0, 1, '', '', true, 0, true);
+	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($pageLabel, $langs), 0, 'R', 0, 1, '', '', true, 0, true);
 	$pdf->SetTextColor(0, 0, 0);
 }
 
@@ -253,7 +293,7 @@ function tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize)
 {
 	$pdf->SetFont('', 'B', $defaultFontSize + 1);
 	$pdf->SetTextColor(0, 0, 60);
-	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs))), 0, 'L', 0, 1, '', '', true, 0, true);
+	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs)), $langs), 0, 'L', 0, 1, '', '', true, 0, true);
 	$pdf->SetFont('', '', $defaultFontSize);
 	$pdf->SetTextColor(0, 0, 0);
 }
@@ -566,9 +606,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Prepare metadata for the header so callbacks and manual rendering share the same content.
 	// FR: Prépare les métadonnées de l'entête pour que les callbacks et le dessin manuel partagent le même contenu.
 	$headerOptions = array(
-		'title' => $langs->convToOutputCharset($langs->transnoentities('TimesheetWeekSummaryTitle')),
+		'title' => $langs->transnoentities('TimesheetWeekSummaryTitle'),
 		'lines' => array(
-			$langs->convToOutputCharset($langs->transnoentities('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs)))
+			$langs->transnoentities('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs))
 		)
 	);
 	$headerOptionsHash = sha1(serialize($headerOptions));
@@ -615,13 +655,13 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetXY($margeGauche, $contentTop);
 	$pdf->SetTextColor(0, 0, 60);
 	$pdf->SetFont('', 'B', $defaultFontSize + 3);
-	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryTitle')), 0, 'L', 0, 1, '', '', true, 0, true);
+	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryTitle'), $langs), 0, 'L', 0, 1, '', '', true, 0, true);
 
 	$pdf->SetFont('', '', $defaultFontSize);
 	$pdf->SetTextColor(0, 0, 0);
 	$pdf->Ln(2);
 
-	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs))), 0, 'L', 0, 1, '', '', true, 0, true);
+	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs)), $langs), 0, 'L', 0, 1, '', '', true, 0, true);
 	$pdf->Ln(2);
 
 	$columnWidthWeights = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24);
