@@ -156,13 +156,22 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
 function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null)
 {
 	$pdf->AddPage('L');
-	$useStoredHeader = is_array($headerState) && !empty($headerState['automatic']) && !empty($headerState['value']);
-	if ($useStoredHeader) {
-		$headerBottom = (float) $headerState['value'];
+	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
+	// FR: Détecte si les callbacks automatiques de TCPDF gèrent le rendu entête/pied.
+	$callbacksOn = is_array($headerState) && !empty($headerState['automatic']);
+
+	if ($callbacksOn) {
+		// EN: Recompute the header height when missing to avoid duplicated footer calls.
+		// FR: Recalcule la hauteur d'entête lorsqu'elle manque pour éviter les appels de pied dupliqués.
+		$headerBottom = !empty($headerState['value'])
+			? (float) $headerState['value']
+			: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
 	} else {
 		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
 		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin);
 		if (is_array($headerState)) {
+			// EN: Store the header height for further pages when callbacks remain disabled.
+			// FR: Mémorise la hauteur d'entête pour les prochaines pages lorsque les callbacks restent inactifs.
 			$headerState['value'] = $headerBottom;
 		}
 	}
