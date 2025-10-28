@@ -266,6 +266,8 @@ $showmassactionbutton = 1;
 // Include générique (gère selectall, confirmations, map predelete->delete)
 include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
+if ($massactionbutton || $massaction) print $formconfirm;
+
 // Après l’include, récupère la sélection
 $arrayofselected = is_array($toselect) ? $toselect : array();
 
