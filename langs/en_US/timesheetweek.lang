@@ -144,6 +144,7 @@ TimesheetWeekSummaryColumnZone5 = Zone 5 trips
 TimesheetWeekSummaryColumnApprovedBy = Approved by
 TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totals
+TimesheetWeekSummaryTableTooTall = The summary for %s contains too many rows to fit on a single page.
 TimesheetWeekSummaryGenerated = Summary PDF ready.
 
 TimesheetWeekStatusDraft = Draft
