@@ -34,6 +34,98 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 defined('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR') || define('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR', 'summaries');
 
 /**
+ * EN: Escape provided value into an UTF-8 safe HTML fragment for TCPDF output.
+ * FR: Échappe la valeur fournie en fragment HTML UTF-8 sûr pour la sortie TCPDF.
+ *
+ * @param string $value
+ * @return string
+ */
+function tw_pdf_format_cell_html($value)
+{
+	// EN: Ensure the value is cast to string before escaping.
+	// FR: Garantit la conversion de la valeur en chaîne avant l'échappement.
+	$value = (string) $value;
+	return '<span>'.dol_htmlentities($value, ENT_COMPAT | ENT_HTML401, 'UTF-8').'</span>';
+}
+
+/**
+ * EN: Determine the height required for a table row considering wrapped content.
+ * FR: Détermine la hauteur nécessaire pour une ligne du tableau en considérant les retours à la ligne.
+ *
+ * @param TCPDF $pdf
+ * @param float[] $columnWidths
+ * @param string[] $values
+ * @param float $lineHeight
+ * @return float
+ */
+function tw_pdf_estimate_row_height($pdf, array $columnWidths, array $values, $lineHeight)
+{
+	// EN: Track the maximum number of lines across the row to harmonise heights.
+	// FR: Suit le nombre maximal de lignes pour harmoniser les hauteurs.
+	$maxLines = 1;
+	foreach ($values as $index => $value) {
+		$text = tw_pdf_format_cell_html($value);
+		$plain = dol_string_nohtmltag($text);
+		$currentLines = max(1, $pdf->getNumLines($plain, $columnWidths[$index]));
+		$maxLines = max($maxLines, $currentLines);
+	}
+	return $lineHeight * $maxLines;
+}
+
+/**
+ * EN: Render a row with uniform cell height and consistent column widths.
+ * FR: Affiche une ligne avec une hauteur uniforme des cellules et des largeurs cohérentes par colonne.
+ *
+ * @param TCPDF $pdf
+ * @param float[] $columnWidths
+ * @param string[] $values
+ * @param float $lineHeight
+ * @param array $options
+ * @return void
+ */
+function tw_pdf_render_row($pdf, array $columnWidths, array $values, $lineHeight, array $options = array())
+{
+	$border = $options['border'] ?? 1;
+	$fill = !empty($options['fill']);
+	$alignments = $options['alignments'] ?? array();
+	// EN: Compute the shared height to align every cell in the row.
+	// FR: Calcule la hauteur commune pour aligner toutes les cellules de la ligne.
+	$rowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $values, $lineHeight);
+	$initialX = $pdf->GetX();
+	$initialY = $pdf->GetY();
+	$offset = 0.0;
+	foreach ($values as $index => $value) {
+		$width = $columnWidths[$index];
+		$align = $alignments[$index] ?? 'L';
+		// EN: Position each cell manually to guarantee column alignment.
+		// FR: Positionne chaque cellule manuellement pour garantir l'alignement des colonnes.
+		$pdf->SetXY($initialX + $offset, $initialY);
+		$pdf->MultiCell(
+			$width,
+			$rowHeight,
+			tw_pdf_format_cell_html($value),
+			$border,
+			$align,
+			$fill,
+			0,
+			'',
+			'',
+			true,
+			0,
+			true,
+			true,
+			$rowHeight,
+			'T',
+			false
+		);
+		$offset += $width;
+	}
+	// EN: Move the cursor under the row for the next drawing operations.
+	// FR: Replace le curseur sous la ligne pour les prochaines opérations de dessin.
+	$pdf->SetXY($initialX, $initialY + $rowHeight);
+}
+
+/**
  * EN: Format decimal hours into the HH:MM representation expected by HR teams.
  * FR: Formate les heures décimales en représentation HH:MM attendue par les équipes RH.
  *
@@ -259,13 +351,13 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetXY($margeGauche, $margeHaute);
 	$pdf->SetTextColor(0, 0, 60);
 	$pdf->SetFont('', 'B', $defaultFontSize + 3);
-	$pdf->MultiCell(0, 6, $langs->trans('TimesheetWeekSummaryTitle'), 0, 'L');
+	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryTitle')), 0, 'L', 0, 1, '', '', true, 0, true);
 
 	$pdf->SetFont('', '', $defaultFontSize);
 	$pdf->SetTextColor(0, 0, 0);
 	$pdf->Ln(2);
 
-	$pdf->MultiCell(0, 5, $langs->trans('TimesheetWeekSummaryGeneratedOn', dol_print_date($timestamp, 'dayhour')), 0, 'L');
+	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryGeneratedOn', dol_print_date($timestamp, 'dayhour'))), 0, 'L', 0, 1, '', '', true, 0, true);
 	$pdf->Ln(2);
 
 	$columnWidths = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11);
@@ -287,111 +379,131 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$lineHeight = 6;
 
 	foreach ($sortedUsers as $userSummary) {
-		$userObject = $userSummary['user'];
-		$records = $userSummary['records'];
-		$totals = $userSummary['totals'];
+			$userObject = $userSummary['user'];
+			$records = $userSummary['records'];
+			$totals = $userSummary['totals'];
 
-		$pdf->Ln(4);
-		if ($pdf->GetY() + 40 > ($pageHeight - $margeBasse)) {
-			$pdf->AddPage();
-		}
-
-		$pdf->SetFont('', 'B', $defaultFontSize + 1);
-		$pdf->SetTextColor(0, 0, 60);
-		$pdf->MultiCell(0, 6, $langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs)), 0, 'L');
-		$pdf->SetFont('', '', $defaultFontSize);
-		$pdf->SetTextColor(0, 0, 0);
-
-		$headerY = $pdf->GetY() + 2;
-		if ($headerY + ($lineHeight * (count($records) + 2)) > ($pageHeight - $margeBasse)) {
-			$pdf->AddPage();
-			$headerY = $pdf->GetY();
-		}
-		$pdf->SetFillColor(230, 230, 230);
-		$pdf->SetDrawColor(128, 128, 128);
-		$pdf->SetLineWidth(0.2);
-		$pdf->SetFont('', 'B', $defaultFontSize - 1);
-
-		$x = $margeGauche;
-		$pdf->SetXY($x, $headerY);
-		foreach ($columnLabels as $index => $label) {
-			$width = $columnWidths[$index];
-			$pdf->MultiCell($width, $lineHeight, $label, 1, 'C', 1, 0);
-			$x += $width;
-		}
-		$pdf->Ln();
-
-		$pdf->SetFont('', '', $defaultFontSize - 1);
-		foreach ($records as $record) {
-			if ($pdf->GetY() + ($lineHeight * 2) > ($pageHeight - $margeBasse)) {
-				$pdf->AddPage();
-				$pdf->SetFillColor(230, 230, 230);
-				$pdf->SetDrawColor(128, 128, 128);
-				$pdf->SetFont('', 'B', $defaultFontSize - 1);
-				$x = $margeGauche;
-				$pdf->SetXY($x, $pdf->GetY());
-				foreach ($columnLabels as $index => $label) {
-					$width = $columnWidths[$index];
-					$pdf->MultiCell($width, $lineHeight, $label, 1, 'C', 1, 0);
-					$x += $width;
-				}
-				$pdf->Ln();
-				$pdf->SetFont('', '', $defaultFontSize - 1);
+			$pdf->Ln(4);
+			if ($pdf->GetY() + 40 > ($pageHeight - $margeBasse)) {
+					$pdf->AddPage();
 			}
 
-			$rowData = array(
-				sprintf('%d / %d', $record['week'], $record['year']),
-				dol_print_date($record['week_start']->getTimestamp(), 'day'),
-				dol_print_date($record['week_end']->getTimestamp(), 'day'),
-				tw_format_hours_decimal($record['total_hours']),
-				tw_format_hours_decimal($record['contract_hours']),
-				tw_format_hours_decimal($record['overtime_hours']),
-				(string) $record['meal_count'],
-				(string) $record['zone1_count'],
-				(string) $record['zone2_count'],
-				(string) $record['zone3_count'],
-				(string) $record['zone4_count'],
-				(string) $record['zone5_count']
+			$pdf->SetFont('', 'B', $defaultFontSize + 1);
+			$pdf->SetTextColor(0, 0, 60);
+			$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs))), 0, 'L', 0, 1, '', '', true, 0, true);
+			$pdf->SetFont('', '', $defaultFontSize);
+			$pdf->SetTextColor(0, 0, 0);
+
+			$headerY = $pdf->GetY() + 2;
+			// EN: Position the table header just after the employee banner.
+			// FR: Positionne l'entête du tableau juste après l'en-tête salarié.
+			$pdf->SetY($headerY);
+			// EN: Pre-calculate the header height to avoid unexpected page breaks.
+			// FR: Pré-calcule la hauteur de l'entête pour éviter les sauts de page imprévus.
+			$headerRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
+			if ($pdf->GetY() + $headerRowHeight > ($pageHeight - $margeBasse)) {
+					$pdf->AddPage();
+			}
+			$pdf->SetFillColor(230, 230, 230);
+			$pdf->SetDrawColor(128, 128, 128);
+			$pdf->SetLineWidth(0.2);
+			$pdf->SetFont('', 'B', $defaultFontSize - 1);
+			$pdf->SetX($margeGauche);
+			// EN: Draw the header row with uniform dimensions for every column.
+			// FR: Dessine la ligne d'entête avec des dimensions uniformes pour chaque colonne.
+			tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+					'fill' => true,
+					'alignments' => array_fill(0, count($columnLabels), 'C')
+			));
+
+			$pdf->SetFont('', '', $defaultFontSize - 1);
+			$alignments = array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R');
+			// EN: Render each data row while keeping consistent heights across the table.
+			// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
+			foreach ($records as $record) {
+					$rowData = array(
+							sprintf('%d / %d', $record['week'], $record['year']),
+							dol_print_date($record['week_start']->getTimestamp(), 'day'),
+							dol_print_date($record['week_end']->getTimestamp(), 'day'),
+							tw_format_hours_decimal($record['total_hours']),
+							tw_format_hours_decimal($record['contract_hours']),
+							tw_format_hours_decimal($record['overtime_hours']),
+							(string) $record['meal_count'],
+							(string) $record['zone1_count'],
+							(string) $record['zone2_count'],
+							(string) $record['zone3_count'],
+							(string) $record['zone4_count'],
+							(string) $record['zone5_count']
+					);
+
+					$dataRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $rowData, $lineHeight);
+					// EN: Trigger a new page and redraw the header when the upcoming row would overflow.
+					// FR: Déclenche une nouvelle page et redessine l'entête si la prochaine ligne dépasse la marge.
+					if ($pdf->GetY() + $dataRowHeight > ($pageHeight - $margeBasse)) {
+							$pdf->AddPage();
+							$pdf->SetFillColor(230, 230, 230);
+							$pdf->SetDrawColor(128, 128, 128);
+							$pdf->SetLineWidth(0.2);
+							$pdf->SetFont('', 'B', $defaultFontSize - 1);
+							$pdf->SetX($margeGauche);
+							// EN: Reprint the header to preserve column context after the page break.
+							// FR: Réimprime l'entête pour conserver le contexte des colonnes après le saut de page.
+							tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+									'fill' => true,
+									'alignments' => array_fill(0, count($columnLabels), 'C')
+							));
+							$pdf->SetFont('', '', $defaultFontSize - 1);
+					}
+					$pdf->SetX($margeGauche);
+					// EN: Output the data row with harmonised heights and numeric alignment.
+					// FR: Affiche la ligne de données avec des hauteurs harmonisées et des alignements numériques.
+					tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
+							'alignments' => $alignments
+					));
+			}
+
+			// EN: Build the totals row to summarise the selected weeks per employee.
+			// FR: Construit la ligne de totaux pour résumer les semaines sélectionnées par salarié.
+			$totalsRow = array(
+					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+					'',
+					'',
+					tw_format_hours_decimal($totals['total_hours']),
+					tw_format_hours_decimal($totals['contract_hours']),
+					tw_format_hours_decimal($totals['overtime_hours']),
+					(string) $totals['meal_count'],
+					(string) $totals['zone1_count'],
+					(string) $totals['zone2_count'],
+					(string) $totals['zone3_count'],
+					(string) $totals['zone4_count'],
+					(string) $totals['zone5_count']
 			);
-
-			$x = $margeGauche;
-			$pdf->SetXY($x, $pdf->GetY());
-			foreach ($rowData as $index => $value) {
-				$width = $columnWidths[$index];
-				$align = ($index >= 3) ? 'R' : 'C';
-				$pdf->MultiCell($width, $lineHeight, $value, 1, $align, 0, 0);
-				$x += $width;
+			$totalsRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $totalsRow, $lineHeight);
+			// EN: Manage page breaks for totals to keep the layout consistent.
+			// FR: Gère les sauts de page pour la ligne de totaux afin de garder une mise en page cohérente.
+			if ($pdf->GetY() + $totalsRowHeight > ($pageHeight - $margeBasse)) {
+					$pdf->AddPage();
+					$pdf->SetFillColor(230, 230, 230);
+					$pdf->SetDrawColor(128, 128, 128);
+					$pdf->SetLineWidth(0.2);
+					$pdf->SetFont('', 'B', $defaultFontSize - 1);
+					$pdf->SetX($margeGauche);
+					// EN: Redisplay the header to accompany totals on a fresh page.
+					// FR: Réaffiche l'entête pour accompagner les totaux sur une nouvelle page.
+					tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+							'fill' => true,
+							'alignments' => array_fill(0, count($columnLabels), 'C')
+					));
+					$pdf->SetFont('', '', $defaultFontSize - 1);
 			}
-			$pdf->Ln();
-		}
-
-		if ($pdf->GetY() + $lineHeight > ($pageHeight - $margeBasse)) {
-			$pdf->AddPage();
-		}
-		$pdf->SetFont('', 'B', $defaultFontSize - 1);
-		$x = $margeGauche;
-		$totalsRow = array(
-			$langs->trans('TimesheetWeekSummaryTotalsLabel'),
-			'',
-			'',
-			tw_format_hours_decimal($totals['total_hours']),
-			tw_format_hours_decimal($totals['contract_hours']),
-			tw_format_hours_decimal($totals['overtime_hours']),
-			(string) $totals['meal_count'],
-			(string) $totals['zone1_count'],
-			(string) $totals['zone2_count'],
-			(string) $totals['zone3_count'],
-			(string) $totals['zone4_count'],
-			(string) $totals['zone5_count']
-		);
-		foreach ($totalsRow as $index => $value) {
-			$width = $columnWidths[$index];
-			$align = ($index >= 3) ? 'R' : 'C';
-			$pdf->MultiCell($width, $lineHeight, $value, 1, $align, 0, 0);
-			$x += $width;
-		}
-		$pdf->Ln();
-		$pdf->SetFont('', '', $defaultFontSize);
+			$pdf->SetFont('', 'B', $defaultFontSize - 1);
+			$pdf->SetX($margeGauche);
+			// EN: Print the totals row with left-aligned label and right-aligned figures.
+			// FR: Imprime la ligne de totaux avec libellé aligné à gauche et chiffres alignés à droite.
+			tw_pdf_render_row($pdf, $columnWidths, $totalsRow, $lineHeight, array(
+					'alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R')
+			));
+			$pdf->SetFont('', '', $defaultFontSize);
 	}
 
 	$pdf->Output($filepath, 'F');
