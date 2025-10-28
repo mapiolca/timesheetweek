@@ -165,15 +165,24 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $bottomMargin
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin)
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null)
 {
 	$pdf->AddPage('L');
-	$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
-	tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin);
+	$useStoredHeader = is_array($headerState) && !empty($headerState['automatic']) && !empty($headerState['value']);
+	if ($useStoredHeader) {
+		$headerBottom = (float) $headerState['value'];
+	} else {
+		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
+		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin);
+		if (is_array($headerState)) {
+			$headerState['value'] = $headerBottom;
+		}
+	}
 	$contentStart = $headerBottom + 4.0;
 	$pdf->SetXY($leftMargin, $contentStart);
 	return $contentStart;
 }
+
 
 
 /**
@@ -500,6 +509,27 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetPageOrientation('L');
 	$pdf->SetAutoPageBreak(true, $margeBasse + $footerReserve);
 	$pdf->SetMargins($margeGauche, $margeHaute, $margeDroite);
+	$headerState = array('value' => 0.0, 'automatic' => false);
+	if (method_exists($pdf, 'setHeaderCallback') && method_exists($pdf, 'setFooterCallback')) {
+		// EN: Delegate header rendering to TCPDF so every page created by the engine receives it automatically.
+		// FR: Confie le rendu de l'entête à TCPDF afin que chaque page créée par le moteur le reçoive automatiquement.
+		$pdf->setPrintHeader(true);
+		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState) {
+			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute);
+			$headerState['automatic'] = true;
+		});
+		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
+		// FR: Confie le dessin du pied de page à TCPDF pour garantir sa présence lors des sauts automatiques.
+		$pdf->setPrintFooter(true);
+		$pdf->setFooterCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeDroite, $margeBasse) {
+			tw_pdf_draw_footer($pdfInstance, $langs, $conf, $margeGauche, $margeDroite, $margeBasse);
+		});
+	} else {
+		// EN: Disable default TCPDF decorations when callbacks are unavailable and rely on manual drawing.
+		// FR: Désactive les décorations TCPDF par défaut si les callbacks sont indisponibles et s'appuie sur le dessin manuel.
+		$pdf->setPrintHeader(false);
+		$pdf->setPrintFooter(false);
+	}
 	// EN: Enable alias replacement for total pages when the method exists on the PDF engine.
 	// FR: Active le remplacement de l'alias pour le nombre total de pages quand la méthode existe sur le moteur PDF.
 	if (method_exists($pdf, 'AliasNbPages')) {
@@ -515,7 +545,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
 	$pageHeight = $pdf->getPageHeight();
 
 	$pdf->SetXY($margeGauche, $contentTop);
@@ -559,14 +589,21 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 
 	$lineHeight = 6;
 
+	$isFirstUser = true;
 	foreach ($sortedUsers as $userSummary) {
 			$userObject = $userSummary['user'];
 			$records = $userSummary['records'];
 			$totals = $userSummary['totals'];
 
-			$pdf->Ln(4);
+			if ($isFirstUser) {
+				// EN: Skip the initial spacer so the first table begins on the opening page.
+				// FR: Ignore l'espacement initial pour que le premier tableau démarre sur la page d'ouverture.
+				$isFirstUser = false;
+			} else {
+				$pdf->Ln(4);
+			}
 			if ($pdf->GetY() + 40 > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 			}
 
@@ -576,7 +613,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			// FR: Pré-calcule la hauteur de l'entête pour éviter les sauts de page imprévus.
 			$headerRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
 			if ($pdf->GetY() + 2 + $headerRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 			}
@@ -621,7 +658,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				// EN: Trigger a new page and redraw the header when the upcoming row would overflow.
 				// FR: Déclenche une nouvelle page et redessine l'entête si la prochaine ligne dépasse la marge.
 				if ($pdf->GetY() + $dataRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-					$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse);
+					$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
 					$pageHeight = $pdf->getPageHeight();
 					tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 					$pdf->Ln(2);
@@ -667,7 +704,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			// EN: Manage page breaks for totals to keep the layout consistent.
 			// FR: Gère les sauts de page pour la ligne de totaux afin de garder une mise en page cohérente.
 			if ($pdf->GetY() + $totalsRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 				$pdf->Ln(2);
