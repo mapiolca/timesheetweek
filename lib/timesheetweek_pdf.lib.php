@@ -119,18 +119,24 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 
 	// EN: Render the summary title and metadata within the right column of the header.
 	// FR: Affiche le titre de synthèse et les métadonnées dans la colonne droite de l'entête.
-	if (dol_trim($title) !== '') {
+	// EN: Remove unnecessary spaces around the header title for accurate checks.
+	// FR: Supprime les espaces superflus autour du titre d'entête pour des vérifications précises.
+	$trimmedTitle = trim((string) $title);
+	if (dol_strlen($trimmedTitle) > 0) {
 		$pdf->SetFont('', 'B', $defaultFontSize + 2);
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetXY($rightBlockX, $posY);
-		$pdf->MultiCell($rightBlockWidth, 6, tw_pdf_format_cell_html($langs->convToOutputCharset($title)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 6, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedTitle)), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
-	if (dol_trim($subtitle) !== '') {
+	// EN: Remove unnecessary spaces around the header subtitle before rendering.
+	// FR: Supprime les espaces superflus autour du sous-titre d'entête avant affichage.
+	$trimmedSubtitle = trim((string) $subtitle);
+	if (dol_strlen($trimmedSubtitle) > 0) {
 		$pdf->SetFont('', '', $defaultFontSize);
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($subtitle)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedSubtitle)), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 
@@ -764,7 +770,7 @@ $tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $col
 		
 		$pdf->SetFont('', '', $defaultFontSize - 1);
 		$alignments = array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L');
-		// EN: Render each data row while keeping consistent heights across the table.
+	// EN: Render each data row while keeping consistent heights across the table.
 		// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
 		foreach ($recordRows as $rowData) {
 			$pdf->SetX($margeGauche);
