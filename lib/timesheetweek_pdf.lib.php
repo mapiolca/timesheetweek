@@ -58,10 +58,11 @@ function tw_pdf_format_cell_html($value)
  * @param float $leftMargin
  * @param float $topMargin
  * @param string $title
+ * @param string $weekRange
  * @param string $subtitle
  * @return float
  */
-function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title = '', $subtitle = '')
+function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title = '', $weekRange = '', $subtitle = '')
 {
 	global $mysoc;
 
@@ -138,6 +139,18 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		// FR: Force le titre d'entête à rester sur une seule ligne pour un rendu plus propre en haut à droite.
 		$pdf->Cell($rightBlockWidth, 6, $langs->convToOutputCharset($trimmedTitle), 0, 0, 'R', 0, '', 0, false, 'T', 'T');
 		$rightBlockBottom = max($rightBlockBottom, $posY + 6.0);
+	}
+	// EN: Trim the ISO week range label before output.
+	// FR: Supprime les espaces du libellé de plage de semaines avant affichage.
+	$trimmedWeekRange = trim((string) $weekRange);
+	if (dol_strlen($trimmedWeekRange) > 0) {
+		$pdf->SetFont('', '', $defaultFontSize);
+		$pdf->SetTextColor(0, 0, 0);
+		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
+		// EN: Show the ISO week range immediately below the title to mirror Dolibarr headers.
+		// FR: Affiche la plage de semaines ISO juste sous le titre pour refléter les entêtes Dolibarr.
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedWeekRange)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 	// EN: Remove unnecessary spaces around the header subtitle before rendering.
 	// FR: Supprime les espaces superflus autour du sous-titre d'entête avant affichage.
@@ -220,10 +233,11 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $bottomMargin
  * @param float|null $autoPageBreakMargin
  * @param string $headerTitle
+ * @param string $headerWeekRange
  * @param string $headerSubtitle
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerSubtitle = '')
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerWeekRange = '', $headerSubtitle = '')
 {
 	$pdf->AddPage('L');
 	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
@@ -235,9 +249,9 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 		// FR: Recalcule la hauteur d'entête lorsqu'elle manque pour éviter les appels de pied dupliqués.
 		$headerBottom = !empty($headerState['value'])
 				? (float) $headerState['value']
-				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerSubtitle);
+				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
 	} else {
-		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerSubtitle);
+		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
 		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, null, 0, $autoPageBreakMargin);
 		if (is_array($headerState)) {
 			// EN: Store the header height for further pages when callbacks remain disabled.
@@ -630,19 +644,25 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			if ($earliestWeek === null || strcmp($compositeKey, $earliestWeek['key']) < 0) {
 				$earliestWeek = array(
 					'key' => $compositeKey,
-					'week' => $weekValue
+					'week' => $weekValue,
+					'year' => $yearValue
 				);
 			}
 			if ($latestWeek === null || strcmp($compositeKey, $latestWeek['key']) > 0) {
 				$latestWeek = array(
 					'key' => $compositeKey,
-					'week' => $weekValue
+					'week' => $weekValue,
+					'year' => $yearValue
 				);
 			}
 		}
 	}
 	$firstWeekLabel = $earliestWeek !== null ? sprintf('%02d', $earliestWeek['week']) : '00';
 	$lastWeekLabel = $latestWeek !== null ? sprintf('%02d', $latestWeek['week']) : $firstWeekLabel;
+	// EN: Derive the ISO years associated with the boundary weeks for display.
+	// FR: Détermine les années ISO associées aux semaines limites pour l'affichage.
+	$firstWeekYear = $earliestWeek !== null ? sprintf('%04d', $earliestWeek['year']) : date('Y');
+	$lastWeekYear = $latestWeek !== null ? sprintf('%04d', $latestWeek['year']) : $firstWeekYear;
 
 	$uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
 		? $conf->timesheetweek->multidir_output[$conf->entity]
@@ -657,6 +677,16 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Generate the human-readable filename using translations before sanitising it for storage.
 	// FR: Génère le nom lisible via les traductions avant de le nettoyer pour l'enregistrement.
 	$displayFilename = $langs->trans('TimesheetWeekSummaryFilename', $firstWeekLabel, $lastWeekLabel);
+	// EN: Remove accents and special characters before running Dolibarr sanitisation.
+	// FR: Supprime les accents et caractères spéciaux avant l'assainissement Dolibarr.
+	$asciiFilename = dol_string_unaccent($displayFilename);
+	$asciiFilename = preg_replace('/[^A-Za-z0-9._\\- ]+/', '', $asciiFilename);
+	$asciiFilename = trim(preg_replace('/\s+/', ' ', $asciiFilename));
+	if ($asciiFilename !== '') {
+		// EN: Replace spaces by hyphens to stabilise the generated filename pattern.
+		// FR: Remplace les espaces par des tirets pour stabiliser le modèle de nom généré.
+		$displayFilename = str_replace(' ', '-', $asciiFilename);
+	}
 	// EN: Sanitize the filename to match Dolibarr's document security checks and avoid missing file errors.
 	// FR: Nettoie le nom de fichier pour correspondre aux contrôles de sécurité Dolibarr et éviter les erreurs d'absence de fichier.
 	$filename = dol_sanitizeFileName($displayFilename);
@@ -670,6 +700,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Prepare the title and metadata strings reused inside the header block.
 	// FR: Prépare les libellés du titre et des métadonnées réemployés dans l'entête.
 	$headerTitle = $langs->trans('TimesheetWeekSummaryTitle');
+	// EN: Build the human-readable ISO week range displayed under the title.
+	// FR: Construit la plage de semaines ISO lisible affichée sous le titre.
+	$headerWeekRange = $langs->trans('TimesheetWeekSummaryHeaderWeekRange', $firstWeekLabel, $firstWeekYear, $lastWeekLabel, $lastWeekYear);
 	$headerSubtitle = $langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs));
 
 	$format = pdf_getFormat();
@@ -693,8 +726,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Delegate header rendering to TCPDF so every page created by the engine receives it automatically.
 		// FR: Confie le rendu de l'entête à TCPDF afin que chaque page créée par le moteur le reçoive automatiquement.
 		$pdf->setPrintHeader(true);
-		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerSubtitle) {
-			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerSubtitle);
+		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerWeekRange, $headerSubtitle) {
+			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerWeekRange, $headerSubtitle);
 			$headerState['automatic'] = true;
 		});
 		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
@@ -724,7 +757,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerSubtitle);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
 	$pageHeight = $pdf->getPageHeight();
 
 	// EN: Offset the cursor slightly below the header to leave breathing space before the content.
@@ -808,7 +841,7 @@ $tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $col
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
-			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerSubtitle);
+			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
 			$pageHeight = $pdf->getPageHeight();
 			$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 			if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
