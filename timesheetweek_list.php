@@ -288,9 +288,33 @@ foreach ($rawMassSelection as $selectedId) {
 }
 $arrayofselected = array_values($cleanSelected);
 $toselect = $arrayofselected;
+// EN: Prepare the confirmation placeholder for the mass deletion workflow.
+// FR: Prépare le conteneur de confirmation pour le flux de suppression de masse.
+$formconfirm = '';
+$pendingMassDeleteSelection = array();
 
 // Include générique (gère selectall, confirmations, map predelete->delete)
 include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
+
+$confirmMassAction = GETPOST('confirmmassaction', 'alpha');
+// EN: Capture the confirmation feedback to reset the mass action when cancelled.
+// FR: Capture le retour de confirmation pour réinitialiser l'action de masse en cas d'annulation.
+if ($action === 'confirm_massaction' && $confirmMassAction !== 'yes') {
+	$massaction = '';
+}
+// EN: Store the original selection before prompting the user for confirmation.
+// FR: Stocke la sélection initiale avant de solliciter la confirmation de l'utilisateur.
+if ($massaction === 'predelete') {
+	if (!$permissiontodelete) {
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+		$massaction = '';
+	} elseif (empty($arrayofselected)) {
+		setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'warnings');
+		$massaction = '';
+	} else {
+		$pendingMassDeleteSelection = $arrayofselected;
+	}
+}
 
 $massActionProcessed = false;
 
@@ -326,7 +350,7 @@ if ($massaction === 'refuse_selection') {
 if ($massaction === 'delete') { // après confirmation de predelete
     $massActionProcessed = true;
     if (!($permissiontodelete)) {
-        setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
     } else {
         $db->begin(); $ok=0; $ko=array();
         foreach ((array)$arrayofselected as $id) {
@@ -506,6 +530,35 @@ if (!empty($search_status)) {
 // EN: Keep the selected limit within pagination links to honour the user's choice.
 // FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
 $param .= '&limit='.(int) $limit;
+
+if (!empty($pendingMassDeleteSelection)) {
+	// EN: Build a confirmation dialog to validate the mass deletion before executing it.
+	// FR: Construit une boîte de confirmation pour valider la suppression de masse avant exécution.
+	$formConfirmUrl = $_SERVER['PHP_SELF'];
+	$confirmQuery = ltrim($param, '&');
+	if ($confirmQuery !== '') {
+		$formConfirmUrl .= '?'.$confirmQuery;
+	}
+	$formConfirmFields = array(
+		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'delete')
+	);
+	foreach ($pendingMassDeleteSelection as $selectedId) {
+		$formConfirmFields[] = array('type' => 'hidden', 'name' => 'toselect[]', 'value' => (int) $selectedId);
+	}
+	$formconfirm = $form->formconfirm(
+		$formConfirmUrl,
+		$langs->trans('DeleteSelection'),
+		$langs->trans('TimesheetWeekConfirmMassDelete', count($pendingMassDeleteSelection)),
+		'confirm_massaction',
+		$formConfirmFields,
+		0,
+		1
+	);
+}
+
+if (!empty($formconfirm)) {
+	print $formconfirm;
+}
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
