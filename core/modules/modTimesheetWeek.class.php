@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.6'; // EN: Reorders the left menu, adds agenda and project menu entries and fixes the list page limit selector.
-		// FR: Réorganise le menu gauche, ajoute les entrées de menus agenda et projet et corrige le sélecteur de limite dans la liste.
+		$this->version = '1.0.7'; // EN: Harmonizes mass action icons, enforces permissions and restricts bulk deletions to drafts.
+		// FR: Harmonise les icônes des actions de masse, applique les permissions et limite les suppressions groupées aux brouillons.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
