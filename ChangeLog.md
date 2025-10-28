@@ -18,6 +18,7 @@
 - Conserve le titre du document sur une seule ligne dans l'entête PDF pour reprendre l'alignement Dolibarr. / Keeps the document title on a single line in the PDF header to mirror Dolibarr alignment.
 - Corrige l'affichage de la plage de semaines dans l'entête PDF en injectant les bornes sélectionnées dans le libellé traduit. / Fixes the header week range display by injecting the selected bounds into the translated label.
 - Corrige l'affichage des caractères spéciaux dans l'entête PDF en préservant les accents lors de l'échappement HTML. / Fixes special character rendering in the PDF header by preserving accents during HTML escaping.
+- Normalise l'ensemble des textes du PDF de synthèse pour afficher correctement accents et caractères spéciaux. / Normalises all summary PDF texts to display accents and special characters correctly.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".

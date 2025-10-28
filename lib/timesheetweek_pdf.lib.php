@@ -34,20 +34,56 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 defined('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR') || define('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR', 'summaries');
 
 /**
- * EN: Escape provided value into an UTF-8 safe HTML fragment for TCPDF output.
- * FR: Échappe la valeur fournie en fragment HTML UTF-8 sûr pour la sortie TCPDF.
+ * EN: Normalise a value before sending it to TCPDF by decoding HTML entities and applying the output charset.
+ * FR: Normalise une valeur avant envoi à TCPDF en décodant les entités HTML et en appliquant le jeu de caractères de sortie.
+ *
+ * @param string $value
+ * @return string
+ */
+function tw_pdf_normalize_string($value)
+{
+	// EN: Convert any scalar input into a string for consistent processing.
+	// FR: Convertit toute entrée scalaire en chaîne pour un traitement cohérent.
+	$value = (string) $value;
+	if (function_exists('dol_html_entity_decode')) {
+		// EN: Decode HTML entities with Dolibarr helper to restore accented characters before rendering.
+		// FR: Décode les entités HTML avec l'helper Dolibarr pour restaurer les caractères accentués avant affichage.
+		$value = dol_html_entity_decode($value, ENT_QUOTES | ENT_HTML401, 'UTF-8');
+	} else {
+		// EN: Fallback on PHP native decoder when the Dolibarr helper is unavailable.
+		// FR: Utilise le décodeur natif PHP si l'helper Dolibarr est indisponible.
+		$value = html_entity_decode($value, ENT_QUOTES | ENT_HTML401, 'UTF-8');
+	}
+	// EN: Access the global translations handler to convert text with the right PDF charset.
+	// FR: Accède au gestionnaire global de traductions pour convertir le texte avec le bon jeu de caractères PDF.
+	global $langs;
+	if ($langs instanceof Translate) {
+		// EN: Convert the text into the PDF output charset defined by Dolibarr translations.
+		// FR: Convertit le texte dans le jeu de caractères de sortie PDF défini par les traductions Dolibarr.
+		$value = $langs->convToOutputCharset($value);
+	}
+	// EN: Return the fully normalised value ready to be consumed by TCPDF rendering calls.
+	// FR: Retourne la valeur totalement normalisée, prête à être consommée par les appels de rendu TCPDF.
+	return $value;
+}
+
+/**
+ * EN: Wrap the normalised value in a safe HTML span ready for TCPDF output.
+ * FR: Entoure la valeur normalisée dans un span HTML sûr prêt pour la sortie TCPDF.
  *
  * @param string $value
  * @return string
  */
 function tw_pdf_format_cell_html($value)
 {
-	// EN: Ensure the value is cast to string before escaping.
-	// FR: Garantit la conversion de la valeur en chaîne avant l'échappement.
-	$value = (string) $value;
-	// EN: Escape HTML special characters while keeping accented letters readable.
-	// FR: Échappe les caractères HTML spéciaux tout en conservant les lettres accentuées lisibles.
-	$escapedValue = htmlspecialchars($value, ENT_COMPAT | ENT_HTML401, 'UTF-8');
+	// EN: Normalise the input before escaping to keep accents visible in PDF cells.
+	// FR: Normalise la valeur avant échappement pour conserver les accents visibles dans les cellules PDF.
+	$normalizedValue = tw_pdf_normalize_string($value);
+	// EN: Escape HTML special characters using Dolibarr helper to protect TCPDF output.
+	// FR: Échappe les caractères spéciaux HTML avec l'helper Dolibarr pour sécuriser la sortie TCPDF.
+	$escapedValue = dol_escape_htmltag($normalizedValue);
+	// EN: Wrap the escaped value in a span to stay compatible with TCPDF HTML rendering expectations.
+	// FR: Encapsule la valeur échappée dans un span pour rester compatible avec les attentes de rendu HTML de TCPDF.
 	return '<span>'.$escapedValue.'</span>';
 }
 
@@ -126,7 +162,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $defaultFontSize);
 		$pdf->SetXY($posX, $posY + max($logoHeight - 6.0, 0.0));
-		$pdf->MultiCell($leftBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($leftBlockWidth, 5, tw_pdf_format_cell_html($companyName), 0, 'L', 0, 1, '', '', true, 0, true);
 	}
 
 	// EN: Render the summary title and metadata within the right column of the header.
@@ -140,7 +176,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetXY($rightBlockX, $posY);
 		// EN: Force the header title to stay on a single line for a cleaner top-right layout.
 		// FR: Force le titre d'entête à rester sur une seule ligne pour un rendu plus propre en haut à droite.
-		$pdf->Cell($rightBlockWidth, 6, $langs->convToOutputCharset($trimmedTitle), 0, 0, 'R', 0, '', 0, false, 'T', 'T');
+		$pdf->Cell($rightBlockWidth, 6, tw_pdf_normalize_string($trimmedTitle), 0, 0, 'R', 0, '', 0, false, 'T', 'T');
 		$rightBlockBottom = max($rightBlockBottom, $posY + 6.0);
 	}
 	// EN: Trim the ISO week range label before output.
@@ -152,7 +188,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
 		// EN: Show the ISO week range immediately below the title to mirror Dolibarr headers.
 		// FR: Affiche la plage de semaines ISO juste sous le titre pour refléter les entêtes Dolibarr.
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedWeekRange)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($trimmedWeekRange), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 	// EN: Remove unnecessary spaces around the header subtitle before rendering.
@@ -162,7 +198,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetFont('', '', $defaultFontSize);
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedSubtitle)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($trimmedSubtitle), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 
@@ -759,8 +795,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	}
 	$pdf->SetCreator('Dolibarr '.DOL_VERSION);
 	$pdf->SetAuthor($user->getFullName($langs));
-	$pdf->SetTitle($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
-	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
+	$pdf->SetTitle(tw_pdf_normalize_string($langs->trans('TimesheetWeekSummaryTitle')));
+	$pdf->SetSubject(tw_pdf_normalize_string($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
 	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
