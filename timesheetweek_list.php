@@ -249,137 +249,131 @@ $arrayofmassactions = array(
 $massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
 $objectclass = 'TimesheetWeek';
 $objectlabel = 'TimesheetWeek';
-$object      = new TimesheetWeek($db);
+$object = new TimesheetWeek($db);
 
-$permissiontoread   = ($permRead || $permReadChild || $permReadAll);
-$permissiontoadd    = ($permWrite || $permWriteChild || $permWriteAll);
+$permissiontoread = ($permRead || $permReadChild || $permReadAll);
+$permissiontoadd = ($permWrite || $permWriteChild || $permWriteAll);
 $permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
 
-$uploaddir  = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
-    ? $conf->timesheetweek->multidir_output[$conf->entity]
-    : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+$uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
+? $conf->timesheetweek->multidir_output[$conf->entity]
+: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
 $upload_dir = $uploaddir;
 
 // Affiche le menu d’actions
 $showmassactionbutton = 1;
 
-// EN: Gather and sanitise every possible mass-action selection source before including the generic handler.
-// FR: Rassemble et assainit toutes les sources possibles de sélection d'actions de masse avant d'inclure le gestionnaire générique.
-$rawMassSelection = array();
-if (is_array($toselect)) {
-	$rawMassSelection = array_merge($rawMassSelection, $toselect);
-}
-$selection = GETPOST('selection', 'array', 2);
-if (is_array($selection)) {
-	$rawMassSelection = array_merge($rawMassSelection, $selection);
-}
-$toselectpost = GETPOST('toselectpost', 'array', 2);
-if (is_array($toselectpost)) {
-	$rawMassSelection = array_merge($rawMassSelection, $toselectpost);
-}
-// EN: Decode the packed selection received from the confirmation dialog to restore the targeted identifiers.
-// FR: Décode la sélection encapsulée reçue depuis la boîte de confirmation pour restaurer les identifiants ciblés.
-$massSelectionPayload = trim(GETPOST('mass_selection', 'alphanohtml'));
-if ($massSelectionPayload !== '') {
-	foreach (explode(',', $massSelectionPayload) as $payloadItem) {
-		$payloadItem = trim($payloadItem);
-		if ($payloadItem === '') {
-			continue;
-		}
-		$rawMassSelection[] = (int) $payloadItem;
-	}
-}
-// EN: Deduplicate positive identifiers only once to keep Dolibarr's expected structure.
-// FR: Déduplique les identifiants positifs une seule fois pour conserver la structure attendue par Dolibarr.
-$cleanSelected = array();
-foreach ($rawMassSelection as $selectedId) {
-	$selectedId = (int) $selectedId;
-	if ($selectedId > 0) {
-		$cleanSelected[$selectedId] = $selectedId;
-	}
-}
-$arrayofselected = array_values($cleanSelected);
-$toselect = $arrayofselected;
-// EN: Prepare the confirmation placeholder for the mass deletion workflow.
-// FR: Prépare le conteneur de confirmation pour le flux de suppression de masse.
-$formconfirm = '';
-$pendingMassDeleteSelection = array();
-
-// Include générique (gère selectall, confirmations, map predelete->delete)
 include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
-$confirmMassAction = GETPOST('confirmmassaction', 'alpha');
-// EN: Capture the confirmation feedback to reset the mass action when cancelled.
-// FR: Capture le retour de confirmation pour réinitialiser l'action de masse en cas d'annulation.
-if ($action === 'confirm_massaction' && $confirmMassAction !== 'yes') {
-	$massaction = '';
-}
-// EN: Switch to the final mass action once the user validates the confirmation popup.
-// FR: Bascule vers l'action de masse finale une fois que l'utilisateur valide la fenêtre de confirmation.
-if ($action === 'confirm_massaction' && $confirmMassAction === 'yes' && $massaction === 'predelete') {
-	$massaction = 'delete';
-}
-// EN: Store the original selection before prompting the user for confirmation.
-// FR: Stocke la sélection initiale avant de solliciter la confirmation de l'utilisateur.
-if ($massaction === 'predelete') {
-	if (!$permissiontodelete) {
-		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
-		$massaction = '';
-	} elseif (empty($arrayofselected)) {
-		setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'warnings');
-		$massaction = '';
-	} else {
-		$pendingMassDeleteSelection = $arrayofselected;
-	}
-}
+// EN: Normalise the selected identifiers provided by Dolibarr's mass-action handler.
+// FR: Normalise les identifiants sélectionnés fournis par le gestionnaire d'actions de masse de Dolibarr.
+$arrayofselected = is_array($toselect) ? $toselect : array();
 
 $massActionProcessed = false;
 
 if ($massaction === 'approve_selection') {
 	$massActionProcessed = true;
-    $db->begin(); $ok=0; $ko=array();
-    foreach ((array)$arrayofselected as $id) {
-        $o = new TimesheetWeek($db);
-        if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
-        // contrôle droits par salarié si besoin
-        $res = $o->approve($user);
-        if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
-    }
-    if ($ko) $db->rollback(); else $db->commit();
-    if ($ok) setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
-    if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+	$db->begin();
+	$ok = 0;
+	$ko = array();
+	foreach ((array) $arrayofselected as $id) {
+		$o = new TimesheetWeek($db);
+		if ($o->fetch((int) $id) <= 0) {
+			$ko[] = '#'.$id;
+			continue;
+		}
+		// contrôle droits par salarié si besoin
+		$res = $o->approve($user);
+		if ($res > 0) {
+			$ok++;
+		} else {
+			$ko[] = $o->ref ?: '#'.$id;
+		}
+	}
+	if ($ko) {
+		$db->rollback();
+	} else {
+		$db->commit();
+	}
+	if ($ok) {
+		setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
+	}
+	if ($ko) {
+		setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+	}
 }
 
 if ($massaction === 'refuse_selection') {
 	$massActionProcessed = true;
-    $db->begin(); $ok=0; $ko=array();
-    foreach ((array)$arrayofselected as $id) {
-        $o = new TimesheetWeek($db);
-        if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
-        $res = $o->refuse($user);
-        if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
-    }
-    if ($ko) $db->rollback(); else $db->commit();
-    if ($ok) setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
-    if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+	$db->begin();
+	$ok = 0;
+	$ko = array();
+	foreach ((array) $arrayofselected as $id) {
+		$o = new TimesheetWeek($db);
+		if ($o->fetch((int) $id) <= 0) {
+			$ko[] = '#'.$id;
+			continue;
+		}
+		$res = $o->refuse($user);
+		if ($res > 0) {
+			$ok++;
+		} else {
+			$ko[] = $o->ref ?: '#'.$id;
+		}
+	}
+	if ($ko) {
+		$db->rollback();
+	} else {
+		$db->commit();
+	}
+	if ($ok) {
+		setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
+	}
+	if ($ko) {
+		setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+	}
 }
 
-if ($massaction === 'delete') { // après confirmation de predelete
+if ($massaction === 'delete') {
 	$massActionProcessed = true;
-	if (!($permissiontodelete)) {
+	if (!$permissiontodelete) {
+		// EN: Block the deletion when the user lacks the necessary rights.
+		// FR: Bloque la suppression lorsque l'utilisateur ne dispose pas des droits nécessaires.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
-		$db->begin(); $ok=0; $ko=array();
-		foreach ((array)$arrayofselected as $id) {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
 			$o = new TimesheetWeek($db);
-			if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
 			$res = $o->delete($user);
-			if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = ($o->ref ?: '#'.$id);
+			}
 		}
-		if ($ko) $db->rollback(); else $db->commit();
-		if ($ok) setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
-		if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
 	}
+	$massaction = '';
 }
 
 if ($massActionProcessed) {
@@ -550,33 +544,6 @@ if (!empty($search_status)) {
 // FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
 $param .= '&limit='.(int) $limit;
 
-if (!empty($pendingMassDeleteSelection)) {
-	// EN: Build a confirmation dialog to validate the mass deletion before executing it.
-	// FR: Construit une boîte de confirmation pour valider la suppression de masse avant exécution.
-	$formConfirmUrl = $_SERVER['PHP_SELF'];
-	$confirmQuery = ltrim($param, '&');
-	if ($confirmQuery !== '') {
-		$formConfirmUrl .= '?'.$confirmQuery;
-	}
-	$formConfirmFields = array(
-		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'predelete'),
-		array('type' => 'hidden', 'name' => 'mass_selection', 'value' => implode(',', $pendingMassDeleteSelection))
-	);
-	$formconfirm = $form->formconfirm(
-		$formConfirmUrl,
-		$langs->trans('DeleteSelection'),
-		$langs->trans('TimesheetWeekConfirmMassDelete', count($pendingMassDeleteSelection)),
-		'confirm_massaction',
-		$formConfirmFields,
-		0,
-		1
-	);
-}
-
-if (!empty($formconfirm)) {
-	print $formconfirm;
-}
-
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
 /**
@@ -592,7 +559,6 @@ $selectedfields .= (count($arrayofmassactions) ? $form->showCheckAddButtons('che
  */
 print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 print '<input type="hidden" name="token" value="'.newToken().'">';
-print '<input type="hidden" name="massaction" value="">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
 print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
@@ -603,6 +569,14 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
 
 print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+
+$topicmail = "SendTimesheetWeekRef";
+$modelmail = "timesheetweek";
+$objecttmp = new TimesheetWeek($db);
+$trackid = 'tsw'.$object->id;
+// EN: Display Dolibarr's standard confirmation prompts for mass actions.
+// FR: Affiche les fenêtres de confirmation standard de Dolibarr pour les actions de masse.
+include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
