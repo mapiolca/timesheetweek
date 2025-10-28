@@ -555,16 +555,18 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Ensure all translations required by the PDF summary are available before rendering.
 	// FR: Garantit la disponibilité des traductions nécessaires à la synthèse PDF avant le rendu.
 	if (method_exists($langs, 'loadLangs')) {
-		$langs->loadLangs(array('timesheetweek@timesheetweek', 'main', 'errors'));
-		// EN: Ensure the legacy main language file is also loaded for shared Dolibarr labels.
-		// FR: Garantit également le chargement du fichier de langue principal pour les libellés Dolibarr partagés.
-		$langs->load('main');
+		$langs->loadLangs(array('timesheetweek@timesheetweek', 'errors'));
 	} else {
 		// EN: Fallback for older Dolibarr versions that expose only the singular loader.
 		// FR: Solution de secours pour les versions de Dolibarr ne proposant que le chargeur unitaire.
 		$langs->load('timesheetweek@timesheetweek');
-		$langs->load('main');
 		$langs->load('errors');
+	}
+
+	// EN: Guarantee the Dolibarr "main" dictionary is available even when not preloaded.
+	// FR: Garantit la disponibilité du dictionnaire « main » de Dolibarr même s'il n'est pas préchargé.
+	if (!property_exists($langs, 'loadedlangs') || empty($langs->loadedlangs['main'])) {
+		$langs->load('main');
 	}
 
 	$dataResult = tw_collect_summary_data($db, $timesheetIds, $user, $permReadOwn, $permReadChild, $permReadAll);
