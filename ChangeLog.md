@@ -6,6 +6,7 @@
 - Réaligne le sélecteur de limite sur le script standard Dolibarr pour conserver l'ergonomie native. / Realigns the limit selector with the standard Dolibarr script to preserve the native ergonomics.
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
+- Ajoute la massaction « Sceller » avec les pictogrammes Dolibarr et limite la suppression massive aux brouillons autorisés. / Adds the "Seal" mass action with Dolibarr pictograms and restricts bulk deletion to authorised drafts.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.

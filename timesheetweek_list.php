@@ -32,6 +32,7 @@ $permWriteAll = $user->hasRight('timesheetweek','timesheetweek','writeAll');
 $permDelete = $user->hasRight('timesheetweek','timesheetweek','delete');
 $permDeleteChild = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
 $permDeleteAll = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
+$permSeal = $user->hasRight('timesheetweek','timesheetweek','seal');
 $permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
 $permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
 $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
@@ -70,7 +71,77 @@ if (!$canSeeAllEmployees) {
 // FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
 $multicompanyEnabled = !empty($conf->multicompany->enabled);
 
+if (!function_exists('tw_can_validate_timesheet_masslist')) {
+	/**
+	 * EN: Determine if the current user is allowed to validate the provided sheet.
+	 * FR: Détermine si l'utilisateur courant est autorisé à valider la feuille fournie.
+	 *
+	 * @param TimesheetWeek $sheet	Sheet to evaluate
+	 * @param User          $user	Current Dolibarr user
+	 * @param bool          $permValidate	Direct validation right
+	 * @param bool          $permValidateOwn	Validation on own sheets
+	 * @param bool          $permValidateChild	Validation on subordinate sheets
+	 * @param bool          $permValidateAll	Global validation right
+	 * @param bool          $permWrite	Write right on own sheets
+	 * @param bool          $permWriteChild	Write right on subordinate sheets
+	 * @param bool          $permWriteAll	Global write right
+	 * @return bool	True when validation is authorised
+	 */
+	function tw_can_validate_timesheet_masslist(
+		TimesheetWeek $sheet,
+		User $user,
+		$permValidate,
+		$permValidateOwn,
+		$permValidateChild,
+		$permValidateAll,
+		$permWrite,
+		$permWriteChild,
+		$permWriteAll
+	) {
+		// EN: Check explicit validation rights first to keep the behaviour consistent with the card view.
+		// FR: Vérifie d'abord les droits explicites de validation pour rester cohérent avec la fiche détaillée.
+		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
 
+		if (!empty($user->admin)) {
+			$permValidateAll = true;
+			$hasExplicitValidation = true;
+		}
+
+		if (!$hasExplicitValidation) {
+			// EN: Reuse write permissions when legacy configurations rely on them for validation.
+			// FR: Réutilise les permissions d'écriture lorsque les anciennes configurations s'en servent pour valider.
+			if ($permWriteAll) {
+				$permValidateAll = true;
+			}
+			if ($permWriteChild) {
+				$permValidateChild = true;
+			}
+			if ($permWrite || $permWriteChild || $permWriteAll) {
+				if ((int) $sheet->fk_user_valid === (int) $user->id) {
+					$permValidate = true;
+				}
+				if (!$permValidateChild && $permWriteChild) {
+					$permValidateChild = true;
+				}
+			}
+		}
+
+		if ($permValidateAll) {
+			return true;
+		}
+		if ($permValidateChild && tw_is_manager_of($sheet->fk_user, $user)) {
+			return true;
+		}
+		if ($permValidateOwn && ((int) $user->id === (int) $sheet->fk_user)) {
+			return true;
+		}
+		if ($permValidate && ((int) $user->id === (int) $sheet->fk_user_valid)) {
+			return true;
+		}
+
+		return false;
+	}
+}
 /**
  * Params
  */
@@ -239,13 +310,30 @@ $arrayfields += array(
 include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
 
 /**
- * Mass actions (UI)
- */
-$arrayofmassactions = array(
-	'approve_selection' => img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans("ApproveSelection"),
-	'refuse_selection'  => img_picto('', 'warning',  'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
-	'predelete'         => img_picto('', 'delete',   'class="pictofixedwidth"').$langs->trans("DeleteSelection"),
+* Mass actions (UI)
+*/
+$arrayofmassactions = array();
+// EN: Offer approval when the user holds validation or equivalent legacy permissions.
+// FR: Propose l'approbation lorsque l'utilisateur dispose des droits de validation ou équivalents hérités.
+$canDisplayValidationActions = (
+	$permValidate || $permValidateOwn || $permValidateChild || $permValidateAll ||
+	$permWrite || $permWriteChild || $permWriteAll || !empty($user->admin)
 );
+if ($canDisplayValidationActions) {
+	$arrayofmassactions['approve_selection'] = img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans('ApproveSelection');
+	$arrayofmassactions['refuse_selection'] = img_picto('', 'close', 'class="pictofixedwidth"').$langs->trans('RefuseSelection');
+}
+// EN: Display the sealing control only to users granted with the dedicated right.
+// FR: Affiche le contrôle de scellement uniquement pour les utilisateurs disposant du droit dédié.
+if ($permSeal) {
+	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
+}
+// EN: Keep the delete confirmation for users entitled to delete sheets.
+// FR: Conserve la suppression pour les utilisateurs habilités à effacer des feuilles.
+if ($permissiontodelete) {
+	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
+}
+
 $massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
 $objectclass = 'TimesheetWeek';
 $objectlabel = 'TimesheetWeek';
@@ -273,72 +361,9 @@ $massActionProcessed = false;
 
 if ($massaction === 'approve_selection') {
 	$massActionProcessed = true;
-	$db->begin();
-	$ok = 0;
-	$ko = array();
-	foreach ((array) $arrayofselected as $id) {
-		$o = new TimesheetWeek($db);
-		if ($o->fetch((int) $id) <= 0) {
-			$ko[] = '#'.$id;
-			continue;
-		}
-		// contrôle droits par salarié si besoin
-		$res = $o->approve($user);
-		if ($res > 0) {
-			$ok++;
-		} else {
-			$ko[] = $o->ref ?: '#'.$id;
-		}
-	}
-	if ($ko) {
-		$db->rollback();
-	} else {
-		$db->commit();
-	}
-	if ($ok) {
-		setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
-	}
-	if ($ko) {
-		setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
-	}
-}
-
-if ($massaction === 'refuse_selection') {
-	$massActionProcessed = true;
-	$db->begin();
-	$ok = 0;
-	$ko = array();
-	foreach ((array) $arrayofselected as $id) {
-		$o = new TimesheetWeek($db);
-		if ($o->fetch((int) $id) <= 0) {
-			$ko[] = '#'.$id;
-			continue;
-		}
-		$res = $o->refuse($user);
-		if ($res > 0) {
-			$ok++;
-		} else {
-			$ko[] = $o->ref ?: '#'.$id;
-		}
-	}
-	if ($ko) {
-		$db->rollback();
-	} else {
-		$db->commit();
-	}
-	if ($ok) {
-		setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
-	}
-	if ($ko) {
-		setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
-	}
-}
-
-if ($massaction === 'delete') {
-	$massActionProcessed = true;
-	if (!$permissiontodelete) {
-		// EN: Block the deletion when the user lacks the necessary rights.
-		// FR: Bloque la suppression lorsque l'utilisateur ne dispose pas des droits nécessaires.
+	if (!$canDisplayValidationActions) {
+		// EN: Stop the approval when the operator lacks validation permissions.
+		// FR: Empêche l'approbation lorsque l'opérateur n'a pas les permissions de validation.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
 		$db->begin();
@@ -352,6 +377,160 @@ if ($massaction === 'delete') {
 			$o = new TimesheetWeek($db);
 			if ($o->fetch($id) <= 0) {
 				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Reject the sheet when the current user cannot validate it according to delegation rules.
+				// FR: Rejette la feuille lorsque l'utilisateur courant ne peut pas la valider selon les règles de délégation.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->approve($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+
+if ($massaction === 'refuse_selection') {
+	$massActionProcessed = true;
+	if (!$canDisplayValidationActions) {
+		// EN: Prevent the refusal when the operator is not authorised to validate sheets.
+		// FR: Empêche le refus lorsque l'opérateur n'est pas autorisé à valider les feuilles.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Skip the refusal when the user cannot manage the employee under current rights.
+				// FR: Ignore le refus lorsque l'utilisateur ne peut pas gérer l'employé avec les droits actuels.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->refuse($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+
+if ($massaction === 'sceller') {
+	$massActionProcessed = true;
+	if (!$permSeal) {
+		// EN: Refuse sealing when the operator does not own the dedicated right.
+		// FR: Refuse le scellement lorsque l'opérateur ne possède pas le droit dédié.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Keep the sheet untouched when the manager cannot act on the employee scope.
+				// FR: Laisse la feuille inchangée lorsque le gestionnaire ne peut pas agir sur le périmètre de l'employé.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->seal($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassSealSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+if ($massaction === 'delete') {
+	$massActionProcessed = true;
+	if (!$permissiontodelete) {
+		// EN: Block the deletion when the user lacks the necessary rights.
+		// FR: Bloque la suppression lorsque l'utilisateur ne dispose pas des droits nécessaires.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		$nonDraftDetected = false;
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
+				// EN: Prevent deletion outside the managerial scope defined by Dolibarr rights.
+				// FR: Empêche la suppression en dehors du périmètre managérial défini par les droits Dolibarr.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			if ((int) $o->status !== TimesheetWeek::STATUS_DRAFT) {
+				// EN: Enforce the draft-only restriction required for bulk deletions.
+				// FR: Applique la restriction aux brouillons exigée pour les suppressions massives.
+				$ko[] = $o->ref ?: '#'.$id;
+				$nonDraftDetected = true;
 				continue;
 			}
 			$res = $o->delete($user);
@@ -371,6 +550,11 @@ if ($massaction === 'delete') {
 		}
 		if ($ko) {
 			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+		if ($nonDraftDetected) {
+			// EN: Inform the operator that only draft sheets are eligible for removal.
+			// FR: Informe l'opérateur que seules les feuilles en brouillon sont éligibles à la suppression.
+			setEventMessages($langs->trans('TimesheetWeekMassDeleteOnlyDraft'), null, 'errors');
 		}
 	}
 	$massaction = '';
