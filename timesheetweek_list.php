@@ -44,6 +44,24 @@ if (!$permViewAny) {
 	accessforbidden();
 }
 
+// Contexte requis par core/actions_massactions.inc.php
+$objectclass = 'TimesheetWeek';
+$objectlabel = 'TimesheetWeek';
+$object      = class_exists('TimesheetWeek') ? new TimesheetWeek($db) : null;
+
+$permissiontoread   = ($permRead || $permReadChild || $permReadAll);
+$permissiontoadd    = ($permWrite || $permWriteChild || $permWriteAll);
+$permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
+
+// Répertoire documents du module
+$uploaddir  = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
+    ? $conf->timesheetweek->multidir_output[$conf->entity]
+    : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+$upload_dir = $uploaddir; // compat nom variable
+
+// Optionnel mais utile
+$triggers = 1; // autoriser triggers lors des actions de masse
+
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
