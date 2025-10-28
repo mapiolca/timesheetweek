@@ -131,7 +131,7 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
 	$pageWidth = $pdf->getPageWidth();
 	$pageHeight = $pdf->getPageHeight();
 	$usableWidth = $pageWidth - $leftMargin - $rightMargin;
-	$lineY = $pageHeight - $bottomMargin - 6.0;
+	$lineY = $pageHeight - $bottomMargin - 12.0;
 	$footerY = $lineY + 2.0;
 
 	$pdf->SetDrawColor(200, 200, 200);

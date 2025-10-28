@@ -41,6 +41,7 @@
 - Inversion de position de "Nouvelle Feuille d'heure" et "Liste" dans le menu gauche. / Swaps the position of "New Timesheet" and "List" in the left menu.
 - Le tableau du PDF de synthèse occupe désormais toute la largeur imprimable pour une meilleure lisibilité. / Summary PDF table now spans the full printable width for improved readability.
 - Ajoute les entêtes et pieds de page standards à chaque page du PDF de synthèse et garantit que le premier tableau débute dès la première page. / Adds standard headers and footers to every summary PDF page and ensures the first table starts on the opening page.
+- Remonte le pied de page du PDF de synthèse pour réduire la marge basse et améliorer la lisibilité. / Raises the summary PDF footer to reduce the bottom margin and improve readability.
 - Corrige un problème pouvant masquer les tâches clôturées dans les Fiches passées. / Fix an issue that could hide closed tasks in passed timesheet.
 
 ## 1.0.1
