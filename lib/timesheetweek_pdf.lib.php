@@ -57,9 +57,11 @@ function tw_pdf_format_cell_html($value)
  * @param Conf $conf
  * @param float $leftMargin
  * @param float $topMargin
+ * @param string $title
+ * @param string $subtitle
  * @return float
  */
-function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
+function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title = '', $subtitle = '')
 {
 	global $mysoc;
 
@@ -68,6 +70,12 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
 	$posX = $leftMargin;
 	$posY = $topMargin;
 	$logoPath = '';
+	$pageWidth = $pdf->getPageWidth();
+	$margins = method_exists($pdf, 'getMargins') ? (array) $pdf->getMargins() : array();
+	$rightMargin = isset($margins['right']) ? (float) $margins['right'] : (float) getDolGlobalInt('MAIN_PDF_MARGIN_RIGHT', 10);
+	$rightBlockWidth = max(90.0, $pageWidth * 0.28);
+	$rightBlockX = max($leftMargin, $pageWidth - $rightMargin - $rightBlockWidth);
+	$rightBlockBottom = $posY;
 
 	if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
 		// EN: Resolve the preferred logo file between large and thumbnail versions.
@@ -103,13 +111,32 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
 	}
 
 	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
+	$leftBlockWidth = max(60.0, $rightBlockX - $posX - 2.0);
 	$pdf->SetTextColor(0, 0, 60);
 	$pdf->SetFont('', 'B', $defaultFontSize);
 	$pdf->SetXY($posX, $posY + max($logoHeight - 6.0, 0.0));
-	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'R', 0, 1, '', '', true, 0, true);
+	$pdf->MultiCell($leftBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 1, '', '', true, 0, true);
+
+	// EN: Render the summary title and metadata within the right column of the header.
+	// FR: Affiche le titre de synthèse et les métadonnées dans la colonne droite de l'entête.
+	if (dol_trim($title) !== '') {
+		$pdf->SetFont('', 'B', $defaultFontSize + 2);
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetXY($rightBlockX, $posY);
+		$pdf->MultiCell($rightBlockWidth, 6, tw_pdf_format_cell_html($langs->convToOutputCharset($title)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+	}
+	if (dol_trim($subtitle) !== '') {
+		$pdf->SetFont('', '', $defaultFontSize);
+		$pdf->SetTextColor(0, 0, 0);
+		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($subtitle)), 0, 'R', 0, 1, '', '', true, 0, true);
+		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+	}
+
 	$pdf->SetTextColor(0, 0, 0);
 
-	return $posY + max($logoHeight, 16.0);
+	return max($posY + max($logoHeight, 16.0), $rightBlockBottom);
 }
 
 /**
@@ -176,9 +203,11 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $rightMargin
  * @param float $bottomMargin
  * @param float|null $autoPageBreakMargin
+ * @param string $headerTitle
+ * @param string $headerSubtitle
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null)
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerSubtitle = '')
 {
 	$pdf->AddPage('L');
 	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
@@ -189,10 +218,10 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 		// EN: Recompute the header height when missing to avoid duplicated footer calls.
 		// FR: Recalcule la hauteur d'entête lorsqu'elle manque pour éviter les appels de pied dupliqués.
 		$headerBottom = !empty($headerState['value'])
-			? (float) $headerState['value']
-			: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
+				? (float) $headerState['value']
+				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerSubtitle);
 	} else {
-		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
+		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerSubtitle);
 		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, null, 0, $autoPageBreakMargin);
 		if (is_array($headerState)) {
 			// EN: Store the header height for further pages when callbacks remain disabled.
@@ -207,8 +236,6 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 	$pdf->SetXY($leftMargin, $contentStart);
 	return $contentStart;
 }
-
-
 
 /**
  * EN: Display the employee banner for the current section on the PDF.
@@ -559,6 +586,11 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$filename = 'timesheetweek-summary-'.dol_print_date($timestamp, 'dayhourlog').'.pdf';
 	$filepath = $targetDir.'/'.$filename;
 
+	// EN: Prepare the title and metadata strings reused inside the header block.
+	// FR: Prépare les libellés du titre et des métadonnées réemployés dans l'entête.
+	$headerTitle = $langs->trans('TimesheetWeekSummaryTitle');
+	$headerSubtitle = $langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs));
+
 	$format = pdf_getFormat();
 	$pdfFormat = array($format['width'], $format['height']);
 	$margeGauche = getDolGlobalInt('MAIN_PDF_MARGIN_LEFT', 10);
@@ -580,8 +612,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Delegate header rendering to TCPDF so every page created by the engine receives it automatically.
 		// FR: Confie le rendu de l'entête à TCPDF afin que chaque page créée par le moteur le reçoive automatiquement.
 		$pdf->setPrintHeader(true);
-		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState) {
-			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute);
+		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerSubtitle) {
+			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerSubtitle);
 			$headerState['automatic'] = true;
 		});
 		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
@@ -611,20 +643,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerSubtitle);
 	$pageHeight = $pdf->getPageHeight();
 
+	// EN: Offset the cursor slightly below the header to leave breathing space before the content.
+	// FR: Décale le curseur juste sous l'entête pour laisser un espace avant le contenu.
+	$contentTop += 2.0;
 	$pdf->SetXY($margeGauche, $contentTop);
-	$pdf->SetTextColor(0, 0, 60);
-	$pdf->SetFont('', 'B', $defaultFontSize + 3);
-	$pdf->MultiCell(0, 6, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryTitle')), 0, 'L', 0, 1, '', '', true, 0, true);
-
 	$pdf->SetFont('', '', $defaultFontSize);
 	$pdf->SetTextColor(0, 0, 0);
-	$pdf->Ln(2);
-
-	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs))), 0, 'L', 0, 1, '', '', true, 0, true);
-	$pdf->Ln(2);
 
 	$columnWidthWeights = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24);
 	$columnWidths = $columnWidthWeights;
@@ -700,7 +727,7 @@ $tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $col
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
-			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin);
+			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerSubtitle);
 			$pageHeight = $pdf->getPageHeight();
 			$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 			if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
