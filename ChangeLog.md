@@ -1,24 +1,14 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.1.0
+- Ajoute la massaction « Générer le PDF de synthèse » afin de produire un récapitulatif multi-salariés dans un PDF conforme aux standards Dolibarr. / Adds the "Generate summary PDF" mass action to produce a multi-employee PDF recap compliant with Dolibarr standards.
+
 ## 1.0.7
 - Harmonise les pictogrammes d'approbation et de refus avec les icônes Dolibarr natives. / Harmonises the approval and refusal pictograms with native Dolibarr icons.
-- Ajoute la massaction « Générer le PDF de synthèse » afin de produire un récapitulatif multi-salariés dans un PDF conforme aux standards Dolibarr. / Adds the "Generate summary PDF" mass action to produce a multi-employee PDF recap compliant with Dolibarr standards.
 - Ajoute la massaction « Sceller » et applique les contrôles de permissions Dolibarr aux actions de masse. / Adds the "Seal" mass action and applies Dolibarr permission checks to bulk operations.
 - Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
 - Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
-- Oriente le PDF de synthèse en A4 paysage, ajoute l'entête/pied Dolibarr avec logo et affiche la colonne « Approuvé par ». / Sets the summary PDF to A4 landscape, draws Dolibarr header/footer with logo, and displays the "Approved by" column.
-- Nomme le PDF de synthèse selon l'intervalle de semaines sélectionné pour retrouver rapidement la période couverte. / Names the summary PDF after the selected week range to quickly identify the covered period.
-- Affiche dans l'entête du PDF de synthèse la plage de semaines ISO sous le titre pour rappeler la période choisie. / Displays the ISO week range beneath the summary PDF title in the header to highlight the selected period.
-- Sécurise la génération du PDF de synthèse en alignant le nom de fichier sur les règles Dolibarr pour éviter les erreurs de téléchargement. / Secures the summary PDF generation by aligning the filename with Dolibarr rules to prevent download errors.
-- Supprime les accents et caractères spéciaux du nom du PDF de synthèse avant l'assainissement Dolibarr pour un nommage robuste. / Removes accents and special characters from the summary PDF filename before Dolibarr sanitisation for robust naming.
-- Préserve les espaces lisibles dans le nom du PDF de synthèse pour refléter fidèlement la période sélectionnée. / Preserves readable spaces in the summary PDF filename to accurately reflect the selected period.
-- Charge systématiquement le dictionnaire de langue « main » avant la synthèse PDF pour réutiliser les libellés Dolibarr partagés. / Systematically loads the "main" language dictionary before the PDF summary to reuse shared Dolibarr labels.
-- Charge systématiquement le dictionnaire de langue « companies » pour disposer des libellés société lors de la synthèse PDF. / Systematically loads the "companies" language dictionary to access company labels during the PDF summary.
-- Masque le nom de la société dans l'entête PDF lorsqu'un logo est disponible afin d'éviter la redondance visuelle. / Hides the company name in the PDF header when a logo is available to avoid visual redundancy.
-- Conserve le titre du document sur une seule ligne dans l'entête PDF pour reprendre l'alignement Dolibarr. / Keeps the document title on a single line in the PDF header to mirror Dolibarr alignment.
-- Corrige l'affichage de la plage de semaines dans l'entête PDF en injectant les bornes sélectionnées dans le libellé traduit. / Fixes the header week range display by injecting the selected bounds into the translated label.
-- Corrige l'affichage des caractères spéciaux dans l'entête PDF en préservant les accents lors de l'échappement HTML. / Fixes special character rendering in the PDF header by preserving accents during HTML escaping.
-- Normalise l'ensemble des textes du PDF de synthèse pour afficher correctement accents et caractères spéciaux. / Normalises all summary PDF texts to display accents and special characters correctly.
+
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
