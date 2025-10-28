@@ -263,10 +263,8 @@ $upload_dir = $uploaddir;
 // Affiche le menu d’actions
 $showmassactionbutton = 1;
 
-// Include générique (gère selectall, confirmations, map predelete->delete)
-include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
-
-// Après l’include, récupère la sélection
+// EN: Restore and clean the selection before the generic include so Dolibarr can display confirmations.
+// FR: Restaure et nettoie la sélection avant l'include générique pour que Dolibarr puisse afficher les confirmations.
 $arrayofselected = is_array($toselect) ? $toselect : array();
 if (empty($arrayofselected)) {
 	// EN: Restore the selection kept by Dolibarr confirmation dialogs to process deletions correctly.
@@ -284,6 +282,9 @@ foreach ($arrayofselected as $selectedId) {
 	}
 }
 $arrayofselected = array_values($cleanSelected);
+
+// Include générique (gère selectall, confirmations, map predelete->delete)
+include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
 $massActionProcessed = false;
 
