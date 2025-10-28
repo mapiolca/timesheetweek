@@ -500,7 +500,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetPageOrientation('L');
 	$pdf->SetAutoPageBreak(true, $margeBasse + $footerReserve);
 	$pdf->SetMargins($margeGauche, $margeHaute, $margeDroite);
-	$pdf->AliasNbPages();
+	// EN: Enable alias replacement for total pages when the method exists on the PDF engine.
+	// FR: Active le remplacement de l'alias pour le nombre total de pages quand la méthode existe sur le moteur PDF.
+	if (method_exists($pdf, 'AliasNbPages')) {
+		$pdf->AliasNbPages();
+	} elseif (method_exists($pdf, 'setAliasNbPages')) {
+		// EN: Fallback for engines exposing the alias configuration through a setter.
+		// FR: Solution de secours pour les moteurs exposant la configuration de l'alias via un setter.
+		$pdf->setAliasNbPages();
+	}
 	$pdf->SetCreator('Dolibarr '.DOL_VERSION);
 	$pdf->SetAuthor($user->getFullName($langs));
 	$pdf->SetTitle($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
