@@ -268,6 +268,9 @@ include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
 
 if ($massactionbutton || $massaction) print $formconfirm;
 
+print '<!-- DEBUG massaction='.dol_escape_htmltag($massaction).' sel='.(int)count(GETPOST('toselect','array')).' -->';
+print ($formconfirm!='') ? '<!-- has formconfirm -->' : '<!-- no formconfirm -->';
+
 // Après l’include, récupère la sélection
 $arrayofselected = is_array($toselect) ? $toselect : array();
 
