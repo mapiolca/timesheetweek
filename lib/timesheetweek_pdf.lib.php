@@ -113,8 +113,8 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
 }
 
 /**
- * EN: Draw the footer with company name and page numbers following Dolibarr conventions.
- * FR: Dessine le pied de page avec le nom de l'entreprise et la pagination selon Dolibarr.
+ * EN: Draw the footer using the standard Dolibarr helper to keep consistent branding.
+ * FR: Dessine le pied de page avec le helper Dolibarr standard pour conserver la charte.
  *
  * @param TCPDF $pdf
  * @param Translate $langs
@@ -122,33 +122,21 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
  * @param float $leftMargin
  * @param float $rightMargin
  * @param float $bottomMargin
- * @return void
+ * @param CommonObject|null $object
+ * @param int $hideFreeText
+ * @return int
  */
-function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin)
+function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, $object = null, $hideFreeText = 0)
 {
 	global $mysoc;
 
-	$pageWidth = $pdf->getPageWidth();
-	$pageHeight = $pdf->getPageHeight();
-	$usableWidth = $pageWidth - $leftMargin - $rightMargin;
-	$lineY = $pageHeight - $bottomMargin - 12.0;
-	$footerY = $lineY + 2.0;
+	// EN: Determine if Dolibarr must show the detailed footer blocks (tax numbers, contacts, ...).
+	// FR: Détermine si Dolibarr doit afficher les blocs détaillés du pied (numéros fiscaux, contacts, ...).
+	$showDetails = empty($conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS) ? 0 : $conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS;
 
-	$pdf->SetDrawColor(200, 200, 200);
-	$pdf->SetLineWidth(0.2);
-	$pdf->Line($leftMargin, $lineY, $pageWidth - $rightMargin, $lineY);
-
-	$pdf->SetFont('', '', pdf_getPDFFontSize($langs) - 2);
-	$pdf->SetTextColor(80, 80, 80);
-
-	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
-	$pdf->SetXY($leftMargin, $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 0, '', '', true, 0, true);
-
-	$pageLabel = $langs->trans('Page').' '.$pdf->getAliasNumPage().'/'.$pdf->getAliasNbPages();
-	$pdf->SetXY($leftMargin + ($usableWidth / 2), $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($pageLabel), 0, 'R', 0, 1, '', '', true, 0, true);
-	$pdf->SetTextColor(0, 0, 0);
+	// EN: Delegate the rendering to pdf_pagefoot to mirror the official Dolibarr layout and logic.
+	// FR: Délègue le rendu à pdf_pagefoot pour reproduire la mise en forme et la logique officielles de Dolibarr.
+	return pdf_pagefoot($pdf, $langs, 'INVOICE_FREE_TEXT', $mysoc, $bottomMargin, $leftMargin, $pdf->getPageHeight(), $object, $showDetails, $hideFreeText);
 }
 
 
