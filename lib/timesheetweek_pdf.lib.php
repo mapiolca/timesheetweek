@@ -134,8 +134,10 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetFont('', 'B', $defaultFontSize + 2);
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetXY($rightBlockX, $posY);
-		$pdf->MultiCell($rightBlockWidth, 6, tw_pdf_format_cell_html($langs->convToOutputCharset($trimmedTitle)), 0, 'R', 0, 1, '', '', true, 0, true);
-		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+		// EN: Force the header title to stay on a single line for a cleaner top-right layout.
+		// FR: Force le titre d'entête à rester sur une seule ligne pour un rendu plus propre en haut à droite.
+		$pdf->Cell($rightBlockWidth, 6, $langs->convToOutputCharset($trimmedTitle), 0, 0, 'R', 0, '', 0, false, 'T', 'T');
+		$rightBlockBottom = max($rightBlockBottom, $posY + 6.0);
 	}
 	// EN: Remove unnecessary spaces around the header subtitle before rendering.
 	// FR: Supprime les espaces superflus autour du sous-titre d'entête avant affichage.

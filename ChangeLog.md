@@ -12,6 +12,7 @@
 - Charge systématiquement le dictionnaire de langue « main » avant la synthèse PDF pour réutiliser les libellés Dolibarr partagés. / Systematically loads the "main" language dictionary before the PDF summary to reuse shared Dolibarr labels.
 - Charge systématiquement le dictionnaire de langue « companies » pour disposer des libellés société lors de la synthèse PDF. / Systematically loads the "companies" language dictionary to access company labels during the PDF summary.
 - Masque le nom de la société dans l'entête PDF lorsqu'un logo est disponible afin d'éviter la redondance visuelle. / Hides the company name in the PDF header when a logo is available to avoid visual redundancy.
+- Conserve le titre du document sur une seule ligne dans l'entête PDF pour reprendre l'alignement Dolibarr. / Keeps the document title on a single line in the PDF header to mirror Dolibarr alignment.
 
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
