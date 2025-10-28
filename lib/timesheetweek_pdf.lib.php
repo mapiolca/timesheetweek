@@ -179,6 +179,9 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 		}
 	}
 	$contentStart = $headerBottom + 4.0;
+	// EN: Force the top margin below the header so every page keeps data between header and footer.
+	// FR: Force la marge haute sous l'entête pour que chaque page maintienne les données entre entête et pied.
+	$pdf->SetTopMargin($contentStart);
 	$pdf->SetXY($leftMargin, $contentStart);
 	return $contentStart;
 }
