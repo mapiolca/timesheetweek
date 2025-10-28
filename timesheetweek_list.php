@@ -286,7 +286,26 @@ foreach ($rawMassSelection as $selectedId) {
 		$cleanSelected[$selectedId] = $selectedId;
 	}
 }
+// EN: Restore the stored selection coming from the confirmation dialog when needed.
+// FR: Restaure la sélection stockée provenant de la boîte de confirmation lorsque nécessaire.
+$useStoredSelection = (GETPOST('timesheetweek_use_stored_selection', 'alpha') === 'yes');
 $arrayofselected = array_values($cleanSelected);
+if ($useStoredSelection && empty($arrayofselected) && !empty($_SESSION['timesheetweek_massdelete_selection'])) {
+	$sessionSelection = $_SESSION['timesheetweek_massdelete_selection'];
+	if (!is_array($sessionSelection)) {
+		$sessionSelection = array();
+	}
+	// EN: Sanitize the recovered selection to keep positive unique identifiers only.
+	// FR: Assainit la sélection restaurée pour ne conserver que des identifiants positifs et uniques.
+	$cleanFromSession = array();
+	foreach ($sessionSelection as $selectedId) {
+		$selectedId = (int) $selectedId;
+		if ($selectedId > 0) {
+			$cleanFromSession[$selectedId] = $selectedId;
+		}
+	}
+	$arrayofselected = array_values($cleanFromSession);
+}
 $toselect = $arrayofselected;
 // EN: Prepare the confirmation placeholder for the mass deletion workflow.
 // FR: Prépare le conteneur de confirmation pour le flux de suppression de masse.
@@ -301,6 +320,9 @@ $confirmMassAction = GETPOST('confirmmassaction', 'alpha');
 // FR: Capture le retour de confirmation pour réinitialiser l'action de masse en cas d'annulation.
 if ($action === 'confirm_massaction' && $confirmMassAction !== 'yes') {
 	$massaction = '';
+	// EN: Clear the stored selection when the confirmation has been cancelled.
+	// FR: Efface la sélection stockée lorsque la confirmation a été annulée.
+	unset($_SESSION['timesheetweek_massdelete_selection']);
 }
 // EN: Store the original selection before prompting the user for confirmation.
 // FR: Stocke la sélection initiale avant de solliciter la confirmation de l'utilisateur.
@@ -311,15 +333,18 @@ if ($massaction === 'predelete') {
 	} elseif (empty($arrayofselected)) {
 		setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'warnings');
 		$massaction = '';
-	} else {
-		$pendingMassDeleteSelection = $arrayofselected;
-	}
+} else {
+	$pendingMassDeleteSelection = $arrayofselected;
+	// EN: Persist the current selection in session to survive the confirmation roundtrip.
+	// FR: Stocke la sélection courante en session pour survivre au cycle de confirmation.
+	$_SESSION['timesheetweek_massdelete_selection'] = $pendingMassDeleteSelection;
+}
 }
 
 $massActionProcessed = false;
 
 if ($massaction === 'approve_selection') {
-    $massActionProcessed = true;
+	$massActionProcessed = true;
     $db->begin(); $ok=0; $ko=array();
     foreach ((array)$arrayofselected as $id) {
         $o = new TimesheetWeek($db);
@@ -334,7 +359,7 @@ if ($massaction === 'approve_selection') {
 }
 
 if ($massaction === 'refuse_selection') {
-    $massActionProcessed = true;
+	$massActionProcessed = true;
     $db->begin(); $ok=0; $ko=array();
     foreach ((array)$arrayofselected as $id) {
         $o = new TimesheetWeek($db);
@@ -348,24 +373,32 @@ if ($massaction === 'refuse_selection') {
 }
 
 if ($massaction === 'delete') { // après confirmation de predelete
-    $massActionProcessed = true;
-    if (!($permissiontodelete)) {
+	$massActionProcessed = true;
+	if (!($permissiontodelete)) {
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
-    } else {
-        $db->begin(); $ok=0; $ko=array();
-        foreach ((array)$arrayofselected as $id) {
-            $o = new TimesheetWeek($db);
-            if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
-            $res = $o->delete($user);
-            if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
-        }
-        if ($ko) $db->rollback(); else $db->commit();
-        if ($ok) setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
-        if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
-    }
+	} else {
+		$db->begin(); $ok=0; $ko=array();
+		foreach ((array)$arrayofselected as $id) {
+			$o = new TimesheetWeek($db);
+			if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
+			$res = $o->delete($user);
+			if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
+		}
+		if ($ko) $db->rollback(); else $db->commit();
+		// EN: Drop the stored selection regardless of the deletion outcome to avoid stale data.
+		// FR: Supprime la sélection stockée quel que soit le résultat de la suppression pour éviter toute donnée obsolète.
+		unset($_SESSION['timesheetweek_massdelete_selection']);
+		if ($ok) setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
+		if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+	}
 }
 
-if ($massActionProcessed) $massaction = '';
+if ($massActionProcessed) {
+	$massaction = '';
+	// EN: Ensure the cached selection is flushed when any mass action has been handled.
+	// FR: S'assure de purger la sélection mise en cache lorsqu'une action de masse a été traitée.
+	unset($_SESSION['timesheetweek_massdelete_selection']);
+}
 
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $search_ref = '';
@@ -540,13 +573,11 @@ if (!empty($pendingMassDeleteSelection)) {
 		$formConfirmUrl .= '?'.$confirmQuery;
 	}
 	$formConfirmFields = array(
-		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'delete')
+		array('type' => 'hidden', 'name' => 'massaction', 'value' => 'delete'),
+		array('type' => 'hidden', 'name' => 'timesheetweek_use_stored_selection', 'value' => 'yes')
 	);
-	foreach ($pendingMassDeleteSelection as $selectedId) {
-		// EN: Provide a valid DOM identifier for each hidden field to avoid jQuery selector errors with bracketed names.
-		// FR: Fournit un identifiant DOM valide pour chaque champ caché afin d'éviter les erreurs de sélecteur jQuery avec les noms entre crochets.
-		$formConfirmFields[] = array('type' => 'hidden', 'name' => 'toselect[]', 'id' => 'confirm_toselect_'.(int) $selectedId, 'value' => (int) $selectedId);
-	}
+	// EN: Flag the confirmation request so the stored selection can be restored without exposing invalid DOM identifiers.
+	// FR: Marque la requête de confirmation afin de restaurer la sélection stockée sans exposer d'identifiants DOM invalides.
 	$formconfirm = $form->formconfirm(
 		$formConfirmUrl,
 		$langs->trans('DeleteSelection'),
