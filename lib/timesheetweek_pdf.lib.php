@@ -552,6 +552,18 @@ $record = array(
  */
 function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timesheetIds, $permReadOwn, $permReadChild, $permReadAll)
 {
+	// EN: Ensure all translations required by the PDF summary are available before rendering.
+	// FR: Garantit la disponibilité des traductions nécessaires à la synthèse PDF avant le rendu.
+	if (method_exists($langs, 'loadLangs')) {
+		$langs->loadLangs(array('timesheetweek@timesheetweek', 'main', 'errors'));
+	} else {
+		// EN: Fallback for older Dolibarr versions that expose only the singular loader.
+		// FR: Solution de secours pour les versions de Dolibarr ne proposant que le chargeur unitaire.
+		$langs->load('timesheetweek@timesheetweek');
+		$langs->load('main');
+		$langs->load('errors');
+	}
+
 	$dataResult = tw_collect_summary_data($db, $timesheetIds, $user, $permReadOwn, $permReadChild, $permReadAll);
 	$rawWarnings = !empty($dataResult['errors']) ? $dataResult['errors'] : array();
 	$warnings = array();
