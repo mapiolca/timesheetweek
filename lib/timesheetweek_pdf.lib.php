@@ -70,6 +70,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 	$posX = $leftMargin;
 	$posY = $topMargin;
 	$logoPath = '';
+	$logoDisplayed = false;
 	$pageWidth = $pdf->getPageWidth();
 	$margins = method_exists($pdf, 'getMargins') ? (array) $pdf->getMargins() : array();
 	$rightMargin = isset($margins['right']) ? (float) $margins['right'] : (float) getDolGlobalInt('MAIN_PDF_MARGIN_RIGHT', 10);
@@ -105,17 +106,24 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 			}
 		}
 		if ($logoPath !== '') {
-			$logoHeight = pdf_getHeightForLogo($logoPath);
-			$pdf->Image($logoPath, $posX, $posY, 0, $logoHeight);
+		$logoHeight = pdf_getHeightForLogo($logoPath);
+		$pdf->Image($logoPath, $posX, $posY, 0, $logoHeight);
+		// EN: Track that a logo is displayed to hide the company name for visual consistency.
+		// FR: Indique qu'un logo est affiché pour masquer le nom de la société et préserver la cohérence visuelle.
+		$logoDisplayed = true;
 		}
 	}
 
 	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
 	$leftBlockWidth = max(60.0, $rightBlockX - $posX - 2.0);
-	$pdf->SetTextColor(0, 0, 60);
-	$pdf->SetFont('', 'B', $defaultFontSize);
-	$pdf->SetXY($posX, $posY + max($logoHeight - 6.0, 0.0));
-	$pdf->MultiCell($leftBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 1, '', '', true, 0, true);
+	if (!$logoDisplayed) {
+		// EN: Show the company name only when no logo is available to avoid duplicate branding.
+		// FR: Affiche le nom de la société uniquement lorsqu'aucun logo n'est disponible pour éviter une double identité visuelle.
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $defaultFontSize);
+		$pdf->SetXY($posX, $posY + max($logoHeight - 6.0, 0.0));
+		$pdf->MultiCell($leftBlockWidth, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 1, '', '', true, 0, true);
+	}
 
 	// EN: Render the summary title and metadata within the right column of the header.
 	// FR: Affiche le titre de synthèse et les métadonnées dans la colonne droite de l'entête.
