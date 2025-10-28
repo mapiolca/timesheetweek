@@ -270,6 +270,10 @@ if ($massactionbutton || $massaction) print $formconfirm;
 
 print '<!-- DEBUG massaction='.dol_escape_htmltag($massaction).' sel='.(int)count(GETPOST('toselect','array')).' -->';
 print ($formconfirm!='') ? '<!-- has formconfirm -->' : '<!-- no formconfirm -->';
+// test direct
+$test = $form->formconfirm($_SERVER['PHP_SELF'], 'Test', 'Confirmer ?', 'confirm_predelete', array(), 0, 1, 200);
+print $test;
+
 
 // Après l’include, récupère la sélection
 $arrayofselected = is_array($toselect) ? $toselect : array();
