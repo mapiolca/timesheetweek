@@ -246,9 +246,79 @@ $arrayofmassactions = array(
 	'refuse_selection'  => img_picto('', 'warning',  'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
 	'predelete'         => img_picto('', 'delete',   'class="pictofixedwidth"').$langs->trans("DeleteSelection"),
 );
-$massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+$massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
+$objectclass = 'TimesheetWeek';
+$objectlabel = 'TimesheetWeek';
+$object      = new TimesheetWeek($db);
 
+$permissiontoread   = ($permRead || $permReadChild || $permReadAll);
+$permissiontoadd    = ($permWrite || $permWriteChild || $permWriteAll);
+$permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
+
+$uploaddir  = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
+    ? $conf->timesheetweek->multidir_output[$conf->entity]
+    : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+$upload_dir = $uploaddir;
+
+// Affiche le menu d’actions
+$showmassactionbutton = 1;
+
+// Include générique (gère selectall, confirmations, map predelete->delete)
+include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
+
+// Après l’include, récupère la sélection
 $arrayofselected = is_array($toselect) ? $toselect : array();
+
+$massActionProcessed = false;
+
+if ($massaction === 'approve_selection') {
+    $massActionProcessed = true;
+    $db->begin(); $ok=0; $ko=array();
+    foreach ((array)$arrayofselected as $id) {
+        $o = new TimesheetWeek($db);
+        if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
+        // contrôle droits par salarié si besoin
+        $res = $o->approve($user);
+        if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
+    }
+    if ($ko) $db->rollback(); else $db->commit();
+    if ($ok) setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
+    if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+}
+
+if ($massaction === 'refuse_selection') {
+    $massActionProcessed = true;
+    $db->begin(); $ok=0; $ko=array();
+    foreach ((array)$arrayofselected as $id) {
+        $o = new TimesheetWeek($db);
+        if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
+        $res = $o->refuse($user);
+        if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
+    }
+    if ($ko) $db->rollback(); else $db->commit();
+    if ($ok) setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
+    if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+}
+
+if ($massaction === 'delete') { // après confirmation de predelete
+    $massActionProcessed = true;
+    if (!($permissiontodelete)) {
+        setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+    } else {
+        $db->begin(); $ok=0; $ko=array();
+        foreach ((array)$arrayofselected as $id) {
+            $o = new TimesheetWeek($db);
+            if ($o->fetch((int)$id) <= 0) { $ko[] = '#'.$id; continue; }
+            $res = $o->delete($user);
+            if ($res > 0) $ok++; else $ko[] = $o->ref ?: '#'.$id;
+        }
+        if ($ko) $db->rollback(); else $db->commit();
+        if ($ok) setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
+        if ($ko) setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+    }
+}
+
+if ($massActionProcessed) $massaction = '';
 
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $search_ref = '';
@@ -416,8 +486,6 @@ $param .= '&limit='.(int) $limit;
 
 $newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
-
 /**
  * Column selector on left of titles
  */
@@ -431,6 +499,7 @@ $selectedfields .= (count($arrayofmassactions) ? $form->showCheckAddButtons('che
  */
 print '<form method="POST" id="searchFormList" action="'.$_SERVER["PHP_SELF"].'">'."\n";
 print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="massaction" value="">';
 print '<input type="hidden" name="formfilteraction" id="formfilteraction" value="list">';
 print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
 print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
@@ -439,6 +508,8 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 // EN: Preserve the selected list limit across filter submissions while avoiding duplicated DOM identifiers.
 // FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
 print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
+
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
