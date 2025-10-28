@@ -39,6 +39,7 @@
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.
 - Repositionne les totaux correctement. / Correctly repositions totals.
 - Inversion de position de "Nouvelle Feuille d'heure" et "Liste" dans le menu gauche. / Swaps the position of "New Timesheet" and "List" in the left menu.
+- Le tableau du PDF de synthèse occupe désormais toute la largeur imprimable pour une meilleure lisibilité. / Summary PDF table now spans the full printable width for improved readability.
 - Corrige un problème pouvant masquer les tâches clôturées dans les Fiches passées. / Fix an issue that could hide closed tasks in passed timesheet.
 
 ## 1.0.1

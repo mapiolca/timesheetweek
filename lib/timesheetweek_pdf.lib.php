@@ -530,7 +530,17 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs))), 0, 'L', 0, 1, '', '', true, 0, true);
 	$pdf->Ln(2);
 
-	$columnWidths = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24);
+	$columnWidthWeights = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24);
+	$columnWidths = $columnWidthWeights;
+	$usableWidth = $pdf->getPageWidth() - $margeGauche - $margeDroite;
+	$widthSum = array_sum($columnWidthWeights);
+	if ($widthSum > 0 && $usableWidth > 0) {
+		// EN: Scale each column proportionally so the table spans the full printable width.
+		// FR: Redimensionne chaque colonne proportionnellement pour couvrir toute la largeur imprimable.
+		foreach ($columnWidthWeights as $index => $weight) {
+			$columnWidths[$index] = ($weight / $widthSum) * $usableWidth;
+		}
+	}
 	$columnLabels = array(
 		$langs->trans('TimesheetWeekSummaryColumnWeek'),
 		$langs->trans('TimesheetWeekSummaryColumnStart'),
