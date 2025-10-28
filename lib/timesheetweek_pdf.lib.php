@@ -45,7 +45,10 @@ function tw_pdf_format_cell_html($value)
 	// EN: Ensure the value is cast to string before escaping.
 	// FR: Garantit la conversion de la valeur en chaîne avant l'échappement.
 	$value = (string) $value;
-	return '<span>'.dol_htmlentities($value, ENT_COMPAT | ENT_HTML401, 'UTF-8').'</span>';
+	// EN: Escape HTML special characters while keeping accented letters readable.
+	// FR: Échappe les caractères HTML spéciaux tout en conservant les lettres accentuées lisibles.
+	$escapedValue = htmlspecialchars($value, ENT_COMPAT | ENT_HTML401, 'UTF-8');
+	return '<span>'.$escapedValue.'</span>';
 }
 
 /**
