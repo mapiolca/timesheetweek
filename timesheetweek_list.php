@@ -158,6 +158,26 @@ $cancel       = GETPOST('cancel', 'alpha');
 $toselect     = GETPOST('toselect', 'array', 2);
 $contextpage  = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
 
+if ($massaction === 'predelete') {
+	// EN: Convert the confirmation into the effective deletion action to avoid redisplaying the confirm box.
+	// FR: Convertit la confirmation en action de suppression effective pour éviter de réafficher la boîte de confirmation.
+	if ($confirm === 'yes') {
+		$massaction = 'delete';
+		$confirm = '';
+		$_POST['massaction'] = 'delete';
+		$_REQUEST['massaction'] = 'delete';
+		unset($_POST['confirm'], $_REQUEST['confirm']);
+	} elseif ($confirm === 'no') {
+		// EN: Cancel the delete workflow when the operator declines the confirmation prompt.
+		// FR: Annule le flux de suppression lorsque l'opérateur refuse la demande de confirmation.
+		$massaction = '';
+		$confirm = '';
+		$_POST['massaction'] = '';
+		$_REQUEST['massaction'] = '';
+		unset($_POST['confirm'], $_REQUEST['confirm']);
+	}
+}
+
 $sortfield    = GETPOST('sortfield', 'aZ09comma');
 $sortorder    = GETPOST('sortorder', 'aZ09comma');
 $page         = GETPOSTISSET('pageplusone') ? (GETPOSTINT('pageplusone') - 1) : GETPOSTINT("page");
