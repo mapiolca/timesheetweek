@@ -124,11 +124,29 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
  * @param float $bottomMargin
  * @param CommonObject|null $object
  * @param int $hideFreeText
+ * @param float|null $autoPageBreakMargin
  * @return int
  */
-function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, $object = null, $hideFreeText = 0)
+function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, $object = null, $hideFreeText = 0, $autoPageBreakMargin = null)
 {
 	global $mysoc;
+
+	// EN: Backup automatic page break configuration to avoid splitting the footer on two pages.
+	// FR: Sauvegarde la configuration de saut automatique pour éviter de scinder le pied entre deux pages.
+	$previousAutoBreak = method_exists($pdf, 'getAutoPageBreak') ? $pdf->getAutoPageBreak() : true;
+	$previousBreakMargin = null;
+	if (method_exists($pdf, 'getBreakMargin')) {
+		$previousBreakMargin = (float) $pdf->getBreakMargin();
+	} elseif ($autoPageBreakMargin !== null) {
+		$previousBreakMargin = (float) $autoPageBreakMargin;
+	} elseif (isset($pdf->bMargin)) {
+		// EN: Fallback on TCPDF public margin when helper methods are unavailable.
+		// FR: Utilise la marge publique de TCPDF si les helpers sont indisponibles.
+		$previousBreakMargin = (float) $pdf->bMargin;
+	} else {
+		$previousBreakMargin = (float) $bottomMargin;
+	}
+	$pdf->SetAutoPageBreak(false, 0);
 
 	// EN: Determine if Dolibarr must show the detailed footer blocks (tax numbers, contacts, ...).
 	// FR: Détermine si Dolibarr doit afficher les blocs détaillés du pied (numéros fiscaux, contacts, ...).
@@ -136,7 +154,13 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
 
 	// EN: Delegate the rendering to pdf_pagefoot to mirror the official Dolibarr layout and logic.
 	// FR: Délègue le rendu à pdf_pagefoot pour reproduire la mise en forme et la logique officielles de Dolibarr.
-	return pdf_pagefoot($pdf, $langs, 'INVOICE_FREE_TEXT', $mysoc, $bottomMargin, $leftMargin, $pdf->getPageHeight(), $object, $showDetails, $hideFreeText);
+	$footHeight = pdf_pagefoot($pdf, $langs, 'INVOICE_FREE_TEXT', $mysoc, $bottomMargin, $leftMargin, $pdf->getPageHeight(), $object, $showDetails, $hideFreeText);
+
+	// EN: Restore the automatic page break configuration so the following content keeps the same flow.
+	// FR: Restaure la configuration de saut automatique pour conserver le même flux pour le contenu suivant.
+	$pdf->SetAutoPageBreak($previousAutoBreak, $previousBreakMargin);
+
+	return $footHeight;
 }
 
 
@@ -151,9 +175,10 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $topMargin
  * @param float $rightMargin
  * @param float $bottomMargin
+ * @param float|null $autoPageBreakMargin
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null)
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null)
 {
 	$pdf->AddPage('L');
 	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
@@ -168,7 +193,7 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 			: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
 	} else {
 		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
-		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin);
+		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, null, 0, $autoPageBreakMargin);
 		if (is_array($headerState)) {
 			// EN: Store the header height for further pages when callbacks remain disabled.
 			// FR: Mémorise la hauteur d'entête pour les prochaines pages lorsque les callbacks restent inactifs.
@@ -541,11 +566,14 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$margeHaute = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
 	$margeBasse = getDolGlobalInt('MAIN_PDF_MARGIN_BOTTOM', 10);
 	$footerReserve = 12;
+	// EN: Compute the effective auto-break margin to guarantee enough room for the full footer block.
+	// FR: Calcule la marge effective des sauts automatiques pour réserver l'espace complet du pied de page.
+	$autoPageBreakMargin = $margeBasse + $footerReserve;
 
 	$pdf = pdf_getInstance($pdfFormat);
 	$defaultFontSize = pdf_getPDFFontSize($langs);
 	$pdf->SetPageOrientation('L');
-	$pdf->SetAutoPageBreak(true, $margeBasse + $footerReserve);
+	$pdf->SetAutoPageBreak(true, $autoPageBreakMargin);
 	$pdf->SetMargins($margeGauche, $margeHaute, $margeDroite);
 	$headerState = array('value' => 0.0, 'automatic' => false);
 	if (method_exists($pdf, 'setHeaderCallback') && method_exists($pdf, 'setFooterCallback')) {
@@ -559,8 +587,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
 		// FR: Confie le dessin du pied de page à TCPDF pour garantir sa présence lors des sauts automatiques.
 		$pdf->setPrintFooter(true);
-		$pdf->setFooterCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeDroite, $margeBasse) {
-			tw_pdf_draw_footer($pdfInstance, $langs, $conf, $margeGauche, $margeDroite, $margeBasse);
+		$pdf->setFooterCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeDroite, $margeBasse, $autoPageBreakMargin) {
+			tw_pdf_draw_footer($pdfInstance, $langs, $conf, $margeGauche, $margeDroite, $margeBasse, null, 0, $autoPageBreakMargin);
 		});
 	} else {
 		// EN: Disable default TCPDF decorations when callbacks are unavailable and rely on manual drawing.
@@ -583,7 +611,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin);
 	$pageHeight = $pdf->getPageHeight();
 
 	$pdf->SetXY($margeGauche, $contentTop);
@@ -672,7 +700,7 @@ $tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $col
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
-			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin);
 			$pageHeight = $pdf->getPageHeight();
 			$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 			if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
