@@ -1,12 +1,17 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.0.7
+- Harmonise les pictogrammes d'approbation et de refus avec les icônes Dolibarr natives. / Harmonises the approval and refusal pictograms with native Dolibarr icons.
+- Ajoute la massaction « Sceller » et applique les contrôles de permissions Dolibarr aux actions de masse. / Adds the "Seal" mass action and applies Dolibarr permission checks to bulk operations.
+- Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
+- Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
+
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
 - Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
 - Réaligne le sélecteur de limite sur le script standard Dolibarr pour conserver l'ergonomie native. / Realigns the limit selector with the standard Dolibarr script to preserve the native ergonomics.
 - Affiche le nombre total de feuilles dans le titre et la barre de liste. / Displays the total number of sheets in the title and the list toolbar.
 - Laisse le filtre salarié vide par défaut afin d'éviter toute sélection implicite. / Keeps the employee filter empty by default to avoid any implicit selection.
-- Ajoute la massaction « Sceller » avec les pictogrammes Dolibarr et limite la suppression massive aux brouillons autorisés. / Adds the "Seal" mass action with Dolibarr pictograms and restricts bulk deletion to authorised drafts.
 
 ## 1.0.5
 - Renomme le script SQL d'installation en `llx_timesheet_week.sql` pour garantir la création de base lors de l'activation du module. / Renames the install SQL script to `llx_timesheet_week.sql` to ensure database creation when the module is enabled.

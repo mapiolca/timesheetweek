@@ -115,6 +115,7 @@ ConfirmRefuse = Do you confirm the refusal of this timesheet?
 ApproveSelection = Approve selection
 RefuseSelection = Refuse selection
 SealSelection = Seal selection
+DeleteSelection = Delete selection
 TimesheetWeekMassApproveSuccess = %s timesheet(s) approved.
 TimesheetWeekMassRefuseSuccess = %s timesheet(s) refused.
 TimesheetWeekMassSealSuccess = %s timesheet(s) sealed.

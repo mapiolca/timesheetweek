@@ -325,8 +325,8 @@ $canDisplayValidationActions = (
 	$permWrite || $permWriteChild || $permWriteAll || !empty($user->admin)
 );
 if ($canDisplayValidationActions) {
-	$arrayofmassactions['approve_selection'] = img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans('ApproveSelection');
-	$arrayofmassactions['refuse_selection'] = img_picto('', 'close', 'class="pictofixedwidth"').$langs->trans('RefuseSelection');
+	$arrayofmassactions['approve_selection'] = img_picto('', 'check', 'class="pictofixedwidth"').$langs->trans('ApproveSelection');
+	$arrayofmassactions['refuse_selection'] = img_picto('', 'uncheck', 'class="pictofixedwidth"').$langs->trans('RefuseSelection');
 }
 // EN: Display the sealing control only to users granted with the dedicated right.
 // FR: Affiche le contrôle de scellement uniquement pour les utilisateurs disposant du droit dédié.

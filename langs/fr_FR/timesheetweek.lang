@@ -114,6 +114,7 @@ ConfirmRefuse = Confirmez-vous le refus de cette feuille de temps ?
 ApproveSelection = Approuver la sélection
 RefuseSelection = Refuser la sélection
 SealSelection = Sceller la sélection
+DeleteSelection = Supprimer la sélection
 TimesheetWeekMassApproveSuccess = %s feuille(s) de temps approuvée(s).
 TimesheetWeekMassRefuseSuccess = %s feuille(s) de temps refusée(s).
 TimesheetWeekMassSealSuccess = %s feuille(s) de temps scellée(s).
