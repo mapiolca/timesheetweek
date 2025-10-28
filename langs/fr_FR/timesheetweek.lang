@@ -145,6 +145,20 @@ TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totaux
 TimesheetWeekSummaryGenerated = PDF de synthèse disponible.
 
+#
+# PDF header & footer
+# Entête et pied de page PDF
+#
+TimesheetWeekPdfContact = Contact
+TimesheetWeekPdfCompanyId = Identifiant entreprise
+TimesheetWeekPdfDocument = Document
+TimesheetWeekPdfPage = Page %s / %s
+TimesheetWeekPdfGeneratedOn = Généré le %s
+TimesheetWeekPdfEmployee = Salarié
+TimesheetWeekPdfWeek = Semaine
+TimesheetWeekPdfPeriod = Période
+TimesheetWeekPdfStatus = Statut
+
 TimesheetWeekStatusDraft = Brouillon
 TimesheetWeekStatusSubmitted = Soumise
 TimesheetWeekStatusApproved = Approuvée

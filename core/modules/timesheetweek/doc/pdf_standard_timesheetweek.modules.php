@@ -11,7 +11,7 @@
  * Copyright (C) 2018-2025  Frédéric France				<frederic.france@free.fr>
  * Copyright (C) 2024-2025	MDW							<mdeweerd@users.noreply.github.com>
  * Copyright (C) 2024		Alexandre Spangaro			<alexandre@inovea-conseil.com>
- * Copyright (C) 2025 Pierre ARDOIN
+ * Copyright (C) 2025 Pierre Ardoin <developpeur@lesmetiersdubatiment.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,12 @@ require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
+// EN: Load helpers for dates to format week periods.
+// FR: Charge les fonctions de dates pour formater les périodes hebdomadaires.
+require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+// EN: Load the user class to show employee details in the header.
+// FR: Charge la classe utilisateur pour afficher le salarié dans l'entête.
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 
 /**
@@ -182,8 +188,9 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$outputlangs->charset_output = 'ISO-8859-1';
 		}
 
-		// Load translation files required by the page
-		$langfiles = array("main", "bills", "products", "dict", "companies", "compta");
+		// EN: Load translation files required by the page, including module texts.
+		// FR: Charge les fichiers de langue requis par la page, y compris ceux du module.
+		$langfiles = array("main", "bills", "products", "dict", "companies", "compta", "timesheetweek@timesheetweek");
 		$outputlangs->loadLangs($langfiles);
 
 		// Show Draft Watermark
@@ -923,6 +930,7 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 	 *	@param	?Translate	$outputlangsbis	Object lang for output bis
 	 *	@return	float|int                   Return topshift value
 	 */
+
 	protected function _pagehead(&$pdf, $object, $showaddress, $outputlangs, $outputlangsbis = null)
 	{
 		// phpcs:enable
@@ -933,8 +941,9 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$ltrdirection = 'R';
 		}
 
-		// Load traductions files required by page
-		$outputlangs->loadLangs(array("main", "bills", "propal", "companies"));
+		// EN: Load translations required by the header, including module labels.
+		// FR: Charge les traductions nécessaires à l'entête, y compris celles du module.
+		$outputlangs->loadLangs(array("main", "bills", "propal", "companies", "timesheetweek@timesheetweek"));
 
 		$default_font_size = pdf_getPDFFontSize($outputlangs);
 
@@ -945,19 +954,29 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			pdf_watermark($pdf, $outputlangs, $this->page_hauteur, $this->page_largeur, 'mm', dol_escape_htmltag(getDolGlobalString('TIMESHEETWEEK_DRAFT_WATERMARK')));
 		}
 
-		$pdf->SetTextColor(0, 0, 60);
-		$pdf->SetFont('', 'B', $default_font_size + 3);
+		// EN: Compute the page header geometry to mimic the referenced layout.
+		// FR: Calcule la géométrie de l'entête afin d'imiter la mise en page référencée.
+		$headerTop = $this->marge_haute;
+		$headerHeight = 38;
+		$availableWidth = $this->page_largeur - $this->marge_gauche - $this->marge_droite;
+		$infoWidth = 110;
+		if ($infoWidth > $availableWidth - 60) {
+			$infoWidth = max(80, (int) ($availableWidth / 2));
+		}
+		$companyWidth = $availableWidth - $infoWidth;
+		$infoPosX = $this->page_largeur - $this->marge_droite - $infoWidth;
 
-		$w = 110;
+		$pdf->SetFillColor(240, 240, 240);
+		$pdf->Rect($this->marge_gauche, $headerTop, $availableWidth, $headerHeight, 'F');
 
-		$posy = $this->marge_haute;
-		$posx = $this->page_largeur - $this->marge_droite - $w;
+		$logoX = $this->marge_gauche + 3;
+		$logoY = $headerTop + 3;
+		$textX = $logoX;
+		$textWidth = $companyWidth - 6;
+		$logoPrinted = false;
 
-		$pdf->SetXY($this->marge_gauche, $posy);
-
-		// Logo
 		if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
-			if ($this->emetteur->logo) {
+			if (!empty($this->emetteur->logo)) {
 				$logodir = $conf->mycompany->dir_output;
 				if (!empty(getMultidirOutput($object, 'mycompany'))) {
 					$logodir = getMultidirOutput($object, 'mycompany');
@@ -969,128 +988,177 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 				}
 				if (is_readable($logo)) {
 					$height = pdf_getHeightForLogo($logo);
-					$pdf->Image($logo, $this->marge_gauche, $posy, 0, $height); // width=0 (auto)
+					if ($height > ($headerHeight - 8)) {
+						$height = $headerHeight - 8;
+					}
+					$pdf->Image($logo, $logoX, $logoY, 0, $height);
+					$logoPrinted = true;
+					$textX = $logoX + 38;
+					$textWidth = $companyWidth - ($textX - $this->marge_gauche) - 6;
 				} else {
+					// EN: Fallback on textual information when logo is missing.
+					// FR: Bascule sur l'information textuelle si le logo est manquant.
 					$pdf->SetTextColor(200, 0, 0);
 					$pdf->SetFont('', 'B', $default_font_size - 2);
-					$pdf->MultiCell($w, 3, $outputlangs->transnoentities("ErrorLogoFileNotFound", $logo), 0, 'L');
-					$pdf->MultiCell($w, 3, $outputlangs->transnoentities("ErrorGoToGlobalSetup"), 0, 'L');
+					$pdf->SetXY($logoX, $headerTop + 4);
+					$pdf->MultiCell($companyWidth - 6, 4, $outputlangs->transnoentities("ErrorLogoFileNotFound", $logo), 0, 'L');
+					$pdf->MultiCell($companyWidth - 6, 4, $outputlangs->transnoentities("ErrorGoToGlobalSetup"), 0, 'L');
 				}
-			} else {
-				$text = $this->emetteur->name;
-				$pdf->MultiCell($w, 4, $outputlangs->convToOutputCharset($text), 0, 'L');
 			}
 		}
 
-		$pdf->SetFont('', 'B', $default_font_size + 3);
-		$pdf->SetXY($posx, $posy);
+		if ($textWidth < 40) {
+			$textWidth = 40;
+		}
+
 		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $default_font_size + 1);
+		$pdf->SetXY($textX, $headerTop + 4);
+		$pdf->MultiCell($textWidth, 5, $outputlangs->convToOutputCharset($this->emetteur->name), 0, 'L');
+
+		$pdf->SetFont('', '', $default_font_size - 1);
+		$pdf->SetTextColor(0, 0, 0);
+		$companyLines = array();
+		if (!empty($this->emetteur->address)) {
+			$companyLines[] = $this->emetteur->address;
+		}
+		$cityLine = trim(($this->emetteur->zip ? $this->emetteur->zip.' ' : '').$this->emetteur->town);
+		if ($cityLine !== '') {
+			$companyLines[] = $cityLine;
+		}
+		if (!empty($this->emetteur->phone)) {
+			$companyLines[] = $outputlangs->transnoentities("Phone").': '.$this->emetteur->phone;
+		}
+		if (!empty($this->emetteur->email)) {
+			$companyLines[] = $this->emetteur->email;
+		}
+		if (!empty($this->emetteur->url)) {
+			$companyLines[] = $this->emetteur->url;
+		}
+		$companyText = '';
+		foreach ($companyLines as $line) {
+			if ($companyText !== '') {
+				$companyText .= "\n";
+			}
+			$companyText .= $outputlangs->convToOutputCharset($line);
+		}
+		if ($companyText !== '') {
+			$pdf->SetXY($textX, $pdf->GetY());
+			$pdf->MultiCell($textWidth, 4, $companyText, 0, 'L');
+		}
+
+		$pdf->SetFillColor(32, 55, 100);
+		$pdf->Rect($infoPosX + 1, $headerTop + 2, $infoWidth - 2, $headerHeight - 4, 'F');
+
+		$pdf->SetTextColor(255, 255, 255);
+		$pdf->SetFont('', 'B', $default_font_size + 2);
+		$pdf->SetXY($infoPosX + 5, $headerTop + 6);
 		$title = $outputlangs->transnoentities("PdfTitle");
 		if (getDolGlobalInt('PDF_USE_ALSO_LANGUAGE_CODE') && is_object($outputlangsbis)) {
-			$title .= ' - ';
-			$title .= $outputlangsbis->transnoentities("PdfTitle");
+			$title .= ' - '.$outputlangsbis->transnoentities("PdfTitle");
 		}
-		$pdf->MultiCell($w, 3, $title, '', 'R');
+		$pdf->MultiCell($infoWidth - 10, 6, $title, 0, 'R');
 
-		$pdf->SetFont('', 'B', $default_font_size);
-
-		$posy += 5;
-		$pdf->SetXY($posx, $posy);
-		$pdf->SetTextColor(0, 0, 60);
-		$textref = $outputlangs->transnoentities("Ref")." : ".$outputlangs->convToOutputCharset($object->ref);
+		$pdf->SetFont('', '', $default_font_size - 1);
+		$infoLines = array();
+		$refLine = $outputlangs->transnoentities("Ref").' : '.$outputlangs->convToOutputCharset($object->ref);
 		if ($object->status == $object::STATUS_DRAFT) {
-			$pdf->SetTextColor(128, 0, 0);
-			$textref .= ' - '.$outputlangs->transnoentities("NotValidated");
+			$refLine .= ' - '.$outputlangs->transnoentities("NotValidated");
 		}
-		$pdf->MultiCell($w, 4, $textref, '', 'R');
-
-		$posy += 1;
-		$pdf->SetFont('', '', $default_font_size - 2);
-
-		// @phan-suppress-next-line PhanUndeclaredProperty
-		if (property_exists($object, 'ref_client') && $object->ref_client) {
-			$posy += 4;
-			$pdf->SetXY($posx, $posy);
-			$pdf->SetTextColor(0, 0, 60);
-			// @phan-suppress-next-line PhanUndeclaredProperty
-			$pdf->MultiCell($w, 3, $outputlangs->transnoentities("RefCustomer")." : ".dol_trunc($outputlangs->convToOutputCharset($object->ref_client), 65), '', 'R');
+		$infoLines[] = $refLine;
+		$infoLines[] = $outputlangs->transnoentities("TimesheetWeekPdfWeek").' : '.$outputlangs->convToOutputCharset($object->year.'-W'.sprintf('%02d', (int) $object->week));
+		$weekStart = dol_get_first_day_week((int) $object->week, (int) $object->year);
+		$weekEnd = dol_get_last_day_week((int) $object->week, (int) $object->year);
+		if (!empty($weekStart) && !empty($weekEnd)) {
+			$periodString = dol_print_date($weekStart, 'day', false, $outputlangs, true).' - '.dol_print_date($weekEnd, 'day', false, $outputlangs, true);
+			$infoLines[] = $outputlangs->transnoentities("TimesheetWeekPdfPeriod").' : '.$periodString;
 		}
-
-		if (getDolGlobalInt('PDF_SHOW_PROJECT_TITLE')) {
-			$object->fetchProject();
-			if (!empty($object->project->ref)) {
-				$posy += 3;
-				$pdf->SetXY($posx, $posy);
-				$pdf->SetTextColor(0, 0, 60);
-				$pdf->MultiCell($w, 3, $outputlangs->transnoentities("Project")." : ".(empty($object->project->title) ? '' : $object->project->title), '', 'R');
+		$dateLabel = $outputlangs->transnoentities("Date");
+		if (getDolGlobalInt('PDF_USE_ALSO_LANGUAGE_CODE') && is_object($outputlangsbis)) {
+			$dateLabel .= ' - '.$outputlangsbis->transnoentities("Date");
+		}
+		$infoLines[] = $dateLabel.' : '.dol_print_date($object->date_creation, 'day', false, $outputlangs, true);
+		$employeeName = '';
+		if (!empty($object->fk_user)) {
+			static $cachedEmployees = array();
+			if (!array_key_exists($object->fk_user, $cachedEmployees)) {
+				$userForHeader = new User($this->db);
+				if ($userForHeader->fetch($object->fk_user) > 0) {
+					$cachedEmployees[$object->fk_user] = $userForHeader->getFullName($outputlangs);
+				} else {
+					$cachedEmployees[$object->fk_user] = '';
+				}
 			}
+			$employeeName = $cachedEmployees[$object->fk_user];
 		}
-
-		if (getDolGlobalInt('PDF_SHOW_PROJECT')) {
+		if ($employeeName !== '') {
+			$infoLines[] = $outputlangs->transnoentities("TimesheetWeekPdfEmployee").' : '.$employeeName;
+		}
+		$statusLabels = array(
+				$object::STATUS_DRAFT => 'TimesheetWeekStatusDraft',
+				$object::STATUS_SUBMITTED => 'TimesheetWeekStatusSubmitted',
+				$object::STATUS_APPROVED => 'TimesheetWeekStatusApproved',
+				$object::STATUS_SEALED => 'TimesheetWeekStatusSealed',
+				$object::STATUS_REFUSED => 'TimesheetWeekStatusRefused',
+		);
+		$statusKey = $statusLabels[$object->status] ?? 'Unknown';
+		$infoLines[] = $outputlangs->transnoentities("TimesheetWeekPdfStatus").' : '.$outputlangs->transnoentities($statusKey);
+		if (property_exists($object, 'ref_client') && $object->ref_client) {
+			$infoLines[] = $outputlangs->transnoentities("RefCustomer").' : '.dol_trunc($outputlangs->convToOutputCharset($object->ref_client), 65);
+		}
+		if (getDolGlobalInt('PDF_SHOW_PROJECT_TITLE') || getDolGlobalInt('PDF_SHOW_PROJECT')) {
 			$object->fetchProject();
+		}
+		if (getDolGlobalInt('PDF_SHOW_PROJECT_TITLE') && !empty($object->project->title)) {
+			$infoLines[] = $outputlangs->transnoentities("Project").' : '.$outputlangs->convToOutputCharset($object->project->title);
+		}
+		if (getDolGlobalInt('PDF_SHOW_PROJECT')) {
 			if (!empty($object->project->ref)) {
 				$outputlangs->load("projects");
-				$posy += 3;
-				$pdf->SetXY($posx, $posy);
-				$pdf->SetTextColor(0, 0, 60);
-				$pdf->MultiCell($w, 3, $outputlangs->transnoentities("RefProject")." : ".(empty($object->project->ref) ? '' : $object->project->ref), '', 'R');
+				$infoLines[] = $outputlangs->transnoentities("RefProject").' : '.$outputlangs->convToOutputCharset($object->project->ref);
 			}
 		}
-
-		$posy += 4;
-		$pdf->SetXY($posx, $posy);
-		$pdf->SetTextColor(0, 0, 60);
-
-		$title = $outputlangs->transnoentities("Date");
-		if (getDolGlobalInt('PDF_USE_ALSO_LANGUAGE_CODE') && is_object($outputlangsbis)) {
-			$title .= ' - '.$outputlangsbis->transnoentities("Date");
-		}
-		$pdf->MultiCell($w, 3, $title." : ".dol_print_date($object->date_creation, "day", false, $outputlangs, true), '', 'R');
-
 		if (!getDolGlobalString('MAIN_PDF_HIDE_CUSTOMER_CODE') && !empty($object->thirdparty->code_client)) {
-			$posy += 3;
-			$pdf->SetXY($posx, $posy);
-			$pdf->SetTextColor(0, 0, 60);
-			$pdf->MultiCell($w, 3, $outputlangs->transnoentities("CustomerCode")." : ".$outputlangs->transnoentities($object->thirdparty->code_client), '', 'R');
+			$infoLines[] = $outputlangs->transnoentities("CustomerCode").' : '.$outputlangs->transnoentities($object->thirdparty->code_client);
 		}
-
 		if (!getDolGlobalString('MAIN_PDF_HIDE_CUSTOMER_ACCOUNTING_CODE') && !empty($object->thirdparty->code_compta_client)) {
-			$posy += 3;
-			$pdf->SetXY($posx, $posy);
-			$pdf->SetTextColor(0, 0, 60);
-			$pdf->MultiCell($w, 3, $outputlangs->transnoentities("CustomerAccountancyCode")." : ".$outputlangs->transnoentities($object->thirdparty->code_compta_client), '', 'R');
+			$infoLines[] = $outputlangs->transnoentities("CustomerAccountancyCode").' : '.$outputlangs->transnoentities($object->thirdparty->code_compta_client);
 		}
-
-		// Get contact
 		if (getDolGlobalInt('DOC_SHOW_FIRST_SALES_REP')) {
 			$arrayidcontact = $object->getIdContact('internal', 'SALESREPFOLL');
 			if (count($arrayidcontact) > 0) {
 				$usertmp = new User($this->db);
-				$usertmp->fetch($arrayidcontact[0]);
-				$posy += 4;
-				$pdf->SetXY($posx, $posy);
-				$pdf->SetTextColor(0, 0, 60);
-				$pdf->MultiCell($w, 3, $outputlangs->transnoentities("SalesRepresentative")." : ".$usertmp->getFullName($langs), '', 'R');
+				if ($usertmp->fetch($arrayidcontact[0]) > 0) {
+					$infoLines[] = $outputlangs->transnoentities("SalesRepresentative").' : '.$usertmp->getFullName($langs);
+				}
 			}
 		}
 
-		$posy += 1;
+		$lineY = $pdf->GetY() + 1;
+		foreach ($infoLines as $line) {
+			$pdf->SetXY($infoPosX + 5, $lineY);
+			$pdf->MultiCell($infoWidth - 10, 4.2, $line, 0, 'R');
+			$lineY = $pdf->GetY();
+		}
 
 		$top_shift = 0;
-		// Show list of linked objects
 		$current_y = $pdf->getY();
-		$posy = pdf_writeLinkedObjects($pdf, $object, $outputlangs, $posx, $posy, $w, 3, 'R', $default_font_size);
+		$pdf->SetTextColor(255, 255, 255);
+		$posy = pdf_writeLinkedObjects($pdf, $object, $outputlangs, $infoPosX, $lineY, $infoWidth, 3, 'R', $default_font_size);
 		if ($current_y < $pdf->getY()) {
 			$top_shift = $pdf->getY() - $current_y;
 		}
+
+		$pdf->SetTextColor(0, 0, 0);
+		$pdf->SetY($headerTop + $headerHeight);
 
 		if ($showaddress) {
 			// Sender properties
 			$carac_emetteur = pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, '', 0, 'source', $object);
 
 			// Show sender
-			$posy = getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 40 : 42;
-			$posy += $top_shift;
+			$basePosY = $headerTop + $headerHeight + (getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 0 : 2);
+			$posy = $basePosY + $top_shift;
 			$posx = $this->marge_gauche;
 			if (getDolGlobalInt('MAIN_INVERT_SENDER_RECIPIENT')) {
 				$posx = $this->page_largeur - $this->marge_droite - 80;
@@ -1098,7 +1166,6 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 
 			$hautcadre = getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 38 : 40;
 			$widthrecbox = getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 92 : 82;
-
 
 			// Show sender frame
 			if (!getDolGlobalString('MAIN_PDF_NO_SENDER_FRAME')) {
@@ -1152,10 +1219,9 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			// Show recipient
 			$widthrecbox = getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 92 : 100;
 			if ($this->page_largeur < 210) {
-				$widthrecbox = 84; // To work with US executive format
+				$widthrecbox = 84;
 			}
-			$posy = getDolGlobalInt('MAIN_PDF_USE_ISO_LOCATION') ? 40 : 42;
-			$posy += $top_shift;
+			$posy = $basePosY + $top_shift;
 			$posx = $this->page_largeur - $this->marge_droite - $widthrecbox;
 			if (getDolGlobalInt('MAIN_INVERT_SENDER_RECIPIENT')) {
 				$posx = $this->marge_gauche;
@@ -1173,7 +1239,6 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			// Show recipient name
 			$pdf->SetXY($posx + 2, $posy + 3);
 			$pdf->SetFont('', 'B', $default_font_size);
-			// @phan-suppress-next-line PhanPluginSuspiciousParamOrder
 			$pdf->MultiCell($widthrecbox, 2, (string) $carac_client_name, 0, $ltrdirection);
 
 			$posy = $pdf->getY();
@@ -1181,13 +1246,15 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			// Show recipient information
 			$pdf->SetFont('', '', $default_font_size - 1);
 			$pdf->SetXY($posx + 2, $posy);
-			// @phan-suppress-next-line PhanPluginSuspiciousParamOrder
 			$pdf->MultiCell($widthrecbox, 4, $carac_client, 0, $ltrdirection);
 		}
 
 		$pdf->SetTextColor(0, 0, 0);
 		return $top_shift;
 	}
+
+
+
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.PublicUnderscore
 	/**
@@ -1199,12 +1266,122 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 	 *	@param	int<0,1>		$hidefreetext	1=Hide free text
 	 *	@return	int<0,1>						Return height of bottom margin including footer text
 	 */
-	protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
+		protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
-		global $conf;
-		$showdetails = !getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS') ? 0 : getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS');
-		return pdf_pagefoot($pdf, $outputlangs, 'INVOICE_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext);
+		// EN: Draw a structured footer inspired by the referenced layout.
+		// FR: Dessine un pied de page structuré inspiré de la mise en page référencée.
+		$default_font_size = pdf_getPDFFontSize($outputlangs);
+		$footerHeight = 26;
+		$availableWidth = $this->page_largeur - $this->marge_gauche - $this->marge_droite;
+		$footTop = $this->page_hauteur - $this->marge_basse - $footerHeight;
+		if ($footTop < 0) {
+			$footTop = 0;
+		}
+
+		$pdf->SetFillColor(240, 240, 240);
+		$pdf->Rect($this->marge_gauche, $footTop, $availableWidth, $footerHeight, 'F');
+
+		$columnWidth = $availableWidth / 3;
+
+		// EN: Contact information column.
+		// FR: Colonne des informations de contact.
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $default_font_size - 1);
+		$pdf->SetXY($this->marge_gauche + 2, $footTop + 2);
+		$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->transnoentities("TimesheetWeekPdfContact"), 0, 'L');
+		$pdf->SetFont('', '', $default_font_size - 2);
+		$pdf->SetTextColor(0, 0, 0);
+		$contactLines = array();
+		$contactLines[] = $this->emetteur->name;
+		if (!empty($this->emetteur->address)) {
+			$contactLines[] = $this->emetteur->address;
+		}
+		$cityLine = trim(($this->emetteur->zip ? $this->emetteur->zip.' ' : '').$this->emetteur->town);
+		if ($cityLine !== '') {
+			$contactLines[] = $cityLine;
+		}
+		if (!empty($this->emetteur->phone)) {
+			$contactLines[] = $outputlangs->transnoentities("Phone").': '.$this->emetteur->phone;
+		}
+		if (!empty($this->emetteur->email)) {
+			$contactLines[] = $this->emetteur->email;
+		}
+		if (!empty($this->emetteur->url)) {
+			$contactLines[] = $this->emetteur->url;
+		}
+		$contactText = implode("\n", array_filter($contactLines));
+		$pdf->SetXY($this->marge_gauche + 2, $pdf->GetY());
+		if ($contactText !== '') {
+			$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->convToOutputCharset($contactText), 0, 'L');
+		}
+
+		// EN: Legal information column.
+		// FR: Colonne des informations légales.
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $default_font_size - 1);
+		$pdf->SetXY($this->marge_gauche + $columnWidth + 2, $footTop + 2);
+		$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->transnoentities("TimesheetWeekPdfCompanyId"), 0, 'L');
+		$pdf->SetFont('', '', $default_font_size - 2);
+		$pdf->SetTextColor(0, 0, 0);
+		$legalLines = array();
+		if (!empty($this->emetteur->idprof1)) {
+			$legalLines[] = $outputlangs->transnoentities("ProfId1").' : '.$this->emetteur->idprof1;
+		}
+		if (!empty($this->emetteur->idprof2)) {
+			$legalLines[] = $outputlangs->transnoentities("ProfId2").' : '.$this->emetteur->idprof2;
+		}
+		if (!empty($this->emetteur->idprof3)) {
+			$legalLines[] = $outputlangs->transnoentities("ProfId3").' : '.$this->emetteur->idprof3;
+		}
+		if (!empty($this->emetteur->capital)) {
+			$legalLines[] = $outputlangs->transnoentities("Capital").' : '.$this->emetteur->capital;
+		}
+		if (!empty($this->emetteur->tva_intra)) {
+			$legalLines[] = $outputlangs->transnoentities("VATIntra").' : '.$this->emetteur->tva_intra;
+		}
+		$legalText = implode("\n", array_filter($legalLines));
+		$pdf->SetXY($this->marge_gauche + $columnWidth + 2, $pdf->GetY());
+		if ($legalText !== '') {
+			$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->convToOutputCharset($legalText), 0, 'L');
+		}
+
+		// EN: Document summary column.
+		// FR: Colonne de synthèse du document.
+		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetFont('', 'B', $default_font_size - 1);
+		$pdf->SetXY($this->marge_gauche + ($columnWidth * 2) + 2, $footTop + 2);
+		$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->transnoentities("TimesheetWeekPdfDocument"), 0, 'R');
+		$pdf->SetFont('', '', $default_font_size - 2);
+		$pdf->SetTextColor(0, 0, 0);
+		$docLines = array();
+		$docLines[] = $outputlangs->transnoentities("Ref").' : '.$outputlangs->convToOutputCharset($object->ref);
+		if (!empty($object->date_creation)) {
+			$docLines[] = $outputlangs->transnoentities("TimesheetWeekPdfGeneratedOn").' : '.dol_print_date($object->date_creation, 'day', false, $outputlangs, true);
+		}
+		$docLines[] = sprintf($outputlangs->transnoentities("TimesheetWeekPdfPage"), $pdf->getPage(), $pdf->getAliasNbPages());
+		$docText = implode("\n", $docLines);
+		$pdf->SetXY($this->marge_gauche + ($columnWidth * 2) + 2, $pdf->GetY());
+		$pdf->MultiCell($columnWidth - 4, 4, $outputlangs->convToOutputCharset($docText), 0, 'R');
+
+		// EN: Optional footer free text area.
+		// FR: Zone optionnelle pour le texte libre du pied de page.
+		$footerNote = '';
+		if (!$hidefreetext) {
+			$footerNote = trim(getDolGlobalString('TIMESHEETWEEK_PDF_FREETEXT'));
+			if ($footerNote === '') {
+				$footerNote = trim(getDolGlobalString('MAIN_PDF_FOOTER_TEXT'));
+			}
+		}
+		if ($footerNote !== '') {
+			$pdf->SetXY($this->marge_gauche + 2, $footTop + $footerHeight - 6);
+			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->MultiCell($availableWidth - 4, 4, $outputlangs->convToOutputCharset($footerNote), 0, 'L');
+		}
+
+		return (int) $footerHeight;
 	}
+
+
 
 	/**
 	 *	Define Array Column Field
