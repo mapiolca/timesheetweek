@@ -702,7 +702,10 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$headerTitle = $langs->trans('TimesheetWeekSummaryTitle');
 	// EN: Build the human-readable ISO week range displayed under the title.
 	// FR: Construit la plage de semaines ISO lisible affichée sous le titre.
-	$headerWeekRange = $langs->trans('TimesheetWeekSummaryHeaderWeekRange', $firstWeekLabel, $firstWeekYear, $lastWeekLabel, $lastWeekYear);
+	$headerWeekRangeLabel = $langs->trans('TimesheetWeekSummaryHeaderWeekRange');
+	// EN: Inject the selected ISO week bounds into the translated label to reflect the chosen range.
+	// FR: Injecte les bornes de semaine ISO sélectionnées dans le libellé traduit pour refléter la plage choisie.
+	$headerWeekRange = sprintf($headerWeekRangeLabel, $firstWeekLabel, $firstWeekYear, $lastWeekLabel, $lastWeekYear);
 	$headerSubtitle = $langs->trans('TimesheetWeekSummaryGeneratedOnBy', dol_print_date($timestamp, 'dayhour'), $user->getFullName($langs));
 
 	$format = pdf_getFormat();
