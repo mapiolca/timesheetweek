@@ -331,7 +331,7 @@ if ($permSeal) {
 // EN: Keep the delete confirmation for users entitled to delete sheets.
 // FR: Conserve la suppression pour les utilisateurs habilités à effacer des feuilles.
 if ($permissiontodelete) {
-	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
+	$arrayofmassactions['delete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
 }
 
 $massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
