@@ -49,72 +49,167 @@ function tw_pdf_format_cell_html($value)
 }
 
 /**
- * EN: Render the Dolibarr-styled header containing the logo and company name.
- * FR: Dessine l'entête au style Dolibarr avec le logo et le nom de l'entreprise.
+ * EN: Render a structured header inspired by the standard timesheet layout.
+ * FR: Dessine un en-tête structuré inspiré de la mise en page standard des feuilles de temps.
  *
  * @param TCPDF $pdf
  * @param Translate $langs
  * @param Conf $conf
  * @param float $leftMargin
  * @param float $topMargin
+ * @param float $rightMargin
+ * @param array $context
  * @return float
  */
-function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
+function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, array $context = array())
 {
 	global $mysoc;
 
+	// EN: Ensure core and module translations are available for the header labels.
+	// FR: Garantit la disponibilité des traductions cœur et module pour les libellés d'entête.
+	$langs->loadLangs(array('main', 'bills', 'companies', 'timesheetweek@timesheetweek'));
+
+	$pageWidth = $pdf->getPageWidth();
 	$defaultFontSize = pdf_getPDFFontSize($langs);
-	$logoHeight = 0.0;
-	$posX = $leftMargin;
-	$posY = $topMargin;
-	$logoPath = '';
+	$headerTop = $topMargin;
+	$headerHeight = 38;
+	$availableWidth = $pageWidth - $leftMargin - $rightMargin;
+	if ($availableWidth < 60) {
+		$availableWidth = 60;
+	}
+	$infoWidth = 110;
+	if ($infoWidth > $availableWidth - 60) {
+		$infoWidth = max(80, (int) ($availableWidth / 2));
+	}
+	$companyWidth = $availableWidth - $infoWidth;
+	$infoPosX = $pageWidth - $rightMargin - $infoWidth;
+
+	$pdf->SetFillColor(240, 240, 240);
+	$pdf->Rect($leftMargin, $headerTop, $availableWidth, $headerHeight, 'F');
+
+	$logoX = $leftMargin + 3;
+	$logoY = $headerTop + 3;
+	$textX = $logoX;
+	$textWidth = $companyWidth - 6;
+	$logoPrinted = false;
 
 	if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
-		// EN: Resolve the preferred logo file between large and thumbnail versions.
-		// FR: Résout le fichier logo privilégié entre les versions grande et miniature.
+		// EN: Resolve the best matching logo between the large and thumbnail versions.
+		// FR: Détermine le logo le plus adapté entre les versions grande et miniature.
 		if (!empty($mysoc->logo)) {
 			$logodir = $conf->mycompany->dir_output;
 			if (!empty($conf->mycompany->multidir_output[$conf->entity] ?? null)) {
 				$logodir = $conf->mycompany->multidir_output[$conf->entity];
 			}
+			$logo = '';
 			if (!getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO') && !empty($mysoc->logo_small)) {
 				$logoCandidate = $logodir.'/logos/thumbs/'.$mysoc->logo_small;
 				if (is_readable($logoCandidate)) {
-					$logoPath = $logoCandidate;
+					$logo = $logoCandidate;
 				}
 			}
-			if ($logoPath === '') {
+			if ($logo === '' && !empty($mysoc->logo)) {
 				$logoCandidate = $logodir.'/logos/'.$mysoc->logo;
 				if (is_readable($logoCandidate)) {
-					$logoPath = $logoCandidate;
+					$logo = $logoCandidate;
 				}
 			}
-		}
-		if ($logoPath === '') {
-			$defaultLogo = DOL_DOCUMENT_ROOT.'/theme/dolibarr_logo.svg';
-			if (is_readable($defaultLogo)) {
-				$logoPath = $defaultLogo;
+			if ($logo !== '') {
+				$height = pdf_getHeightForLogo($logo);
+				if ($height > ($headerHeight - 8)) {
+					$height = $headerHeight - 8;
+				}
+				$pdf->Image($logo, $logoX, $logoY, 0, $height);
+				$logoPrinted = true;
+				$textX = $logoX + 38;
+				$textWidth = $companyWidth - ($textX - $leftMargin) - 6;
 			}
 		}
-		if ($logoPath !== '') {
-			$logoHeight = pdf_getHeightForLogo($logoPath);
-			$pdf->Image($logoPath, $posX, $posY, 0, $logoHeight);
+		if (!$logoPrinted) {
+			$defaultLogo = DOL_DOCUMENT_ROOT.'/theme/dolibarr_logo.svg';
+			if (is_readable($defaultLogo)) {
+				$height = pdf_getHeightForLogo($defaultLogo);
+				if ($height > ($headerHeight - 8)) {
+					$height = $headerHeight - 8;
+				}
+				$pdf->Image($defaultLogo, $logoX, $logoY, 0, $height);
+				$logoPrinted = true;
+				$textX = $logoX + 38;
+				$textWidth = $companyWidth - ($textX - $leftMargin) - 6;
+			}
 		}
+	}
+
+	if ($textWidth < 40) {
+		$textWidth = 40;
 	}
 
 	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
 	$pdf->SetTextColor(0, 0, 60);
-	$pdf->SetFont('', 'B', $defaultFontSize);
-	$pdf->SetXY($posX, $posY + max($logoHeight - 6.0, 0.0));
-	$pdf->MultiCell(0, 5, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'R', 0, 1, '', '', true, 0, true);
+	$pdf->SetFont('', 'B', $defaultFontSize + 1);
+	$pdf->SetXY($textX, $headerTop + 4);
+	$pdf->MultiCell($textWidth, 5, $langs->convToOutputCharset($companyName), 0, 'L');
+
+	$pdf->SetFont('', '', $defaultFontSize - 1);
+	$pdf->SetTextColor(0, 0, 0);
+	$companyLines = array();
+	if (!empty($mysoc->address)) {
+		$companyLines[] = $mysoc->address;
+	}
+	$cityLine = trim(($mysoc->zip ? $mysoc->zip.' ' : '').$mysoc->town);
+	if ($cityLine !== '') {
+		$companyLines[] = $cityLine;
+	}
+	if (!empty($mysoc->phone)) {
+		$companyLines[] = $langs->transnoentities('Phone').': '.$mysoc->phone;
+	}
+	if (!empty($mysoc->email)) {
+		$companyLines[] = $mysoc->email;
+	}
+	if (!empty($mysoc->url)) {
+		$companyLines[] = $mysoc->url;
+	}
+	$companyText = implode("\n", array_filter($companyLines));
+	if ($companyText !== '') {
+		$pdf->SetXY($textX, $pdf->GetY());
+		$pdf->MultiCell($textWidth, 4, $langs->convToOutputCharset($companyText), 0, 'L');
+	}
+
+	$pdf->SetFillColor(32, 55, 100);
+	$pdf->Rect($infoPosX + 1, $headerTop + 2, $infoWidth - 2, $headerHeight - 4, 'F');
+
+	$pdf->SetTextColor(255, 255, 255);
+	$pdf->SetFont('', 'B', $defaultFontSize + 2);
+	$pdf->SetXY($infoPosX + 5, $headerTop + 6);
+	$title = $context['title'] ?? $langs->trans('TimesheetWeekSummaryTitle');
+	$pdf->MultiCell($infoWidth - 10, 6, $langs->convToOutputCharset($title), 0, 'R');
+
+	$pdf->SetFont('', '', $defaultFontSize - 1);
+	$infoLines = array();
+	$generatedOn = $context['generated_on'] ?? '';
+	$generatedBy = $context['generated_by'] ?? '';
+	if ($generatedOn !== '' && $generatedBy !== '') {
+		$infoLines[] = $langs->trans('TimesheetWeekSummaryGeneratedOnBy', $generatedOn, $generatedBy);
+	} elseif ($generatedOn !== '') {
+		$infoLines[] = $langs->trans('TimesheetWeekSummaryGeneratedOn', $generatedOn);
+	} elseif ($generatedBy !== '') {
+		$infoLines[] = $langs->trans('TimesheetWeekSummaryGeneratedBy', $generatedBy);
+	}
+	if (!empty($context['selection_label'])) {
+		$infoLines[] = $context['selection_label'];
+	}
+	if (!empty($infoLines)) {
+		$pdf->SetXY($infoPosX + 5, $headerTop + 14);
+		$pdf->MultiCell($infoWidth - 10, 4, $langs->convToOutputCharset(implode("\n", $infoLines)), 0, 'R');
+	}
 	$pdf->SetTextColor(0, 0, 0);
 
-	return $posY + max($logoHeight, 16.0);
+	return $headerTop + $headerHeight;
 }
 
 /**
- * EN: Draw the footer with company name and page numbers following Dolibarr conventions.
- * FR: Dessine le pied de page avec le nom de l'entreprise et la pagination selon Dolibarr.
+ * EN: Draw a structured footer including contact and document details.
+ * FR: Dessine un pied de page structuré incluant les coordonnées et les détails du document.
  *
  * @param TCPDF $pdf
  * @param Translate $langs
@@ -122,32 +217,130 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin)
  * @param float $leftMargin
  * @param float $rightMargin
  * @param float $bottomMargin
+ * @param array $context
  * @return void
  */
-function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin)
+function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, array $context = array())
 {
 	global $mysoc;
 
+	// EN: Load the necessary translations for footer sections.
+	// FR: Charge les traductions nécessaires pour les sections du pied de page.
+	$langs->loadLangs(array('main', 'companies', 'bills', 'timesheetweek@timesheetweek'));
+
 	$pageWidth = $pdf->getPageWidth();
 	$pageHeight = $pdf->getPageHeight();
-	$usableWidth = $pageWidth - $leftMargin - $rightMargin;
-	$lineY = $pageHeight - $bottomMargin - 12.0;
-	$footerY = $lineY + 2.0;
+	$defaultFontSize = pdf_getPDFFontSize($langs);
+	$availableWidth = $pageWidth - $leftMargin - $rightMargin;
+	$footerHeight = 26;
+	$footTop = $pageHeight - $bottomMargin - $footerHeight;
+	if ($footTop < 0) {
+		$footTop = 0;
+	}
 
-	$pdf->SetDrawColor(200, 200, 200);
-	$pdf->SetLineWidth(0.2);
-	$pdf->Line($leftMargin, $lineY, $pageWidth - $rightMargin, $lineY);
+	$pdf->SetFillColor(240, 240, 240);
+	$pdf->Rect($leftMargin, $footTop, $availableWidth, $footerHeight, 'F');
 
-	$pdf->SetFont('', '', pdf_getPDFFontSize($langs) - 2);
-	$pdf->SetTextColor(80, 80, 80);
+	$columnWidth = $availableWidth / 3;
 
-	$companyName = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
-	$pdf->SetXY($leftMargin, $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($langs->convToOutputCharset($companyName)), 0, 'L', 0, 0, '', '', true, 0, true);
+	// EN: Contact information column.
+	// FR: Colonne des informations de contact.
+	$pdf->SetTextColor(0, 0, 60);
+	$pdf->SetFont('', 'B', $defaultFontSize - 1);
+	$pdf->SetXY($leftMargin + 2, $footTop + 2);
+	$pdf->MultiCell($columnWidth - 4, 4, $langs->transnoentities('TimesheetWeekPdfContact'), 0, 'L');
+	$pdf->SetFont('', '', $defaultFontSize - 2);
+	$pdf->SetTextColor(0, 0, 0);
+	$contactLines = array();
+	$contactLines[] = !empty($mysoc->name) ? $mysoc->name : 'Dolibarr ERP & CRM';
+	if (!empty($mysoc->address)) {
+		$contactLines[] = $mysoc->address;
+	}
+	$cityLine = trim(($mysoc->zip ? $mysoc->zip.' ' : '').$mysoc->town);
+	if ($cityLine !== '') {
+		$contactLines[] = $cityLine;
+	}
+	if (!empty($mysoc->phone)) {
+		$contactLines[] = $langs->transnoentities('Phone').': '.$mysoc->phone;
+	}
+	if (!empty($mysoc->email)) {
+		$contactLines[] = $mysoc->email;
+	}
+	if (!empty($mysoc->url)) {
+		$contactLines[] = $mysoc->url;
+	}
+	$contactText = implode("\n", array_filter($contactLines));
+	if ($contactText !== '') {
+		$pdf->SetXY($leftMargin + 2, $pdf->GetY());
+		$pdf->MultiCell($columnWidth - 4, 4, $langs->convToOutputCharset($contactText), 0, 'L');
+	}
 
-	$pageLabel = $langs->trans('Page').' '.$pdf->getAliasNumPage().'/'.$pdf->getAliasNbPages();
-	$pdf->SetXY($leftMargin + ($usableWidth / 2), $footerY);
-	$pdf->MultiCell($usableWidth / 2, 4, tw_pdf_format_cell_html($pageLabel), 0, 'R', 0, 1, '', '', true, 0, true);
+	// EN: Legal identifiers column.
+	// FR: Colonne des identifiants légaux.
+	$pdf->SetTextColor(0, 0, 60);
+	$pdf->SetFont('', 'B', $defaultFontSize - 1);
+	$pdf->SetXY($leftMargin + $columnWidth + 2, $footTop + 2);
+	$pdf->MultiCell($columnWidth - 4, 4, $langs->transnoentities('TimesheetWeekPdfCompanyId'), 0, 'L');
+	$pdf->SetFont('', '', $defaultFontSize - 2);
+	$pdf->SetTextColor(0, 0, 0);
+	$legalLines = array();
+	if (!empty($mysoc->idprof1)) {
+		$legalLines[] = $langs->transnoentities('ProfId1').': '.$mysoc->idprof1;
+	}
+	if (!empty($mysoc->idprof2)) {
+		$legalLines[] = $langs->transnoentities('ProfId2').': '.$mysoc->idprof2;
+	}
+	if (!empty($mysoc->idprof3)) {
+		$legalLines[] = $langs->transnoentities('ProfId3').': '.$mysoc->idprof3;
+	}
+	if (!empty($mysoc->capital)) {
+		$legalLines[] = $langs->transnoentities('Capital').': '.$mysoc->capital;
+	}
+	if (!empty($mysoc->tva_intra)) {
+		$legalLines[] = $langs->transnoentities('VATIntra').': '.$mysoc->tva_intra;
+	}
+	$legalText = implode("\n", array_filter($legalLines));
+	if ($legalText !== '') {
+		$pdf->SetXY($leftMargin + $columnWidth + 2, $pdf->GetY());
+		$pdf->MultiCell($columnWidth - 4, 4, $langs->convToOutputCharset($legalText), 0, 'L');
+	}
+
+	// EN: Document summary column.
+	// FR: Colonne de synthèse du document.
+	$pdf->SetTextColor(0, 0, 60);
+	$pdf->SetFont('', 'B', $defaultFontSize - 1);
+	$pdf->SetXY($leftMargin + ($columnWidth * 2) + 2, $footTop + 2);
+	$pdf->MultiCell($columnWidth - 4, 4, $langs->transnoentities('TimesheetWeekPdfDocument'), 0, 'R');
+	$pdf->SetFont('', '', $defaultFontSize - 2);
+	$pdf->SetTextColor(0, 0, 0);
+	$docLines = array();
+	$title = $context['title'] ?? $langs->trans('TimesheetWeekSummaryTitle');
+	$docLines[] = $langs->convToOutputCharset($title);
+	if (!empty($context['generated_on'])) {
+		$docLines[] = $langs->trans('TimesheetWeekSummaryGeneratedOn', $context['generated_on']);
+	}
+	if (!empty($context['generated_by'])) {
+		$docLines[] = $langs->trans('TimesheetWeekSummaryGeneratedBy', $context['generated_by']);
+	}
+	$docLines[] = sprintf($langs->trans('TimesheetWeekPdfPage'), $pdf->getPage(), $pdf->getAliasNbPages());
+	$pdf->SetXY($leftMargin + ($columnWidth * 2) + 2, $pdf->GetY());
+	$pdf->MultiCell($columnWidth - 4, 4, $langs->convToOutputCharset(implode("\n", $docLines)), 0, 'R');
+
+	// EN: Optional footer note sourced from configuration.
+	// FR: Note optionnelle de pied de page issue de la configuration.
+	$footerNote = '';
+	if (!empty($context['allow_free_text'])) {
+		$footerNote = trim(getDolGlobalString('TIMESHEETWEEK_PDF_FREETEXT'));
+		if ($footerNote === '') {
+			$footerNote = trim(getDolGlobalString('MAIN_PDF_FOOTER_TEXT'));
+		}
+	}
+	if ($footerNote !== '') {
+		$pdf->SetXY($leftMargin + 2, $footTop + $footerHeight - 6);
+		$pdf->SetFont('', '', $defaultFontSize - 2);
+		$pdf->MultiCell($availableWidth - 4, 4, $langs->convToOutputCharset($footerNote), 0, 'L');
+	}
+
 	$pdf->SetTextColor(0, 0, 0);
 }
 
@@ -163,19 +356,26 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $topMargin
  * @param float $rightMargin
  * @param float $bottomMargin
+ * @param array $context
+ * @param array $headerState
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null)
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, array $context = array(), &$headerState = null)
 {
 	$pdf->AddPage('L');
-	$useStoredHeader = is_array($headerState) && !empty($headerState['automatic']) && !empty($headerState['value']);
-	if ($useStoredHeader) {
+	// EN: Detect whether TCPDF already rendered the header via callback.
+	// FR: Détecte si TCPDF a déjà rendu l'entête via le callback.
+	$hasAutomaticHeader = is_array($headerState) && !empty($headerState['automatic']) && array_key_exists('value', $headerState);
+	if ($hasAutomaticHeader) {
 		$headerBottom = (float) $headerState['value'];
 	} else {
-		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin);
-		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin);
+		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $context);
+		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, $context);
 		if (is_array($headerState)) {
+			// EN: Store the manual header height for subsequent calls.
+			// FR: Stocke la hauteur de l'entête manuel pour les appels suivants.
 			$headerState['value'] = $headerBottom;
+			$headerState['automatic'] = false;
 		}
 	}
 	$contentStart = $headerBottom + 4.0;
@@ -185,7 +385,6 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 	$pdf->SetXY($leftMargin, $contentStart);
 	return $contentStart;
 }
-
 
 
 /**
@@ -319,7 +518,13 @@ function tw_format_hours_decimal($hours)
  */
 function tw_collect_summary_data($db, array $timesheetIds, User $user, $permReadOwn, $permReadChild, $permReadAll)
 {
-	$ids = array();
+		global $conf, $langs;
+
+		// EN: Load the translations required to build summary PDF labels.
+		// FR: Charge les traductions nécessaires pour construire les libellés du PDF de synthèse.
+		$langs->loadLangs(array('main', 'bills', 'companies', 'timesheetweek@timesheetweek'));
+
+		$ids = array();
 	foreach ($timesheetIds as $candidate) {
 		$candidate = (int) $candidate;
 		if ($candidate > 0) {
@@ -417,7 +622,7 @@ $record = array(
 'zone4_count' => (int) $row->zone4_count,
 'zone5_count' => (int) $row->zone5_count,
 'approved_by' => $approvedBy
-);
+	);
 
 		$dataset[$targetUserId]['records'][] = $record;
 		$dataset[$targetUserId]['totals']['total_hours'] += $record['total_hours'];
@@ -444,8 +649,8 @@ $record = array(
 }
 
 /**
- * EN: Generate the PDF file summarising selected weekly timesheets.
- * FR: Génère le fichier PDF résumant les feuilles de temps hebdomadaires sélectionnées.
+ * EN: Generate the PDF file summarising selected weekly timesheets with structured header/footer context.
+ * FR: Génère le fichier PDF résumant les feuilles de temps hebdomadaires sélectionnées avec un contexte d'entête/pied structuré.
  *
  * @param DoliDB    $db                 Database handler
  * @param Conf      $conf               Dolibarr configuration
@@ -498,6 +703,16 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$timestamp = dol_now();
 	$filename = 'timesheetweek-summary-'.dol_print_date($timestamp, 'dayhourlog').'.pdf';
 	$filepath = $targetDir.'/'.$filename;
+	$generatedOnLabel = dol_print_date($timestamp, 'dayhour', false, $langs, true);
+	$generatedByLabel = $user->getFullName($langs);
+	// EN: Prepare the metadata shared between header and footer renderers.
+	// FR: Prépare les métadonnées partagées entre les rendus d'entête et de pied de page.
+	$renderContext = array(
+		'title' => $langs->trans('TimesheetWeekSummaryTitle'),
+		'generated_on' => $generatedOnLabel,
+		'generated_by' => $generatedByLabel,
+		'allow_free_text' => true
+	);
 
 	$format = pdf_getFormat();
 	$pdfFormat = array($format['width'], $format['height']);
@@ -517,15 +732,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Delegate header rendering to TCPDF so every page created by the engine receives it automatically.
 		// FR: Confie le rendu de l'entête à TCPDF afin que chaque page créée par le moteur le reçoive automatiquement.
 		$pdf->setPrintHeader(true);
-		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState) {
-			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute);
+		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, $margeDroite, $renderContext, &$headerState) {
+			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $renderContext);
 			$headerState['automatic'] = true;
 		});
 		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
 		// FR: Confie le dessin du pied de page à TCPDF pour garantir sa présence lors des sauts automatiques.
 		$pdf->setPrintFooter(true);
-		$pdf->setFooterCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeDroite, $margeBasse) {
-			tw_pdf_draw_footer($pdfInstance, $langs, $conf, $margeGauche, $margeDroite, $margeBasse);
+		$pdf->setFooterCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeDroite, $margeBasse, $renderContext) {
+			tw_pdf_draw_footer($pdfInstance, $langs, $conf, $margeGauche, $margeDroite, $margeBasse, $renderContext);
 		});
 	} else {
 		// EN: Disable default TCPDF decorations when callbacks are unavailable and rely on manual drawing.
@@ -548,7 +763,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject($langs->convToOutputCharset($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $renderContext, $headerState);
 	$pageHeight = $pdf->getPageHeight();
 
 	$pdf->SetXY($margeGauche, $contentTop);
@@ -605,8 +820,10 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			} else {
 				$pdf->Ln(4);
 			}
+			// EN: Insert a new page when the banner and header would overflow.
+			// FR: Ajoute une nouvelle page si la bannière et l'entête débordent.
 			if ($pdf->GetY() + 40 > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $renderContext, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 			}
 
@@ -616,7 +833,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			// FR: Pré-calcule la hauteur de l'entête pour éviter les sauts de page imprévus.
 			$headerRowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
 			if ($pdf->GetY() + 2 + $headerRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $renderContext, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 			}
@@ -661,7 +878,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				// EN: Trigger a new page and redraw the header when the upcoming row would overflow.
 				// FR: Déclenche une nouvelle page et redessine l'entête si la prochaine ligne dépasse la marge.
 				if ($pdf->GetY() + $dataRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-					$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+					$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $renderContext, $headerState);
 					$pageHeight = $pdf->getPageHeight();
 					tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 					$pdf->Ln(2);
@@ -707,7 +924,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			// EN: Manage page breaks for totals to keep the layout consistent.
 			// FR: Gère les sauts de page pour la ligne de totaux afin de garder une mise en page cohérente.
 			if ($pdf->GetY() + $totalsRowHeight > ($pageHeight - ($margeBasse + $footerReserve))) {
-				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState);
+				$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $renderContext, $headerState);
 				$pageHeight = $pdf->getPageHeight();
 				tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 				$pdf->Ln(2);

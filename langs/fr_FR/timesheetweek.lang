@@ -128,6 +128,7 @@ TimesheetWeekSummaryNoData = Aucune feuille lisible n'a été trouvée dans la s
 TimesheetWeekSummaryTitle = Synthèse hebdomadaire des feuilles de temps
 TimesheetWeekSummaryGeneratedOn = Généré le %s
 TimesheetWeekSummaryGeneratedOnBy = Généré le %s par %s
+TimesheetWeekSummaryGeneratedBy = Généré par %s
 TimesheetWeekSummaryColumnWeek = Semaine
 TimesheetWeekSummaryColumnStart = Date de début
 TimesheetWeekSummaryColumnEnd = Date de fin
