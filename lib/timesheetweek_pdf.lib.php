@@ -556,6 +556,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// FR: Garantit la disponibilité des traductions nécessaires à la synthèse PDF avant le rendu.
 	if (method_exists($langs, 'loadLangs')) {
 		$langs->loadLangs(array('timesheetweek@timesheetweek', 'main', 'errors'));
+		// EN: Ensure the legacy main language file is also loaded for shared Dolibarr labels.
+		// FR: Garantit également le chargement du fichier de langue principal pour les libellés Dolibarr partagés.
+		$langs->load('main');
 	} else {
 		// EN: Fallback for older Dolibarr versions that expose only the singular loader.
 		// FR: Solution de secours pour les versions de Dolibarr ne proposant que le chargeur unitaire.
