@@ -1083,11 +1083,11 @@ $displayedTotal = $th;
 $displayedTotalLabel = $langs->trans("TotalHours");
 $headerTotalClass = 'header-total-hours header-total-main';
 if ($isDailyRateEmployee) {
-// EN: Convert stored hours into days for header display when the employee is forfait jour.
-// FR: Convertit les heures enregistrées en jours pour l'affichage d'entête lorsque le salarié est au forfait jour.
-$displayedTotal = ($th > 0 ? ($th / 8.0) : 0.0);
-$displayedTotalLabel = $langs->trans("TimesheetWeekTotalDays");
-$headerTotalClass = 'header-total-days header-total-main';
+	// EN: Convert stored hours into days for header display when the employee is forfait jour.
+	// FR: Convertit les heures enregistrées en jours pour l'affichage d'entête lorsque le salarié est au forfait jour.
+	$displayedTotal = ($th > 0 ? ($th / 8.0) : 0.0);
+	$displayedTotalLabel = $langs->trans("TotalDays");
+	$headerTotalClass = 'header-total-days header-total-main';
 }
 echo '<div class="fichehalfright">';
 echo '<table class="border centpercent tableforfield">';
