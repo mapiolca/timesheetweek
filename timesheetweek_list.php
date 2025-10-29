@@ -39,6 +39,9 @@ $permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateCh
 $permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
 // EN: Prepare Dolibarr's generic permission flags for mass-action helpers.
 // FR: Prépare les indicateurs de permission Dolibarr pour les helpers d'actions de masse.
+// EN: Flag the operators allowed to read at least their own sheets to drive summary exports.
+// FR: Marque les opérateurs autorisés à lire au moins leurs propres feuilles pour piloter les exports de synthèse.
+$canGenerateSummaryPdf = (!empty($user->admin) || $permRead || $permReadChild || $permReadAll);
 $permissiontoread = ($permRead || $permReadChild || $permReadAll);
 $permissiontoadd = ($permWrite || $permWriteChild || $permWriteAll);
 $permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
@@ -333,9 +336,9 @@ if ($canDisplayValidationActions) {
 if ($permSeal) {
 	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
 }
-// EN: Allow PDF summary generation to any user allowed to read the listed sheets.
-// FR: Autorise la génération d'un PDF de synthèse à tout utilisateur habilité à lire les feuilles listées.
-if ($permissiontoread) {
+// EN: Allow PDF summary generation to any user owning at least the basic read permission.
+// FR: Autorise la génération d'un PDF de synthèse à tout utilisateur disposant au minimum du droit de lecture de base.
+if ($canGenerateSummaryPdf) {
 	$arrayofmassactions['generate_summary_pdf'] = img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans('GenerateSummaryPdf');
 }
 // EN: Expose the draft-only bulk deletion with Dolibarr's confirmation flow when the operator may delete sheets.
@@ -505,11 +508,12 @@ if ($massaction === 'sceller') {
 		}
 	}
 }
+
 if ($massaction === 'generate_summary_pdf') {
 	$massActionProcessed = true;
-	if (!$permissiontoread) {
-		// EN: Block summary export when the user has no read permission.
-		// FR: Bloque l'export de synthèse lorsque l'utilisateur n'a pas le droit de lecture.
+	if (!$canGenerateSummaryPdf) {
+		// EN: Block summary export when the user lacks the baseline read permission.
+		// FR: Bloque l'export de synthèse lorsque l'utilisateur n'a pas le droit de lecture minimal.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
 		if (empty($arrayofselected)) {
