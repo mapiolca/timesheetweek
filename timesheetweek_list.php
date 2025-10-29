@@ -23,7 +23,7 @@ if (!$res) die("Include of main fails");
 
 // EN: Check permissions before loading any additional resources to abort early.
 // FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
-$permRead = $user->hasRight('read');
+$permRead = $user->hasRight('timesheetweek', 'read');
 $permReadChild = $user->hasRight('timesheetweek','readChild');
 $permReadAll = $user->hasRight('timesheetweek','readAll');
 $permWrite = $user->hasRight('timesheetweek','write');
