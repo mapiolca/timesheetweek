@@ -230,6 +230,8 @@ TimesheetWeekDailyRateLabel = Contrat forfait jour
 TimesheetWeekDailyRateFullDay = Journée
 TimesheetWeekDailyRateMorning = Matin
 TimesheetWeekDailyRateAfternoon = Après-midi
+LastModification = Dernière modification
+TotalDays = Total jours
 TimesheetWeekTotalDays = Total jours
 
 ModelEnabled = Modèle %s activé
