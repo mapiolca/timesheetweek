@@ -1841,6 +1841,15 @@ if ($object->id > 0 && !empty($timesheetUploadDir)) {
 	$formfile = new FormFile($db);
 	$modulepart = 'timesheetweek';
 	$relativepathwithnofile = $timesheetDocRelativePath;
+	// EN: Backup the existing parameter bag before overriding it for the document helper.
+	// FR: Sauvegarde le sac de paramètres existant avant de le remplacer pour l'assistant de documents.
+	$timesheetDocPreviousParam = null;
+	$timesheetDocHadParam = isset($param);
+	if ($timesheetDocHadParam) {
+		$timesheetDocPreviousParam = $param;
+	}
+	// EN: Provide the Dolibarr document template with scalar parameters expected by helpers.
+	// FR: Fournit au gabarit de documents Dolibarr des paramètres scalaires attendus par les assistants.
 	$param = '&id='.$object->id;
 	$moreparam = '';
 	$permissiontoread = $timesheetDocReadAllowed;
@@ -1853,6 +1862,14 @@ if ($object->id > 0 && !empty($timesheetUploadDir)) {
 	$model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
 	$upload_dir = $timesheetUploadDir;
 	include DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
+	// EN: Restore the previous parameter structure for subsequent features such as email sending.
+	// FR: Restaure la structure de paramètres précédente pour les fonctionnalités suivantes comme l'envoi d'emails.
+	if ($timesheetDocHadParam) {
+		$param = $timesheetDocPreviousParam;
+	} else {
+		unset($param);
+	}
+}
 }
 
 if ($action === 'presend') {
@@ -1893,8 +1910,6 @@ if ($action === 'presend') {
 				include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 		}
 	
-}
-
 // End of page
 llxFooter();
 $db->close();
