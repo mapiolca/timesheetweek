@@ -856,7 +856,10 @@ if ($action === 'create') {
 		var m=/^(\d{4})-W(\d{2})$/.exec(val||'');return m?{y:parseInt(m[1],10),w:parseInt(m[2],10)}:null;
 	}
 	function isoWeekStart(y,w){var s=new Date(Date.UTC(y,0,1+(w-1)*7));var d=s.getUTCDay();var st=new Date(s);if(d>=1&&d<=4)st.setUTCDate(s.getUTCDate()-(d-1));else st.setUTCDate(s.getUTCDate()+(d===0?1:(8-d)));return st;}
-	function fmt(d){var dd=String(d.getUTCDate()).padStart(2,'0');var mm=String(d.getUTCMonth()+1).padStart(2,'0');var yy=d.getUTCFullYear();return dd+'/'+mm+'/'+yy;}
+// EN: Local helper to zero-pad day/month values for legacy browser compatibility.
+// FR: Aide locale pour compléter les jours/mois avec un zéro et rester compatible avec les anciens navigateurs.
+function pad2(v){return (v<10?'0':'')+v;}
+function fmt(d){var dd=pad2(d.getUTCDate());var mm=pad2(d.getUTCMonth()+1);var yy=d.getUTCFullYear();return dd+'/'+mm+'/'+yy;}
 	function updateWeekRange(){var v=$('#weekyear').val();var p=parseYearWeek(v);if(!p){$('#weekrange').text('');return;}var s=isoWeekStart(p.y,p.w);var e=new Date(s);e.setUTCDate(s.getUTCDate()+6);$('#weekrange').text('du '+fmt(s)+' au '+fmt(e));}
 	$(function(){if($.fn.select2)$('#weekyear').select2({width:'resolve'});updateWeekRange();$('#weekyear').on('change',updateWeekRange);});
 })(jQuery);
@@ -1563,7 +1566,11 @@ function formatHours(d){
 if(isNaN(d)) return "00:00";
 var h=Math.floor(d); var m=Math.round((d-h)*60);
 if(m===60){ h++; m=0; }
-return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+// EN: Build HH:MM strings without padStart to work on legacy browsers.
+// FR: Construit les chaînes HH:MM sans padStart pour fonctionner sur les anciens navigateurs.
+var hh=(h<10?"0":"")+h;
+var mm=(m<10?"0":"")+m;
+return hh+":"+mm;
 }
 function formatDays(d){
 if(isNaN(d)) return "0.00";
