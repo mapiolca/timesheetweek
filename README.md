@@ -9,6 +9,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Statut « Scellée » pour verrouiller les feuilles approuvées et empêcher toute modification ultérieure, avec les permissions associées.
 - Redirection automatique vers la feuille existante en cas de tentative de doublon afin d'éviter les saisies multiples.
 - Suivi des compteurs hebdomadaires de zones et de paniers directement sur les feuilles et recalcul automatique à chaque enregistrement.
+- Saisie dédiée pour les salariés en forfait jour grâce à des sélecteurs Journée/Matin/Après-midi convertissant automatiquement les heures.
 - Affichage des compteurs dans la liste hebdomadaire et ajout du libellé « Zone » sur chaque sélecteur quotidien pour clarifier la saisie.
 - Ligne de total en bas de la liste hebdomadaire pour additionner heures, zones, paniers et afficher la colonne de date de validation.
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
@@ -48,6 +49,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Statut « Scellée » (Sealed status) to lock approved timesheets together with the related permissions.
 - Automatic redirect to the existing timesheet when a duplicate creation is attempted.
 - Weekly counters for zones and meal allowances with automatic recomputation on each save.
+- Dedicated input for daily rate employees with Full day/Morning/Afternoon selectors that automatically convert hours.
 - Counter display inside the weekly list plus a « Zone » caption on each daily selector for better input guidance.
 - Total row at the bottom of the weekly list to sum hours, zones, meals and expose the validation date column.
 - Quick creation shortcut available from the top-right « Add » menu.
