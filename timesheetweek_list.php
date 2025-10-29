@@ -23,20 +23,20 @@ if (!$res) die("Include of main fails");
 
 // EN: Check permissions before loading any additional resources to abort early.
 // FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
-$permRead = $user->hasRight('timesheetweek','timesheetweek','read');
-$permReadChild = $user->hasRight('timesheetweek','timesheetweek','readChild');
-$permReadAll = $user->hasRight('timesheetweek','timesheetweek','readAll');
-$permWrite = $user->hasRight('timesheetweek','timesheetweek','write');
-$permWriteChild = $user->hasRight('timesheetweek','timesheetweek','writeChild');
-$permWriteAll = $user->hasRight('timesheetweek','timesheetweek','writeAll');
-$permDelete = $user->hasRight('timesheetweek','timesheetweek','delete');
-$permDeleteChild = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
-$permDeleteAll = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
-$permSeal = $user->hasRight('timesheetweek','timesheetweek','seal');
-$permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
-$permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
-$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
-$permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$permRead = $user->hasRight('read');
+$permReadChild = $user->hasRight('timesheetweek','readChild');
+$permReadAll = $user->hasRight('timesheetweek','readAll');
+$permWrite = $user->hasRight('timesheetweek','write');
+$permWriteChild = $user->hasRight('timesheetweek','writeChild');
+$permWriteAll = $user->hasRight('timesheetweek','writeAll');
+$permDelete = $user->hasRight('timesheetweek','delete');
+$permDeleteChild = $user->hasRight('timesheetweek','deleteChild');
+$permDeleteAll = $user->hasRight('timesheetweek','deleteAll');
+$permSeal = $user->hasRight('timesheetweek','seal');
+$permValidate = $user->hasRight('timesheetweek','validate');
+$permValidateOwn = $user->hasRight('timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','validateChild');
+$permValidateAll = $user->hasRight('timesheetweek','validateAll');
 // EN: Prepare Dolibarr's generic permission flags for mass-action helpers.
 // FR: Prépare les indicateurs de permission Dolibarr pour les helpers d'actions de masse.
 $permissiontoread = ($permRead || $permReadChild || $permReadAll);
@@ -532,7 +532,7 @@ if ($massaction === 'generate_summary_pdf') {
 					setEventMessages(null, $result['warnings'], 'warnings');
 				}
 				if (!empty($result['relative'])) {
-					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission='.rawurlencode('timesheetweek->timesheetweek->read');
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission=read';
 					header('Location: '.$downloadUrl);
 					exit;
 				}
@@ -770,7 +770,7 @@ if (!empty($search_status)) {
 // FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
 $param .= '&limit='.(int) $limit;
 
-$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
+$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','write'));
 
 /**
  * Column selector on left of titles
