@@ -3,6 +3,7 @@
 ## 1.3.0
 - Ajoute la génération PDF directement depuis la fiche hebdomadaire en respectant les modèles Dolibarr configurés. / Adds on-card PDF generation for weekly sheets that honours configured Dolibarr templates.
 - Centralise l'activation et la sélection des modèles de documents PDF dans la configuration du module. / Centralises PDF document model activation and selection inside the module setup page.
+- Corrige l'initialisation du bloc Documents pour éviter les erreurs de type lors de la liste des pièces jointes. / Fixes the Documents block initialisation to avoid type errors while listing attachments.
 
 ## 1.2.0
 - Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.

@@ -1810,11 +1810,39 @@ JS;
 echo '</div>';
 
 if ($object->id > 0 && !empty($timesheetUploadDir)) {
-	// EN: Display the Dolibarr document block with native PDF generation controls.
-	// FR: Affiche le bloc documents Dolibarr avec les contrôles natifs de génération PDF.
+	// EN: Guarantee the presence of the document directory before listing Dolibarr attachments.
+	// FR: Garantit la présence du répertoire de documents avant de lister les pièces jointes Dolibarr.
+	if (!is_dir($timesheetUploadDir)) {
+		// EN: Create the document repository when missing to prevent listing failures.
+		// FR: Crée le répertoire de documents lorsqu'il manque pour éviter les échecs de listing.
+		dol_mkdir($timesheetUploadDir);
+	}
+
+	// EN: Determine the current sort request with sane defaults for the attachment grid.
+	// FR: Détermine la requête de tri actuelle avec des valeurs par défaut cohérentes pour la grille des pièces jointes.
+	$sortfield = GETPOST('sortfield', 'aZ09comma');
+	if (empty($sortfield)) {
+		$sortfield = 'name';
+	}
+	$sortorder = GETPOST('sortorder', 'aZ09');
+	if (empty($sortorder)) {
+		$sortorder = 'ASC';
+	}
+
+	// EN: Build the file list once to feed the Dolibarr document helper.
+	// FR: Construit la liste des fichiers pour alimenter l'assistant de documents Dolibarr.
+	$filearray = dol_dir_list($timesheetUploadDir, 'files', 0, '', '(\.meta|_preview.*\.png)$', $sortfield, (strtolower($sortorder) === 'desc' ? SORT_DESC : SORT_ASC), 1);
+	if (!is_array($filearray)) {
+		$filearray = array();
+	}
+
+	// EN: Prepare Dolibarr template variables to avoid type mismatches in document helpers.
+	// FR: Prépare les variables du gabarit Dolibarr pour éviter les incohérences de type dans les assistants de documents.
 	$formfile = new FormFile($db);
 	$modulepart = 'timesheetweek';
-	$relativepath = $timesheetDocRelativePath;
+	$relativepathwithnofile = $timesheetDocRelativePath;
+	$param = '&id='.$object->id;
+	$moreparam = '';
 	$permissiontoread = $timesheetDocReadAllowed;
 	$permissiontodownload = $timesheetDocReadAllowed;
 	$permissiontoadd = $timesheetDocReadAllowed;
