@@ -751,9 +751,21 @@ class modTimesheetWeek extends DolibarrModules
 
 		// EN: Ensure existing installations receive the daily_rate column for time entries.
 		// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
-		if (!$this->db->DDLFieldExists(MAIN_DB_PREFIX.'timesheet_week_line', 'daily_rate')) {
+		$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
+		$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
+		if (!$resqlCheckDailyRate) {
+			// EN: Abort activation when the structure verification query fails.
+			// FR: Interrompt l'activation si la requête de vérification de structure échoue.
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
+		$this->db->free($resqlCheckDailyRate);
+		if (!$hasDailyRateColumn) {
 			$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
 			if (!$this->db->query($sqlAdd)) {
+				// EN: Stop activation when adding the column fails to keep database consistent.
+				// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
