@@ -1032,33 +1032,47 @@ JS;
 	echo '</table>';
 	echo '</div>';
 
-	// Right block (Totaux en entête)
-	$uEmpDisp = new User($db);
-	$uEmpDisp->fetch($object->fk_user);
-	$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours)?(float)$uEmpDisp->weeklyhours:35.0);
-	$th = (float) $object->total_hours;
-	$ot = (float) $object->overtime_hours;
-		if ($th <= 0) {
-				$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id;
-				// EN: Respect entity boundaries when recomputing totals lazily.
-				// FR: Respecte les frontières d'entité lors du recalcul paresseux des totaux.
-				$sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
-				$resSum = $db->query($sqlSum);
-		if ($resSum) {
-			$o = $db->fetch_object($resSum);
-			$th = (float) $o->sh;
-			$ot = max(0.0, $th - $contractedHoursDisp);
-		}
-	}
-	echo '<div class="fichehalfright">';
-	echo '<table class="border centpercent tableforfield">';
-	echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
-	echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
-	echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-	echo '<tr><td>'.$langs->trans("TotalHours").'</td><td><span class="header-total-hours">'.formatHours($th).'</span></td></tr>';
-	echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
-	echo '</table>';
-	echo '</div>';
+// Right block (Totaux en entête)
+$uEmpDisp = new User($db);
+$uEmpDisp->fetch($object->fk_user);
+$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours) ? (float) $uEmpDisp->weeklyhours : 35.0);
+$th = (float) $object->total_hours;
+$ot = (float) $object->overtime_hours;
+if ($th <= 0) {
+$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id;
+// EN: Respect entity boundaries when recomputing totals lazily.
+// FR: Respecte les frontières d'entité lors du recalcul paresseux des totaux.
+$sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
+$resSum = $db->query($sqlSum);
+if ($resSum) {
+$o = $db->fetch_object($resSum);
+$th = (float) $o->sh;
+$ot = max(0.0, $th - $contractedHoursDisp);
+}
+}
+$displayedTotal = $th;
+$displayedTotalLabel = $langs->trans("TotalHours");
+$headerTotalClass = 'header-total-hours header-total-main';
+if ($isDailyRateEmployee) {
+// EN: Convert stored hours into days for header display when the employee is forfait jour.
+// FR: Convertit les heures enregistrées en jours pour l'affichage d'entête lorsque le salarié est au forfait jour.
+$displayedTotal = ($th > 0 ? ($th / 8.0) : 0.0);
+$displayedTotalLabel = $langs->trans("TimesheetWeekTotalDays");
+$headerTotalClass = 'header-total-days header-total-main';
+}
+echo '<div class="fichehalfright">';
+echo '<table class="border centpercent tableforfield">';
+echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
+echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
+echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
+if ($isDailyRateEmployee) {
+echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.dol_print_decimal($displayedTotal, 2, false, true).'</span></td></tr>';
+} else {
+echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
+echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+}
+echo '</table>';
+echo '</div>';
 
 	echo '</div>'; // fichecenter
 
@@ -1315,32 +1329,34 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 
 				// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
 				// FR: Ajoute l'aide de centrage vertical sur les cellules zone et repas afin que les deux contrôles restent centrés quelle que soit leur hauteur.
-				// Ligne zone + panier (préfills depuis lignes)
-				echo '<tr class="liste_titre">';
-				echo '<td></td>';
-				foreach ($days as $d) {
-						// EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
-						// FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
-						echo '<td class="center cellule-zone-panier">';
-						// EN: Prefix zone selector with its label to improve understanding.
-						// FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
-						echo '<span class="zone-select">'.$langs->trans("Zone").' ';
-						echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
-						// EN: Provide an empty choice so the default zone selector starts blank.
-						// FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
-						$selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
-						echo '<option value=""'.$selEmpty.'></option>';
-						for ($z=1; $z<=5; $z++) {
-								$sel = ($dayZone[$d] !== null && (int)$dayZone[$d] === $z) ? ' selected' : '';
-								echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
-						}
-						echo '</select></span><br>';
-			$checked = $dayMeal[$d] ? ' checked' : '';
-			echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
-			echo '</td>';
-		}
-		echo '<td></td>';
-		echo '</tr>';
+// Ligne zone + panier (préfills depuis lignes)
+if (!$isDailyRateEmployee) {
+echo '<tr class="liste_titre">';
+echo '<td></td>';
+foreach ($days as $d) {
+// EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
+// FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
+echo '<td class="center cellule-zone-panier">';
+// EN: Prefix zone selector with its label to improve understanding.
+// FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
+echo '<span class="zone-select">'.$langs->trans("Zone").' ';
+echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+// EN: Provide an empty choice so the default zone selector starts blank.
+// FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
+$selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
+echo '<option value=""'.$selEmpty.'></option>';
+for ($z = 1; $z <= 5; $z++) {
+$sel = ($dayZone[$d] !== null && (int) $dayZone[$d] === $z) ? ' selected' : '';
+echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
+}
+echo '</select></span><br>';
+$checked = $dayMeal[$d] ? ' checked' : '';
+echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
+echo '</td>';
+}
+echo '<td></td>';
+echo '</tr>';
+}
 
 		// Regrouper par projet
 		$byproject = array();
@@ -1421,44 +1437,60 @@ $readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
 echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
 }
 }
-								$grandInit += $rowTotal;
-								// EN: Center task totals so they stay aligned with other centered figures.
-								// FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
-								echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
-				echo '</tr>';
-			}
-		}
+$grandInit += $rowTotal;
+// EN: Center task totals so they stay aligned with other centered figures.
+// FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
+if ($isDailyRateEmployee) {
+echo '<td class="center task-total cellule-total">'.dol_print_decimal(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), 2, false, true).'</td>';
+} else {
+echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
+}
+echo '</tr>';
+}
+}
 
-		$grand = ($object->total_hours > 0 ? (float)$object->total_hours : $grandInit);
+$grand = ($object->total_hours > 0 ? (float) $object->total_hours : $grandInit);
 
-				echo '<tr class="liste_total">';
-				// EN: Center overall totals and daily sums for consistent middle alignment.
-				// FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
-				echo '<td class="left">'.$langs->trans("Total").'</td>';
-				foreach ($days as $d) echo '<td class="center day-total cellule-total">00:00</td>';
-				echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
-		echo '</tr>';
+if ($isDailyRateEmployee) {
+$grandDays = ($grand > 0 ? ($grand / 8.0) : 0.0);
+echo '<tr class="liste_total row-total-days">';
+// EN: Center overall totals expressed in days for forfait jour employees.
+// FR: Centre les totaux globaux exprimés en jours pour les salariés au forfait jour.
+echo '<td class="left">'.$langs->trans("TimesheetWeekTotalDays").'</td>';
+foreach ($days as $d) {
+echo '<td class="center day-total cellule-total">'.dol_print_decimal(0, 2, false, true).'</td>';
+}
+echo '<td class="center grand-total cellule-total">'.dol_print_decimal($grandDays, 2, false, true).'</td>';
+echo '</tr>';
+} else {
+echo '<tr class="liste_total row-total-hours">';
+// EN: Center overall totals and daily sums for consistent middle alignment.
+// FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
+echo '<td class="left">'.$langs->trans("Total").'</td>';
+foreach ($days as $d) {
+echo '<td class="center day-total cellule-total">00:00</td>';
+}
+echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
+echo '</tr>';
 
-				// EN: Use the vertical-centering helper on totals to keep computed values aligned with their labels.
-				// FR: Utilise l'aide de centrage vertical sur les totaux pour conserver les valeurs calculées alignées avec leurs libellés.
-				echo '<tr class="liste_total">';
-				// EN: Center meal counters to match the rest of the grid alignment.
-				// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
-				echo '<td class="left">'.$langs->trans("Meals").'</td>';
-				$initMeals = array_sum($dayMeal);
-				echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
-				echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
-				echo '</tr>';
+echo '<tr class="liste_total">';
+// EN: Center meal counters to match the rest of the grid alignment.
+// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
+echo '<td class="left">'.$langs->trans("Meals").'</td>';
+$initMeals = array_sum($dayMeal);
+echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
+echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
+echo '</tr>';
 
-				echo '<tr class="liste_total">';
-				// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
-				// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
-				echo '<td class="left">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
-				$ot = ($object->overtime_hours > 0 ? (float)$object->overtime_hours : max(0.0, $grand - $contractedHours));
-				//echo '<td class="cellule-total"></td>';
-				echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
-				echo '<td colspan="" class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
-				echo '</tr>';
+echo '<tr class="liste_total">';
+// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
+// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
+echo '<td class="left">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
+$ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
+echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
+echo '<td class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
+echo '</tr>';
+}
 
 		echo '</table>';
 		echo '</div>';
@@ -1476,61 +1508,92 @@ echo '<td class="center cellule-temps"><input type="text" class="flat hourinput"
 		$jsGrid = <<<JS
 <script>
 (function($){
-	var isDailyRateMode = %s;
-	var dailyRateHoursMap = {1:8,2:4,3:4};
-	function parseHours(v){
-		if(!v) return 0;
-		if(v.indexOf(":") === -1) return parseFloat(v)||0;
-		var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
-		return h + (m/60);
-	}
-	function elementHours($el){
-		if(isDailyRateMode && $el.is('select')){
-			var code=parseInt($el.val(),10);
-			return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
-		}
-		return parseHours($el.val());
-	}
-	function formatHours(d){
-		if(isNaN(d)) return "00:00";
-		var h=Math.floor(d); var m=Math.round((d-h)*60);
-		if(m===60){ h++; m=0; }
-		return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-	}
-	function updateTotals(){
-		var grand=0;
-		$(".task-total").text("00:00");
-		$(".day-total").text("00:00");
+var isDailyRateMode = %s;
+var dailyRateHoursMap = {1:8,2:4,3:4};
+var dailyRateDaysMap = {1:1,2:0.5,3:0.5};
+function parseHours(v){
+if(!v) return 0;
+if(v.indexOf(":") === -1) return parseFloat(v)||0;
+var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
+return h + (m/60);
+}
+function parseDays(v){
+if(!v) return 0;
+var normalized = v.toString().replace(',', '.');
+var num = parseFloat(normalized);
+return isNaN(num) ? 0 : num;
+}
+function elementHours($el){
+if(isDailyRateMode && $el.is('select')){
+var code=parseInt($el.val(),10);
+return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
+}
+return parseHours($el.val());
+}
+function elementDays($el){
+if(isDailyRateMode && $el.is('select')){
+var code=parseInt($el.val(),10);
+return dailyRateDaysMap[code] ? dailyRateDaysMap[code] : 0;
+}
+return elementHours($el) / 8;
+}
+function formatHours(d){
+if(isNaN(d)) return "00:00";
+var h=Math.floor(d); var m=Math.round((d-h)*60);
+if(m===60){ h++; m=0; }
+return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+}
+function formatDays(d){
+if(isNaN(d)) return "0.00";
+return (Math.round(d*100)/100).toFixed(2);
+}
+function updateTotals(){
+var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
+var formatFn = isDailyRateMode ? formatDays : formatHours;
+var parseFn = isDailyRateMode ? parseDays : parseHours;
+var elementFn = isDailyRateMode ? elementDays : elementHours;
+var grand=0;
 
-		$("table.noborder tr").each(function(){
-			var rowT=0;
-			$(this).find("input.hourinput, select.daily-rate-select").each(function(){
-				var v=elementHours($(this));
-				if(v>0){
-					rowT+=v;
-					var idx=$(this).closest("td").index();
-					var daycell=$("tr.liste_total:first td").eq(idx);
-					var cur=parseHours(daycell.text());
-					daycell.text(formatHours(cur+v));
-					grand+=v;
-				}
-			});
-			if(rowT>0) $(this).find(".task-total").text(formatHours(rowT));
-		});
+$(".task-total").text(formatFn(0));
+$(totalRowSelector+" .day-total").text(formatFn(0));
+$(totalRowSelector+" .grand-total").text(formatFn(0));
 
-		$(".grand-total").text(formatHours(grand));
+$("table.noborder tr").each(function(){
+var rowT=0;
+$(this).find("input.hourinput, select.daily-rate-select").each(function(){
+var v=elementFn($(this));
+if(v>0){
+rowT+=v;
+var idx=$(this).closest("td").index();
+var daycell=$(totalRowSelector+" td").eq(idx);
+if(daycell.length){
+var cur=parseFn(daycell.text());
+daycell.text(formatFn(cur+v));
+}
+grand+=v;
+}
+});
+if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
+});
 
-		var meals = $(".mealbox:checked").length;
-		$(".meal-total").text(meals);
+$(totalRowSelector+" .grand-total").text(formatFn(grand));
 
-		var weeklyContract = {$contractedHours};
-		var ot = grand - weeklyContract; if (ot < 0) ot = 0;
-		$(".overtime-total").text(formatHours(ot));
+if(isDailyRateMode){
+$(".meal-total").text('0');
+} else {
+var meals = $(".mealbox:checked").length;
+$(".meal-total").text(meals);
+var weeklyContract = {$contractedHours};
+var ot = grand - weeklyContract; if (ot < 0) ot = 0;
+$(".overtime-total").text(formatFn(ot));
+if($(".header-overtime").length){
+$(".header-overtime").text(formatFn(ot));
+}
+}
 
-		// met à jour l'entête
-		$(".header-total-hours").text(formatHours(grand));
-		$(".header-overtime").text(formatHours(ot));
-	}
+// met à jour l'entête
+$(".header-total-main").text(formatFn(grand));
+}
 	$(function(){
 		updateTotals(); // au chargement
 		$(document).on("input change", "input.hourinput, select.daily-rate-select, input.mealbox", updateTotals);

@@ -162,6 +162,7 @@ TimesheetWeekDailyRateLabel = Daily rate contract
 TimesheetWeekDailyRateFullDay = Full day
 TimesheetWeekDailyRateMorning = Morning
 TimesheetWeekDailyRateAfternoon = Afternoon
+TimesheetWeekTotalDays = Total days
 TimesheetWeekAgendaApproved = Timesheet %s approved.
 TimesheetWeekAgendaRefused = Timesheet %s refused.
 TimesheetWeekAgendaSealed = Timesheet %s sealed.
