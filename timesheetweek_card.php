@@ -39,9 +39,23 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 // EN: Load file helpers to drive PDF generation and attachment listing.
 // FR: Charge les aides de fichiers pour piloter la génération PDF et la liste des pièces jointes.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-// EN: Load document helpers to keep Dolibarr behaviours for PDF buttons.
-// FR: Charge les aides de documents pour conserver les comportements Dolibarr des boutons PDF.
-require_once DOL_DOCUMENT_ROOT.'/core/lib/document.lib.php';
+// EN: Track the availability of Dolibarr's document helpers to stay compatible with older cores.
+// FR: Suit la disponibilité des aides de documents Dolibarr pour rester compatible avec les noyaux plus anciens.
+$hasDocumentLib = false;
+// EN: Load document helpers to keep Dolibarr behaviours for PDF buttons, with compatibility fallback.
+// FR: Charge les aides de documents pour conserver les comportements Dolibarr des boutons PDF, avec repli de compatibilité.
+$documentLibCandidates = array(
+	'/core/lib/document.lib.php',
+	'/core/lib/documents.lib.php'
+);
+foreach ($documentLibCandidates as $documentLibRelPath) {
+	$documentLibFullPath = DOL_DOCUMENT_ROOT.$documentLibRelPath;
+	if (file_exists($documentLibFullPath)) {
+		require_once $documentLibFullPath;
+		$hasDocumentLib = true;
+		break;
+	}
+}
 // EN: Load the HTML form helper dedicated to file pickers and uploads.
 // FR: Charge l'assistant de formulaire HTML dédié aux sélecteurs et dépôts de fichiers.
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
@@ -384,7 +398,7 @@ if (in_array($action, array('presend', 'send'), true)) {
 }
 
 // ----------------- Actions: Documents -----------------
-if ($object->id > 0 && !empty($timesheetUploadDir)) {
+if ($object->id > 0 && !empty($timesheetUploadDir) && $hasDocumentLib) {
 	// EN: Map Dolibarr permissions expected by the document action helper.
 	// FR: Mappe les permissions attendues par l'assistant de documents Dolibarr.
 	$upload_dir = $timesheetUploadDir;
