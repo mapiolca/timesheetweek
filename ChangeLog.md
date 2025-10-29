@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.3.0
+- Ajoute la génération PDF directement depuis la fiche hebdomadaire en respectant les modèles Dolibarr configurés. / Adds on-card PDF generation for weekly sheets that honours configured Dolibarr templates.
+- Centralise l'activation et la sélection des modèles de documents PDF dans la configuration du module. / Centralises PDF document model activation and selection inside the module setup page.
+
 ## 1.2.0
 - Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.
 - Crée l'extrafield salarié « Contrat forfait jour » et stocke la sélection correspondante dans la colonne dédiée. / Creates the employee extrafield "Daily rate contract" and stores the related selection in the dedicated column.

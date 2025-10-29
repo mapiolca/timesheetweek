@@ -1,6 +1,5 @@
 <?php
-/* Copyright (C) 2025
- * Pierre ARDOIN - Les Métiers du Bâtiment
+/* Copyright (C) 2025   Pierre Ardoin   <developpeur@lesmetiersdubatiment.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

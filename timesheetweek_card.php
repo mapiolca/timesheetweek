@@ -36,6 +36,15 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 // EN: Load price helpers to display day totals with Dolibarr formatting rules.
 // FR: Charge les aides de prix pour afficher les totaux en jours avec les règles de formatage Dolibarr.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
+// EN: Load file helpers to drive PDF generation and attachment listing.
+// FR: Charge les aides de fichiers pour piloter la génération PDF et la liste des pièces jointes.
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+// EN: Load document helpers to keep Dolibarr behaviours for PDF buttons.
+// FR: Charge les aides de documents pour conserver les comportements Dolibarr des boutons PDF.
+require_once DOL_DOCUMENT_ROOT.'/core/lib/document.lib.php';
+// EN: Load the HTML form helper dedicated to file pickers and uploads.
+// FR: Charge l'assistant de formulaire HTML dédié aux sélecteurs et dépôts de fichiers.
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours(), ...
@@ -58,6 +67,39 @@ $isDailyRateEmployee = false;
 
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
+
+// EN: Prepare document permissions and directories once the object is loaded.
+// FR: Prépare les permissions et répertoires des documents une fois l'objet chargé.
+$timesheetDocRelativePath = '';
+$timesheetUploadDir = '';
+$timesheetDocReadAllowed = false;
+$timesheetDocDeleteAllowed = false;
+$timesheetDocValidationAllowed = false;
+if ($object->id > 0) {
+	$timesheetDocValidationAllowed = tw_can_validate_timesheet(
+	$object,
+	$user,
+	$permValidate,
+	$permValidateOwn,
+	$permValidateChild,
+	$permValidateAll,
+	$permWrite,
+	$permWriteChild,
+	$permWriteAll
+	);
+	// EN: Allow document generation to every reader or explicit validator.
+	// FR: Autorise la génération de documents à tout lecteur ou validateur explicite.
+	$timesheetDocReadAllowed = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user) || $timesheetDocValidationAllowed;
+	// EN: Allow deletions to writers or validators to keep control over distributed copies.
+	// FR: Autorise les suppressions aux rédacteurs ou validateurs pour garder la maîtrise des exemplaires diffusés.
+	$timesheetDocDeleteAllowed = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user) || $timesheetDocValidationAllowed;
+	$entityIndex = ($object->entity > 0 ? (int) $object->entity : (int) $conf->entity);
+	// EN: Build the relative directory by reusing Dolibarr's helper to stay consistent with the documents tab.
+	// FR: Construit le répertoire relatif avec l'aide Dolibarr pour rester cohérent avec l'onglet documents.
+	$timesheetDocRelativePath = 'timesheetweek/'.get_exdir(0, 0, 0, 1, $object);
+	$timesheetDocBaseDir = !empty($conf->timesheetweek->multidir_output[$entityIndex]) ? $conf->timesheetweek->multidir_output[$entityIndex] : $conf->timesheetweek->dir_output;
+	$timesheetUploadDir = $timesheetDocBaseDir.'/'.$timesheetDocRelativePath;
+}
 
 // ---- SHIM STATUTS (mappe vers les constantes de la classe, avec fallback) ----
 function tw_status($name) {
@@ -327,18 +369,34 @@ if ($action === 'send' && $id > 0 && !$canSendMail) {
 }
 
 if ($action === 'send' && $id > 0) {
-		if ($object->id <= 0) {
-				$object->fetch($id);
-		}
-		if (!is_array($object->context)) {
-				$object->context = array();
-		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_SENTBYMAIL';
-		$object->context['timesheetweek_card_action'] = 'send';
+	if ($object->id <= 0) {
+	$object->fetch($id);
+	}
+	if (!is_array($object->context)) {
+	$object->context = array();
+	}
+	$object->context['actioncode'] = 'TIMESHEETWEEK_SENTBYMAIL';
+	$object->context['timesheetweek_card_action'] = 'send';
 }
 
 if (in_array($action, array('presend', 'send'), true)) {
-		$langs->load('mails');
+	$langs->load('mails');
+}
+
+// ----------------- Actions: Documents -----------------
+if ($object->id > 0 && !empty($timesheetUploadDir)) {
+	// EN: Map Dolibarr permissions expected by the document action helper.
+	// FR: Mappe les permissions attendues par l'assistant de documents Dolibarr.
+	$upload_dir = $timesheetUploadDir;
+	$modulepart = 'timesheetweek';
+	$permissiontoread = $timesheetDocReadAllowed;
+	$permissiontodownload = $timesheetDocReadAllowed;
+	$permissiontoadd = $timesheetDocReadAllowed;
+	$permissiontodelete = $timesheetDocDeleteAllowed;
+	$permissiontoreset = $timesheetDocDeleteAllowed;
+	$permissiongenerate = $timesheetDocReadAllowed;
+	$model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
+	include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 }
 
 // ----------------- Action: Create (add) -----------------
@@ -784,14 +842,14 @@ if ($object->id > 0) {
 		$trackid = 'timesheetweek'.$object->id;
 		$permissiontosend = $canSendMail;
 		$diroutput = isset($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : (defined('DOL_DATA_ROOT') ? DOL_DATA_ROOT.'/timesheetweek' : '');
-
+	
 		$moresubstit = array(
 				'__TIMESHEETWEEK_REF__' => $object->ref,
 				'__TIMESHEETWEEK_WEEK__' => $object->week,
 				'__TIMESHEETWEEK_YEAR__' => $object->year,
 				'__TIMESHEETWEEK_STATUS__' => $object->getLibStatut(0),
 		);
-
+	
 		if ($object->fk_user > 0) {
 				$employee = new User($db);
 				if ($employee->fetch($object->fk_user) > 0) {
@@ -806,14 +864,14 @@ if ($object->id > 0) {
 						$moresubstit['__TIMESHEETWEEK_VALIDATOR_EMAIL__'] = $validator->email;
 				}
 		}
-
+	
 		$param = array(
 				'sendcontext' => 'timesheetweek',
 				'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
 				'models' => $modelmail,
 				'trackid' => $trackid,
 		);
-
+	
 		include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
 }
 
@@ -1731,15 +1789,33 @@ JS;
 				$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
 						|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 				if ($canDelete) {
-						echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
-				}
-		}
+					echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+}
+}
 
-		echo '</div>';
+echo '</div>';
 
-		if ($action === 'presend') {
-				$formmail = new FormMail($db);
-				$formmail->showform = 1;
+if ($object->id > 0 && !empty($timesheetUploadDir)) {
+	// EN: Display the Dolibarr document block with native PDF generation controls.
+	// FR: Affiche le bloc documents Dolibarr avec les contrôles natifs de génération PDF.
+	$formfile = new FormFile($db);
+	$modulepart = 'timesheetweek';
+	$relativepath = $timesheetDocRelativePath;
+	$permissiontoread = $timesheetDocReadAllowed;
+	$permissiontodownload = $timesheetDocReadAllowed;
+	$permissiontoadd = $timesheetDocReadAllowed;
+	$permissiontodelete = $timesheetDocDeleteAllowed;
+	$permissiontoreset = $timesheetDocDeleteAllowed;
+	$genallowed = $timesheetDocReadAllowed;
+	$delallowed = $timesheetDocDeleteAllowed;
+	$model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
+	$upload_dir = $timesheetUploadDir;
+	include DOL_DOCUMENT_ROOT.'/core/tpl/document_actions_post_headers.tpl.php';
+}
+
+if ($action === 'presend') {
+	$formmail = new FormMail($db);
+	$formmail->showform = 1;
 				$formmail->withfrom = 1;
 				$formmail->fromtype = 'user';
 				$formmail->fromid = $user->id;
@@ -1771,10 +1847,10 @@ JS;
 						'action' => 'send',
 				));
 				$formmail->langcode = $langs->defaultlang;
-
+	
 				include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
 		}
-
+	
 }
 
 // End of page

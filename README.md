@@ -19,6 +19,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
 - Inversion des couleurs des statuts « Scellée » et « Refusée » pour respecter les codes couleur Dolibarr.
 - Refonte complète de la page de configuration inspirée du module DiffusionPlans pour gérer les masques de numérotation et les modèles PDF selon les codes graphiques Dolibarr.
+- Génération du PDF de chaque feuille directement depuis la fiche grâce aux boutons natifs Dolibarr.
 - Sélection du masque de numérotation via des commutateurs natifs directement depuis la configuration Dolibarr.
 - Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
 - README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
@@ -59,6 +60,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - ISO week selector shared between list and card views, now supporting multi-selection to combine several periods.
 - Swapped colours for « Scellée » and « Refusée » statuses to match Dolibarr visual cues.
 - Fully redesigned setup page inspired by the DiffusionPlans module to drive numbering masks and PDF templates with Dolibarr's graphical and functional patterns.
+- Per-sheet PDF generation straight from the card with Dolibarr-native buttons.
 - Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
