@@ -1,5 +1,10 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.2.0
+- Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.
+- Crée l'extrafield salarié « Contrat forfait jour » et stocke la sélection correspondante dans la colonne dédiée. / Creates the employee extrafield "Daily rate contract" and stores the related selection in the dedicated column.
+- Complète les traductions « LastModification » et « TotalDays » pour harmoniser l'affichage du forfait jour. / Completes the "LastModification" and "TotalDays" translations to harmonise the daily rate display.
+
 ## 1.1.1
 - Mise à "plat" des permissions pour régler un problème d'affichage des PDF. / "Flattening" permissions to fix a PDF display issue.
 

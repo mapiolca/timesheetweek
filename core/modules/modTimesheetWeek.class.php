@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.1.1'; 	// EN: "Flattening" permissions to fix a PDF display issue.
-									// FR: Mise à "plat" des permissions pour régler un problème d'affichage des PDF.
+		$this->version = '1.2.0'; 	// EN: Adds forfait-jour daily rate selectors with automatic hour conversion.
+									// FR: Ajoute les sélecteurs forfait jour Journée/Matin/Après-midi avec conversion automatique des heures.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -740,14 +740,36 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Create extrafields during init
-		//include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
-		//$extrafields = new ExtraFields($this->db);
-		//$result0=$extrafields->addExtraField('timesheetweek_separator1', "Separator 1", 'separator', 1,  0, 'thirdparty',   0, 0, '', array('options'=>array(1=>1)), 1, '', 1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
-		//$result1=$extrafields->addExtraField('timesheetweek_myattr1', "New Attr 1 label", 'boolean', 1,  3, 'thirdparty',   0, 0, '', '', 1, '', -1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
-		//$result2=$extrafields->addExtraField('timesheetweek_myattr2', "New Attr 2 label", 'varchar', 1, 10, 'project',      0, 0, '', '', 1, '', -1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
-		//$result3=$extrafields->addExtraField('timesheetweek_myattr3', "New Attr 3 label", 'varchar', 1, 10, 'bank_account', 0, 0, '', '', 1, '', -1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
-		//$result4=$extrafields->addExtraField('timesheetweek_myattr4', "New Attr 4 label", 'select',  1,  3, 'thirdparty',   0, 1, '', array('options'=>array('code1'=>'Val1','code2'=>'Val2','code3'=>'Val3')), 1,'', -1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
-		//$result5=$extrafields->addExtraField('timesheetweek_myattr5', "New Attr 5 label", 'text',    1, 10, 'user',         0, 0, '', '', 1, '', -1, 0, '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")');
+		dol_include_once('/core/class/extrafields.class.php');
+		$extrafields = new ExtraFields($this->db);
+		$extrafields->fetch_name_optionals_label('user');
+		if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
+			// EN: Register the daily rate toggle on employees when the module is activated.
+			// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
+			$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', '0', '', '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+		}
+
+		// EN: Ensure existing installations receive the daily_rate column for time entries.
+		// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
+		$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
+		$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
+		if (!$resqlCheckDailyRate) {
+			// EN: Abort activation when the structure verification query fails.
+			// FR: Interrompt l'activation si la requête de vérification de structure échoue.
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
+		$this->db->free($resqlCheckDailyRate);
+		if (!$hasDailyRateColumn) {
+			$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
+			if (!$this->db->query($sqlAdd)) {
+				// EN: Stop activation when adding the column fails to keep database consistent.
+				// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+		}
 
 		// Permissions
 		$this->remove($options);
