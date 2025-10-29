@@ -532,7 +532,7 @@ if ($massaction === 'generate_summary_pdf') {
 					setEventMessages(null, $result['warnings'], 'warnings');
 				}
 				if (!empty($result['relative'])) {
-					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']);
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission=timesheetweek->timesheetweek->read;
 					header('Location: '.$downloadUrl);
 					exit;
 				}
