@@ -226,6 +226,11 @@ TimesheetWeekTemplateRefuseBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuil
 
 TimesheetWeekPDFModels = Modèles PDF TimesheetWeek
 
+TimesheetWeekDailyRateLabel = Contrat forfait jour
+TimesheetWeekDailyRateFullDay = Journée
+TimesheetWeekDailyRateMorning = Matin
+TimesheetWeekDailyRateAfternoon = Après-midi
+
 ModelEnabled = Modèle %s activé
 
 ModelDisabled = Modèle %s désactivé
