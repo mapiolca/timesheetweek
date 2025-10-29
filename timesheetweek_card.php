@@ -387,7 +387,11 @@ if ($action === 'save' && $id > 0) {
 		exit;
 	}
 if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-accessforbidden();
+	// EN: Stop the save gracefully without triggering a full access forbidden screen to remain user friendly.
+	// FR: Stoppe l'enregistrement en douceur sans déclencher un écran d'accès interdit pour rester convivial.
+	setEventMessages($langs->trans("ErrorForbidden"), null, 'errors');
+	header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
+	exit;
 }
 
 // EN: Detect whether the employee relies on daily rate entries to adapt the save workflow.
@@ -1537,6 +1541,7 @@ echo '</tr>';
 (function($){
 var isDailyRateMode = %s;
 var dailyRateHoursMap = {1:8,2:4,3:4};
+var weeklyContract = %s;
 function parseHours(v){
 	if(!v) return 0;
 	if(v.indexOf(":") === -1) return parseFloat(v)||0;
@@ -1616,7 +1621,6 @@ $(".meal-total").text('0');
 } else {
 var meals = $(".mealbox:checked").length;
 $(".meal-total").text(meals);
-var weeklyContract = {$contractedHours};
 var ot = grand - weeklyContract; if (ot < 0) ot = 0;
 $(".overtime-total").text(formatFn(ot));
 if($(".header-overtime").length){
@@ -1634,7 +1638,7 @@ $(".header-total-main").text(formatFn(grand));
 })(jQuery);
 </script>
 JS;
-		$jsGrid = sprintf($jsGrid, $isDailyRateEmployee ? 'true' : 'false');
+		$jsGrid = sprintf($jsGrid, $isDailyRateEmployee ? 'true' : 'false', json_encode((float) price2num($contractedHours, '6')));
 		echo $jsGrid;
 	}
 
