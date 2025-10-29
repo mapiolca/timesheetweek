@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.1.1
+- Mise à "plat" des permissions pour régler un problème d'affichage des PDF. / "Flattening" permissions to fix a PDF display issue.
+
 ## 1.1.0
 - Ajoute la massaction « Générer le PDF de synthèse » afin de produire un récapitulatif multi-salariés dans un PDF conforme aux standards Dolibarr. / Adds the "Generate summary PDF" mass action to produce a multi-employee PDF recap compliant with Dolibarr standards.
 
