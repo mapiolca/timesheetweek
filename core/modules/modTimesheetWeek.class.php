@@ -305,96 +305,95 @@ class modTimesheetWeek extends DolibarrModules
 		/* BEGIN MODULEBUILDER PERMISSIONS */
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 0 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadOwn');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'read';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 1 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadChild');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'readChild';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadAll');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'readAll';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'write';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 4 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteChild');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'writeChild';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 5 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteAll');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'writeAll';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 6 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteOwn');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'delete';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 7 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteChild');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'deleteChild';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteAll');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'deleteAll';
 		$r++;
 		// EN: Legacy validation permission kept for backward compatibility
 		// FR : Droit de validation générique conservé pour compatibilité ascendante
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateGeneric');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'validate';
 		$r++;
 		// EN: Allow managers to validate their own timesheets only
 		// FR : Autorise un utilisateur à valider uniquement ses propres feuilles
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateOwn');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'validateOwn';
 		$r++;
 		// EN: Allow validation on subordinate timesheets
 		// FR : Autorise la validation des feuilles des subordonnés
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateChild');
-		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][4] = '';
 		$this->rights[$r][5] = 'validateChild';
 		$r++;
-                // EN: Allow global validation on all employee timesheets
-                // FR : Autorise la validation de toutes les feuilles de temps
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'validateAll';
-                $r++;
+		// EN: Allow global validation on all employee timesheets
+		// FR : Autorise la validation de toutes les feuilles de temps
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
+		$this->rights[$r][4] = 'timesheetweek';
+		$this->rights[$r][5] = 'validateAll';
+		$r++;
 
-                // EN: Allow sealing approved timesheets.
-                // FR : Autorise le scellement des feuilles approuvées.
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'seal';
-                $r++;
+		// EN: Allow sealing approved timesheets.
+		// FR : Autorise le scellement des feuilles approuvées.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
+		$this->rights[$r][4] = '';
+		$this->rights[$r][5] = 'seal';
+		$r++;
 
-                // EN: Allow reopening sealed timesheets.
-                // FR : Autorise le descellage des feuilles scellées.
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'unseal';
-                $r++;
+		// EN: Allow reopening sealed timesheets.
+		// FR : Autorise le descellage des feuilles scellées.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
+		$this->rights[$r][4] = '';
+		$this->rights[$r][5] = 'unseal';
+		$r++;
 
-                /* END MODULEBUILDER PERMISSIONS */
-
+		/* END MODULEBUILDER PERMISSIONS */
 
 		// Main menu entries to add
 		$this->menu = array();
