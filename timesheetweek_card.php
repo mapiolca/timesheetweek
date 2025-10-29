@@ -1530,7 +1530,9 @@ echo '</tr>';
 		echo '</form>';
 
 		// JS totaux + mise à jour entête live
-		$jsGrid = <<<JS
+		// EN: Use nowdoc to prevent PHP from stripping the JavaScript variable sigils.
+		// FR: Utilise nowdoc pour empêcher PHP de retirer les sigles de variables JavaScript.
+		$jsGrid = <<<'JS'
 <script>
 (function($){
 var isDailyRateMode = %s;
