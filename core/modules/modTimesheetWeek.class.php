@@ -80,8 +80,8 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.0.6'; // EN: Reorders the left menu, adds agenda and project menu entries and fixes the list page limit selector.
-		// FR: Réorganise le menu gauche, ajoute les entrées de menus agenda et projet et corrige le sélecteur de limite dans la liste.
+		$this->version = '1.1.1'; 	// EN: "Flattening" permissions to fix a PDF display issue.
+									// FR: Mise à "plat" des permissions pour régler un problème d'affichage des PDF.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -305,96 +305,110 @@ class modTimesheetWeek extends DolibarrModules
 		/* BEGIN MODULEBUILDER PERMISSIONS */
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 0 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadOwn');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'read';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'read';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 1 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadChild');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'readChild';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'readChild';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadAll');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'readAll';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'readAll';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'write';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'write';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 4 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteChild');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'writeChild';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'writeChild';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 5 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteAll');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'writeAll';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'writeAll';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 6 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteOwn');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'delete';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'delete';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 7 + 1);
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteChild');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'deleteChild';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'deleteChild';
+		$this->rights[$r][5] = '';
 		$r++;
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteAll');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'deleteAll';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'deleteAll';
+		$this->rights[$r][5] = '';
 		$r++;
 		// EN: Legacy validation permission kept for backward compatibility
 		// FR : Droit de validation générique conservé pour compatibilité ascendante
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateGeneric');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'validate';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'validate';
+		$this->rights[$r][5] = '';
 		$r++;
 		// EN: Allow managers to validate their own timesheets only
 		// FR : Autorise un utilisateur à valider uniquement ses propres feuilles
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateOwn');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'validateOwn';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'validateOwn';
+		$this->rights[$r][5] = '';
 		$r++;
 		// EN: Allow validation on subordinate timesheets
 		// FR : Autorise la validation des feuilles des subordonnés
 		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateChild');
-		$this->rights[$r][4] = 'timesheetweek';
-		$this->rights[$r][5] = 'validateChild';
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'validateChild';
+		$this->rights[$r][5] = '';
 		$r++;
-                // EN: Allow global validation on all employee timesheets
-                // FR : Autorise la validation de toutes les feuilles de temps
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'validateAll';
-                $r++;
+		// EN: Allow global validation on all employee timesheets
+		// FR : Autorise la validation de toutes les feuilles de temps
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'validateAll';
+		$this->rights[$r][5] = '';
+		$r++;
 
-                // EN: Allow sealing approved timesheets.
-                // FR : Autorise le scellement des feuilles approuvées.
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'seal';
-                $r++;
+		// EN: Allow sealing approved timesheets.
+		// FR : Autorise le scellement des feuilles approuvées.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'seal';
+		$this->rights[$r][5] = '';
+		$r++;
 
-                // EN: Allow reopening sealed timesheets.
-                // FR : Autorise le descellage des feuilles scellées.
-                $this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
-                $this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
-                $this->rights[$r][4] = 'timesheetweek';
-                $this->rights[$r][5] = 'unseal';
-                $r++;
+		// EN: Allow reopening sealed timesheets.
+		// FR : Autorise le descellage des feuilles scellées.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'unseal';
+		$this->rights[$r][5] = '';
+		$r++;
 
-                /* END MODULEBUILDER PERMISSIONS */
-
+		/* END MODULEBUILDER PERMISSIONS */
 
 		// Main menu entries to add
 		$this->menu = array();
@@ -413,7 +427,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek', // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")', // Use 'perms'=>'$user->hasRight("timesheetweek", "timesheetweek", "read")' if you want your menu with a permission rules
+			'perms' => '$user->hasRight("timesheetweek", "read")', // Use 'perms'=>'$user->hasRight("timesheetweek", "read")' if you want your menu with a permission rules
 			'target' => '',
 			'user' => 2, // 0=Menu for internal users, 1=external users, 2=both
 		);
@@ -452,7 +466,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -467,7 +481,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -482,7 +496,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -500,7 +514,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -515,7 +529,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -530,7 +544,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -549,7 +563,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -564,7 +578,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -579,7 +593,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -599,7 +613,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'
@@ -614,7 +628,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled. Use '$leftmenu==\'system\'' to show if leftmenu system is selected.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")'
+			'perms' => '$user->hasRight("timesheetweek", "write")'
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'
@@ -629,7 +643,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")'
+			'perms' => '$user->hasRight("timesheetweek", "read")'
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'

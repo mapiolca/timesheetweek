@@ -1,5 +1,18 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.1.1
+- Mise à "plat" des permissions pour régler un problème d'affichage des PDF. / "Flattening" permissions to fix a PDF display issue.
+
+## 1.1.0
+- Ajoute la massaction « Générer le PDF de synthèse » afin de produire un récapitulatif multi-salariés dans un PDF conforme aux standards Dolibarr. / Adds the "Generate summary PDF" mass action to produce a multi-employee PDF recap compliant with Dolibarr standards.
+
+## 1.0.7
+- Harmonise les pictogrammes d'approbation et de refus avec les icônes Dolibarr natives. / Harmonises the approval and refusal pictograms with native Dolibarr icons.
+- Ajoute la massaction « Sceller » et applique les contrôles de permissions Dolibarr aux actions de masse. / Adds the "Seal" mass action and applies Dolibarr permission checks to bulk operations.
+- Limite la suppression massive aux feuilles en brouillon et avertit en cas de sélection invalide. / Restricts bulk deletion to draft sheets and warns when invalid selections are detected.
+- Complète les traductions de la liste pour les actions de masse. / Completes list translations for bulk actions.
+
+
 ## 1.0.6
 - Réorganise le menu gauche pour afficher « Nouvelle feuille » avant « Liste ». / Reorders the left menu to display "New sheet" before "List".
 - Ajoute les entrées « TimesheetWeek » dans les menus principaux Agenda et Projet. / Adds the "TimesheetWeek" entries under the Agenda and Project main menus.
@@ -31,6 +44,10 @@
 - Corrige un problème dans les options de partage du module "Multicompany". / Fixes an issue in the "Multicompany" module sharing options.
 - Repositionne les totaux correctement. / Correctly repositions totals.
 - Inversion de position de "Nouvelle Feuille d'heure" et "Liste" dans le menu gauche. / Swaps the position of "New Timesheet" and "List" in the left menu.
+- Le tableau du PDF de synthèse occupe désormais toute la largeur imprimable pour une meilleure lisibilité. / Summary PDF table now spans the full printable width for improved readability.
+- Ajoute les entêtes et pieds de page standards à chaque page du PDF de synthèse et garantit que le premier tableau débute dès la première page. / Adds standard headers and footers to every summary PDF page and ensures the first table starts on the opening page.
+- Remonte le pied de page du PDF de synthèse pour réduire la marge basse et améliorer la lisibilité. / Raises the summary PDF footer to reduce the bottom margin and improve readability.
+- Garantit que le contenu du PDF de synthèse reste entre l'entête et le pied de page sur chaque feuille. / Ensures the summary PDF content stays between the header and footer on every sheet.
 - Corrige un problème pouvant masquer les tâches clôturées dans les Fiches passées. / Fix an issue that could hide closed tasks in passed timesheet.
 
 ## 1.0.1

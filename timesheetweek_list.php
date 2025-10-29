@@ -23,19 +23,25 @@ if (!$res) die("Include of main fails");
 
 // EN: Check permissions before loading any additional resources to abort early.
 // FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
-$permRead = $user->hasRight('timesheetweek','timesheetweek','read');
-$permReadChild = $user->hasRight('timesheetweek','timesheetweek','readChild');
-$permReadAll = $user->hasRight('timesheetweek','timesheetweek','readAll');
-$permWrite = $user->hasRight('timesheetweek','timesheetweek','write');
-$permWriteChild = $user->hasRight('timesheetweek','timesheetweek','writeChild');
-$permWriteAll = $user->hasRight('timesheetweek','timesheetweek','writeAll');
-$permDelete = $user->hasRight('timesheetweek','timesheetweek','delete');
-$permDeleteChild = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
-$permDeleteAll = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
-$permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
-$permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
-$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
-$permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$permRead = $user->hasRight('timesheetweek', 'read');
+$permReadChild = $user->hasRight('timesheetweek','readChild');
+$permReadAll = $user->hasRight('timesheetweek','readAll');
+$permWrite = $user->hasRight('timesheetweek','write');
+$permWriteChild = $user->hasRight('timesheetweek','writeChild');
+$permWriteAll = $user->hasRight('timesheetweek','writeAll');
+$permDelete = $user->hasRight('timesheetweek','delete');
+$permDeleteChild = $user->hasRight('timesheetweek','deleteChild');
+$permDeleteAll = $user->hasRight('timesheetweek','deleteAll');
+$permSeal = $user->hasRight('timesheetweek','seal');
+$permValidate = $user->hasRight('timesheetweek','validate');
+$permValidateOwn = $user->hasRight('timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','validateChild');
+$permValidateAll = $user->hasRight('timesheetweek','validateAll');
+// EN: Prepare Dolibarr's generic permission flags for mass-action helpers.
+// FR: Prépare les indicateurs de permission Dolibarr pour les helpers d'actions de masse.
+$permissiontoread = ($permRead || $permReadChild || $permReadAll);
+$permissiontoadd = ($permWrite || $permWriteChild || $permWriteAll);
+$permissiontodelete = ($permDelete || $permDeleteChild || $permDeleteAll || !empty($user->admin));
 $canSeeAllEmployees = (!empty($user->admin) || $permReadAll || $permWriteAll || $permDeleteAll || $permValidateAll);
 $permViewAny = ($permRead || $permReadChild || $permReadAll || $permWrite || $permWriteChild || $permWriteAll || $permDelete ||
 $permDeleteChild || $permDeleteAll || $permValidate || $permValidateOwn || $permValidateChild || $permValidateAll || !empty($user->admin));
@@ -70,7 +76,77 @@ if (!$canSeeAllEmployees) {
 // FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
 $multicompanyEnabled = !empty($conf->multicompany->enabled);
 
+if (!function_exists('tw_can_validate_timesheet_masslist')) {
+	/**
+	 * EN: Determine if the current user is allowed to validate the provided sheet.
+	 * FR: Détermine si l'utilisateur courant est autorisé à valider la feuille fournie.
+	 *
+	 * @param TimesheetWeek $sheet	Sheet to evaluate
+	 * @param User          $user	Current Dolibarr user
+	 * @param bool          $permValidate	Direct validation right
+	 * @param bool          $permValidateOwn	Validation on own sheets
+	 * @param bool          $permValidateChild	Validation on subordinate sheets
+	 * @param bool          $permValidateAll	Global validation right
+	 * @param bool          $permWrite	Write right on own sheets
+	 * @param bool          $permWriteChild	Write right on subordinate sheets
+	 * @param bool          $permWriteAll	Global write right
+	 * @return bool	True when validation is authorised
+	 */
+	function tw_can_validate_timesheet_masslist(
+		TimesheetWeek $sheet,
+		User $user,
+		$permValidate,
+		$permValidateOwn,
+		$permValidateChild,
+		$permValidateAll,
+		$permWrite,
+		$permWriteChild,
+		$permWriteAll
+	) {
+		// EN: Check explicit validation rights first to keep the behaviour consistent with the card view.
+		// FR: Vérifie d'abord les droits explicites de validation pour rester cohérent avec la fiche détaillée.
+		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
 
+		if (!empty($user->admin)) {
+			$permValidateAll = true;
+			$hasExplicitValidation = true;
+		}
+
+		if (!$hasExplicitValidation) {
+			// EN: Reuse write permissions when legacy configurations rely on them for validation.
+			// FR: Réutilise les permissions d'écriture lorsque les anciennes configurations s'en servent pour valider.
+			if ($permWriteAll) {
+				$permValidateAll = true;
+			}
+			if ($permWriteChild) {
+				$permValidateChild = true;
+			}
+			if ($permWrite || $permWriteChild || $permWriteAll) {
+				if ((int) $sheet->fk_user_valid === (int) $user->id) {
+					$permValidate = true;
+				}
+				if (!$permValidateChild && $permWriteChild) {
+					$permValidateChild = true;
+				}
+			}
+		}
+
+		if ($permValidateAll) {
+			return true;
+		}
+		if ($permValidateChild && tw_is_manager_of($sheet->fk_user, $user)) {
+			return true;
+		}
+		if ($permValidateOwn && ((int) $user->id === (int) $sheet->fk_user)) {
+			return true;
+		}
+		if ($permValidate && ((int) $user->id === (int) $sheet->fk_user_valid)) {
+			return true;
+		}
+
+		return false;
+	}
+}
 /**
  * Params
  */
@@ -79,7 +155,7 @@ $massaction   = GETPOST('massaction', 'alpha');
 $show_files   = GETPOSTINT('show_files');
 $confirm      = GETPOST('confirm', 'alpha');
 $cancel       = GETPOST('cancel', 'alpha');
-$toselect     = GETPOST('toselect', 'array');
+$toselect     = GETPOST('toselect', 'array', 2);
 $contextpage  = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
 
 $sortfield    = GETPOST('sortfield', 'aZ09comma');
@@ -239,16 +315,296 @@ $arrayfields += array(
 include DOL_DOCUMENT_ROOT.'/core/actions_changeselectedfields.inc.php';
 
 /**
- * Mass actions (UI)
- */
-$arrayofmassactions = array(
-	'approve_selection' => img_picto('', 'validate', 'class="pictofixedwidth"').$langs->trans("ApproveSelection"),
-	'refuse_selection'  => img_picto('', 'warning',  'class="pictofixedwidth"').$langs->trans("RefuseSelection"),
-	'predelete'         => img_picto('', 'delete',   'class="pictofixedwidth"').$langs->trans("DeleteSelection"),
+* Mass actions (UI)
+*/
+$arrayofmassactions = array();
+// EN: Offer approval when the user holds validation or equivalent legacy permissions.
+// FR: Propose l'approbation lorsque l'utilisateur dispose des droits de validation ou équivalents hérités.
+$canDisplayValidationActions = (
+	$permValidate || $permValidateOwn || $permValidateChild || $permValidateAll ||
+	$permWrite || $permWriteChild || $permWriteAll || !empty($user->admin)
 );
-$massactionbutton = $form->selectMassAction('', $arrayofmassactions);
+if ($canDisplayValidationActions) {
+	$arrayofmassactions['approve_selection'] = img_picto('', 'check', 'class="pictofixedwidth"').$langs->trans('ApproveSelection');
+	$arrayofmassactions['refuse_selection'] = img_picto('', 'uncheck', 'class="pictofixedwidth"').$langs->trans('RefuseSelection');
+}
+// EN: Display the sealing control only to users granted with the dedicated right.
+// FR: Affiche le contrôle de scellement uniquement pour les utilisateurs disposant du droit dédié.
+if ($permSeal) {
+	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
+}
+// EN: Allow PDF summary generation to any user allowed to read the listed sheets.
+// FR: Autorise la génération d'un PDF de synthèse à tout utilisateur habilité à lire les feuilles listées.
+if ($permissiontoread) {
+	$arrayofmassactions['generate_summary_pdf'] = img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans('GenerateSummaryPdf');
+}
+// EN: Expose the draft-only bulk deletion with Dolibarr's confirmation flow when the operator may delete sheets.
+// FR: Expose la suppression massive limitée aux brouillons avec la confirmation Dolibarr lorsque l'opérateur peut supprimer des feuilles.
+if ($permissiontodelete) {
+	$arrayofmassactions['predelete'] = img_picto('', 'delete', 'class="pictofixedwidth"').$langs->trans('DeleteSelection');
+}
 
+$massactionbutton = $form->selectMassAction($massaction, $arrayofmassactions);
+$objectclass = 'TimesheetWeek';
+$objectlabel = 'TimesheetWeek';
+$object = new TimesheetWeek($db);
+
+$uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
+? $conf->timesheetweek->multidir_output[$conf->entity]
+: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+$upload_dir = $uploaddir;
+
+// Affiche le menu d’actions
+$showmassactionbutton = 1;
+
+include DOL_DOCUMENT_ROOT.'/core/actions_massactions.inc.php';
+
+// EN: Normalise the selected identifiers provided by Dolibarr's mass-action handler.
+// FR: Normalise les identifiants sélectionnés fournis par le gestionnaire d'actions de masse de Dolibarr.
 $arrayofselected = is_array($toselect) ? $toselect : array();
+
+$massActionProcessed = false;
+
+if ($massaction === 'approve_selection') {
+	$massActionProcessed = true;
+	if (!$canDisplayValidationActions) {
+		// EN: Stop the approval when the operator lacks validation permissions.
+		// FR: Empêche l'approbation lorsque l'opérateur n'a pas les permissions de validation.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Reject the sheet when the current user cannot validate it according to delegation rules.
+				// FR: Rejette la feuille lorsque l'utilisateur courant ne peut pas la valider selon les règles de délégation.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->approve($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassApproveSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+
+if ($massaction === 'refuse_selection') {
+	$massActionProcessed = true;
+	if (!$canDisplayValidationActions) {
+		// EN: Prevent the refusal when the operator is not authorised to validate sheets.
+		// FR: Empêche le refus lorsque l'opérateur n'est pas autorisé à valider les feuilles.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Skip the refusal when the user cannot manage the employee under current rights.
+				// FR: Ignore le refus lorsque l'utilisateur ne peut pas gérer l'employé avec les droits actuels.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->refuse($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassRefuseSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+
+if ($massaction === 'sceller') {
+	$massActionProcessed = true;
+	if (!$permSeal) {
+		// EN: Refuse sealing when the operator does not own the dedicated right.
+		// FR: Refuse le scellement lorsque l'opérateur ne possède pas le droit dédié.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_validate_timesheet_masslist($o, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)) {
+				// EN: Keep the sheet untouched when the manager cannot act on the employee scope.
+				// FR: Laisse la feuille inchangée lorsque le gestionnaire ne peut pas agir sur le périmètre de l'employé.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			$res = $o->seal($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = $o->ref ?: '#'.$id;
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('TimesheetWeekMassSealSuccess', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+	}
+}
+if ($massaction === 'generate_summary_pdf') {
+	$massActionProcessed = true;
+	if (!$permissiontoread) {
+		// EN: Block summary export when the user has no read permission.
+		// FR: Bloque l'export de synthèse lorsque l'utilisateur n'a pas le droit de lecture.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		if (empty($arrayofselected)) {
+			// EN: Notify operators that a selection is required before generating the summary.
+			// FR: Informe les opérateurs qu'une sélection est nécessaire avant de générer la synthèse.
+			setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
+		} else {
+			dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
+			$result = tw_generate_summary_pdf($db, $conf, $langs, $user, $arrayofselected, $permRead, $permReadChild, $permReadAll);
+			if (empty($result['success'])) {
+				// EN: Report generation issues to the operator.
+				// FR: Signale les problèmes de génération à l'opérateur.
+				if (!empty($result['errors'])) {
+					setEventMessages(null, $result['errors'], 'errors');
+				} else {
+					setEventMessages($langs->trans('ErrorUnknown'), null, 'errors');
+				}
+			} else {
+				if (!empty($result['warnings'])) {
+					setEventMessages(null, $result['warnings'], 'warnings');
+				}
+				if (!empty($result['relative'])) {
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission=read';
+					header('Location: '.$downloadUrl);
+					exit;
+				}
+				setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
+			}
+		}
+	}
+}
+if ($massaction === 'delete') {
+	$massActionProcessed = true;
+	if (!$permissiontodelete) {
+		// EN: Block the deletion when the user lacks the necessary rights.
+		// FR: Bloque la suppression lorsque l'utilisateur ne dispose pas des droits nécessaires.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		$db->begin();
+		$ok = 0;
+		$ko = array();
+		$nonDraftDetected = false;
+		foreach ((array) $arrayofselected as $id) {
+			$id = (int) $id;
+			if ($id <= 0) {
+				continue;
+			}
+			$o = new TimesheetWeek($db);
+			if ($o->fetch($id) <= 0) {
+				$ko[] = '#'.$id;
+				continue;
+			}
+			if (!tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
+				// EN: Prevent deletion outside the managerial scope defined by Dolibarr rights.
+				// FR: Empêche la suppression en dehors du périmètre managérial défini par les droits Dolibarr.
+				$ko[] = $o->ref ?: '#'.$id;
+				continue;
+			}
+			if ((int) $o->status !== TimesheetWeek::STATUS_DRAFT) {
+				// EN: Enforce the draft-only restriction required for bulk deletions.
+				// FR: Applique la restriction aux brouillons exigée pour les suppressions massives.
+				$ko[] = $o->ref ?: '#'.$id;
+				$nonDraftDetected = true;
+				continue;
+			}
+			$res = $o->delete($user);
+			if ($res > 0) {
+				$ok++;
+			} else {
+				$ko[] = ($o->ref ?: '#'.$id);
+			}
+		}
+		if ($ko) {
+			$db->rollback();
+		} else {
+			$db->commit();
+		}
+		if ($ok) {
+			setEventMessages($langs->trans('RecordsDeleted', $ok), null, 'mesgs');
+		}
+		if ($ko) {
+			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
+		}
+		if ($nonDraftDetected) {
+			// EN: Inform the operator that only draft sheets are eligible for removal.
+			// FR: Informe l'opérateur que seules les feuilles en brouillon sont éligibles à la suppression.
+			setEventMessages($langs->trans('TimesheetWeekMassDeleteOnlyDraft'), null, 'errors');
+		}
+	}
+	$massaction = '';
+}
+
+if ($massActionProcessed) {
+	$massaction = '';
+}
 
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')) {
     $search_ref = '';
@@ -414,9 +770,7 @@ if (!empty($search_status)) {
 // FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
 $param .= '&limit='.(int) $limit;
 
-$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
-
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','write'));
 
 /**
  * Column selector on left of titles
@@ -439,6 +793,16 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 // EN: Preserve the selected list limit across filter submissions while avoiding duplicated DOM identifiers.
 // FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
 print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
+
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+
+$topicmail = "SendTimesheetWeekRef";
+$modelmail = "timesheetweek";
+$objecttmp = new TimesheetWeek($db);
+$trackid = 'tsw'.$object->id;
+// EN: Display Dolibarr's standard confirmation prompts for mass actions.
+// FR: Affiche les fenêtres de confirmation standard de Dolibarr pour les actions de masse.
+include DOL_DOCUMENT_ROOT.'/core/tpl/massactions_pre.tpl.php';
 
 print '<div class="div-table-responsive">';
 print '<table class="tagtable nobottomiftotal liste">'."\n";
