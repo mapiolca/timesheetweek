@@ -52,6 +52,10 @@ $object = new TimesheetWeek($db);
 $extrafields = new ExtraFields($db);
 $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
+// EN: Default daily rate flag to avoid undefined notices before data loading.
+// FR: Définit le flag forfait jour par défaut pour éviter les notices avant chargement des données.
+$isDailyRateEmployee = false;
+
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
 
@@ -107,6 +111,35 @@ function tw_format_days($value, Translate $langs)
 	// EN: Use Dolibarr price formatter to apply thousand and decimal separators.
 	// FR: Utilise le formateur de prix Dolibarr pour appliquer les séparateurs de milliers et décimales.
 	return price($normalized, '', $langs, $conf, 1, 2);
+}
+
+/**
+ * EN: Fetch the timesheet employee and detect the daily rate flag with caching.
+ * FR: Récupère le salarié de la feuille et détecte le forfait jour avec mise en cache.
+ *
+ * @param DoliDB $db     Database handler / Gestionnaire de base de données
+ * @param int    $userId Employee identifier / Identifiant du salarié
+ * @return array         ['user' => ?User, 'is_daily_rate' => bool]
+ */
+function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
+{
+	static $cache = array();
+	$userId = (int) $userId;
+	if ($userId <= 0) {
+		return array('user' => null, 'is_daily_rate' => false);
+	}
+	if (isset($cache[$userId])) {
+		return $cache[$userId];
+	}
+	$result = array('user' => null, 'is_daily_rate' => false);
+	$tmpUser = new User($db);
+	if ($tmpUser->fetch($userId) > 0) {
+		$tmpUser->fetch_optionals($tmpUser->id, $tmpUser->table_element);
+		$result['user'] = $tmpUser;
+		$result['is_daily_rate'] = !empty($tmpUser->array_options['options_lmdb_daily_rate']);
+	}
+	$cache[$userId] = $result;
+	return $result;
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -396,12 +429,8 @@ if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWrit
 
 // EN: Detect whether the employee relies on daily rate entries to adapt the save workflow.
 // FR: Détecte si le salarié relève du forfait jour afin d'adapter le flux d'enregistrement.
-$userEmployeeDaily = new User($db);
-$isDailyRateEmployee = false;
-if ($userEmployeeDaily->fetch($object->fk_user) > 0) {
-$userEmployeeDaily->fetch_optionals($userEmployeeDaily->id, $userEmployeeDaily->table_element);
-$isDailyRateEmployee = !empty($userEmployeeDaily->array_options['options_lmdb_daily_rate']);
-}
+$employeeInfoDaily = tw_get_employee_with_daily_rate($db, $object->fk_user);
+$isDailyRateEmployee = $employeeInfoDaily['is_daily_rate'];
 
 $db->begin();
 
@@ -1061,10 +1090,17 @@ JS;
 	echo '</table>';
 	echo '</div>';
 
+	// EN: Load the employee once to reuse the daily rate flag across the header and grid.
+	// FR: Charge le salarié une seule fois pour réutiliser le flag forfait jour dans l'entête et la grille.
+	$employeeInfoDisplay = tw_get_employee_with_daily_rate($db, $object->fk_user);
+	$timesheetEmployee = $employeeInfoDisplay['user'];
+	$isDailyRateEmployee = $employeeInfoDisplay['is_daily_rate'];
+
 // Right block (Totaux en entête)
-$uEmpDisp = new User($db);
-$uEmpDisp->fetch($object->fk_user);
-$contractedHoursDisp = (!empty($uEmpDisp->weeklyhours) ? (float) $uEmpDisp->weeklyhours : 35.0);
+	$contractedHoursDisp = 35.0;
+	if ($timesheetEmployee instanceof User) {
+		$contractedHoursDisp = !empty($timesheetEmployee->weeklyhours) ? (float) $timesheetEmployee->weeklyhours : 35.0;
+	}
 $th = (float) $object->total_hours;
 $ot = (float) $object->overtime_hours;
 if ($th <= 0) {
@@ -1308,11 +1344,7 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 			echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
 		} else {
 		// Heures contractuelles
-		$userEmployee = new User($db);
-		$userEmployee->fetch($object->fk_user);
-		$userEmployee->fetch_optionals($userEmployee->id, $userEmployee->table_element);
-		$isDailyRateEmployee = !empty($userEmployee->array_options['options_lmdb_daily_rate']);
-		$contractedHours = (!empty($userEmployee->weeklyhours) ? (float) $userEmployee->weeklyhours : 35.0);
+		$contractedHours = $contractedHoursDisp;
 
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
