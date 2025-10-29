@@ -1535,77 +1535,79 @@ echo '</tr>';
 (function($){
 var isDailyRateMode = %s;
 var dailyRateHoursMap = {1:8,2:4,3:4};
-var dailyRateDaysMap = {1:1,2:0.5,3:0.5};
 function parseHours(v){
-if(!v) return 0;
-if(v.indexOf(":") === -1) return parseFloat(v)||0;
-var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
-return h + (m/60);
-}
-function parseDays(v){
-if(!v) return 0;
-var normalized = v.toString().replace(',', '.');
-var num = parseFloat(normalized);
-return isNaN(num) ? 0 : num;
+	if(!v) return 0;
+	if(v.indexOf(":") === -1) return parseFloat(v)||0;
+	var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
+	return h + (m/60);
 }
 function elementHours($el){
-if(isDailyRateMode && $el.is('select')){
-var code=parseInt($el.val(),10);
-return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
-}
-return parseHours($el.val());
+	if(isDailyRateMode && $el.is('select')){
+		var code=parseInt($el.val(),10);
+		return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
+	}
+	return parseHours($el.val());
 }
 function elementDays($el){
-if(isDailyRateMode && $el.is('select')){
-var code=parseInt($el.val(),10);
-return dailyRateDaysMap[code] ? dailyRateDaysMap[code] : 0;
-}
-return elementHours($el) / 8;
+	// EN: Convert the hour contribution to days with a fixed 8h reference.
+	// FR: Convertit la contribution horaire en jours sur la base fixe de 8h.
+	return elementHours($el) / 8;
 }
 function formatHours(d){
-if(isNaN(d)) return "00:00";
-var h=Math.floor(d); var m=Math.round((d-h)*60);
-if(m===60){ h++; m=0; }
-// EN: Build HH:MM strings without padStart to work on legacy browsers.
-// FR: Construit les chaînes HH:MM sans padStart pour fonctionner sur les anciens navigateurs.
-var hh=(h<10?"0":"")+h;
-var mm=(m<10?"0":"")+m;
-return hh+":"+mm;
+	if(isNaN(d)) return "00:00";
+	var h=Math.floor(d); var m=Math.round((d-h)*60);
+	if(m===60){ h++; m=0; }
+	// EN: Build HH:MM strings without padStart to work on legacy browsers.
+	// FR: Construit les chaînes HH:MM sans padStart pour fonctionner sur les anciens navigateurs.
+	var hh=(h<10?"0":"")+h;
+	var mm=(m<10?"0":"")+m;
+	return hh+":"+mm;
 }
 function formatDays(d){
-if(isNaN(d)) return "0.00";
-return (Math.round(d*100)/100).toFixed(2);
+	if(isNaN(d)) return "0.00";
+	return (Math.round(d*100)/100).toFixed(2);
 }
 function updateTotals(){
-var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
-var formatFn = isDailyRateMode ? formatDays : formatHours;
-var parseFn = isDailyRateMode ? parseDays : parseHours;
-var elementFn = isDailyRateMode ? elementDays : elementHours;
-var grand=0;
+	var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
+	var formatFn = isDailyRateMode ? formatDays : formatHours;
+	var elementFn = isDailyRateMode ? elementDays : elementHours;
+	var grand=0;
+	var dayTotals=[];
 
-$(".task-total").text(formatFn(0));
-$(totalRowSelector+" .day-total").text(formatFn(0));
-$(totalRowSelector+" .grand-total").text(formatFn(0));
+	// EN: Reset per-task and per-day totals before recomputing the grid.
+	// FR: Réinitialise les totaux par tâche et par jour avant de recalculer la grille.
+	$(".task-total").text(formatFn(0));
+	$(totalRowSelector+" .day-total").each(function(idx){
+		dayTotals[idx]=0;
+		$(this).text(formatFn(0));
+	});
+	$(totalRowSelector+" .grand-total").text(formatFn(0));
 
-$("table.noborder tr").each(function(){
-var rowT=0;
-$(this).find("input.hourinput, select.daily-rate-select").each(function(){
-var v=elementFn($(this));
-if(v>0){
-rowT+=v;
-var idx=$(this).closest("td").index();
-var daycell=$(totalRowSelector+" td").eq(idx);
-if(daycell.length){
-var cur=parseFn(daycell.text());
-daycell.text(formatFn(cur+v));
-}
-grand+=v;
-}
-});
-if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
-});
+	$("table.noborder tr").each(function(){
+		var rowT=0;
+		$(this).find("input.hourinput, select.daily-rate-select").each(function(){
+			var v=elementFn($(this));
+			if(v>0){
+				rowT+=v;
+				// EN: Align the day counter with the footer cells by skipping the label column.
+				// FR: Aligne le compteur journalier sur les cellules du pied en ignorant la colonne du libellé.
+				var idx=$(this).closest("td").index()-1;
+				if(idx>=0 && typeof dayTotals[idx]!=="undefined"){
+					dayTotals[idx]+=v;
+				}
+				grand+=v;
+			}
+		});
+		if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
+	});
 
-$(totalRowSelector+" .grand-total").text(formatFn(grand));
+	// EN: Reflect the new per-day totals after iterating over every input cell.
+	// FR: Répercute les nouveaux totaux journaliers après l'analyse de chaque cellule de saisie.
+	$(totalRowSelector+" .day-total").each(function(idx){
+		$(this).text(formatFn(dayTotals[idx]));
+	});
+
+	$(totalRowSelector+" .grand-total").text(formatFn(grand));
 
 if(isDailyRateMode){
 $(".meal-total").text('0');
