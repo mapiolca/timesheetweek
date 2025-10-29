@@ -461,6 +461,51 @@ function tw_format_hours_decimal($hours)
 }
 
 /**
+ * EN: Convert a decimal number of days into a locale-aware string for PDF output.
+ * FR: Convertit un nombre décimal de jours en chaîne localisée pour la sortie PDF.
+ *
+ * @param float      $days   Day quantity / Quantité de jours
+ * @param Translate  $langs  Translator instance / Instance de traduction
+ * @return string            Formatted value / Valeur formatée
+ */
+function tw_format_days_decimal($days, Translate $langs)
+{
+	global $conf;
+
+	// EN: Normalise the numeric value to two decimals before applying locale formatting.
+	// FR: Normalise la valeur numérique à deux décimales avant d'appliquer le formatage local.
+	$normalized = price2num((float) $days, '2');
+
+	// EN: Use Dolibarr price helper to honour thousands and decimal separators for the PDF output.
+	// FR: Utilise l'assistant de prix Dolibarr pour respecter les séparateurs de milliers et décimaux dans le PDF.
+	return price($normalized, '', $langs, $conf, 1, 2);
+}
+
+/**
+ * EN: Convert relative column weights into absolute widths matching the printable area.
+ * FR: Convertit les pondérations de colonnes en largeurs absolues adaptées à la zone imprimable.
+ *
+ * @param float[] $weights       Relative weights / Pondérations relatives
+ * @param float   $usableWidth   Available width / Largeur disponible
+ * @return float[]               Absolute widths / Largeurs absolues
+ */
+function tw_pdf_compute_column_widths(array $weights, $usableWidth)
+{
+	$widths = $weights;
+	$totalWeight = array_sum($weights);
+	$usableWidth = (float) $usableWidth;
+
+	if ($totalWeight > 0 && $usableWidth > 0) {
+		foreach ($weights as $index => $weight) {
+			$ratio = (float) $weight / $totalWeight;
+			$widths[$index] = $ratio * $usableWidth;
+		}
+	}
+
+	return $widths;
+}
+
+/**
  * EN: Build the dataset required to generate a PDF summary of weekly timesheets.
  * FR: Construit l'ensemble de données nécessaire pour générer un résumé PDF des feuilles hebdomadaires.
  *
@@ -533,8 +578,14 @@ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
 				$errors[] = 'TimesheetWeekSummaryMissingUser';
 				continue;
 			}
+			// EN: Load extrafields to detect the daily rate flag used by forfait jour employees.
+			// FR: Charge les extrafields pour détecter le flag forfait jour utilisé par les salariés concernés.
+			$userSummary->fetch_optionals($userSummary->id, $userSummary->table_element);
 			$dataset[$targetUserId] = array(
 				'user' => $userSummary,
+				// EN: Persist the daily rate flag to adapt PDF rendering later on.
+				// FR: Conserve le flag forfait jour afin d'adapter le rendu PDF ultérieurement.
+				'is_daily_rate' => !empty($userSummary->array_options['options_lmdb_daily_rate']),
 				'records' => array(),
 				'totals' => array(
 					'total_hours' => 0.0,
@@ -549,15 +600,14 @@ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
 				)
 			);
 		}
+		$approvedBy = '';
+		if (!empty($row->validator_lastname) || !empty($row->validator_firstname)) {
+			// EN: Build the approver full name respecting Dolibarr formatting.
+			// FR: Construit le nom complet de l'approbateur selon le format Dolibarr.
+			$approvedBy = dolGetFirstLastname($row->validator_firstname, $row->validator_lastname);
+		}
 
-$approvedBy = '';
-if (!empty($row->validator_lastname) || !empty($row->validator_firstname)) {
-// EN: Build the approver full name respecting Dolibarr formatting.
-// FR: Construit le nom complet de l'approbateur selon le format Dolibarr.
-$approvedBy = dolGetFirstLastname($row->validator_firstname, $row->validator_lastname);
-}
-
-$record = array(
+		$record = array(
 'id' => (int) $row->rowid,
 'week' => $week,
 'year' => $year,
@@ -809,77 +859,120 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetFont('', '', $defaultFontSize);
 	$pdf->SetTextColor(0, 0, 0);
 
-	$columnWidthWeights = array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24);
-	$columnWidths = $columnWidthWeights;
 	$usableWidth = $pdf->getPageWidth() - $margeGauche - $margeDroite;
-	$widthSum = array_sum($columnWidthWeights);
-	if ($widthSum > 0 && $usableWidth > 0) {
-		// EN: Scale each column proportionally so the table spans the full printable width.
-		// FR: Redimensionne chaque colonne proportionnellement pour couvrir toute la largeur imprimable.
-		foreach ($columnWidthWeights as $index => $weight) {
-			$columnWidths[$index] = ($weight / $widthSum) * $usableWidth;
-		}
-	}
-	$columnLabels = array(
-		$langs->trans('TimesheetWeekSummaryColumnWeek'),
-		$langs->trans('TimesheetWeekSummaryColumnStart'),
-		$langs->trans('TimesheetWeekSummaryColumnEnd'),
-		$langs->trans('TimesheetWeekSummaryColumnTotalHours'),
-		$langs->trans('TimesheetWeekSummaryColumnContractHours'),
-		$langs->trans('TimesheetWeekSummaryColumnOvertime'),
-		$langs->trans('TimesheetWeekSummaryColumnMeals'),
-		$langs->trans('TimesheetWeekSummaryColumnZone1'),
-		$langs->trans('TimesheetWeekSummaryColumnZone2'),
-		$langs->trans('TimesheetWeekSummaryColumnZone3'),
-		$langs->trans('TimesheetWeekSummaryColumnZone4'),
-		$langs->trans('TimesheetWeekSummaryColumnZone5'),
-		$langs->trans('TimesheetWeekSummaryColumnApprovedBy')
-	);
+
+	// EN: Describe the standard hour-based layout used for classic employees.
+	// FR: Décrit la mise en page standard en heures utilisée pour les salariés classiques.
+	$hoursColumnConfig = array(
+			'weights' => array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24),
+			'labels' => array(
+				$langs->trans('TimesheetWeekSummaryColumnWeek'),
+				$langs->trans('TimesheetWeekSummaryColumnStart'),
+				$langs->trans('TimesheetWeekSummaryColumnEnd'),
+				$langs->trans('TimesheetWeekSummaryColumnTotalHours'),
+				$langs->trans('TimesheetWeekSummaryColumnContractHours'),
+				$langs->trans('TimesheetWeekSummaryColumnOvertime'),
+				$langs->trans('TimesheetWeekSummaryColumnMeals'),
+				$langs->trans('TimesheetWeekSummaryColumnZone1'),
+				$langs->trans('TimesheetWeekSummaryColumnZone2'),
+				$langs->trans('TimesheetWeekSummaryColumnZone3'),
+				$langs->trans('TimesheetWeekSummaryColumnZone4'),
+				$langs->trans('TimesheetWeekSummaryColumnZone5'),
+				$langs->trans('TimesheetWeekSummaryColumnApprovedBy')
+			),
+			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
+			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L')
+		);
+
+	// EN: Define the reduced layout for forfait-jour employees expressed in days instead of hours.
+	// FR: Définit la mise en page réduite pour les salariés au forfait jour, exprimée en jours plutôt qu'en heures.
+	$dailyColumnConfig = array(
+			'weights' => array(16, 20, 20, 18, 18, 28),
+			'labels' => array(
+				$langs->trans('TimesheetWeekSummaryColumnWeek'),
+				$langs->trans('TimesheetWeekSummaryColumnStart'),
+				$langs->trans('TimesheetWeekSummaryColumnEnd'),
+				$langs->trans('TimesheetWeekSummaryColumnTotalDays'),
+				$langs->trans('TimesheetWeekSummaryColumnContractDays'),
+				$langs->trans('TimesheetWeekSummaryColumnApprovedBy')
+			),
+			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'L'),
+			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'L')
+		);
 
 	$lineHeight = 6;
+	$hoursPerDay = 8.0;
 
 	$isFirstUser = true;
 	foreach ($sortedUsers as $userSummary) {
-		$userObject = $userSummary['user'];
-		$records = $userSummary['records'];
-		$totals = $userSummary['totals'];
-		
-		$recordRows = array();
-		foreach ($records as $record) {
-			$recordRows[] = array(
-			sprintf('%d / %d', $record['week'], $record['year']),
-			dol_print_date($record['week_start']->getTimestamp(), 'day'),
-			dol_print_date($record['week_end']->getTimestamp(), 'day'),
-			tw_format_hours_decimal($record['total_hours']),
-			tw_format_hours_decimal($record['contract_hours']),
-			tw_format_hours_decimal($record['overtime_hours']),
-			(string) $record['meal_count'],
-			(string) $record['zone1_count'],
-			(string) $record['zone2_count'],
-			(string) $record['zone3_count'],
-			(string) $record['zone4_count'],
-			(string) $record['zone5_count'],
-			$record['approved_by']
-			);
-		}
-		
-		$totalsRow = array(
-		$langs->trans('TimesheetWeekSummaryTotalsLabel'),
-		'',
-		'',
-		tw_format_hours_decimal($totals['total_hours']),
-		tw_format_hours_decimal($totals['contract_hours']),
-		tw_format_hours_decimal($totals['overtime_hours']),
-		(string) $totals['meal_count'],
-		(string) $totals['zone1_count'],
-		(string) $totals['zone2_count'],
-		(string) $totals['zone3_count'],
-		(string) $totals['zone4_count'],
-		(string) $totals['zone5_count'],
-		''
-		);
-		
-$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth);
+			$userObject = $userSummary['user'];
+			$records = $userSummary['records'];
+			$totals = $userSummary['totals'];
+			$isDailyRateEmployee = !empty($userSummary['is_daily_rate']);
+			$columnConfig = $isDailyRateEmployee ? $dailyColumnConfig : $hoursColumnConfig;
+			$columnLabels = $columnConfig['labels'];
+			$columnWidths = tw_pdf_compute_column_widths($columnConfig['weights'], $usableWidth);
+			$rowAlignments = $columnConfig['row_alignments'];
+			$totalsAlignments = $columnConfig['totals_alignments'];
+
+			$recordRows = array();
+			foreach ($records as $record) {
+				if ($isDailyRateEmployee) {
+					$recordRows[] = array(
+						sprintf('%d / %d', $record['week'], $record['year']),
+						dol_print_date($record['week_start']->getTimestamp(), 'day'),
+						dol_print_date($record['week_end']->getTimestamp(), 'day'),
+						tw_format_days_decimal(($record['total_hours'] / $hoursPerDay), $langs),
+						tw_format_days_decimal(($record['contract_hours'] / $hoursPerDay), $langs),
+						$record['approved_by']
+					);
+				} else {
+					$recordRows[] = array(
+						sprintf('%d / %d', $record['week'], $record['year']),
+						dol_print_date($record['week_start']->getTimestamp(), 'day'),
+						dol_print_date($record['week_end']->getTimestamp(), 'day'),
+						tw_format_hours_decimal($record['total_hours']),
+						tw_format_hours_decimal($record['contract_hours']),
+						tw_format_hours_decimal($record['overtime_hours']),
+						(string) $record['meal_count'],
+						(string) $record['zone1_count'],
+						(string) $record['zone2_count'],
+						(string) $record['zone3_count'],
+						(string) $record['zone4_count'],
+						(string) $record['zone5_count'],
+						$record['approved_by']
+					);
+				}
+			}
+
+			if ($isDailyRateEmployee) {
+				$totalsRow = array(
+					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+					'',
+					'',
+					tw_format_days_decimal(($totals['total_hours'] / $hoursPerDay), $langs),
+					tw_format_days_decimal(($totals['contract_hours'] / $hoursPerDay), $langs),
+					''
+				);
+			} else {
+				$totalsRow = array(
+					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+					'',
+					'',
+					tw_format_hours_decimal($totals['total_hours']),
+					tw_format_hours_decimal($totals['contract_hours']),
+					tw_format_hours_decimal($totals['overtime_hours']),
+					(string) $totals['meal_count'],
+					(string) $totals['zone1_count'],
+					(string) $totals['zone2_count'],
+					(string) $totals['zone3_count'],
+					(string) $totals['zone4_count'],
+					(string) $totals['zone5_count'],
+					''
+				);
+			}
+
+			$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth);
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
@@ -919,25 +1012,25 @@ $tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $col
 		));
 		
 		$pdf->SetFont('', '', $defaultFontSize - 1);
-		$alignments = array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L');
-	// EN: Render each data row while keeping consistent heights across the table.
+		$alignments = $rowAlignments;
+		// EN: Render each data row while keeping consistent heights across the table.
 		// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
 		foreach ($recordRows as $rowData) {
 			$pdf->SetX($margeGauche);
 			tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
-			'alignments' => $alignments
+				'alignments' => $alignments
 			));
 		}
-		
+
 		$pdf->SetFont('', 'B', $defaultFontSize - 1);
 		$pdf->SetX($margeGauche);
 		// EN: Print the totals row with left-aligned label and right-aligned figures.
 		// FR: Imprime la ligne de totaux avec libellé aligné à gauche et chiffres alignés à droite.
 		tw_pdf_render_row($pdf, $columnWidths, $totalsRow, $lineHeight, array(
-		'alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L')
+			'alignments' => $totalsAlignments
 		));
-		
-	}
+
+		}
 	$pdf->Output($filepath, 'F');
 
 	return array(
