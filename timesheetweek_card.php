@@ -33,6 +33,9 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+// EN: Load price helpers to display day totals with Dolibarr formatting rules.
+// FR: Charge les aides de prix pour afficher les totaux en jours avec les règles de formatage Dolibarr.
+require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelectorDolibarr(), formatHours(), ...
@@ -77,14 +80,33 @@ function tw_status($name) {
 
 function tw_translate_error($errorKey, $langs)
 {
-		if (empty($errorKey)) {
-				return $langs->trans("Error");
-		}
-		$msg = $langs->trans($errorKey);
-		if ($msg === $errorKey) {
-				$msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
-		}
-		return $msg;
+	if (empty($errorKey)) {
+		return $langs->trans("Error");
+	}
+	$msg = $langs->trans($errorKey);
+	if ($msg === $errorKey) {
+		$msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
+	}
+	return $msg;
+}
+
+/**
+ * EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
+ * FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
+ *
+ * @param float      $value  Day quantity to format / Quantité de jours à formater
+ * @param Translate  $langs  Translator instance / Instance de traduction
+ * @return string            Formatted value / Valeur formatée
+ */
+function tw_format_days($value, Translate $langs)
+{
+	global $conf;
+	// EN: Normalize the numeric value to two decimals for predictable display.
+	// FR: Normalise la valeur numérique à deux décimales pour un affichage prévisible.
+	$normalized = price2num($value, '2');
+	// EN: Use Dolibarr price formatter to apply thousand and decimal separators.
+	// FR: Utilise le formateur de prix Dolibarr pour appliquer les séparateurs de milliers et décimales.
+	return price($normalized, '', $langs, $conf, 1, 2);
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -1066,7 +1088,7 @@ echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object
 echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
 echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
 if ($isDailyRateEmployee) {
-echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.dol_print_decimal($displayedTotal, 2, false, true).'</span></td></tr>';
+echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
 } else {
 echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
@@ -1441,7 +1463,7 @@ $grandInit += $rowTotal;
 // EN: Center task totals so they stay aligned with other centered figures.
 // FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
 if ($isDailyRateEmployee) {
-echo '<td class="center task-total cellule-total">'.dol_print_decimal(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), 2, false, true).'</td>';
+echo '<td class="center task-total cellule-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
 } else {
 echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
 }
@@ -1458,9 +1480,9 @@ echo '<tr class="liste_total row-total-days">';
 // FR: Centre les totaux globaux exprimés en jours pour les salariés au forfait jour.
 echo '<td class="left">'.$langs->trans("TimesheetWeekTotalDays").'</td>';
 foreach ($days as $d) {
-echo '<td class="center day-total cellule-total">'.dol_print_decimal(0, 2, false, true).'</td>';
+echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</td>';
 }
-echo '<td class="center grand-total cellule-total">'.dol_print_decimal($grandDays, 2, false, true).'</td>';
+echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
 echo '</tr>';
 } else {
 echo '<tr class="liste_total row-total-hours">';
