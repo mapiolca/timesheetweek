@@ -427,7 +427,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek', // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")', // Use 'perms'=>'$user->hasRight("timesheetweek", "timesheetweek", "read")' if you want your menu with a permission rules
+			'perms' => '$user->hasRight("timesheetweek", "read")', // Use 'perms'=>'$user->hasRight("timesheetweek", "read")' if you want your menu with a permission rules
 			'target' => '',
 			'user' => 2, // 0=Menu for internal users, 1=external users, 2=both
 		);
@@ -466,7 +466,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -481,7 +481,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -496,7 +496,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -514,7 +514,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -529,7 +529,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -544,7 +544,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -563,7 +563,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -578,7 +578,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")',
+			'perms' => '$user->hasRight("timesheetweek", "write")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -593,7 +593,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")',
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,
 			'object' => 'TimesheetWeek'
@@ -613,7 +613,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")',
+			'perms' => '$user->hasRight("timesheetweek", "read")',
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'
@@ -628,7 +628,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled. Use '$leftmenu==\'system\'' to show if leftmenu system is selected.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "write")'
+			'perms' => '$user->hasRight("timesheetweek", "write")'
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'
@@ -643,7 +643,7 @@ class modTimesheetWeek extends DolibarrModules
 			'langs' => 'timesheetweek@timesheetweek',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
 			'position' => 1000 + $r,
 			'enabled' => 'isModEnabled("timesheetweek")', // Define condition to show or hide menu entry. Use 'isModEnabled("timesheetweek")' if entry must be visible if module is enabled.
-			'perms' => '$user->hasRight("timesheetweek", "timesheetweek", "read")'
+			'perms' => '$user->hasRight("timesheetweek", "read")'
 			'target' => '',
 			'user' => 2,				                // 0=Menu for internal users, 1=external users, 2=both
 			'object' => 'TimesheetWeek'
