@@ -867,6 +867,15 @@ if ($object->id > 0) {
 		);
 
 		include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+
+		// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
+		// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
+		if (!empty($upload_dir)) {
+			// EN: Declare module part to match Dolibarr linked-files helper expectations.
+			// FR: Déclare la partie module pour respecter les attentes de l'aide Dolibarr des fichiers liés.
+			$modulepart = 'timesheetweek';
+			include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
+		}
 }
 
 // ----------------- View -----------------
