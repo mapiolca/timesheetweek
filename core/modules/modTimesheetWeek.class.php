@@ -79,6 +79,38 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_url = 'lesmetiersdubatiment.fr';		// Must be an external online web site
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
+		// EN: Guarantee that the configuration container exists to store directory paths.
+		// FR: Garantir que le conteneur de configuration existe pour stocker les chemins des répertoires.
+		if (!isset($conf->timesheetweek) || !is_object($conf->timesheetweek)) {
+			$conf->timesheetweek = new stdClass();
+		}
+
+		// EN: Compute the entity-aware default directories for generated documents.
+		// FR: Calculer les répertoires par entité pour les documents générés.
+		$entity = !empty($conf->entity) ? (int) $conf->entity : 1;
+		$defaultDir = DOL_DATA_ROOT.($entity > 1 ? '/'.$entity : '').'/timesheetweek';
+
+		// EN: Register the default output directory if it was not yet defined.
+		// FR: Enregistrer le répertoire de sortie par défaut s'il n'était pas encore défini.
+		if (empty($conf->timesheetweek->dir_output)) {
+			$conf->timesheetweek->dir_output = $defaultDir;
+		}
+
+		// EN: Ensure a temporary working directory is available beside the output path.
+		// FR: S'assurer qu'un répertoire temporaire est disponible à côté du chemin de sortie.
+		if (empty($conf->timesheetweek->dir_temp)) {
+			$conf->timesheetweek->dir_temp = $conf->timesheetweek->dir_output.'/temp';
+		}
+
+		// EN: Prepare the multi-entity mapping used by the Dolibarr document helpers.
+		// FR: Préparer la correspondance multi-entité utilisée par les assistants de documents Dolibarr.
+		if (empty($conf->timesheetweek->multidir_output) || !is_array($conf->timesheetweek->multidir_output)) {
+			$conf->timesheetweek->multidir_output = array();
+		}
+		if (empty($conf->timesheetweek->multidir_output[$entity])) {
+			$conf->timesheetweek->multidir_output[$entity] = $conf->timesheetweek->dir_output;
+		}
+
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
 		$this->version = '1.3.0'; 	// EN: Enables PDF generation with document model management like native Dolibarr cards.
 									// FR: Active la génération PDF avec gestion des modèles de documents comme sur les fiches Dolibarr natives.
@@ -788,7 +820,9 @@ class modTimesheetWeek extends DolibarrModules
 		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 1);
 
 		foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
-			if (!empty($myTmpObjectArray['includerefgeneration']) || !empty($myTmpObjectArray['includedocgeneration'])) {
+			if (!empty($myTmpObjectArray['includerefgeneration'])) {
+				// EN: Copy the sample ODT template when reference generation is enabled.
+				// FR: Copier le modèle ODT d'exemple lorsque la génération des références est active.
 				$src = DOL_DOCUMENT_ROOT.'/install/doctemplates/'.$moduledir.'/template_timesheetweek.odt';
 				$dirodt = DOL_DATA_ROOT.($conf->entity > 1 ? '/'.$conf->entity : '').'/doctemplates/'.$moduledir;
 				$dest = $dirodt.'/template_timesheetweek.odt';
@@ -803,17 +837,27 @@ class modTimesheetWeek extends DolibarrModules
 						return 0;
 					}
 				}
+			}
 
+			if (!empty($myTmpObjectArray['includedocgeneration'])) {
+				// EN: Register the Dolibarr document models for the entity.
+				// FR: Enregistrer les modèles de documents Dolibarr pour l'entité.
 				$sql = array_merge($sql, array(
-					"DELETE FROM ".$this->db->prefix()."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
-					"INSERT INTO ".$this->db->prefix()."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")",
-					"DELETE FROM ".$this->db->prefix()."document_model WHERE nom = 'generic_".strtolower($myTmpObjectKey)."_odt' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
-					"INSERT INTO ".$this->db->prefix()."document_model (nom, type, entity) VALUES('generic_".strtolower($myTmpObjectKey)."_odt', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
+					"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
+					"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")",
+					"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'generic_".strtolower($myTmpObjectKey)."_odt' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
+					"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('generic_".strtolower($myTmpObjectKey)."_odt', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
 				));
 			}
 		}
 
-                // EN: Register Multicompany sharing metadata when the module is enabled.
+		// EN: Ensure the default PDF model targets the new standard document when unset.
+		// FR: S'assurer que le modèle PDF par défaut pointe sur le nouveau document standard lorsqu'il est vide.
+		if (getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', '') === '') {
+			dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
+		}
+
+		// EN: Register Multicompany sharing metadata when the module is enabled.
                 // FR: Enregistrer les métadonnées de partage Multicompany lors de l'activation du module.
                 dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 

@@ -5,6 +5,7 @@
 - Aligne la configuration sur le comportement Dolibarr pour activer ou désactiver les modèles PDF TimesheetWeek à l'aide des commutateurs natifs. / Aligns the setup configuration with Dolibarr behaviour to enable or disable TimesheetWeek PDF templates with native toggles.
 - Corrige l'affichage du bloc documentaire de la fiche hebdomadaire pour respecter le flux includedocgeneration Dolibarr. / Fixes the weekly card document block to follow Dolibarr's includedocgeneration flow.
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
+- Prépare automatiquement les répertoires documents et sélectionne le modèle PDF standard lors de l'activation du module. / Automatically prepares the document folders and selects the standard PDF model when the module is enabled.
 
 ## 1.2.0
 - Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.
