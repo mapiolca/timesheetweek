@@ -40,6 +40,7 @@ if (!$res) {
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
@@ -58,49 +59,37 @@ if (empty($user->admin)) {
 $action = GETPOST('action', 'aZ09');
 $value = GETPOST('value', 'alphanohtml');
 $token = GETPOST('token', 'alphanohtml');
+// EN: Capture additional parameters used to reproduce Dolibarr's document model toggles.
+// FR: Capture les paramètres additionnels utilisés par les bascules de modèles de document Dolibarr.
+$docLabel = GETPOST('label', 'alphanohtml');
+$scanDir = GETPOST('scan_dir', 'alpha');
 
 // EN: Helper to enable a PDF model in the database.
 // FR: Aide pour activer un modèle PDF dans la base.
-function timesheetweekEnableDocumentModel($model)
+function timesheetweekEnableDocumentModel($model, $label = '', $scandir = '')
 {
-        global $db, $conf;
+	if (empty($model)) {
+		return 0;
+	}
 
-        if (empty($model)) {
-                return 0;
-        }
+	$result = addDocumentModel($model, 'timesheetweek', $label, $scandir);
+	if ($result > 0) {
+		return 1;
+	}
 
-        $sql = 'INSERT INTO '.MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES ('".$db->escape($model)."', 'timesheetweek', ".((int) $conf->entity).')';
-        $resql = $db->query($sql);
-        if ($resql) {
-                return 1;
-        }
-
-        // EN: Ignore duplicate entries silently because the model is already stored.
-        // FR: Ignore les doublons car le modèle est déjà enregistré.
-        if ($db->lasterrno() && strpos($db->lasterror(), 'Duplicate') !== false) {
-                return 1;
-        }
-
-        return -1;
+	return ($result === 0) ? 1 : -1;
 }
 
 // EN: Helper to disable a PDF model from the database.
 // FR: Aide pour désactiver un modèle PDF dans la base.
 function timesheetweekDisableDocumentModel($model)
 {
-        global $db, $conf;
+	if (empty($model)) {
+		return 0;
+	}
 
-        if (empty($model)) {
-                return 0;
-        }
-
-        $sql = 'DELETE FROM '.MAIN_DB_PREFIX."document_model WHERE nom='".$db->escape($model)."' AND type='timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
-        $resql = $db->query($sql);
-        if ($resql) {
-                return ($db->affected_rows($resql) >= 0) ? 1 : 0;
-        }
-
-        return -1;
+	$result = delDocumentModel($model, 'timesheetweek');
+	return ($result > 0) ? 1 : ($result === 0 ? 0 : -1);
 }
 
 // EN: Build the list of numbering modules available for the module.
@@ -220,15 +209,16 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
                                 $description = $langs->trans($description);
                         }
 
-                        $models[] = array(
-                                'name' => $name,
-                                'classname' => $classname,
-                                'label' => $label,
-                                'description' => $description,
-                                'is_enabled' => !empty($enabled[$name]),
-                                'is_default' => ($default === $name),
-                                'type' => $module->type,
-                        );
+			$models[] = array(
+				'name' => $name,
+				'classname' => $classname,
+				'label' => $label,
+				'description' => $description,
+				'is_enabled' => !empty($enabled[$name]),
+				'is_default' => ($default === $name),
+				'type' => $module->type,
+				'scandir' => property_exists($module, 'scandir') ? $module->scandir : '',
+			);
                 }
         }
 
@@ -263,7 +253,7 @@ if ($action === 'setmodule' && !empty($value)) {
 // EN: Set the default PDF model while ensuring the model is enabled.
 // FR: Définit le modèle PDF par défaut tout en s'assurant qu'il est activé.
 if ($action === 'setdoc' && !empty($value)) {
-        $res = timesheetweekEnableDocumentModel($value);
+$res = timesheetweekEnableDocumentModel($value, $docLabel, $scanDir);
         if ($res > 0) {
                 $res = dolibarr_set_const($db, 'TIMESHEETWEEK_ADDON_PDF', $value, 'chaine', 0, '', $conf->entity);
         }
@@ -277,7 +267,7 @@ if ($action === 'setdoc' && !empty($value)) {
 // EN: Activate a PDF model without making it the default.
 // FR: Active un modèle PDF sans le définir comme défaut.
 if ($action === 'setdocmodel' && !empty($value)) {
-        $res = timesheetweekEnableDocumentModel($value);
+$res = timesheetweekEnableDocumentModel($value, $docLabel, $scanDir);
         if ($res > 0) {
                 setEventMessages($langs->trans('ModelEnabled', $value), null, 'mesgs');
         } else {
@@ -431,7 +421,7 @@ foreach ($documentModels as $modelInfo) {
                 $url = $_SERVER['PHP_SELF'].'?action=delmodel&value='.urlencode($modelInfo['name']).'&token='.$pageToken;
                 print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disable'), 'switch_on').'</a>';
         } else {
-                $url = $_SERVER['PHP_SELF'].'?action=setdocmodel&value='.urlencode($modelInfo['name']).'&token='.$pageToken;
+                $url = $_SERVER['PHP_SELF'].'?action=setdocmodel&value='.urlencode($modelInfo['name']).'&token='.$pageToken.'&scan_dir='.urlencode($modelInfo['scandir']).'&label='.urlencode($modelInfo['label']);
                 print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Activate'), 'switch_off').'</a>';
         }
         print '</td>';
@@ -440,7 +430,7 @@ foreach ($documentModels as $modelInfo) {
         if ($modelInfo['is_default']) {
                 print img_picto($langs->trans('Enabled'), 'on');
         } elseif ($modelInfo['is_enabled']) {
-                $url = $_SERVER['PHP_SELF'].'?action=setdoc&value='.urlencode($modelInfo['name']).'&token='.$pageToken;
+                $url = $_SERVER['PHP_SELF'].'?action=setdoc&value='.urlencode($modelInfo['name']).'&token='.$pageToken.'&scan_dir='.urlencode($modelInfo['scandir']).'&label='.urlencode($modelInfo['label']);
                 print '<a href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('SetDefault'), 'switch_on').'</a>';
         } else {
                 print '&nbsp;';

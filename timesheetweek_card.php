@@ -30,6 +30,8 @@ if (!$res) die("Include of main fails");
 // ---- Requires ----
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -43,9 +45,14 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelector
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
 
 // ---- Params ----
-$id      = GETPOSTINT('id');
-$action  = GETPOST('action', 'aZ09');
+$id = GETPOSTINT('id');
+$action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+// EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
+// FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
+$hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
+$hidedesc = GETPOSTISSET('hidedesc') ? GETPOSTINT('hidedesc') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0);
+$hideref = GETPOSTISSET('hideref') ? GETPOSTINT('hideref') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0);
 
 // ---- Init ----
 $object = new TimesheetWeek($db);
@@ -222,7 +229,7 @@ if (!empty($id) && $object->id <= 0) $object->fetch($id);
 $canSendMail = false;
 if ($object->id > 0) {
 		$canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 }
 
 // ----------------- Inline edits (crayons) -----------------
@@ -267,7 +274,7 @@ if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
 		else setEventMessages($object->error, $object->errors, 'errors');
-	} else {
+		} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 	}
 		$action = '';
@@ -280,7 +287,7 @@ if ($action === 'presend' && $id > 0) {
 		}
 
 		$canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 		if (!$canSendMail) {
 				accessforbidden();
 		}
@@ -363,7 +370,7 @@ if ($action === 'add') {
 	// Validateur par défaut = manager du salarié cible si non fourni
 	if ($fk_user_valid > 0) {
 		$object->fk_user_valid = $fk_user_valid;
-	} else {
+		} else {
 		$uTmp = new User($db);
 		$uTmp->fetch($targetUserId);
 		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
@@ -373,7 +380,7 @@ if ($action === 'add') {
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 		$object->year = (int) $m[1];
 		$object->week = (int) $m[2];
-	} else {
+		} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 		$action = 'create';
 	}
@@ -402,7 +409,7 @@ if ($action === 'add') {
 			if ($res > 0) {
 				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 				exit;
-			} else {
+		} else {
 				setEventMessages($object->error, $object->errors, 'errors');
 				$action = 'create';
 			}
@@ -496,7 +503,7 @@ $h = (float) str_replace(',', '.', $hoursStr);
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 						exit;
 					}
-				} else {
+		} else {
 										// EN: Store the line within the same entity as its parent timesheet to stay consistent.
 										// FR: Enregistre la ligne dans la même entité que sa feuille parente pour rester cohérent.
 										$sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (entity, fk_timesheet_week, fk_task, day_date, hours, daily_rate, zone, meal) VALUES (".
@@ -517,7 +524,7 @@ $h = (float) str_replace(',', '.', $hoursStr);
 					}
 				}
 				$processed++;
-			} else {
+		} else {
 				if ($existingId > 0) {
 										// EN: Delete the line only if it belongs to an allowed entity scope.
 										// FR: Supprime la ligne uniquement si elle appartient à une entité autorisée.
@@ -762,7 +769,7 @@ if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 		// On autorise la suppression si l'utilisateur a les droits (own/child/all),
 		// ou s'il a des droits validate* (validateur), quelque soit le statut
 		$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 
 		if (!$canDelete) accessforbidden();
 
@@ -808,17 +815,61 @@ if ($object->id > 0) {
 		}
 
 		$param = array(
-				'sendcontext' => 'timesheetweek',
-				'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
-				'models' => $modelmail,
-				'trackid' => $trackid,
+			'sendcontext' => 'timesheetweek',
+			'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
+			'models' => $modelmail,
+			'trackid' => $trackid,
 		);
 
+		include DOL_DOCUMENT_ROOT.'/core/actions_printing.inc.php';
 		include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
+
+		// EN: Prepare PDF generation permissions once the object is fully loaded.
+		// FR: Prépare les permissions de génération PDF une fois l'objet complètement chargé.
+		$entityIdForDocs = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$baseTimesheetDir = '';
+		if (!empty($conf->timesheetweek->multidir_output[$entityIdForDocs])) {
+			$baseTimesheetDir = $conf->timesheetweek->multidir_output[$entityIdForDocs];
+		} elseif (!empty($conf->timesheetweek->dir_output)) {
+			$baseTimesheetDir = $conf->timesheetweek->dir_output;
+		} else {
+			$baseTimesheetDir = DOL_DATA_ROOT.'/timesheetweek';
+		}
+		$upload_dir = $baseTimesheetDir.'/timesheetweek/'.dol_sanitizeFileName($object->ref);
+
+		// EN: Authorise document creation to employees or managers allowed to act on the sheet.
+		// FR: Autorise la création de documents aux salariés ou responsables habilités à agir sur la feuille.
+		$permissiontoadd = (
+			tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)
+			|| !empty($user->admin)
+		);
+
+		if (GETPOST('model', 'alpha')) {
+			// EN: Allow administrators to switch the PDF model directly from the card view.
+			// FR: Permet aux administrateurs de changer le modèle PDF directement depuis la fiche.
+			$object->setDocModel($user, GETPOST('model', 'alpha'));
+			$object->model_pdf = GETPOST('model', 'alpha');
+		}
+
+		if (empty($object->model_pdf)) {
+			// EN: Default to the module configuration when no PDF model has been selected yet.
+			// FR: Bascule sur la configuration du module lorsqu'aucun modèle PDF n'est encore sélectionné.
+			$object->model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
+		}
+
+		$moreparams = array(
+			'hidedetails' => $hidedetails,
+			'hidedesc' => $hidedesc,
+			'hideref' => $hideref,
+		);
+
+		include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 }
 
 // ----------------- View -----------------
 $form = new Form($db);
+$formfile = new FormFile($db);
 $title = $langs->trans("TimesheetWeek");
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
@@ -1035,7 +1086,7 @@ JS;
 		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';
-	} else {
+		} else {
 		echo dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
 		if ($canEditInline) {
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
@@ -1053,7 +1104,7 @@ JS;
 		echo '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';
-	} else {
+		} else {
 		echo nl2br(dol_escape_htmltag($object->note));
 		if ($canEditInline) {
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
@@ -1132,12 +1183,12 @@ echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($ob
 echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
 if ($isDailyRateEmployee) {
 echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
-} else {
+		} else {
 echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
 }
 echo '</table>';
-echo '</div>';
+		echo '</div>';
 
 	echo '</div>'; // fichecenter
 
@@ -1311,7 +1362,7 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 						if (!empty($startRaw)) {
 								if (is_numeric($startRaw)) {
 										$startTs = (int)$startRaw;
-								} else {
+		} else {
 										$startTs = strtotime($startRaw);
 										if ($startTs === false) $startTs = null;
 								}
@@ -1319,7 +1370,7 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 						if (!empty($endRaw)) {
 								if (is_numeric($endRaw)) {
 										$endTs = (int)$endRaw;
-								} else {
+		} else {
 										$endTs = strtotime($endRaw);
 										if ($endTs === false) $endTs = null;
 								}
@@ -1503,7 +1554,7 @@ $grandInit += $rowTotal;
 // FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
 if ($isDailyRateEmployee) {
 echo '<td class="center task-total cellule-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
-} else {
+		} else {
 echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
 }
 echo '</tr>';
@@ -1523,7 +1574,7 @@ echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</
 }
 echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
 echo '</tr>';
-} else {
+		} else {
 echo '<tr class="liste_total row-total-hours">';
 // EN: Center overall totals and daily sums for consistent middle alignment.
 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
@@ -1650,7 +1701,7 @@ function updateTotals(){
 
 if(isDailyRateMode){
 $(".meal-total").text('0');
-} else {
+		} else {
 var meals = $(".mealbox:checked").length;
 $(".meal-total").text(meals);
 var ot = grand - weeklyContract; if (ot < 0) ot = 0;
@@ -1729,7 +1780,7 @@ JS;
 
 				// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
 				$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-						|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 				if ($canDelete) {
 						echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 				}
@@ -1737,8 +1788,52 @@ JS;
 
 		echo '</div>';
 
-		if ($action === 'presend') {
-				$formmail = new FormMail($db);
+		if ($action !== 'presend') {
+		// EN: Display the document area with Dolibarr's native widget to generate or download PDFs.
+		// FR: Affiche la zone de documents avec le widget natif Dolibarr pour générer ou télécharger les PDF.
+			print '<div class="fichecenter"><div class="fichehalfleft">';
+			print '<a name="builddoc"></a>';
+
+			$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+			$docBaseDir = !empty($conf->timesheetweek->multidir_output[$docEntityId])
+				? $conf->timesheetweek->multidir_output[$docEntityId]
+				: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+			$docSubDir = dol_sanitizeFileName($object->ref);
+			$filedir = $docBaseDir.'/timesheetweek/'.$docSubDir;
+			$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
+
+			$genallowed = (int) $permissiontoadd;
+			$delallowed = (int) $permissiontoadd;
+
+			$formfile->showdocuments(
+				'timesheetweek',
+				$docSubDir,
+				$filedir,
+				$urlsource,
+				$genallowed,
+				$delallowed,
+				$object->model_pdf,
+				1,
+				0,
+				0,
+				0,
+				0,
+				'',
+				'',
+				'',
+				'',
+				'',
+				$object,
+				0,
+				'remove_file',
+				''
+			);
+
+			print '</div></div>';
+		}
+
+if ($action === 'presend') {
+$formmail = new FormMail($db);
 				$formmail->showform = 1;
 				$formmail->withfrom = 1;
 				$formmail->fromtype = 'user';
