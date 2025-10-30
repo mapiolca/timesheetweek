@@ -439,40 +439,41 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 				if ($taskId > 0) {
 					$hasRecordedEffort = (!empty($hoursBy[$taskId]) || !empty($dailyRateBy[$taskId]));
 				}
-				if ($hasRecordedEffort) {
-					$progress = isset($taskRow['task_progress']) ? $taskRow['task_progress'] : null;
-					if ($progress !== null && (float) $progress >= 100) {
-						continue;
-					}
-					$statusValue = isset($taskRow['task_status']) ? $taskRow['task_status'] : null;
-					if ($statusValue !== null && !empty($closedStatuses) && in_array((int) $statusValue, $closedStatuses, true)) {
-						continue;
-					}
-					$taskStart = isset($taskRow['task_date_start']) ? $taskRow['task_date_start'] : null;
-					$taskEnd = isset($taskRow['task_date_end']) ? $taskRow['task_date_end'] : null;
-					$taskStartTs = null;
-					$taskEndTs = null;
-					if (!empty($taskStart)) {
-						$taskStartTs = is_numeric($taskStart) ? (int) $taskStart : strtotime($taskStart);
-						if ($taskStartTs === false) {
-							$taskStartTs = null;
-						}
-					}
-					if (!empty($taskEnd)) {
-						$taskEndTs = is_numeric($taskEnd) ? (int) $taskEnd : strtotime($taskEnd);
-						if ($taskEndTs === false) {
-							$taskEndTs = null;
-						}
-					}
-					if ($weekStartTs !== null && $taskEndTs !== null && $taskEndTs < $weekStartTs) {
-						continue;
-					}
-					if ($weekEndTs !== null && $taskStartTs !== null && $taskStartTs > $weekEndTs) {
-						continue;
+				if (!$hasRecordedEffort) {
+					// EN: Skip tasks without recorded effort to hide empty rows.
+					// FR: Ignore les tâches sans temps saisi pour masquer les lignes vides.
+					continue;
+				}
+				$progress = isset($taskRow['task_progress']) ? $taskRow['task_progress'] : null;
+				if ($progress !== null && (float) $progress >= 100) {
+					continue;
+				}
+				$statusValue = isset($taskRow['task_status']) ? $taskRow['task_status'] : null;
+				if ($statusValue !== null && !empty($closedStatuses) && in_array((int) $statusValue, $closedStatuses, true)) {
+					continue;
+				}
+				$taskStart = isset($taskRow['task_date_start']) ? $taskRow['task_date_start'] : null;
+				$taskEnd = isset($taskRow['task_date_end']) ? $taskRow['task_date_end'] : null;
+				$taskStartTs = null;
+				$taskEndTs = null;
+				if (!empty($taskStart)) {
+					$taskStartTs = is_numeric($taskStart) ? (int) $taskStart : strtotime($taskStart);
+					if ($taskStartTs === false) {
+						$taskStartTs = null;
 					}
 				}
-				// EN: Keep tasks without recorded effort visible in the PDF even if they fall outside filters.
-				// FR: Conserve les tâches sans temps saisi visibles dans le PDF même si elles sortent des filtres.
+				if (!empty($taskEnd)) {
+					$taskEndTs = is_numeric($taskEnd) ? (int) $taskEnd : strtotime($taskEnd);
+					if ($taskEndTs === false) {
+						$taskEndTs = null;
+					}
+				}
+				if ($weekStartTs !== null && $taskEndTs !== null && $taskEndTs < $weekStartTs) {
+					continue;
+				}
+				if ($weekEndTs !== null && $taskStartTs !== null && $taskStartTs > $weekEndTs) {
+					continue;
+				}
 				$filteredTasks[] = $taskRow;
 			}
 		}
