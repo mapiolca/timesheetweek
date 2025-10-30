@@ -103,7 +103,7 @@ function timesheetweekListNumberingModules(array $directories, Translate $langs,
 		$modules = array();
 
 		foreach ($directories as $reldir) {
-				$dir = dol_buildpath($reldir.'core/modules/timesheetweek/');
+			$dir = dol_buildpath($reldir.'timesheetweek/core/modules/timesheetweek/');
 				if (!is_dir($dir)) {
 						continue;
 				}
@@ -177,7 +177,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 		$models = array();
 
 		foreach ($directories as $reldir) {
-				$dir = dol_buildpath($reldir.'core/modules/timesheetweek/doc/');
+			$dir = dol_buildpath($reldir.'timesheetweek/core/modules/timesheetweek/doc/');
 				if (!is_dir($dir)) {
 						continue;
 				}
