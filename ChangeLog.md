@@ -7,6 +7,7 @@
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
 - Reproduit dans le PDF standard la grille de tâches de la fiche hebdomadaire et affiche la référence sous le titre pour faciliter les validations. / Mirrors the weekly card task grid in the standard PDF and shows the reference under the title to ease approvals.
 - Prépare automatiquement les répertoires documents et sélectionne le modèle PDF standard lors de l'activation du module. / Automatically prepares the document folders and selects the standard PDF model when the module is enabled.
+- Corrige l'affichage du résumé de feuille dans le bandeau pour remplacer les chaînes brutes par un bloc formaté selon Dolibarr. / Fixes the sheet summary display in the banner by replacing raw strings with a block formatted like Dolibarr.
 
 - Évite l'erreur SQL lors de la sauvegarde du modèle PDF en ajoutant la colonne dédiée et en gérant l'absence de colonne dans les schémas existants. / Avoids the SQL error while saving the PDF model by adding the dedicated column and handling legacy schemas.
 - Corrige l'erreur fatale lors du forçage de la génération PDF en implémentant generateDocument sur TimesheetWeek. / Fixes the fatal error when forcing PDF generation by implementing TimesheetWeek's generateDocument.
