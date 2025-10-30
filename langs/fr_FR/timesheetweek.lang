@@ -114,6 +114,7 @@ SealTimesheet = Sceller
 UnsealTimesheet = Desceller
 ConfirmValidate = Confirmez-vous l'approbation de cette feuille de temps ?
 ConfirmRefuse = Confirmez-vous le refus de cette feuille de temps ?
+Refuse = Refuser
 ApproveSelection = Approuver la sélection
 RefuseSelection = Refuser la sélection
 SealSelection = Sceller la sélection

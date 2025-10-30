@@ -115,6 +115,7 @@ SealTimesheet = Seal
 UnsealTimesheet = Unseal
 ConfirmValidate = Do you confirm the approval of this timesheet?
 ConfirmRefuse = Do you confirm the refusal of this timesheet?
+Refuse = Refuse
 ApproveSelection = Approve selection
 RefuseSelection = Refuse selection
 SealSelection = Seal selection
