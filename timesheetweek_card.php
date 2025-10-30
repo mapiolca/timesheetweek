@@ -845,7 +845,9 @@ if ($object->id > 0) {
 			|| !empty($user->admin)
 		);
 
-		if (GETPOST('model', 'alpha')) {
+			if ($permissiontoadd && GETPOST('model', 'alpha')) {
+			// EN: Allow PDF model changes only to users authorised to act on the sheet.
+			// FR: Autorise le changement de modèle PDF uniquement aux utilisateurs habilités à agir sur la feuille.
 			// EN: Allow administrators to switch the PDF model directly from the card view.
 			// FR: Permet aux administrateurs de changer le modèle PDF directement depuis la fiche.
 			$object->setDocModel($user, GETPOST('model', 'alpha'));
@@ -855,7 +857,7 @@ if ($object->id > 0) {
 		if (empty($object->model_pdf)) {
 			// EN: Default to the module configuration when no PDF model has been selected yet.
 			// FR: Bascule sur la configuration du module lorsqu'aucun modèle PDF n'est encore sélectionné.
-			$object->model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard');
+			$object->model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 		}
 
 		$moreparams = array(

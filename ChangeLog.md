@@ -7,6 +7,7 @@
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
 - Prépare automatiquement les répertoires documents et sélectionne le modèle PDF standard lors de l'activation du module. / Automatically prepares the document folders and selects the standard PDF model when the module is enabled.
 
+- Évite l'erreur SQL lors de la sauvegarde du modèle PDF en ajoutant la colonne dédiée et en gérant l'absence de colonne dans les schémas existants. / Avoids the SQL error while saving the PDF model by adding the dedicated column and handling legacy schemas.
 ## 1.2.0
 - Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.
 - Crée l'extrafield salarié « Contrat forfait jour » et stocke la sélection correspondante dans la colonne dédiée. / Creates the employee extrafield "Daily rate contract" and stores the related selection in the dedicated column.
