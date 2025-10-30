@@ -22,6 +22,7 @@ TimesheetWeekPDFModelsHelp = Activez les modèles PDF générables depuis une fe
 TimesheetWeekPDFModelsEmpty = Aucun modèle PDF disponible.
 PDFStandardTimesheetWeekDescription = Modèle PDF standard pour les feuilles hebdomadaires
 TimesheetWeekPdfReferenceLabel = Référence de la feuille : %s
+TimesheetWeekPdfApprovedDetails = Approuvée le %s par %s
 NewSection=Nouvelle section
 TIMESHEETWEEK_MYPARAM1 = Mon paramètre 1
 TIMESHEETWEEK_MYPARAM1Tooltip = Info-bulle de mon paramètre 1

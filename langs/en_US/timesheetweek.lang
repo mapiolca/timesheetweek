@@ -22,6 +22,7 @@ TimesheetWeekPDFModelsHelp = Enable the PDF templates that can be generated from
 TimesheetWeekPDFModelsEmpty = No PDF template is available.
 PDFStandardTimesheetWeekDescription = Standard PDF model for weekly timesheets
 TimesheetWeekPdfReferenceLabel = Timesheet reference: %s
+TimesheetWeekPdfApprovedDetails = Approved on %s by %s
 NewSection=New section
 TIMESHEETWEEK_MYPARAM1 = My param 1
 TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip

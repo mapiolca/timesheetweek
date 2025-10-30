@@ -26,6 +26,9 @@
 dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetweek.php');
 dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+// EN: Load the TimesheetWeek class to reuse status constants and helpers.
+// FR: Charge la classe TimesheetWeek pour réutiliser les constantes et helpers de statut.
+dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
@@ -672,6 +675,40 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$weekLabel = (!empty($object->week) ? sprintf('%02d', (int) $object->week) : '00');
 		$yearLabel = (!empty($object->year) ? sprintf('%04d', (int) $object->year) : (dol_strlen($weekStartDate) === 10 ? date('Y', strtotime($weekStartDate)) : date('Y')));
 		$headerTitle = $outputlangs->trans('TimesheetWeek');
+		$headerStatus = '';
+		if (isset($object->status)) {
+			// EN: Map Dolibarr statuses to the closest badge colors used in the web interface.
+			// FR: Mappe les statuts Dolibarr vers les couleurs de badge les plus proches de l'interface web.
+			$statusStyles = array(
+				TimesheetWeek::STATUS_DRAFT => array('bg' => '#adb5bd', 'fg' => '#212529'),
+				TimesheetWeek::STATUS_SUBMITTED => array('bg' => '#0d6efd', 'fg' => '#ffffff'),
+				TimesheetWeek::STATUS_APPROVED => array('bg' => '#198754', 'fg' => '#ffffff'),
+				TimesheetWeek::STATUS_SEALED => array('bg' => '#6f42c1', 'fg' => '#ffffff'),
+				TimesheetWeek::STATUS_REFUSED => array('bg' => '#dc3545', 'fg' => '#ffffff')
+			);
+			// EN: Reference the translated labels for each known status.
+			// FR: Référence les libellés traduits pour chaque statut connu.
+			$statusLabelKeys = array(
+				TimesheetWeek::STATUS_DRAFT => 'TimesheetWeekStatusDraft',
+				TimesheetWeek::STATUS_SUBMITTED => 'TimesheetWeekStatusSubmitted',
+				TimesheetWeek::STATUS_APPROVED => 'TimesheetWeekStatusApproved',
+				TimesheetWeek::STATUS_SEALED => 'TimesheetWeekStatusSealed',
+				TimesheetWeek::STATUS_REFUSED => 'TimesheetWeekStatusRefused'
+			);
+			$statusValue = (int) $object->status;
+			if (!empty($statusLabelKeys[$statusValue])) {
+				$badgeLabel = $outputlangs->trans($statusLabelKeys[$statusValue]);
+				$badgeLabel = dol_escape_htmltag($badgeLabel);
+				if (!empty($statusStyles[$statusValue])) {
+					$badgeStyle = 'color:'.$statusStyles[$statusValue]['fg'].';background-color:'.$statusStyles[$statusValue]['bg'].';border-radius:3px;padding:1px 6px;font-weight:bold;display:inline-block;';
+					$headerStatus = '<span style="'.$badgeStyle.'">'.$badgeLabel.'</span>';
+				} else {
+					$headerStatus = $badgeLabel;
+				}
+			} else {
+				$headerStatus = dol_escape_htmltag($outputlangs->trans('Unknown'));
+			}
+		}
 		$headerWeekRange = '';
 		if (!empty($object->week) && !empty($object->year)) {
 			// EN: Retrieve the translated week range template before injecting ISO week and year values.
@@ -685,6 +722,26 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		if ($timesheetEmployee instanceof User) {
 			$employeeSubtitle = $outputlangs->trans('Employee').': '.$timesheetEmployee->getFullName($outputlangs);
 			$headerSubtitle .= "\n".$employeeSubtitle;
+		}
+		if ((int) $object->status === TimesheetWeek::STATUS_APPROVED) {
+			// EN: Prepare the approval trace with validation date and validator name for the PDF header.
+			// FR: Prépare la trace d'approbation avec la date de validation et le validateur pour l'entête PDF.
+			$approvalDateLabel = '';
+			if (!empty($object->date_validation)) {
+				$approvalDateLabel = dol_print_date($object->date_validation, '%d/%m/%Y');
+			}
+			$validatorName = '';
+			if (!empty($object->fk_user_valid)) {
+				$validatorUser = new User($this->db);
+				if ($validatorUser->fetch($object->fk_user_valid) > 0) {
+					$validatorName = $validatorUser->getFullName($outputlangs);
+				}
+			}
+			if ($approvalDateLabel !== '' && $validatorName !== '') {
+				// EN: Append the approval information under the employee line to mirror the card layout.
+				// FR: Ajoute les informations d'approbation sous la ligne salarié pour refléter la carte Dolibarr.
+				$headerSubtitle .= "\n".$outputlangs->trans('TimesheetWeekPdfApprovedDetails', $approvalDateLabel, $validatorName);
+			}
 		}
 		
 		$format = pdf_getFormat();
@@ -704,8 +761,8 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$headerState = array('value' => 0.0, 'automatic' => false);
 		if (method_exists($pdf, 'setHeaderCallback') && method_exists($pdf, 'setFooterCallback')) {
 			$pdf->setPrintHeader(true);
-			$pdf->setHeaderCallback(function ($pdfInstance) use ($outputlangs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerWeekRange, $headerSubtitle) {
-				$headerState['value'] = tw_pdf_draw_header($pdfInstance, $outputlangs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerWeekRange, $headerSubtitle);
+			$pdf->setHeaderCallback(function ($pdfInstance) use ($outputlangs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle) {
+				$headerState['value'] = tw_pdf_draw_header($pdfInstance, $outputlangs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 				$headerState['automatic'] = true;
 			});
 			$pdf->setPrintFooter(true);
@@ -729,7 +786,7 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', $defaultFontSize);
 		$pdf->Open();
 		
-		$contentTop = tw_pdf_add_landscape_page($pdf, $outputlangs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
+		$contentTop = tw_pdf_add_landscape_page($pdf, $outputlangs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 		$pdf->SetXY($margeGauche, $contentTop + 2.0);
 		$pdf->writeHTMLCell(0, 0, '', '', $htmlGrid, 0, 1, 0, true, '', true);
 		$pdf->lastPage();

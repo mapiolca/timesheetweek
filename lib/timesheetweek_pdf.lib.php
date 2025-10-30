@@ -107,7 +107,7 @@ function tw_pdf_format_header_html($value)
 	$normalizedValue = preg_replace('/<br\s*\/?\s*>/i', '<br />', $normalizedValue);
 	// EN: Allow only basic formatting tags to keep the header safe.
 	// FR: Autorise uniquement les balises de mise en forme basiques pour sécuriser l'entête.
-	$allowedTags = '<br><strong><b><em><i><u>';
+	$allowedTags = '<br><strong><b><em><i><u><span>';
 	$sanitizedValue = strip_tags($normalizedValue, $allowedTags);
 	// EN: Escape lone ampersands to provide valid HTML markup to TCPDF.
 	// FR: Échappe les esperluettes isolées afin de fournir un HTML valide à TCPDF.
@@ -127,11 +127,12 @@ function tw_pdf_format_header_html($value)
  * @param float $leftMargin
  * @param float $topMargin
  * @param string $title
+ * @param string $status
  * @param string $weekRange
  * @param string $subtitle
  * @return float
  */
-function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title = '', $weekRange = '', $subtitle = '')
+function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title = '', $status = '', $weekRange = '', $subtitle = '')
 {
 	global $mysoc;
 
@@ -208,6 +209,16 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		// FR: Force le titre d'entête à rester sur une seule ligne pour un rendu plus propre en haut à droite.
 		$pdf->Cell($rightBlockWidth, 6, tw_pdf_normalize_string($trimmedTitle), 0, 0, 'R', 0, '', 0, false, 'T', 'T');
 		$rightBlockBottom = max($rightBlockBottom, $posY + 6.0);
+	}
+	// EN: Insert the status badge under the title when provided by the caller.
+	// FR: Insère le badge de statut sous le titre lorsqu'il est fourni par l'appelant.
+	$trimmedStatus = trim((string) $status);
+	if (dol_strlen($trimmedStatus) > 0) {
+		$pdf->SetFont('', '', $defaultFontSize);
+		$pdf->SetTextColor(0, 0, 0);
+		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedStatus), 0, 'R', 0, 1, '', '', true, 0, true);
+		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 	// EN: Trim the ISO week range label before output.
 	// FR: Supprime les espaces du libellé de plage de semaines avant affichage.
@@ -306,7 +317,7 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param string $headerSubtitle
  * @return float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerWeekRange = '', $headerSubtitle = '')
+function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerStatus = '', $headerWeekRange = '', $headerSubtitle = '')
 {
 	$pdf->AddPage('L');
 	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
@@ -318,9 +329,9 @@ function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin,
 		// FR: Recalcule la hauteur d'entête lorsqu'elle manque pour éviter les appels de pied dupliqués.
 		$headerBottom = !empty($headerState['value'])
 				? (float) $headerState['value']
-				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
+				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 	} else {
-		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
+		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, null, 0, $autoPageBreakMargin);
 		if (is_array($headerState)) {
 			// EN: Store the header height for further pages when callbacks remain disabled.
@@ -819,6 +830,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	// EN: Prepare the title and metadata strings reused inside the header block.
 	// FR: Prépare les libellés du titre et des métadonnées réemployés dans l'entête.
 	$headerTitle = $langs->trans('TimesheetWeekSummaryTitle');
+	// EN: No status badge is required for summary reports, keep the slot empty.
+	// FR: Aucun badge de statut n'est nécessaire pour les rapports de synthèse, on laisse l'emplacement vide.
+	$headerStatus = '';
 	// EN: Build the human-readable ISO week range displayed under the title.
 	// FR: Construit la plage de semaines ISO lisible affichée sous le titre.
 	$headerWeekRangeLabel = $langs->trans('TimesheetWeekSummaryHeaderWeekRange');
@@ -848,8 +862,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Delegate header rendering to TCPDF so every page created by the engine receives it automatically.
 		// FR: Confie le rendu de l'entête à TCPDF afin que chaque page créée par le moteur le reçoive automatiquement.
 		$pdf->setPrintHeader(true);
-		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerWeekRange, $headerSubtitle) {
-			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerWeekRange, $headerSubtitle);
+		$pdf->setHeaderCallback(function ($pdfInstance) use ($langs, $conf, $margeGauche, $margeHaute, &$headerState, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle) {
+			$headerState['value'] = tw_pdf_draw_header($pdfInstance, $langs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 			$headerState['automatic'] = true;
 		});
 		// EN: Delegate footer drawing to TCPDF to guarantee presence on automatic page breaks.
@@ -879,7 +893,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetSubject(tw_pdf_normalize_string($langs->trans('TimesheetWeekSummaryTitle')));
 	$pdf->SetFont(pdf_getPDFFont($langs), '', $defaultFontSize);
 	$pdf->Open();
-	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
+	$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 	$pageHeight = $pdf->getPageHeight();
 
 	// EN: Offset the cursor slightly below the header to leave breathing space before the content.
@@ -1006,7 +1020,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
-			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerWeekRange, $headerSubtitle);
+			$contentTop = tw_pdf_add_landscape_page($pdf, $langs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 			$pageHeight = $pdf->getPageHeight();
 			$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 			if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
