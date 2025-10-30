@@ -20,6 +20,7 @@ TimesheetWeekNumberingEmpty = Aucun module de numérotation disponible.
 TimesheetWeekNumberingActivate = Activer ce masque
 TimesheetWeekPDFModelsHelp = Activez les modèles PDF générables depuis une feuille hebdomadaire.
 TimesheetWeekPDFModelsEmpty = Aucun modèle PDF disponible.
+PDFStandardTimesheetWeekDescription = Modèle PDF standard pour les feuilles hebdomadaires
 NewSection=Nouvelle section
 TIMESHEETWEEK_MYPARAM1 = Mon paramètre 1
 TIMESHEETWEEK_MYPARAM1Tooltip = Info-bulle de mon paramètre 1
