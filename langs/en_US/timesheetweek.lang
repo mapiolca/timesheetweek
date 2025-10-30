@@ -21,6 +21,7 @@ TimesheetWeekNumberingActivate = Activate this mask
 TimesheetWeekPDFModelsHelp = Enable the PDF templates that can be generated from a weekly timesheet.
 TimesheetWeekPDFModelsEmpty = No PDF template is available.
 PDFStandardTimesheetWeekDescription = Standard PDF model for weekly timesheets
+TimesheetWeekPdfReferenceLabel = Timesheet reference: %s
 NewSection=New section
 TIMESHEETWEEK_MYPARAM1 = My param 1
 TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip

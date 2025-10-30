@@ -5,6 +5,7 @@
 - Aligne la configuration sur le comportement Dolibarr pour activer ou désactiver les modèles PDF TimesheetWeek à l'aide des commutateurs natifs. / Aligns the setup configuration with Dolibarr behaviour to enable or disable TimesheetWeek PDF templates with native toggles.
 - Corrige l'affichage du bloc documentaire de la fiche hebdomadaire pour respecter le flux includedocgeneration Dolibarr. / Fixes the weekly card document block to follow Dolibarr's includedocgeneration flow.
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
+- Reproduit dans le PDF standard la grille de tâches de la fiche hebdomadaire et affiche la référence sous le titre pour faciliter les validations. / Mirrors the weekly card task grid in the standard PDF and shows the reference under the title to ease approvals.
 - Prépare automatiquement les répertoires documents et sélectionne le modèle PDF standard lors de l'activation du module. / Automatically prepares the document folders and selects the standard PDF model when the module is enabled.
 
 - Évite l'erreur SQL lors de la sauvegarde du modèle PDF en ajoutant la colonne dédiée et en gérant l'absence de colonne dans les schémas existants. / Avoids the SQL error while saving the PDF model by adding the dedicated column and handling legacy schemas.
