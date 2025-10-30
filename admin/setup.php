@@ -70,8 +70,46 @@ $scanDir = GETPOST('scan_dir', 'alpha');
 // FR: Aide pour activer un modèle PDF dans la base.
 function timesheetweekEnableDocumentModel($model, $label = '', $scandir = '')
 {
+	global $db, $conf;
+
 	if (empty($model)) {
 		return 0;
+	}
+
+	// EN: Check if the model already exists for the current entity to avoid duplicates.
+	// FR: Vérifie si le modèle existe déjà pour l'entité courante afin d'éviter les doublons.
+	$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX."document_model WHERE nom='".$db->escape($model)."' AND type='timesheetweek' AND entity=".((int) $conf->entity);
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return -1;
+	}
+
+	$existing = $db->fetch_object($resql);
+	$db->free($resql);
+
+	if ($existing) {
+		$fields = array();
+
+		// EN: Refresh label when provided to keep UI messages in sync.
+		// FR: Met à jour le libellé fourni pour garder l'interface cohérente.
+		if ($label !== '') {
+			$fields[] = "libelle='".$db->escape($label)."'";
+		}
+
+		// EN: Refresh directory hint when provided to ease future scans.
+		// FR: Met à jour le chemin fourni pour faciliter les scans ultérieurs.
+		if ($scandir !== '') {
+			$fields[] = "description='".$db->escape($scandir)."'";
+		}
+
+		if (!empty($fields)) {
+			$sqlUpdate = 'UPDATE '.MAIN_DB_PREFIX."document_model SET ".implode(', ', $fields).' WHERE rowid='.((int) $existing->rowid);
+			if (!$db->query($sqlUpdate)) {
+				return -1;
+			}
+		}
+
+		return 1;
 	}
 
 	$result = addDocumentModel($model, 'timesheetweek', $label, $scandir);
@@ -81,6 +119,7 @@ function timesheetweekEnableDocumentModel($model, $label = '', $scandir = '')
 
 	return ($result === 0) ? 1 : -1;
 }
+
 
 // EN: Helper to disable a PDF model from the database.
 // FR: Aide pour désactiver un modèle PDF dans la base.
