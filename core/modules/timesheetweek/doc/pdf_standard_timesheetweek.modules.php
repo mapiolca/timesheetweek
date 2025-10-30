@@ -664,7 +664,12 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$headerTitle = $outputlangs->trans('TimesheetWeek');
 		$headerWeekRange = '';
 		if (!empty($object->week) && !empty($object->year)) {
-			$headerWeekRange = $outputlangs->trans('TimesheetWeekSummaryHeaderWeekRange', $weekLabel, $yearLabel, $weekLabel, $yearLabel);
+			// EN: Retrieve the translated week range template before injecting ISO week and year values.
+			// FR: Récupère le gabarit traduit de la plage de semaine avant d'injecter les valeurs ISO de semaine et d'année.
+			$headerWeekRangeLabel = $outputlangs->trans('TimesheetWeekSummaryHeaderWeekRange');
+			// EN: Compose the final week range label to ensure placeholders are properly replaced when generating the header.
+			// FR: Compose le libellé final de la plage hebdomadaire pour garantir le remplacement correct des variables dans l'entête.
+			$headerWeekRange = sprintf($headerWeekRangeLabel, $weekLabel, $yearLabel, $weekLabel, $yearLabel);
 		}
 		$headerSubtitle = $outputlangs->trans('TimesheetWeekPdfReferenceLabel', $object->ref);
 		if ($timesheetEmployee instanceof User) {
