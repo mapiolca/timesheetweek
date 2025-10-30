@@ -70,6 +70,7 @@ class TimesheetWeek extends CommonObject
 	public $lines = array();
 
 	public $errors = array();
+	public $warnings = array();
 	public $error = '';
 
 	/**
@@ -458,6 +459,129 @@ class TimesheetWeek extends CommonObject
 
 		return 1;
 	}
+	/**
+	 * EN: Generate the PDF document using the selected model.
+	 * FR: Génère le document PDF en utilisant le modèle sélectionné.
+	 *
+	 * @param string $model  PDF model identifier / Identifiant du modèle PDF
+	 * @param Translate|null $outputlangs  Language handler / Gestionnaire de langues
+	 * @param int $hidedetails  Hide detail lines flag / Indicateur de masquage des détails
+	 * @param int $hidedesc  Hide descriptions flag / Indicateur de masquage des descriptions
+	 * @param int $hideref  Hide references flag / Indicateur de masquage des références
+	 * @param array $moreparams  Additional parameters / Paramètres additionnels
+	 * @return int 1 on success, <=0 otherwise / 1 si succès, <=0 sinon
+	 */
+	public function generateDocument($model = '', $outputlangs = null, $hidedetails = 0, $hidedesc = 0, $hideref = 0, $moreparams = array())
+	{
+		global $conf, $langs;
+
+		// EN: Reset error containers before launching the generator.
+		// FR: Réinitialise les conteneurs d'erreurs avant de lancer le générateur.
+		$this->error = '';
+		$this->errors = array();
+
+		// EN: Remember the requested model or fall back to the object and global configuration.
+		// FR: Retient le modèle demandé ou retombe sur la configuration de l'objet puis du global.
+		if (empty($model)) {
+			if (!empty($this->model_pdf)) {
+				$model = $this->model_pdf;
+			} else {
+				$model = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+			}
+		}
+
+		if (!is_object($outputlangs)) {
+			$outputlangs = $langs;
+		}
+
+		// EN: Ensure translations are available for error and filename messages.
+		// FR: S'assure que les traductions sont disponibles pour les messages d'erreur et de fichier.
+		if ($outputlangs instanceof Translate) {
+			if (method_exists($outputlangs, 'loadLangs')) {
+				$outputlangs->loadLangs(array('main', 'timesheetweek@timesheetweek'));
+			} else {
+				$outputlangs->load('main');
+				$outputlangs->load('timesheetweek@timesheetweek');
+			}
+		}
+
+		if (empty($model)) {
+			$this->error = $outputlangs instanceof Translate ? $outputlangs->trans('ErrorNoPDFForDoc') : 'No PDF model available';
+			return -1;
+		}
+
+		// EN: Make the TimesheetWeek document models available.
+		// FR: Rend disponibles les modèles de documents TimesheetWeek.
+		dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetweek.php');
+
+		$modulePath = dol_buildpath('/timesheetweek/core/modules/timesheetweek/doc/pdf_'.$model.'.modules.php', 0);
+
+		// EN: Abort if the PDF module file cannot be accessed.
+		// FR: Abandonne si le fichier du module PDF est inaccessible.
+		if (!is_readable($modulePath)) {
+			$this->error = $outputlangs instanceof Translate ? $outputlangs->trans('ErrorFailedToLoadFile', basename($modulePath)) : 'Unable to load PDF module';
+			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_ERR);
+			return -1;
+		}
+
+		require_once $modulePath;
+
+		$classname = 'pdf_'.$model;
+
+		// EN: Validate the presence of the generator class before instantiation.
+		// FR: Valide la présence de la classe génératrice avant instanciation.
+		if (!class_exists($classname)) {
+			$this->error = $outputlangs instanceof Translate ? $outputlangs->trans('ErrorFailedToLoadFile', $classname) : 'PDF class not found';
+			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_ERR);
+			return -1;
+		}
+
+		$generator = new $classname($this->db);
+
+		// EN: Execute the PDF generation with the selected options.
+		// FR: Exécute la génération PDF avec les options sélectionnées.
+		$result = $generator->write_file($this, $outputlangs, '', $hidedetails, $hidedesc, $hideref);
+
+		if ($result <= 0) {
+			// EN: Propagate detailed errors from the generator for troubleshooting.
+			// FR: Propage les erreurs détaillées du générateur pour faciliter le diagnostic.
+			if (!empty($generator->errors)) {
+				$this->errors = (array) $generator->errors;
+				$this->error = implode(', ', $this->errors);
+			} elseif (!empty($generator->error)) {
+				$this->error = $generator->error;
+				$this->errors = array($generator->error);
+			} else {
+				$this->error = $outputlangs instanceof Translate ? $outputlangs->trans('ErrorFailToCreateFile') : 'PDF generation failed';
+				$this->errors = array($this->error);
+			}
+			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_ERR);
+			return -1;
+		}
+
+		// EN: Keep track of the last generated document path for Dolibarr widgets.
+		// FR: Conserve le chemin du dernier document généré pour les widgets Dolibarr.
+		if (!empty($generator->result['relativepath'])) {
+			$this->last_main_doc = $generator->result['relativepath'];
+		} elseif (!empty($generator->result['fullpath'])) {
+			$this->last_main_doc = basename($generator->result['fullpath']);
+		}
+
+		// EN: Store potential warnings from the generator for later display.
+		// FR: Stocke les avertissements potentiels du générateur pour un affichage ultérieur.
+		if (!empty($generator->result['warnings'])) {
+			$this->warnings = $generator->result['warnings'];
+		}
+
+		// EN: Memorise the model used so that the next generation reuses it.
+		// FR: Mémorise le modèle utilisé pour que la prochaine génération le réutilise.
+		if (!empty($model)) {
+			$this->model_pdf = $model;
+		}
+
+		return 1;
+	}
+
 	public function delete($user)
 	{
 		$this->db->begin();

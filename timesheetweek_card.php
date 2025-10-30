@@ -845,7 +845,7 @@ if ($object->id > 0) {
 			|| !empty($user->admin)
 		);
 
-			if ($permissiontoadd && GETPOST('model', 'alpha')) {
+		if ($permissiontoadd && GETPOST('model', 'alpha')) {
 			// EN: Allow PDF model changes only to users authorised to act on the sheet.
 			// FR: Autorise le changement de modèle PDF uniquement aux utilisateurs habilités à agir sur la feuille.
 			// EN: Allow administrators to switch the PDF model directly from the card view.
