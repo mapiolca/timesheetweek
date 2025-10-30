@@ -961,50 +961,25 @@ JS;
 		accessforbidden();
 	}
 
-		llxHeader('', $title);
+	llxHeader('', $title);
 
-		// EN: Preload the employee information to reuse in the banner and totals blocks.
-		// FR: Précharge les informations du salarié pour les réutiliser dans le bandeau et les blocs de totaux.
-		$employeeInfoDisplay = tw_get_employee_with_daily_rate($db, $object->fk_user);
-		$timesheetEmployee = $employeeInfoDisplay['user'];
-		$isDailyRateEmployee = $employeeInfoDisplay['is_daily_rate'];
+	// Head + banner
+	$head = timesheetweekPrepareHead($object);
+		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
 
-		// Head + banner
-		$head = timesheetweekPrepareHead($object);
-				print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
-
-				$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
-				$morehtmlright = '';
-				$morehtmlstatus = '';
+		$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
+		$morehtmlright = '';
+		$morehtmlstatus = '';
 		if (!empty($object->id)) {
 				$morehtmlstatus = $object->getLibStatut(5);
 		}
 
-				$morehtmlref = '';
-				// EN: Build contextual details to stay consistent with Dolibarr cards (week range, reference, employee).
-				// FR: Construit les détails contextuels pour rester cohérent avec les fiches Dolibarr (plage, référence, salarié).
-				$summaryLines = array();
-				if (!empty($object->week) && !empty($object->year)) {
-								$weekLabel = sprintf('%02d', (int) $object->week);
-								$yearLabel = sprintf('%04d', (int) $object->year);
-								$summaryLines[] = $langs->trans('TimesheetWeekSummaryHeaderWeekRange', $weekLabel, $yearLabel, $weekLabel, $yearLabel);
-				}
-				$summaryLines[] = $langs->trans('TimesheetWeekPdfReferenceLabel', $object->ref);
-				if ($timesheetEmployee instanceof User) {
-								$summaryLines[] = $langs->trans('Employee').': '.$timesheetEmployee->getFullName($langs);
-				}
-				if (!empty($summaryLines)) {
-								$morehtmlref .= '<br><div class="refidno">';
-								foreach ($summaryLines as $line) {
-												$morehtmlref .= '<div>'.dol_escape_htmltag($line).'</div>';
-								}
-								$morehtmlref .= '</div>';
-				}
-				if (!empty($conf->multicompany->enabled) && (int) $object->entity !== (int) $conf->entity) {
-								// EN: Fetch the entity label to display the native Multicompany badge below the reference.
-								// FR: Récupère le libellé de l'entité pour afficher le badge Multicompany natif sous la référence.
-								$entityName = '';
-								$entityId = (int) $object->entity;
+		$morehtmlref = '';
+		if (!empty($conf->multicompany->enabled) && (int) $object->entity !== (int) $conf->entity) {
+				// EN: Fetch the entity label to display the native Multicompany badge below the reference.
+				// FR: Récupère le libellé de l'entité pour afficher le badge Multicompany natif sous la référence.
+				$entityName = '';
+				$entityId = (int) $object->entity;
 				if ($entityId > 0) {
 						$sqlEntity = 'SELECT label FROM '.MAIN_DB_PREFIX."entity WHERE rowid = ".$entityId;
 						$resEntity = $db->query($sqlEntity);
@@ -1170,11 +1145,15 @@ JS;
 
 	// EN: Load the employee once to reuse the daily rate flag across the header and grid.
 	// FR: Charge le salarié une seule fois pour réutiliser le flag forfait jour dans l'entête et la grille.
+	$employeeInfoDisplay = tw_get_employee_with_daily_rate($db, $object->fk_user);
+	$timesheetEmployee = $employeeInfoDisplay['user'];
+	$isDailyRateEmployee = $employeeInfoDisplay['is_daily_rate'];
+
 // Right block (Totaux en entête)
-		$contractedHoursDisp = 35.0;
-		if ($timesheetEmployee instanceof User) {
-				$contractedHoursDisp = !empty($timesheetEmployee->weeklyhours) ? (float) $timesheetEmployee->weeklyhours : 35.0;
-		}
+	$contractedHoursDisp = 35.0;
+	if ($timesheetEmployee instanceof User) {
+		$contractedHoursDisp = !empty($timesheetEmployee->weeklyhours) ? (float) $timesheetEmployee->weeklyhours : 35.0;
+	}
 $th = (float) $object->total_hours;
 $ot = (float) $object->overtime_hours;
 if ($th <= 0) {
