@@ -32,6 +32,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -1825,7 +1826,15 @@ JS;
 					$relativePath = $object->element.'/'.$docRef;
 					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
-					$genallowed = $permReadAny ? 1 : 0;
+					$genallowed = 0;
+					if ($permReadAny) {
+					// EN: Load only active PDF models configured for the module to restrict the combo box.
+					// FR: Charge uniquement les modèles PDF actifs configurés pour le module afin de restreindre la liste.
+					$enabledDocModels = getListOfModels($db, 'timesheetweek');
+					if (!empty($enabledDocModels)) {
+					$genallowed = $enabledDocModels;
+					}
+					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
 					print $formfile->showdocuments(
