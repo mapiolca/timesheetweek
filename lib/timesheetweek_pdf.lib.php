@@ -83,8 +83,38 @@ function tw_pdf_format_cell_html($value)
 	// FR: Échappe les caractères spéciaux HTML avec l'helper Dolibarr pour sécuriser la sortie TCPDF.
 	$escapedValue = dol_escape_htmltag($normalizedValue);
 	// EN: Wrap the escaped value in a span to stay compatible with TCPDF HTML rendering expectations.
-	// FR: Encapsule la valeur échappée dans un span pour rester compatible avec les attentes de rendu HTML de TCPDF.
-	return '<span>'.$escapedValue.'</span>';
+        // FR: Encapsule la valeur échappée dans un span pour rester compatible avec les attentes de rendu HTML de TCPDF.
+        return '<span>'.$escapedValue.'</span>';
+}
+
+/**
+ * EN: Prepare multi-line header content while allowing simple HTML formatting.
+ * FR: Prépare un contenu d'entête multi-lignes en autorisant une mise en forme HTML simple.
+ *
+ * @param string $value
+ * @return string
+ */
+function tw_pdf_format_header_html($value)
+{
+	// EN: Normalise the input before applying header-specific adjustments.
+	// FR: Normalise la valeur avant d'appliquer les ajustements spécifiques à l'entête.
+	$normalizedValue = tw_pdf_normalize_string($value);
+	// EN: Convert plain line breaks into HTML breaks to mimic on-screen layout.
+	// FR: Convertit les retours à la ligne simples en sauts HTML pour imiter la mise en page à l'écran.
+	$normalizedValue = preg_replace("/(\r\n|\r|\n)/", '<br />', $normalizedValue);
+	// EN: Harmonise any existing break tags to the XHTML form expected by TCPDF.
+	// FR: Harmonise les balises de saut de ligne existantes au format XHTML attendu par TCPDF.
+	$normalizedValue = preg_replace('/<br\s*\/?\s*>/i', '<br />', $normalizedValue);
+	// EN: Allow only basic formatting tags to keep the header safe.
+	// FR: Autorise uniquement les balises de mise en forme basiques pour sécuriser l'entête.
+	$allowedTags = '<br><strong><b><em><i><u>';
+	$sanitizedValue = strip_tags($normalizedValue, $allowedTags);
+	// EN: Escape lone ampersands to provide valid HTML markup to TCPDF.
+	// FR: Échappe les esperluettes isolées afin de fournir un HTML valide à TCPDF.
+	$sanitizedValue = preg_replace('/&(?![a-zA-Z0-9#]+;)/', '&amp;', $sanitizedValue);
+	// EN: Return the formatted span ready to be rendered in the PDF header.
+	// FR: Retourne le span formaté prêt à être rendu dans l'entête PDF.
+	return '<span>'.$sanitizedValue.'</span>';
 }
 
 /**
@@ -188,7 +218,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
 		// EN: Show the ISO week range immediately below the title to mirror Dolibarr headers.
 		// FR: Affiche la plage de semaines ISO juste sous le titre pour refléter les entêtes Dolibarr.
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($trimmedWeekRange), 0, 'R', 0, 1, '', '', true, 0, true);
+               $pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedWeekRange), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 	// EN: Remove unnecessary spaces around the header subtitle before rendering.
@@ -198,7 +228,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetFont('', '', $defaultFontSize);
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_cell_html($trimmedSubtitle), 0, 'R', 0, 1, '', '', true, 0, true);
+               $pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedSubtitle), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 
