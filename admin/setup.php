@@ -103,7 +103,9 @@ function timesheetweekListNumberingModules(array $directories, Translate $langs,
 		$modules = array();
 
 		foreach ($directories as $reldir) {
-			$dir = dol_buildpath($reldir.'timesheetweek/core/modules/timesheetweek/');
+			// EN: Resolve the directory that holds the numbering module classes.
+			// FR: Résout le répertoire qui contient les classes de numérotation.
+			$dir = dol_buildpath(rtrim($reldir, '/').'/timesheetweek/core/modules/timesheetweek/');
 				if (!is_dir($dir)) {
 						continue;
 				}
@@ -168,8 +170,8 @@ function timesheetweekListNumberingModules(array $directories, Translate $langs,
 		return $modules;
 }
 
-// EN: Build the list of available PDF models for the module.
-// FR: Construit la liste des modèles PDF disponibles pour le module.
+// EN: Build the list of available document models for the module.
+// FR: Construit la liste des modèles de documents disponibles pour le module.
 function timesheetweekListDocumentModels(array $directories, Translate $langs, array $enabled, $default)
 {
 		global $db;
@@ -177,15 +179,17 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 		$models = array();
 
 		foreach ($directories as $reldir) {
-			$dir = dol_buildpath($reldir.'timesheetweek/core/modules/timesheetweek/doc/');
+			// EN: Resolve the directory that stores the document model definitions.
+			// FR: Résout le répertoire qui contient les définitions de modèles de document.
+			$dir = dol_buildpath(rtrim($reldir, '/').'/timesheetweek/core/modules/timesheetweek/doc/');
 				if (!is_dir($dir)) {
 						continue;
 				}
 
-				$files = dol_dir_list($dir, 'files', 0, '^[a-z0-9_]+\.php$');
+				$files = dol_dir_list($dir, 'files', 0, '^[A-Za-z0-9_]+\.modules\.php$');
 				foreach ($files as $fileinfo) {
 						$file = $fileinfo['name'];
-						$classname = preg_replace('/\.php$/', '', $file);
+						$classname = preg_replace('/\.modules\.php$/i', '', $file);
 
 						require_once $dir.$file;
 						if (!class_exists($classname)) {
@@ -193,7 +197,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 						}
 
 						$module = new $classname($db);
-						if (empty($module->type) || $module->type !== 'pdf') {
+						if (empty($module->type)) {
 								continue;
 						}
 
