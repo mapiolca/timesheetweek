@@ -1788,52 +1788,65 @@ JS;
 
 		echo '</div>';
 
-		if ($action !== 'presend') {
-		// EN: Display the document area with Dolibarr's native widget to generate or download PDFs.
-		// FR: Affiche la zone de documents avec le widget natif Dolibarr pour générer ou télécharger les PDF.
-			print '<div class="fichecenter"><div class="fichehalfleft">';
-			print '<a name="builddoc"></a>';
+			if ($action !== 'presend') {
+				// EN: Mirror Dolibarr's document block so PDF tools appear consistently on the card.
+				// FR: Reproduit le bloc documentaire de Dolibarr pour afficher les outils PDF de manière cohérente sur la fiche.
+				print '<div class="fichecenter"><div class="fichehalfleft">';
+				print '<a name="builddoc"></a>';
 
-			$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-			$docBaseDir = !empty($conf->timesheetweek->multidir_output[$docEntityId])
-				? $conf->timesheetweek->multidir_output[$docEntityId]
-				: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
-			$docSubDir = dol_sanitizeFileName($object->ref);
-			$filedir = $docBaseDir.'/timesheetweek/'.$docSubDir;
-			$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
+				// EN: Enable the document generation area (can be toggled by hooks if needed).
+				// FR: Active la zone de génération documentaire (peut être désactivée via des hooks si nécessaire).
+				$includedocgeneration = 1;
 
-			$genallowed = (int) $permissiontoadd;
-			$delallowed = (int) $permissiontoadd;
+				if ($includedocgeneration) {
+					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
+					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
+					$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+					$object->element = 'timesheetweek';
+					$docRef = dol_sanitizeFileName($object->ref);
+					$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
+					if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
+						$entityOutput = $conf->timesheetweek->dir_output;
+					}
+					if (empty($entityOutput)) {
+						$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
+					}
+					$relativePath = $object->element.'/'.$docRef;
+					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
+					$genallowed = $permReadAny ? 1 : 0;
+					$delallowed = $permissiontoadd ? 1 : 0;
 
-			$formfile->showdocuments(
-				'timesheetweek',
-				$docSubDir,
-				$filedir,
-				$urlsource,
-				$genallowed,
-				$delallowed,
-				$object->model_pdf,
-				1,
-				0,
-				0,
-				0,
-				0,
-				'',
-				'',
-				'',
-				'',
-				'',
-				$object,
-				0,
-				'remove_file',
-				''
-			);
+					print $formfile->showdocuments(
+						'timesheetweek:TimesheetWeek',
+						$relativePath,
+						$filedir,
+						$urlsource,
+						$genallowed,
+						$delallowed,
+						$object->model_pdf,
+						1,
+						0,
+						0,
+						28,
+						0,
+						'',
+						'',
+						'',
+						$langs->defaultlang,
+						'',
+						$object,
+						0,
+						'remove_file',
+						''
+					);
+				}
 
-			print '</div></div>';
-		}
+				print '</div></div>';
+			}
 
-if ($action === 'presend') {
-$formmail = new FormMail($db);
+			if ($action === 'presend') {
+				$formmail = new FormMail($db);
 				$formmail->showform = 1;
 				$formmail->withfrom = 1;
 				$formmail->fromtype = 'user';
