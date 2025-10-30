@@ -33,6 +33,9 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+// EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
+// FR: Charge les définitions de modèles PDF pour réutiliser les filtres de Dolibarr.
+dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetweek.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -148,6 +151,26 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 	}
 	$cache[$userId] = $result;
 	return $result;
+
+/**
+ * EN: Retrieve the list of activated PDF models for the module with entity scoping.
+ * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
+ *
+ * @param DoliDB $db Database handler / Gestionnaire de base de données
+ * @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
+ */
+function tw_get_enabled_pdf_models(DoliDB $db)
+{
+	// EN: Ask the module manager for the enabled templates of TimesheetWeek.
+	// FR: Demande au gestionnaire du module les modèles activés de TimesheetWeek.
+	$models = ModelePDFTimesheetWeek::liste_modeles($db);
+	if (!is_array($models) || empty($models)) {
+		return array();
+	}
+
+	return $models;
+}
+
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -1826,14 +1849,14 @@ JS;
 					$relativePath = $object->element.'/'.$docRef;
 					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
-					$genallowed = 0;
+					$genallowed = $permReadAny ? 1 : 0;
 					if ($permReadAny) {
-					// EN: Load only active PDF models configured for the module to restrict the combo box.
-					// FR: Charge uniquement les modèles PDF actifs configurés pour le module afin de restreindre la liste.
-					$enabledDocModels = getListOfModels($db, 'timesheetweek');
-					if (!empty($enabledDocModels)) {
-					$genallowed = $enabledDocModels;
-					}
+						// EN: Narrow the generation list to the PDF models enabled in the configuration.
+						// FR: Restreint la liste de génération aux modèles PDF activés dans la configuration.
+						$enabledDocModels = tw_get_enabled_pdf_models($db);
+						if (!empty($enabledDocModels)) {
+							$genallowed = $enabledDocModels;
+						}
 					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
