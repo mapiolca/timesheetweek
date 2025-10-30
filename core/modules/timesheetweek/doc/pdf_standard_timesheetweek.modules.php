@@ -736,7 +736,10 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		
 		$filename = $cleanRef.'.pdf';
 		$destinationFile = $targetDir.'/'.$filename;
-		if ($pdf->Output($destinationFile, 'F') <= 0) {
+		$resultOutput = $pdf->Output($destinationFile, 'F');
+		if ($resultOutput === false) {
+			// EN: Abort when TCPDF signals a failure while writing the document to disk.
+			// FR: Abandonne lorsque TCPDF signale un échec lors de l'écriture du document sur le disque.
 			$this->error = $outputlangs->trans('ErrorFailToCreateFile');
 			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_ERR);
 			return -1;
