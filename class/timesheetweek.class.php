@@ -1903,52 +1903,126 @@ class TimesheetWeek extends CommonObject
 		return self::LibStatut($this->status, $mode);
 	}
 
-	public static function LibStatut($status, $mode = 0)
+	/**
+	* EN: Provide the Dolibarr badge definition for a status (class, label, colors).
+	* FR: Fournit la définition du badge Dolibarr pour un statut (classe, libellé, couleurs).
+	*
+	* @param int $status Timesheet status identifier / Identifiant du statut de la feuille
+	* @param Translate|null $translator Optional translator to reuse / Traducteur optionnel à réutiliser
+	* @return array<string,string> Badge definition data / Données de définition du badge
+	*/
+	public static function getStatusBadgeDefinition($status, $translator = null)
 	{
 		global $langs;
-		$langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+
+		// EN: Allow PDF generation to reuse its own Translate instance when provided.
+		// FR: Permet à la génération PDF de réutiliser sa propre instance Translate lorsque fournie.
+		$activeTranslator = $translator instanceof Translate ? $translator : $langs;
+
+		if ($activeTranslator instanceof Translate) {
+			if (method_exists($activeTranslator, 'loadLangs')) {
+				$activeTranslator->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+			} else {
+				$activeTranslator->load('timesheetweek@timesheetweek');
+				$activeTranslator->load('other');
+			}
+		}
 
 		$statusInfo = array(
-		self::STATUS_DRAFT => array(
-		'label' => $langs->trans('TimesheetWeekStatusDraft'),
-		'picto' => 'statut0',
-		'class' => 'badge badge-status badge-status0',
-		),
-		self::STATUS_SUBMITTED => array(
-		'label' => $langs->trans('TimesheetWeekStatusSubmitted'),
-		'picto' => 'statut1',
-		'class' => 'badge badge-status badge-status1',
-		),
-		self::STATUS_APPROVED => array(
-		'label' => $langs->trans('TimesheetWeekStatusApproved'),
-		'picto' => 'statut4',
-		'class' => 'badge badge-status badge-status4',
-		),
-		self::STATUS_SEALED => array(
-		// EN: Swap the badge styling with the refused status to improve visual contrast.
-		// FR: Inverse le style de badge avec le statut refusé pour améliorer le contraste visuel.
-		'label' => $langs->trans('TimesheetWeekStatusSealed'),
-		'picto' => 'statut6',
-		'class' => 'badge badge-status badge-status6',
-		),
-		self::STATUS_REFUSED => array(
-		// EN: Apply the sealed badge colors to the refused status for clearer differentiation.
-		// FR: Applique les couleurs du statut scellé au statut refusé pour une meilleure différenciation.
-		'label' => $langs->trans('TimesheetWeekStatusRefused'),
-		'picto' => 'statut8',
-		'class' => 'badge badge-status badge-status8',
-		),
+			self::STATUS_DRAFT => array(
+				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusDraft') : 'Draft',
+				'picto' => 'statut0',
+				'class' => 'badge badge-status badge-status0',
+				'type' => 'status0',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#adb5bd',
+				'text_color' => '#212529',
+			),
+			self::STATUS_SUBMITTED => array(
+				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusSubmitted') : 'Submitted',
+				'picto' => 'statut1',
+				'class' => 'badge badge-status badge-status1',
+				'type' => 'status1',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#0d6efd',
+				'text_color' => '#ffffff',
+			),
+			self::STATUS_APPROVED => array(
+				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusApproved') : 'Approved',
+				'picto' => 'statut4',
+				'class' => 'badge badge-status badge-status4',
+				'type' => 'status4',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#198754',
+				'text_color' => '#ffffff',
+			),
+			self::STATUS_SEALED => array(
+				// EN: Align sealed badge with Dolibarr default visual identity.
+				// FR: Aligne le badge du statut scellé sur l'identité visuelle Dolibarr par défaut.
+				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusSealed') : 'Sealed',
+				'picto' => 'statut6',
+				'class' => 'badge badge-status badge-status6',
+				'type' => 'status6',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#6f42c1',
+				'text_color' => '#ffffff',
+			),
+			self::STATUS_REFUSED => array(
+				// EN: Keep the refused badge matching Dolibarr styling guidelines.
+				// FR: Maintient le badge du statut refusé conforme aux directives Dolibarr.
+				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusRefused') : 'Refused',
+				'picto' => 'statut8',
+				'class' => 'badge badge-status badge-status8',
+				'type' => 'status8',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#dc3545',
+				'text_color' => '#ffffff',
+			),
 		);
 
-		$info = $statusInfo[$status] ?? array(
-		'label' => $langs->trans('Unknown'),
-		'picto' => 'statut0',
-		'class' => 'badge badge-status badge-status0',
+		$defaultLabel = $activeTranslator instanceof Translate ? $activeTranslator->trans('Unknown') : 'Unknown';
+
+		return $statusInfo[$status] ?? array(
+			'label' => $defaultLabel,
+			'picto' => 'statut0',
+			'class' => 'badge badge-status badge-status0',
+			'type' => 'status0',
+			// EN: Provide RGB-friendly colors for PDF rendering.
+			// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+			'background_color' => '#adb5bd',
+			'text_color' => '#212529',
 		);
+	}
+
+	public static function LibStatut($status, $mode = 0)
+	{
+		$info = self::getStatusBadgeDefinition($status);
+		$label = dol_escape_htmltag($info['label']);
 
 		if ((int) $mode === 5) {
-			return '<span class="'.$info['class'].'" title="'.dol_escape_htmltag($info['label']).'">'
-			.dol_escape_htmltag($info['label']).'</span>';
+			// EN: Build Dolibarr badge output to mirror native status rendering.
+			// FR: Construit le badge Dolibarr pour reproduire le rendu natif des statuts.
+			$badgeParams = array(
+				'badgeParams' => array(
+					'attr' => array(
+						'aria-label' => $label,
+					),
+				),
+			);
+			return dolGetStatus(
+				$info['label'],
+				$info['label'],
+				'',
+				!empty($info['type']) ? $info['type'] : 'status0',
+				5,
+				'',
+				$badgeParams
+			);
 		}
 
 		$picto = img_picto($info['label'], $info['picto']);
