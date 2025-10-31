@@ -154,6 +154,8 @@ TimesheetWeekSummaryTableTooTall = The summary for %s contains too many rows to 
 TimesheetWeekSummaryGenerated = Summary PDF ready.
 TimesheetWeekSummaryFilename = Weekly timesheets summary - Week %s to %s.pdf
 TimesheetWeekSummaryHeaderWeekRange = Week #%1$s %2$s
+TimesheetWeekPreviewPdf = PDF preview
+TimesheetWeekDownloadPdf = PDF download
 
 TimesheetWeekStatusDraft = Draft
 TimesheetWeekStatusSubmitted = Submitted
