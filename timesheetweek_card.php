@@ -923,42 +923,60 @@ if ($object->id > 0) {
 
 		include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 
-		if ($action === 'remove_file') {
-			// EN: Prevent deletion without matching token when CSRF protection is enabled.
-			// FR: Empêche la suppression sans jeton correspondant lorsque la protection CSRF est active.
-			$tokenReceived = GETPOST('token', 'alpha');
-			$tokenValid = true;
-			if (!empty($conf->global->MAIN_SECURITY_CSRF_WITH_TOKEN)) {
-				$tokenExpected = isset($_SESSION['newtoken']) ? $_SESSION['newtoken'] : '';
-				$tokenValid = ($tokenReceived !== '' && $tokenReceived === $tokenExpected);
-			}
-
-			if (!$tokenValid) {
-				setEventMessages($langs->trans('ErrorBadToken'), null, 'errors');
-				$action = '';
-			} elseif (!$permissiontoadd) {
-				// EN: Inform the user that deleting attachments is restricted to authorised roles.
-				// FR: Informe l'utilisateur que la suppression des pièces jointes est réservée aux rôles autorisés.
-				setEventMessages($langs->trans('ErrorForbidden'), null, 'errors');
-				$action = '';
-			} else {
-				// EN: Secure the provided filename before building the absolute path.
-				// FR: Sécurise le nom de fichier fourni avant de construire le chemin absolu.
-				$fileName = dol_sanitizeFileName(GETPOST('file', 'alphanohtml'));
-				if ($fileName !== '' && !empty($upload_dir)) {
-					$filePath = $upload_dir.'/'.$fileName;
-					// EN: Delete the file and display Dolibarr standard feedback messages.
-					// FR: Supprime le fichier et affiche les messages standards de Dolibarr.
-					if (dol_delete_file($filePath, 0, 0, 0, $object) > 0) {
-						setEventMessages($langs->trans('FileWasRemoved', $fileName), null, 'mesgs');
-					} else {
-						setEventMessages($langs->trans('ErrorFailToDeleteFile', $fileName), null, 'errors');
-					}
+			if ($action === 'remove_file') {
+				// EN: Prevent deletion without matching token when CSRF protection is enabled.
+				// FR: Empêche la suppression sans jeton correspondant lorsque la protection CSRF est active.
+				$tokenReceived = GETPOST('token', 'alpha');
+				$tokenValid = true;
+				if (!empty($conf->global->MAIN_SECURITY_CSRF_WITH_TOKEN)) {
+					$tokenExpected = isset($_SESSION['newtoken']) ? $_SESSION['newtoken'] : '';
+					$tokenValid = ($tokenReceived !== '' && $tokenReceived === $tokenExpected);
 				}
-				header('Location: '.dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id);
-				exit;
+
+				if (!$tokenValid) {
+					setEventMessages($langs->trans('ErrorBadToken'), null, 'errors');
+					$action = '';
+				} elseif (!$permissiontoadd) {
+					// EN: Inform the user that deleting attachments is restricted to authorised roles.
+					// FR: Informe l'utilisateur que la suppression des pièces jointes est réservée aux rôles autorisés.
+					setEventMessages($langs->trans('ErrorForbidden'), null, 'errors');
+					$action = '';
+				} else {
+					// EN: Retrieve the original path (urlfile/file) and sanitise each segment to keep nested folders safe.
+					// FR: Récupère le chemin original (urlfile/file) et assainit chaque segment pour conserver les sous-dossiers en sécurité.
+					$urlFileRaw = GETPOST('urlfile', 'none');
+					if ($urlFileRaw === '') {
+						$urlFileRaw = GETPOST('file', 'none');
+					}
+					$urlFileRaw = urldecode((string) $urlFileRaw);
+					$segments = explode('/', $urlFileRaw);
+					$cleanSegments = array();
+					foreach ($segments as $segment) {
+						$segment = trim($segment);
+						if ($segment === '' || $segment === '.' || $segment === '..') {
+							continue;
+						}
+						$cleanSegments[] = dol_sanitizeFileName($segment);
+					}
+					$fileRelative = implode('/', $cleanSegments);
+					$prefix = 'timesheetweek/'.dol_sanitizeFileName($object->ref).'/';
+					if (strpos($fileRelative, $prefix) === 0) {
+						$fileRelative = substr($fileRelative, strlen($prefix));
+					}
+					if ($fileRelative !== '' && !empty($upload_dir)) {
+						$filePath = rtrim($upload_dir, '/').'/'.$fileRelative;
+						// EN: Delete the file and display Dolibarr standard feedback messages.
+						// FR: Supprime le fichier et affiche les messages standards de Dolibarr.
+						if (dol_delete_file($filePath, 0, 0, 0, $object) > 0) {
+							setEventMessages($langs->trans('FileWasRemoved', basename($fileRelative)), null, 'mesgs');
+						} else {
+							setEventMessages($langs->trans('ErrorFailToDeleteFile', basename($fileRelative)), null, 'errors');
+						}
+					}
+					header('Location: '.dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id);
+					exit;
+				}
 			}
-		}
 
 		// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
 		// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
