@@ -924,7 +924,30 @@ if ($object->id > 0) {
 
 			// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
 			// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
-			if (!empty($upload_dir)) {
+			if ($action === 'remove_file') {
+				if (empty($permissiontoadd)) {
+					// EN: Block removal requests when the user lacks the document permission.
+					// FR: Bloque les demandes de suppression lorsque l'utilisateur n'a pas la permission sur le document.
+					setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+					$action = '';
+				} else {
+					// EN: Store the requested filename for the confirmation dialog while preserving subdirectories.
+					// FR: Stocke le nom de fichier demandé pour la boîte de confirmation en conservant les sous-répertoires.
+					$requestedFile = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+					if ($requestedFile !== '') {
+						$_GET['urlfile'] = $requestedFile;
+						$_REQUEST['urlfile'] = $requestedFile;
+						$action = 'deletefile';
+					} else {
+						// EN: Warn the user when no filename is provided in the deletion URL.
+						// FR: Avertit l'utilisateur lorsqu'aucun nom de fichier n'est fourni dans l'URL de suppression.
+						setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('File')), null, 'errors');
+						$action = '';
+					}
+				}
+			}
+
+		if (!empty($upload_dir)) {
 				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
 				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
 				$modulepart = 'timesheetweek';
@@ -1073,6 +1096,29 @@ JS;
 		print timesheetweekRenderStatusBadgeCleanup();
 
 	// Confirm modals
+	if ($action === 'deletefile') {
+		// EN: Ask for confirmation before delegating the deletion to Dolibarr core.
+		// FR: Demande une confirmation avant de déléguer la suppression au cœur de Dolibarr.
+		$urlfileForConfirm = GETPOST('urlfile', 'alphanohtml', 0, null, null, 1);
+		$linkIdForConfirm = GETPOSTINT('linkid');
+		$confirmUrl = $_SERVER["PHP_SELF"].'?id='.$object->id;
+		if ($urlfileForConfirm !== '') {
+			$confirmUrl .= '&urlfile='.urlencode($urlfileForConfirm);
+		}
+		if ($linkIdForConfirm > 0) {
+			$confirmUrl .= '&linkid='.$linkIdForConfirm;
+		}
+		$formconfirm = $form->formconfirm(
+			$confirmUrl,
+			$langs->trans('DeleteFile'),
+			$langs->trans('ConfirmDeleteFile'),
+			'confirm_deletefile',
+			array(),
+			'yes',
+			1
+		);
+		print $formconfirm;
+	}
 	if ($action === 'delete') {
 		$formconfirm = $form->formconfirm(
 			$_SERVER["PHP_SELF"].'?id='.$object->id,
