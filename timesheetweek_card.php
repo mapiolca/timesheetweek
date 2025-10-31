@@ -198,6 +198,10 @@ $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
 
+// EN: Initialise the document creation permission flag to prevent undefined notices later.
+// FR: Initialise l'indicateur de permission de création documentaire pour éviter les notices plus tard.
+$permissiontoadd = 0;
+
 /** helpers permissions **/
 function tw_can_validate_timesheet(
 		TimesheetWeek $o,
