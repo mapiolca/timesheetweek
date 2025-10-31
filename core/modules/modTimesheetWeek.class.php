@@ -819,22 +819,31 @@ class modTimesheetWeek extends DolibarrModules
 		$myTmpObjects = array();
 		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 1);
 
-		foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
-			if (!empty($myTmpObjectArray['includedocgeneration'])) {
-				// EN: Register the Dolibarr document models for the entity.
-				// FR: Enregistrer les modèles de documents Dolibarr pour l'entité.
-				$sql = array_merge($sql, array(
-					"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
-					"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
-				));
-			}
-		}
 
-		// EN: Ensure the default PDF model targets the new standard document when unset.
-		// FR: S'assurer que le modèle PDF par défaut pointe sur le nouveau document standard lorsqu'il est vide.
-		if (getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', '') === '') {
-			dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
-		}
+			foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
+				if (!empty($myTmpObjectArray['includedocgeneration'])) {
+					// EN: Remove legacy ODT document registrations tied to the module scope.
+					// FR: Supprimer les enregistrements ODT hérités liés au périmètre du module.
+					$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE LOWER(nom) LIKE '%odt' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity);
+
+					// EN: Register the Dolibarr document models for the entity.
+					// FR: Enregistrer les modèles de documents Dolibarr pour l'entité.
+					$sql = array_merge($sql, array(
+						"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
+						"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
+					));
+				}
+			}
+
+			$currentPdfModel = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', '');
+			// EN: Detect whether the stored PDF model ends with an ODT suffix.
+			// FR: Détecter si le modèle PDF enregistré se termine par un suffixe ODT.
+			$hasOdtSuffix = (dol_strlen($currentPdfModel) >= 3 && strtolower(substr($currentPdfModel, -3)) === 'odt');
+			// EN: Ensure the default PDF model targets the standard document when unset or still linked to an ODT definition.
+			// FR: S'assurer que le modèle PDF par défaut pointe sur le document standard lorsqu'il est vide ou encore lié à une définition ODT.
+			if ($currentPdfModel === '' || $hasOdtSuffix) {
+				dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
+			}
 
 		// EN: Register Multicompany sharing metadata when the module is enabled.
                 // FR: Enregistrer les métadonnées de partage Multicompany lors de l'activation du module.
