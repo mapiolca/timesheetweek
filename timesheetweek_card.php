@@ -1983,12 +1983,34 @@ JS;
 					''
 				);
 				if (!empty($documentHtml)) {
-					// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
-					// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
+					// EN: Sanitize each segment of the file path to preserve directories while avoiding traversal attacks.
+					// FR: Assainit chaque segment du chemin du fichier pour conserver les dossiers tout en évitant les attaques de traversée.
 					$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
 						$decoded = urldecode($matches[2]);
-						$basename = dol_sanitizeFileName(basename($decoded));
-						return $matches[1].rawurlencode($basename);
+						while (strpos($decoded, './') === 0) {
+							$decoded = substr($decoded, 2);
+						}
+						$decoded = ltrim($decoded, '/');
+						$parts = preg_split('#/+?#', $decoded, -1, PREG_SPLIT_NO_EMPTY);
+						$sanitizedParts = array();
+						foreach ($parts as $part) {
+							if ($part === '.' || $part === '..') {
+								continue;
+							}
+							$cleanPart = dol_sanitizeFileName($part);
+							if ($cleanPart === '') {
+								continue;
+							}
+							$sanitizedParts[] = $cleanPart;
+						}
+						if (empty($sanitizedParts)) {
+							$basename = dol_sanitizeFileName(basename($decoded));
+							if ($basename !== '') {
+								$sanitizedParts[] = $basename;
+							}
+						}
+						$cleanPath = implode('/', $sanitizedParts);
+						return $matches[1].rawurlencode($cleanPath);
 					}, $documentHtml);
 					// EN: Ensure download URLs expose the absolute Dolibarr endpoint to simplify external sharing.
 					// FR: Garantit que les URL de téléchargement exposent l'endpoint Dolibarr absolu pour simplifier le partage externe.
