@@ -1959,39 +1959,65 @@ JS;
 					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
-					$documentHtml = $formfile->showdocuments(
-						'timesheetweek:TimesheetWeek',
-						$relativePath,
-						$filedir,
-						$urlsource,
-						$genallowed,
-						$delallowed,
-						$object->model_pdf,
-						1,
-						0,
-						0,
-						28,
-						0,
-						'',
-						'',
-						'',
-						$langs->defaultlang,
-						'',
-						$object,
-						0,
-						'remove_file',
-						''
-					);
-					if (!empty($documentHtml)) {
-						// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
-						// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
-						$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
-							$decoded = urldecode($matches[2]);
-							$basename = dol_sanitizeFileName(basename($decoded));
-							return $matches[1].rawurlencode($basename);
-						}, $documentHtml);
+				$documentHtml = $formfile->showdocuments(
+					'timesheetweek:TimesheetWeek',
+					$relativePath,
+					$filedir,
+					$urlsource,
+					$genallowed,
+					$delallowed,
+					$object->model_pdf,
+					1,
+					0,
+					0,
+					28,
+					0,
+					'',
+					'',
+					'',
+					$langs->defaultlang,
+					'',
+					$object,
+					0,
+					'remove_file',
+					''
+				);
+				if (!empty($documentHtml)) {
+					// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
+					// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
+					$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = urldecode($matches[2]);
+						$basename = dol_sanitizeFileName(basename($decoded));
+						return $matches[1].rawurlencode($basename);
+					}, $documentHtml);
+					// EN: Ensure download URLs expose the absolute Dolibarr endpoint to simplify external sharing.
+					// FR: Garantit que les URL de téléchargement exposent l'endpoint Dolibarr absolu pour simplifier le partage externe.
+					$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
+					$decodeFlags = ENT_QUOTES;
+					if (defined('ENT_HTML5')) {
+						$decodeFlags |= ENT_HTML5;
+					} else {
+						$decodeFlags |= ENT_COMPAT;
 					}
-					print $documentHtml;
+					$documentHtml = preg_replace_callback('/href="([^"<>]*document\.php[^"<>]*)"/', function ($matches) use ($documentBaseUrl, $decodeFlags) {
+						$originalHref = $matches[1];
+						$decodedHref = html_entity_decode($originalHref, $decodeFlags, 'UTF-8');
+						if (preg_match('#^[a-z]+://#i', $decodedHref)) {
+							return 'href="'.$originalHref.'"';
+						}
+						$normalizedHref = $decodedHref;
+						if (strpos($normalizedHref, '/document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('/document.php'));
+						} elseif (strpos($normalizedHref, 'document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('document.php'));
+						} else {
+							return 'href="'.$originalHref.'"';
+						}
+						$absoluteHref = $documentBaseUrl.$normalizedHref;
+						return 'href="'.dol_escape_htmltag($absoluteHref).'"';
+					}, $documentHtml);
+				}
+				print $documentHtml;
 				}
 
 				print '</div></div>';
