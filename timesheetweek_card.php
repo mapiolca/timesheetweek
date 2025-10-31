@@ -199,6 +199,33 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 	return $models;
 }
 
+/**
+ * EN: Clean the provided relative document path while keeping readable filenames.
+ * FR: Nettoie le chemin relatif fourni tout en conservant des noms de fichiers lisibles.
+ *
+ * @param string $relativePath Raw relative path from the browser / Chemin relatif brut issu du navigateur
+ * @return string Sanitised path safe for concatenation / Chemin assaini sûr pour la concaténation
+ */
+function tw_clean_relative_document_path($relativePath)
+{
+	$relativePath = (string) $relativePath;
+	$relativePath = str_replace('\\', '/', $relativePath);
+	$segments = explode('/', $relativePath);
+	$cleanSegments = array();
+	foreach ($segments as $segment) {
+		$segment = trim($segment);
+		if ($segment === '' || $segment === '.' || $segment === '..') {
+			continue;
+		}
+		if (strpos($segment, chr(0)) !== false) {
+			continue;
+		}
+		$cleanSegments[] = $segment;
+	}
+
+	return implode('/', $cleanSegments);
+}
+
 
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
@@ -942,42 +969,68 @@ if ($object->id > 0) {
 					setEventMessages($langs->trans('ErrorForbidden'), null, 'errors');
 					$action = '';
 				} else {
-					// EN: Retrieve the original path (urlfile/file) and sanitise each segment to keep nested folders safe.
-					// FR: Récupère le chemin original (urlfile/file) et assainit chaque segment pour conserver les sous-dossiers en sécurité.
+					// EN: Retrieve the original path from the query while keeping folder names intact.
+					// FR: Récupère le chemin original transmis tout en conservant les noms de dossiers intacts.
+					$modulePartRaw = GETPOST('modulepart', 'none');
+					// EN: Normalise the module part so we can drop the storage prefix safely.
+					// FR: Normalise la partie module afin de retirer le préfixe de stockage en toute sécurité.
+					$modulePartRaw = preg_replace('/[^a-zA-Z0-9_:-]/', '', (string) $modulePartRaw);
+					if (strpos($modulePartRaw, ':') !== false) {
+						list($modulePartRaw) = explode(':', $modulePartRaw, 2);
+					}
+					if ($modulePartRaw === '') {
+						$modulePartRaw = 'timesheetweek';
+					}
 					$urlFileRaw = GETPOST('urlfile', 'none');
 					if ($urlFileRaw === '') {
 						$urlFileRaw = GETPOST('file', 'none');
 					}
 					$urlFileRaw = urldecode((string) $urlFileRaw);
-					$segments = explode('/', $urlFileRaw);
-					$cleanSegments = array();
-					foreach ($segments as $segment) {
-						$segment = trim($segment);
-						if ($segment === '' || $segment === '.' || $segment === '..') {
-							continue;
+					$fileRelative = tw_clean_relative_document_path($urlFileRaw);
+					$docRefSanitized = dol_sanitizeFileName($object->ref);
+					$prefixes = array(
+						$modulePartRaw.'/'.$docRefSanitized.'/',
+						$docRefSanitized.'/'
+					);
+					// EN: Strip known prefixes to end up with a path relative to the upload directory.
+					// FR: Retire les préfixes connus pour obtenir un chemin relatif au répertoire de dépôt.
+					foreach ($prefixes as $prefixCandidate) {
+						if ($prefixCandidate !== '' && strpos($fileRelative, $prefixCandidate) === 0) {
+							$fileRelative = substr($fileRelative, strlen($prefixCandidate));
+							break;
 						}
-						$cleanSegments[] = dol_sanitizeFileName($segment);
 					}
-					$fileRelative = implode('/', $cleanSegments);
-					$prefix = 'timesheetweek/'.dol_sanitizeFileName($object->ref).'/';
-					if (strpos($fileRelative, $prefix) === 0) {
-						$fileRelative = substr($fileRelative, strlen($prefix));
+					if ($fileRelative === $docRefSanitized) {
+						$fileRelative = '';
 					}
 					if ($fileRelative !== '' && !empty($upload_dir)) {
+						$baseDir = rtrim($upload_dir, '/');
+						$filePathCandidate = $baseDir.'/'.$fileRelative;
+						$baseReal = realpath($baseDir);
+						$targetReal = ($baseReal !== false && file_exists($filePathCandidate)) ? realpath($filePathCandidate) : false;
+						// EN: Reject paths that try to escape the upload directory.
+						// FR: Rejette les chemins qui tentent de sortir du répertoire de dépôt.
+						if ($baseReal !== false && $targetReal !== false && strpos($targetReal, $baseReal) !== 0) {
+							$fileRelative = '';
+						}
+					}
+					$filenameLabel = ($fileRelative !== '') ? basename($fileRelative) : '?';
+					if ($fileRelative === '' || empty($upload_dir)) {
+						setEventMessages($langs->trans('ErrorFailToDeleteFile', $filenameLabel), null, 'errors');
+					} else {
 						$filePath = rtrim($upload_dir, '/').'/'.$fileRelative;
 						// EN: Delete the file and display Dolibarr standard feedback messages.
 						// FR: Supprime le fichier et affiche les messages standards de Dolibarr.
 						if (dol_delete_file($filePath, 0, 0, 0, $object) > 0) {
-							setEventMessages($langs->trans('FileWasRemoved', basename($fileRelative)), null, 'mesgs');
+							setEventMessages($langs->trans('FileWasRemoved', $filenameLabel), null, 'mesgs');
 						} else {
-							setEventMessages($langs->trans('ErrorFailToDeleteFile', basename($fileRelative)), null, 'errors');
+							setEventMessages($langs->trans('ErrorFailToDeleteFile', $filenameLabel), null, 'errors');
 						}
 					}
 					header('Location: '.dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id);
 					exit;
-				}
 			}
-
+		}
 		// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
 		// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
 		if (!empty($upload_dir)) {
