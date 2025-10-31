@@ -118,6 +118,35 @@ function tw_pdf_format_header_html($value)
 }
 
 /**
+ * EN: Convert a hexadecimal color code to an RGB triplet usable by TCPDF.
+ * FR: Convertit un code couleur hexadécimal en triplet RVB utilisable par TCPDF.
+ *
+ * @param string $hexColor
+ * @param array<int,int> $fallback
+ * @return array<int,int>
+ */
+function tw_pdf_hex_to_rgb($hexColor, array $fallback = array(33, 37, 41))
+{
+	$normalized = trim((string) $hexColor);
+	if ($normalized === '') {
+		return $fallback;
+	}
+	if ($normalized[0] === '#') {
+		$normalized = substr($normalized, 1);
+	}
+	if (dol_strlen($normalized) === 3) {
+		$normalized = $normalized[0].$normalized[0].$normalized[1].$normalized[1].$normalized[2].$normalized[2];
+	}
+	if (!preg_match('/^[0-9a-fA-F]{6}$/', $normalized)) {
+		return $fallback;
+	}
+	$red = (int) hexdec(substr($normalized, 0, 2));
+	$green = (int) hexdec(substr($normalized, 2, 2));
+	$blue = (int) hexdec(substr($normalized, 4, 2));
+	return array($red, $green, $blue);
+}
+
+/**
  * EN: Render the Dolibarr-styled header containing the logo and company name.
  * FR: Dessine l'entête au style Dolibarr avec le logo et le nom de l'entreprise.
  *
@@ -127,7 +156,7 @@ function tw_pdf_format_header_html($value)
  * @param float $leftMargin
  * @param float $topMargin
  * @param string $title
- * @param string $status
+ * @param string|array $status
  * @param string $weekRange
  * @param string $subtitle
  * @return float
@@ -212,15 +241,73 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 	}
 	// EN: Insert the status badge under the title when provided by the caller.
 	// FR: Insère le badge de statut sous le titre lorsqu'il est fourni par l'appelant.
-	$trimmedStatus = trim((string) $status);
-	if (dol_strlen($trimmedStatus) > 0) {
-		$pdf->SetFont('', '', $defaultFontSize);
-		$pdf->SetTextColor(0, 0, 0);
-		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
-		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedStatus), 0, 'R', 0, 1, '', '', true, 0, true);
-		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+	$statusHandled = false;
+	if (is_array($status)) {
+		// EN: Extract the plain text and Dolibarr colors for the PDF badge rendering.
+		// FR: Extrait le texte brut et les couleurs Dolibarr pour le rendu du badge PDF.
+		$badgeTextSource = !empty($status['label']) ? $status['label'] : '';
+		$badgeText = tw_pdf_normalize_string($badgeTextSource);
+		$badgeText = trim($badgeText);
+		$badgeBackground = tw_pdf_hex_to_rgb(!empty($status['backgroundColor']) ? $status['backgroundColor'] : '', array(173, 181, 189));
+		$badgeTextColor = tw_pdf_hex_to_rgb(!empty($status['textColor']) ? $status['textColor'] : '', array(33, 37, 41));
+		if (dol_strlen($badgeText) > 0) {
+			// EN: Draw a rounded rectangle badge with the Timesheet colors.
+			// FR: Dessine un badge arrondi avec les couleurs Timesheet.
+			$badgeFontSize = max(6.0, $defaultFontSize - 1.0);
+			$pdf->SetFont('', 'B', $badgeFontSize);
+			$textWidth = $pdf->GetStringWidth($badgeText);
+			$badgePaddingX = 3.0;
+			$badgePaddingY = 1.4;
+			$badgeWidth = min($rightBlockWidth, $textWidth + (2.0 * $badgePaddingX));
+			$badgeHeight = max(6.0, ($badgeFontSize * 0.6) + (2.0 * $badgePaddingY));
+			$badgeX = $rightBlockX + max(0.0, $rightBlockWidth - $badgeWidth);
+			$badgeY = $rightBlockBottom + 1.5;
+			$pdf->SetFillColor($badgeBackground[0], $badgeBackground[1], $badgeBackground[2]);
+			if (method_exists($pdf, 'RoundedRect')) {
+				$pdf->RoundedRect($badgeX, $badgeY, $badgeWidth, $badgeHeight, 2.0, '1111', 'F', array(), array($badgeBackground[0], $badgeBackground[1], $badgeBackground[2]));
+			} else {
+				$pdf->Rect($badgeX, $badgeY, $badgeWidth, $badgeHeight, 'F');
+			}
+			$pdf->SetTextColor($badgeTextColor[0], $badgeTextColor[1], $badgeTextColor[2]);
+			$pdf->SetXY($badgeX, $badgeY);
+			if (method_exists($pdf, 'Cell')) {
+				$pdf->Cell($badgeWidth, $badgeHeight, $badgeText, 0, 0, 'C', 0, '', 0, false, 'T', 'M');
+			} else {
+				$pdf->MultiCell($badgeWidth, $badgeHeight, $badgeText, 0, 'C', 0, 1, '', '', true, 0, true);
+			}
+			$pdf->SetFont('', '', $defaultFontSize);
+			$pdf->SetTextColor(0, 0, 0);
+			$rightBlockBottom = max($rightBlockBottom, $badgeY + $badgeHeight);
+			$statusHandled = true;
+		}
+		if (!$statusHandled && !empty($status['html'])) {
+			// EN: Fallback to the HTML badge when structured data cannot be rendered.
+			// FR: Revient au badge HTML lorsque les données structurées ne peuvent pas être rendues.
+			$fallbackStatus = trim((string) $status['html']);
+			if ($fallbackStatus !== '') {
+				$pdf->SetFont('', '', $defaultFontSize);
+				$pdf->SetTextColor(0, 0, 0);
+				$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
+				$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($fallbackStatus), 0, 'R', 0, 1, '', '', true, 0, true);
+				$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+				$statusHandled = true;
+			}
+		}
 	}
-	// EN: Trim the ISO week range label before output.
+	if (!$statusHandled) {
+		// EN: Preserve legacy behaviour by rendering the status as raw HTML.
+		// FR: Préserve le comportement historique en affichant le statut en HTML brut.
+		$trimmedStatus = trim((string) $status);
+		if (dol_strlen($trimmedStatus) > 0) {
+			$pdf->SetFont('', '', $defaultFontSize);
+			$pdf->SetTextColor(0, 0, 0);
+			$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
+			$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedStatus), 0, 'R', 0, 1, '', '', true, 0, true);
+			$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
+		}
+	}
+
+// EN: Trim the ISO week range label before output.
 	// FR: Supprime les espaces du libellé de plage de semaines avant affichage.
 	$trimmedWeekRange = trim((string) $weekRange);
 	if (dol_strlen($trimmedWeekRange) > 0) {
@@ -313,6 +400,7 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * @param float $bottomMargin
  * @param float|null $autoPageBreakMargin
  * @param string $headerTitle
+ * @param string|array $headerStatus
  * @param string $headerWeekRange
  * @param string $headerSubtitle
  * @return float

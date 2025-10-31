@@ -1937,6 +1937,10 @@ class TimesheetWeek extends CommonObject
 				// EN: Inline style mirrors Dolibarr badge layout for neutral status.
 				// FR: Style inline reproduit la présentation Dolibarr pour le statut neutre.
 				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#212529;background-color:#adb5bd;',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#adb5bd',
+				'text_color' => '#212529',
 			),
 			self::STATUS_SUBMITTED => array(
 				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusSubmitted') : 'Submitted',
@@ -1946,6 +1950,10 @@ class TimesheetWeek extends CommonObject
 				// EN: Inline style mirrors Dolibarr badge layout for submitted status.
 				// FR: Style inline reproduit la présentation Dolibarr pour le statut soumis.
 				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#0d6efd;',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#0d6efd',
+				'text_color' => '#ffffff',
 			),
 			self::STATUS_APPROVED => array(
 				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusApproved') : 'Approved',
@@ -1955,6 +1963,10 @@ class TimesheetWeek extends CommonObject
 				// EN: Inline style mirrors Dolibarr badge layout for approved status.
 				// FR: Style inline reproduit la présentation Dolibarr pour le statut approuvé.
 				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#198754;',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#198754',
+				'text_color' => '#ffffff',
 			),
 			self::STATUS_SEALED => array(
 				// EN: Swap the badge styling with the refused status to improve visual contrast.
@@ -1966,6 +1978,10 @@ class TimesheetWeek extends CommonObject
 				// EN: Inline style mirrors Dolibarr badge layout for sealed status.
 				// FR: Style inline reproduit la présentation Dolibarr pour le statut scellé.
 				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#6f42c1;',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#6f42c1',
+				'text_color' => '#ffffff',
 			),
 			self::STATUS_REFUSED => array(
 				// EN: Apply the sealed badge colors to the refused status for clearer differentiation.
@@ -1977,6 +1993,10 @@ class TimesheetWeek extends CommonObject
 				// EN: Inline style mirrors Dolibarr badge layout for refused status.
 				// FR: Style inline reproduit la présentation Dolibarr pour le statut refusé.
 				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#dc3545;',
+				// EN: Provide RGB-friendly colors for PDF rendering.
+				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+				'background_color' => '#dc3545',
+				'text_color' => '#ffffff',
 			),
 		);
 
@@ -1990,6 +2010,10 @@ class TimesheetWeek extends CommonObject
 			// EN: Default inline style keeps the neutral Dolibarr badge rendering.
 			// FR: Le style inline par défaut conserve le rendu neutre du badge Dolibarr.
 			'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#212529;background-color:#adb5bd;',
+			// EN: Provide RGB-friendly colors for PDF rendering.
+			// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
+			'background_color' => '#adb5bd',
+			'text_color' => '#212529',
 		);
 	}
 
