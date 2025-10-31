@@ -32,6 +32,10 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+// EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
+// FR: Charge les définitions de modèles PDF pour réutiliser les filtres de Dolibarr.
+dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetweek.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -149,6 +153,25 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 	return $result;
 }
 
+/**
+ * EN: Retrieve the list of activated PDF models for the module with entity scoping.
+ * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
+ *
+ * @param DoliDB $db Database handler / Gestionnaire de base de données
+ * @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
+ */
+function tw_get_enabled_pdf_models(DoliDB $db)
+{
+	// EN: Ask the module manager for the enabled templates of TimesheetWeek.
+	// FR: Demande au gestionnaire du module les modèles activés de TimesheetWeek.
+	$models = ModelePDFTimesheetWeek::liste_modeles($db);
+	if (!is_array($models) || empty($models)) {
+		return array();
+	}
+
+	return $models;
+}
+
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','readChild');
@@ -173,6 +196,10 @@ $permUnseal        = $user->hasRight('timesheetweek','unseal');
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
+
+// EN: Initialise the document creation permission flag to prevent undefined notices later.
+// FR: Initialise l'indicateur de permission de création documentaire pour éviter les notices plus tard.
+$permissiontoadd = 0;
 
 /** helpers permissions **/
 function tw_can_validate_timesheet(
@@ -1826,6 +1853,14 @@ JS;
 					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
 					$genallowed = $permReadAny ? 1 : 0;
+					if ($permReadAny) {
+						// EN: Narrow the generation list to the PDF models enabled in the configuration.
+						// FR: Restreint la liste de génération aux modèles PDF activés dans la configuration.
+						$enabledDocModels = tw_get_enabled_pdf_models($db);
+						if (!empty($enabledDocModels)) {
+							$genallowed = $enabledDocModels;
+						}
+					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
 					print $formfile->showdocuments(
