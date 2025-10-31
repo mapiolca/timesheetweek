@@ -920,32 +920,39 @@ if ($object->id > 0) {
 			'hideref' => $hideref,
 		);
 
-		include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+				include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 
-			// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
-			// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
-			if ($action === 'remove_file') {
-				if (empty($permissiontoadd)) {
-					// EN: Block removal requests when the user lacks the document permission.
-					// FR: Bloque les demandes de suppression lorsque l'utilisateur n'a pas la permission sur le document.
-					setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
-					$action = '';
-				} else {
-					// EN: Store the requested filename for the confirmation dialog while preserving subdirectories.
-					// FR: Stocke le nom de fichier demandé pour la boîte de confirmation en conservant les sous-répertoires.
-					$requestedFile = GETPOST('file', 'alphanohtml', 0, null, null, 1);
-					if ($requestedFile !== '') {
-						$_GET['urlfile'] = $requestedFile;
-						$_REQUEST['urlfile'] = $requestedFile;
-						$action = 'deletefile';
-					} else {
-						// EN: Warn the user when no filename is provided in the deletion URL.
-						// FR: Avertit l'utilisateur lorsqu'aucun nom de fichier n'est fourni dans l'URL de suppression.
-						setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('File')), null, 'errors');
+				// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
+				// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
+				if ($action === 'remove_file') {
+					if (empty($permissiontoadd)) {
+						// EN: Block removal requests when the user lacks the document permission.
+						// FR: Bloque les demandes de suppression lorsque l'utilisateur n'a pas la permission sur le document.
+						setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 						$action = '';
+					} else {
+						// EN: Retrieve the requested filename and default to the generated PDF when missing.
+						// FR: Récupère le nom de fichier demandé et prend par défaut le PDF généré lorsqu'il est absent.
+						$requestedFile = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+						if ($requestedFile === '' && !empty($object->ref)) {
+							$requestedFile = dol_sanitizeFileName($object->ref).'.pdf';
+						}
+						if ($requestedFile !== '') {
+							// EN: Store the requested filename for the confirmation dialog while preserving subdirectories.
+							// FR: Stocke le nom de fichier demandé pour la boîte de confirmation en conservant les sous-répertoires.
+							$_GET['file'] = $requestedFile;
+							$_REQUEST['file'] = $requestedFile;
+							$_GET['urlfile'] = $requestedFile;
+							$_REQUEST['urlfile'] = $requestedFile;
+							$action = 'deletefile';
+						} else {
+							// EN: Warn the user when no filename is provided in the deletion URL.
+							// FR: Avertit l'utilisateur lorsqu'aucun nom de fichier n'est fourni dans l'URL de suppression.
+							setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('File')), null, 'errors');
+							$action = '';
+						}
 					}
 				}
-			}
 
 		if (!empty($upload_dir)) {
 				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
@@ -1095,66 +1102,75 @@ JS;
 		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
 		print timesheetweekRenderStatusBadgeCleanup();
 
-	// Confirm modals
-	if ($action === 'deletefile') {
-		// EN: Ask for confirmation before delegating the deletion to Dolibarr core.
-		// FR: Demande une confirmation avant de déléguer la suppression au cœur de Dolibarr.
-		$urlfileForConfirm = GETPOST('urlfile', 'alphanohtml', 0, null, null, 1);
-		$linkIdForConfirm = GETPOSTINT('linkid');
-		$confirmUrl = $_SERVER["PHP_SELF"].'?id='.$object->id;
-		if ($urlfileForConfirm !== '') {
-			$confirmUrl .= '&urlfile='.urlencode($urlfileForConfirm);
+		// Confirm modals
+		if ($action === 'deletefile') {
+			// EN: Ask for confirmation before delegating the deletion to Dolibarr core.
+			// FR: Demande une confirmation avant de déléguer la suppression au cœur de Dolibarr.
+			$urlfileForConfirm = GETPOST('urlfile', 'alphanohtml', 0, null, null, 1);
+			// EN: Keep track of the file parameter required by the document workflow.
+			// FR: Conserve le paramètre file requis par le workflow documentaire.
+			$confirmFileParam = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+			$linkIdForConfirm = GETPOSTINT('linkid');
+			$confirmUrl = $_SERVER["PHP_SELF"].'?id='.$object->id;
+			if ($urlfileForConfirm !== '') {
+				$confirmUrl .= '&urlfile='.urlencode($urlfileForConfirm);
+			}
+			if ($confirmFileParam === '' && !empty($object->ref)) {
+				$confirmFileParam = dol_sanitizeFileName($object->ref).'.pdf';
+			}
+			if ($confirmFileParam !== '') {
+				$confirmUrl .= '&file='.urlencode($confirmFileParam);
+			}
+			if ($linkIdForConfirm > 0) {
+				$confirmUrl .= '&linkid='.$linkIdForConfirm;
+			}
+			$formconfirm = $form->formconfirm(
+				$confirmUrl,
+				$langs->trans('DeleteFile'),
+				$langs->trans('ConfirmDeleteFile'),
+				'confirm_deletefile',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
 		}
-		if ($linkIdForConfirm > 0) {
-			$confirmUrl .= '&linkid='.$linkIdForConfirm;
+		if ($action === 'delete') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans('Delete'),
+				$langs->trans('ConfirmDeleteObject'),
+				'confirm_delete',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
 		}
-		$formconfirm = $form->formconfirm(
-			$confirmUrl,
-			$langs->trans('DeleteFile'),
-			$langs->trans('ConfirmDeleteFile'),
-			'confirm_deletefile',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'delete') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans('Delete'),
-			$langs->trans('ConfirmDeleteObject'),
-			'confirm_delete',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_validate') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-			$langs->trans('ConfirmValidate'),
-			'confirm_validate',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_refuse') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans("Refuse"),
-			$langs->trans('ConfirmRefuse'),
-			'confirm_refuse',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
+		if ($action === 'ask_validate') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
+				$langs->trans('ConfirmValidate'),
+				'confirm_validate',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'ask_refuse') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans("Refuse"),
+				$langs->trans('ConfirmRefuse'),
+				'confirm_refuse',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
 
 	echo '<div class="fichecenter">';
 
