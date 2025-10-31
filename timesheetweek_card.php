@@ -151,6 +151,7 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 	}
 	$cache[$userId] = $result;
 	return $result;
+}
 
 /**
  * EN: Retrieve the list of activated PDF models for the module with entity scoping.
@@ -169,8 +170,6 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 	}
 
 	return $models;
-}
-
 }
 
 // ---- Permissions (nouveau modèle) ----
