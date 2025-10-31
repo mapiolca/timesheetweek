@@ -2012,8 +2012,17 @@ JS;
 						$cleanPath = implode('/', $sanitizedParts);
 						return $matches[1].rawurlencode($cleanPath);
 					}, $documentHtml);
-					// EN: Ensure download URLs expose the absolute Dolibarr endpoint to simplify external sharing.
-					// FR: Garantit que les URL de téléchargement exposent l'endpoint Dolibarr absolu pour simplifier le partage externe.
+					// EN: Force remove actions to keep only the document basename to match Dolibarr expectations.
+					// FR: Force les actions de suppression à conserver uniquement le nom de fichier pour correspondre aux attentes Dolibarr.
+					$documentHtml = preg_replace_callback('/(action=remove_file[^"<>]*[?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = rawurldecode($matches[2]);
+						$normalized = str_replace('\\', '/', $decoded);
+						$basename = dol_sanitizeFileName(basename($normalized));
+						if ($basename === '') {
+							return $matches[0];
+						}
+						return $matches[1].rawurlencode($basename);
+					}, $documentHtml);
 					$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
 					$decodeFlags = ENT_QUOTES;
 					if (defined('ENT_HTML5')) {
