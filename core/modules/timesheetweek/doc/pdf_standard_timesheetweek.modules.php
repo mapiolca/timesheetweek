@@ -677,67 +677,33 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$yearLabel = (!empty($object->year) ? sprintf('%04d', (int) $object->year) : (dol_strlen($weekStartDate) === 10 ? date('Y', strtotime($weekStartDate)) : date('Y')));
 		$headerTitle = $outputlangs->trans('TimesheetWeek');
 		$headerStatus = '';
-		if (isset($object->status)) {
-			// EN: Align PDF badge generation on Dolibarr helpers for consistent styling.
-			// FR: Aligne la génération des badges PDF sur les helpers Dolibarr pour garder un style cohérent.
-			$statusLabelKeys = array(
-				TimesheetWeek::STATUS_DRAFT => 'TimesheetWeekStatusDraft',
-				TimesheetWeek::STATUS_SUBMITTED => 'TimesheetWeekStatusSubmitted',
-				TimesheetWeek::STATUS_APPROVED => 'TimesheetWeekStatusApproved',
-				TimesheetWeek::STATUS_SEALED => 'TimesheetWeekStatusSealed',
-				TimesheetWeek::STATUS_REFUSED => 'TimesheetWeekStatusRefused'
-			);
-			// EN: Map each business status to its Dolibarr badge identifier.
-			// FR: Mappe chaque statut métier vers son identifiant de badge Dolibarr.
-			$statusTypes = array(
-				TimesheetWeek::STATUS_DRAFT => 'status0',
-				TimesheetWeek::STATUS_SUBMITTED => 'status1',
-				TimesheetWeek::STATUS_APPROVED => 'status4',
-				TimesheetWeek::STATUS_SEALED => 'status6',
-				TimesheetWeek::STATUS_REFUSED => 'status8'
-			);
-			// EN: Reuse Dolibarr badge palette to render inline styles in the PDF context.
-			// FR: Réutilise la palette de badges Dolibarr pour produire un style inline dans le contexte PDF.
-			$statusStyles = array(
-				'status0' => array('bg' => '#adb5bd', 'fg' => '#212529'),
-				'status1' => array('bg' => '#0d6efd', 'fg' => '#ffffff'),
-				'status4' => array('bg' => '#198754', 'fg' => '#ffffff'),
-				'status6' => array('bg' => '#6f42c1', 'fg' => '#ffffff'),
-				'status8' => array('bg' => '#dc3545', 'fg' => '#ffffff')
-			);
-			$statusValue = (int) $object->status;
-			if (!empty($statusLabelKeys[$statusValue]) && !empty($statusTypes[$statusValue])) {
-				$statusType = $statusTypes[$statusValue];
-				$statusLabel = $outputlangs->trans($statusLabelKeys[$statusValue]);
-				$statusLabel = dol_escape_htmltag($statusLabel);
-				$badgeStyle = '';
-				if (!empty($statusStyles[$statusType])) {
-					$badgeStyle = 'color:'.$statusStyles[$statusType]['fg'].';background-color:'.$statusStyles[$statusType]['bg'].';border-radius:3px;padding:1px 6px;font-weight:bold;display:inline-block;';
-				}
-				$badgeParams = array(
-					'badgeParams' => array(
-						'attr' => array(
-							'classOverride' => 'badge badge-status '.$statusType,
-							'aria-label' => $statusLabel,
-						),
-					)
-				);
-				if (!empty($badgeStyle)) {
-					$badgeParams['badgeParams']['attr']['style'] = $badgeStyle;
-				}
-				$headerStatus = dolGetStatus(
-					$statusLabel,
-					$statusLabel,
-					$statusLabel,
-					$statusType,
-					5,
-					'',
-					$badgeParams
-				);
-			} else {
-				$headerStatus = dol_escape_htmltag($outputlangs->trans('Unknown'));
-			}
-		}
+               if (isset($object->status)) {
+                       // EN: Reuse the shared badge definition to mirror Timesheetweek visual identity inside the PDF.
+                       // FR: Réutilise la définition partagée des badges pour refléter l'identité visuelle de Timesheetweek dans le PDF.
+                       $statusDefinition = TimesheetWeek::getStatusBadgeDefinition((int) $object->status, $outputlangs);
+                       $statusLabel = !empty($statusDefinition['label']) ? dol_escape_htmltag($statusDefinition['label']) : dol_escape_htmltag($outputlangs->trans('Unknown'));
+                       $statusType = !empty($statusDefinition['type']) ? $statusDefinition['type'] : 'status0';
+                       $badgeParams = array(
+                               'badgeParams' => array(
+                                       'attr' => array(
+                                               'classOverride' => !empty($statusDefinition['class']) ? $statusDefinition['class'] : 'badge badge-status badge-status0',
+                                               'aria-label' => $statusLabel,
+                                       ),
+                               )
+                       );
+                       if (!empty($statusDefinition['style'])) {
+                               $badgeParams['badgeParams']['attr']['style'] = $statusDefinition['style'];
+                       }
+                       $headerStatus = dolGetStatus(
+                               $statusLabel,
+                               $statusLabel,
+                               $statusLabel,
+                               $statusType,
+                               5,
+                               '',
+                               $badgeParams
+                       );
+               }
 		$headerWeekRange = '';
 		if (!empty($object->week) && !empty($object->year)) {
 			// EN: Retrieve the translated week range template before injecting ISO week and year values.
