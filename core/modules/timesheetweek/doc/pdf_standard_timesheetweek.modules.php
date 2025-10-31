@@ -687,13 +687,22 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 				$badgeParams = array(
 					'badgeParams' => array(
 						'attr' => array(
-							'classOverride' => !empty($statusDefinition['class']) ? $statusDefinition['class'] : 'badge badge-status badge-status0',
 							'aria-label' => $statusLabel,
 						),
-					)
+					),
 				);
-				if (!empty($statusDefinition['style'])) {
-					$badgeParams['badgeParams']['attr']['style'] = $statusDefinition['style'];
+				if (!empty($statusDefinition['class'])) {
+					// EN: Append Dolibarr badge classes to keep HTML fallback consistent.
+					// FR: Ajoute les classes de badge Dolibarr pour conserver un fallback HTML cohérent.
+					$badgeParams['badgeParams']['attr']['class'] = $statusDefinition['class'];
+				}
+				if (!empty($statusDefinition['background_color']) || !empty($statusDefinition['text_color'])) {
+					// EN: Craft inline style from computed colors to secure PDF HTML fallback.
+					// FR: Construit un style inline depuis les couleurs calculées pour sécuriser le fallback HTML du PDF.
+					$badgeStyle = 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;';
+					$badgeStyle .= 'background-color:'.dol_escape_htmltag(!empty($statusDefinition['background_color']) ? $statusDefinition['background_color'] : '#adb5bd').';';
+					$badgeStyle .= 'color:'.dol_escape_htmltag(!empty($statusDefinition['text_color']) ? $statusDefinition['text_color'] : '#212529').';';
+					$badgeParams['badgeParams']['attr']['style'] = $badgeStyle;
 				}
 				$fallbackBadgeHtml = dolGetStatus(
 					$statusLabel,

@@ -1934,9 +1934,6 @@ class TimesheetWeek extends CommonObject
 				'picto' => 'statut0',
 				'class' => 'badge badge-status badge-status0',
 				'type' => 'status0',
-				// EN: Inline style mirrors Dolibarr badge layout for neutral status.
-				// FR: Style inline reproduit la présentation Dolibarr pour le statut neutre.
-				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#212529;background-color:#adb5bd;',
 				// EN: Provide RGB-friendly colors for PDF rendering.
 				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 				'background_color' => '#adb5bd',
@@ -1947,9 +1944,6 @@ class TimesheetWeek extends CommonObject
 				'picto' => 'statut1',
 				'class' => 'badge badge-status badge-status1',
 				'type' => 'status1',
-				// EN: Inline style mirrors Dolibarr badge layout for submitted status.
-				// FR: Style inline reproduit la présentation Dolibarr pour le statut soumis.
-				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#0d6efd;',
 				// EN: Provide RGB-friendly colors for PDF rendering.
 				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 				'background_color' => '#0d6efd',
@@ -1960,39 +1954,30 @@ class TimesheetWeek extends CommonObject
 				'picto' => 'statut4',
 				'class' => 'badge badge-status badge-status4',
 				'type' => 'status4',
-				// EN: Inline style mirrors Dolibarr badge layout for approved status.
-				// FR: Style inline reproduit la présentation Dolibarr pour le statut approuvé.
-				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#198754;',
 				// EN: Provide RGB-friendly colors for PDF rendering.
 				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 				'background_color' => '#198754',
 				'text_color' => '#ffffff',
 			),
 			self::STATUS_SEALED => array(
-				// EN: Swap the badge styling with the refused status to improve visual contrast.
-				// FR: Inverse le style de badge avec le statut refusé pour améliorer le contraste visuel.
+				// EN: Align sealed badge with Dolibarr default visual identity.
+				// FR: Aligne le badge du statut scellé sur l'identité visuelle Dolibarr par défaut.
 				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusSealed') : 'Sealed',
 				'picto' => 'statut6',
 				'class' => 'badge badge-status badge-status6',
 				'type' => 'status6',
-				// EN: Inline style mirrors Dolibarr badge layout for sealed status.
-				// FR: Style inline reproduit la présentation Dolibarr pour le statut scellé.
-				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#6f42c1;',
 				// EN: Provide RGB-friendly colors for PDF rendering.
 				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 				'background_color' => '#6f42c1',
 				'text_color' => '#ffffff',
 			),
 			self::STATUS_REFUSED => array(
-				// EN: Apply the sealed badge colors to the refused status for clearer differentiation.
-				// FR: Applique les couleurs du statut scellé au statut refusé pour une meilleure différenciation.
+				// EN: Keep the refused badge matching Dolibarr styling guidelines.
+				// FR: Maintient le badge du statut refusé conforme aux directives Dolibarr.
 				'label' => $activeTranslator instanceof Translate ? $activeTranslator->trans('TimesheetWeekStatusRefused') : 'Refused',
 				'picto' => 'statut8',
 				'class' => 'badge badge-status badge-status8',
 				'type' => 'status8',
-				// EN: Inline style mirrors Dolibarr badge layout for refused status.
-				// FR: Style inline reproduit la présentation Dolibarr pour le statut refusé.
-				'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#ffffff;background-color:#dc3545;',
 				// EN: Provide RGB-friendly colors for PDF rendering.
 				// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 				'background_color' => '#dc3545',
@@ -2007,9 +1992,6 @@ class TimesheetWeek extends CommonObject
 			'picto' => 'statut0',
 			'class' => 'badge badge-status badge-status0',
 			'type' => 'status0',
-			// EN: Default inline style keeps the neutral Dolibarr badge rendering.
-			// FR: Le style inline par défaut conserve le rendu neutre du badge Dolibarr.
-			'style' => 'display:inline-block;font-weight:600;border-radius:12px;padding:2px 8px;color:#212529;background-color:#adb5bd;',
 			// EN: Provide RGB-friendly colors for PDF rendering.
 			// FR: Fournit des couleurs compatibles RVB pour le rendu PDF.
 			'background_color' => '#adb5bd',
@@ -2023,8 +2005,24 @@ class TimesheetWeek extends CommonObject
 		$label = dol_escape_htmltag($info['label']);
 
 		if ((int) $mode === 5) {
-			$styleAttr = !empty($info['style']) ? ' style="'.dol_escape_htmltag($info['style']).'"' : '';
-			return '<span class="'.$info['class'].'" title="'.$label.'"'.$styleAttr.'>'.$label.'</span>';
+			// EN: Build Dolibarr badge output to mirror native status rendering.
+			// FR: Construit le badge Dolibarr pour reproduire le rendu natif des statuts.
+			$badgeParams = array(
+				'badgeParams' => array(
+					'attr' => array(
+						'aria-label' => $label,
+					),
+				),
+			);
+			return dolGetStatus(
+				$info['label'],
+				$info['label'],
+				'',
+				!empty($info['type']) ? $info['type'] : 'status0',
+				5,
+				'',
+				$badgeParams
+			);
 		}
 
 		$picto = img_picto($info['label'], $info['picto']);
