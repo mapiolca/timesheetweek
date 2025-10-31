@@ -199,7 +199,6 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 	return $models;
 }
 
-
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','readChild');
@@ -921,17 +920,54 @@ if ($object->id > 0) {
 			'hideref' => $hideref,
 		);
 
-		include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+				include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
 
-		// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
-		// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
+				// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
+				// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
+				if ($action === 'remove_file') {
+					if (empty($permissiontoadd)) {
+						// EN: Block removal requests when the user lacks the document permission.
+						// FR: Bloque les demandes de suppression lorsque l'utilisateur n'a pas la permission sur le document.
+						setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+						$action = '';
+					} else {
+						// EN: Retrieve the requested filename and default to the generated PDF when missing.
+						// FR: Récupère le nom de fichier demandé et prend par défaut le PDF généré lorsqu'il est absent.
+						$requestedFile = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+						if ($requestedFile === '' && !empty($object->ref)) {
+							$requestedFile = dol_sanitizeFileName($object->ref).'.pdf';
+						}
+						// EN: Reduce the requested file to its basename to match Dolibarr's document deletion URL.
+						// FR: Réduit le fichier demandé à son basename pour respecter l'URL de suppression Dolibarr.
+						$requestedFile = dol_sanitizeFileName(basename((string) $requestedFile));
+						if ($requestedFile !== '') {
+							// EN: Store the sanitized filename for the confirmation dialog and Dolibarr workflow.
+							// FR: Stocke le nom de fichier assaini pour la boîte de confirmation et le flux Dolibarr.
+							$_GET['file'] = $requestedFile;
+							$_REQUEST['file'] = $requestedFile;
+							$_GET['urlfile'] = $requestedFile;
+							$_REQUEST['urlfile'] = $requestedFile;
+							$action = 'deletefile';
+						} else {
+							// EN: Warn the user when no filename is provided in the deletion URL.
+							// FR: Avertit l'utilisateur lorsqu'aucun nom de fichier n'est fourni dans l'URL de suppression.
+							setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('File')), null, 'errors');
+							$action = '';
+						}
+					}
+				}
+
 		if (!empty($upload_dir)) {
-			// EN: Declare module part to match Dolibarr linked-files helper expectations.
-			// FR: Déclare la partie module pour respecter les attentes de l'aide Dolibarr des fichiers liés.
-			$modulepart = 'timesheetweek';
-			include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
+				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
+				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
+				$modulepart = 'timesheetweek';
+				$permissiontoread = $permReadAny ? 1 : 0;
+				$permissiontoadd = $permissiontoadd ? 1 : 0;
+				$permissiontodownload = $permissiontoread;
+				$permissiontodelete = $permissiontoadd;
+				include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
+			}
 		}
-}
 
 // ----------------- View -----------------
 $form = new Form($db);
@@ -1069,43 +1105,75 @@ JS;
 		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
 		print timesheetweekRenderStatusBadgeCleanup();
 
-	// Confirm modals
-	if ($action === 'delete') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans('Delete'),
-			$langs->trans('ConfirmDeleteObject'),
-			'confirm_delete',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_validate') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-			$langs->trans('ConfirmValidate'),
-			'confirm_validate',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_refuse') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans("Refuse"),
-			$langs->trans('ConfirmRefuse'),
-			'confirm_refuse',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
+		// Confirm modals
+		if ($action === 'deletefile') {
+			// EN: Ask for confirmation before delegating the deletion to Dolibarr core.
+			// FR: Demande une confirmation avant de déléguer la suppression au cœur de Dolibarr.
+			$urlfileForConfirm = GETPOST('urlfile', 'alphanohtml', 0, null, null, 1);
+			// EN: Keep track of the file parameter required by the document workflow.
+			// FR: Conserve le paramètre file requis par le workflow documentaire.
+			$confirmFileParam = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+			$linkIdForConfirm = GETPOSTINT('linkid');
+			$confirmUrl = $_SERVER["PHP_SELF"].'?id='.$object->id;
+			if ($urlfileForConfirm !== '') {
+				$confirmUrl .= '&urlfile='.urlencode($urlfileForConfirm);
+			}
+			if ($confirmFileParam === '' && !empty($object->ref)) {
+				$confirmFileParam = dol_sanitizeFileName($object->ref).'.pdf';
+			}
+			if ($confirmFileParam !== '') {
+				$confirmUrl .= '&file='.urlencode($confirmFileParam);
+			}
+			if ($linkIdForConfirm > 0) {
+				$confirmUrl .= '&linkid='.$linkIdForConfirm;
+			}
+			$formconfirm = $form->formconfirm(
+				$confirmUrl,
+				$langs->trans('DeleteFile'),
+				$langs->trans('ConfirmDeleteFile'),
+				'confirm_deletefile',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'delete') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans('Delete'),
+				$langs->trans('ConfirmDeleteObject'),
+				'confirm_delete',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'ask_validate') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
+				$langs->trans('ConfirmValidate'),
+				'confirm_validate',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'ask_refuse') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans("Refuse"),
+				$langs->trans('ConfirmRefuse'),
+				'confirm_refuse',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
 
 	echo '<div class="fichecenter">';
 
@@ -1891,7 +1959,7 @@ JS;
 					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
-					print $formfile->showdocuments(
+					$documentHtml = $formfile->showdocuments(
 						'timesheetweek:TimesheetWeek',
 						$relativePath,
 						$filedir,
@@ -1914,6 +1982,16 @@ JS;
 						'remove_file',
 						''
 					);
+					if (!empty($documentHtml)) {
+						// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
+						// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
+						$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+							$decoded = urldecode($matches[2]);
+							$basename = dol_sanitizeFileName(basename($decoded));
+							return $matches[1].rawurlencode($basename);
+						}, $documentHtml);
+					}
+					print $documentHtml;
 				}
 
 				print '</div></div>';
