@@ -1959,39 +1959,96 @@ JS;
 					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
-					$documentHtml = $formfile->showdocuments(
-						'timesheetweek:TimesheetWeek',
-						$relativePath,
-						$filedir,
-						$urlsource,
-						$genallowed,
-						$delallowed,
-						$object->model_pdf,
-						1,
-						0,
-						0,
-						28,
-						0,
-						'',
-						'',
-						'',
-						$langs->defaultlang,
-						'',
-						$object,
-						0,
-						'remove_file',
-						''
-					);
-					if (!empty($documentHtml)) {
-						// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
-						// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
-						$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
-							$decoded = urldecode($matches[2]);
+				$documentHtml = $formfile->showdocuments(
+					'timesheetweek:TimesheetWeek',
+					$relativePath,
+					$filedir,
+					$urlsource,
+					$genallowed,
+					$delallowed,
+					$object->model_pdf,
+					1,
+					0,
+					0,
+					28,
+					0,
+					'',
+					'',
+					'',
+					$langs->defaultlang,
+					'',
+					$object,
+					0,
+					'remove_file',
+					''
+				);
+				if (!empty($documentHtml)) {
+					// EN: Sanitize each segment of the file path to preserve directories while avoiding traversal attacks.
+					// FR: Assainit chaque segment du chemin du fichier pour conserver les dossiers tout en évitant les attaques de traversée.
+					$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = urldecode($matches[2]);
+						while (strpos($decoded, './') === 0) {
+							$decoded = substr($decoded, 2);
+						}
+						$decoded = ltrim($decoded, '/');
+						$parts = preg_split('#/+?#', $decoded, -1, PREG_SPLIT_NO_EMPTY);
+						$sanitizedParts = array();
+						foreach ($parts as $part) {
+							if ($part === '.' || $part === '..') {
+								continue;
+							}
+							$cleanPart = dol_sanitizeFileName($part);
+							if ($cleanPart === '') {
+								continue;
+							}
+							$sanitizedParts[] = $cleanPart;
+						}
+						if (empty($sanitizedParts)) {
 							$basename = dol_sanitizeFileName(basename($decoded));
-							return $matches[1].rawurlencode($basename);
-						}, $documentHtml);
+							if ($basename !== '') {
+								$sanitizedParts[] = $basename;
+							}
+						}
+						$cleanPath = implode('/', $sanitizedParts);
+						return $matches[1].rawurlencode($cleanPath);
+					}, $documentHtml);
+					// EN: Force remove actions to keep only the document basename to match Dolibarr expectations.
+					// FR: Force les actions de suppression à conserver uniquement le nom de fichier pour correspondre aux attentes Dolibarr.
+					$documentHtml = preg_replace_callback('/(action=remove_file[^"<>]*[?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = rawurldecode($matches[2]);
+						$normalized = str_replace('\\', '/', $decoded);
+						$basename = dol_sanitizeFileName(basename($normalized));
+						if ($basename === '') {
+							return $matches[0];
+						}
+						return $matches[1].rawurlencode($basename);
+					}, $documentHtml);
+					$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
+					$decodeFlags = ENT_QUOTES;
+					if (defined('ENT_HTML5')) {
+						$decodeFlags |= ENT_HTML5;
+					} else {
+						$decodeFlags |= ENT_COMPAT;
 					}
-					print $documentHtml;
+					$documentHtml = preg_replace_callback('/href="([^"<>]*document\.php[^"<>]*)"/', function ($matches) use ($documentBaseUrl, $decodeFlags) {
+						$originalHref = $matches[1];
+						$decodedHref = html_entity_decode($originalHref, $decodeFlags, 'UTF-8');
+						if (preg_match('#^[a-z]+://#i', $decodedHref)) {
+							return 'href="'.$originalHref.'"';
+						}
+						$normalizedHref = $decodedHref;
+						if (strpos($normalizedHref, '/document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('/document.php'));
+						} elseif (strpos($normalizedHref, 'document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('document.php'));
+						} else {
+							return 'href="'.$originalHref.'"';
+						}
+						$absoluteHref = $documentBaseUrl.$normalizedHref;
+						return 'href="'.dol_escape_htmltag($absoluteHref).'"';
+					}, $documentHtml);
+				}
+				print $documentHtml;
 				}
 
 				print '</div></div>';
