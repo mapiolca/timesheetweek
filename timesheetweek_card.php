@@ -1959,7 +1959,7 @@ JS;
 					}
 					$delallowed = $permissiontoadd ? 1 : 0;
 
-					print $formfile->showdocuments(
+					$documentHtml = $formfile->showdocuments(
 						'timesheetweek:TimesheetWeek',
 						$relativePath,
 						$filedir,
@@ -1982,6 +1982,16 @@ JS;
 						'remove_file',
 						''
 					);
+					if (!empty($documentHtml)) {
+						// EN: Force deletion links to keep only the filename part to match Dolibarr remove_file expectations.
+						// FR: Force les liens de suppression à ne conserver que le nom de fichier pour respecter les attentes remove_file de Dolibarr.
+						$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+							$decoded = urldecode($matches[2]);
+							$basename = dol_sanitizeFileName(basename($decoded));
+							return $matches[1].rawurlencode($basename);
+						}, $documentHtml);
+					}
+					print $documentHtml;
 				}
 
 				print '</div></div>';
