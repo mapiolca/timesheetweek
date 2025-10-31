@@ -401,9 +401,10 @@ function tw_pdf_estimate_row_height($pdf, array $columnWidths, array $values, $l
 	$maxLines = 1;
 	foreach ($values as $index => $value) {
 		$allowHtml = !empty($htmlFlags[$index]);
-		$formatted = tw_pdf_format_cell_html($value, $allowHtml);
-		$plainSource = $allowHtml ? preg_replace('/<br\s*\/?\s*>/i', "
-", $formatted) : $formatted;
+$formatted = tw_pdf_format_cell_html($value, $allowHtml);
+		// EN: Replace HTML line breaks with newline characters to match TCPDF rendering height.
+		// FR: Remplace les sauts de ligne HTML par des retours à la ligne pour refléter la hauteur de rendu TCPDF.
+$plainSource = $allowHtml ? preg_replace('/<br\s*\/?\s*>/i', "\n", $formatted) : $formatted;
 		$plain = dol_string_nohtmltag($plainSource);
 		$plain = html_entity_decode($plain, ENT_QUOTES | ENT_HTML401, 'UTF-8');
 		$width = isset($columnWidths[$index]) ? (float) $columnWidths[$index] : 0.0;
