@@ -30,6 +30,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 defined('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR') || define('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR', 'summaries');
 
@@ -71,20 +72,37 @@ function tw_pdf_normalize_string($value)
  * EN: Wrap the normalised value in a safe HTML span ready for TCPDF output.
  * FR: Entoure la valeur normalisée dans un span HTML sûr prêt pour la sortie TCPDF.
  *
- * @param string $value
+ * @param string $value     EN: Value to render in the PDF cell / FR: Valeur à afficher dans la cellule PDF
+ * @param bool   $allowHtml EN: Whether HTML tags are authorised / FR: Indique si les balises HTML sont autorisées
  * @return string
  */
-function tw_pdf_format_cell_html($value)
+function tw_pdf_format_cell_html($value, $allowHtml = false)
 {
 	// EN: Normalise the input before escaping to keep accents visible in PDF cells.
 	// FR: Normalise la valeur avant échappement pour conserver les accents visibles dans les cellules PDF.
 	$normalizedValue = tw_pdf_normalize_string($value);
+	if ($allowHtml) {
+		// EN: Harmonise explicit line breaks to the XHTML form expected by TCPDF.
+		// FR: Harmonise les retours à la ligne explicites au format XHTML attendu par TCPDF.
+		$normalizedValue = preg_replace('/(\r\n|\r|\n)/', '<br />', $normalizedValue);
+		// EN: Normalise existing break tags to the XHTML variant to stay compatible with TCPDF.
+		// FR: Normalise les balises de saut de ligne existantes en variante XHTML pour rester compatible avec TCPDF.
+		$normalizedValue = preg_replace('/<br\s*\/?\s*>/i', '<br />', $normalizedValue);
+		// EN: Allow a limited set of inline tags to preserve safe styling in PDF cells.
+		// FR: Autorise un ensemble limité de balises inline pour préserver un style sûr dans les cellules PDF.
+		$allowedTags = '<br><strong><b><em><i><u><span>';
+		$sanitizedValue = strip_tags($normalizedValue, $allowedTags);
+		// EN: Escape stray ampersands so TCPDF receives valid HTML entities.
+		// FR: Échappe les esperluettes isolées pour que TCPDF reçoive des entités HTML valides.
+		$sanitizedValue = preg_replace('/&(?![a-zA-Z0-9#]+;)/', '&amp;', $sanitizedValue);
+		return '<span>'.$sanitizedValue.'</span>';
+	}
 	// EN: Escape HTML special characters using Dolibarr helper to protect TCPDF output.
 	// FR: Échappe les caractères spéciaux HTML avec l'helper Dolibarr pour sécuriser la sortie TCPDF.
 	$escapedValue = dol_escape_htmltag($normalizedValue);
 	// EN: Wrap the escaped value in a span to stay compatible with TCPDF HTML rendering expectations.
-        // FR: Encapsule la valeur échappée dans un span pour rester compatible avec les attentes de rendu HTML de TCPDF.
-        return '<span>'.$escapedValue.'</span>';
+	// FR: Encapsule la valeur échappée dans un span pour rester compatible avec les attentes de rendu HTML de TCPDF.
+	return '<span>'.$escapedValue.'</span>';
 }
 
 /**
@@ -229,7 +247,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
 		// EN: Show the ISO week range immediately below the title to mirror Dolibarr headers.
 		// FR: Affiche la plage de semaines ISO juste sous le titre pour refléter les entêtes Dolibarr.
-               $pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedWeekRange), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedWeekRange), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 	// EN: Remove unnecessary spaces around the header subtitle before rendering.
@@ -239,7 +257,7 @@ function tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $title
 		$pdf->SetFont('', '', $defaultFontSize);
 		$pdf->SetTextColor(0, 0, 0);
 		$pdf->SetXY($rightBlockX, $rightBlockBottom + 1.0);
-               $pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedSubtitle), 0, 'R', 0, 1, '', '', true, 0, true);
+		$pdf->MultiCell($rightBlockWidth, 5, tw_pdf_format_header_html($trimmedSubtitle), 0, 'R', 0, 1, '', '', true, 0, true);
 		$rightBlockBottom = max($rightBlockBottom, $pdf->GetY());
 	}
 
@@ -375,17 +393,21 @@ function tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize)
  * @param float[] $columnWidths
  * @param string[] $values
  * @param float $lineHeight
+ * @param bool[] $htmlFlags
  * @return float
  */
-function tw_pdf_estimate_row_height($pdf, array $columnWidths, array $values, $lineHeight)
+function tw_pdf_estimate_row_height($pdf, array $columnWidths, array $values, $lineHeight, array $htmlFlags = array())
 {
-	// EN: Track the maximum number of lines across the row to harmonise heights.
-	// FR: Suit le nombre maximal de lignes pour harmoniser les hauteurs.
 	$maxLines = 1;
 	foreach ($values as $index => $value) {
-		$text = tw_pdf_format_cell_html($value);
-		$plain = dol_string_nohtmltag($text);
-		$currentLines = max(1, $pdf->getNumLines($plain, $columnWidths[$index]));
+		$allowHtml = !empty($htmlFlags[$index]);
+		$formatted = tw_pdf_format_cell_html($value, $allowHtml);
+		$plainSource = $allowHtml ? preg_replace('/<br\s*\/?\s*>/i', "
+", $formatted) : $formatted;
+		$plain = dol_string_nohtmltag($plainSource);
+		$plain = html_entity_decode($plain, ENT_QUOTES | ENT_HTML401, 'UTF-8');
+		$width = isset($columnWidths[$index]) ? (float) $columnWidths[$index] : 0.0;
+		$currentLines = ($width > 0.0) ? max(1, $pdf->getNumLines($plain, $width)) : 1;
 		$maxLines = max($maxLines, $currentLines);
 	}
 	return $lineHeight * $maxLines;
@@ -407,40 +429,36 @@ function tw_pdf_render_row($pdf, array $columnWidths, array $values, $lineHeight
 	$border = $options['border'] ?? 1;
 	$fill = !empty($options['fill']);
 	$alignments = $options['alignments'] ?? array();
-	// EN: Compute the shared height to align every cell in the row.
-	// FR: Calcule la hauteur commune pour aligner toutes les cellules de la ligne.
-	$rowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $values, $lineHeight);
+	$htmlFlags = $options['html_flags'] ?? array();
+	$rowHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $values, $lineHeight, $htmlFlags);
 	$initialX = $pdf->GetX();
 	$initialY = $pdf->GetY();
 	$offset = 0.0;
 	foreach ($values as $index => $value) {
-		$width = $columnWidths[$index];
+		$width = isset($columnWidths[$index]) ? (float) $columnWidths[$index] : 0.0;
 		$align = $alignments[$index] ?? 'L';
-		// EN: Position each cell manually to guarantee column alignment.
-		// FR: Positionne chaque cellule manuellement pour garantir l'alignement des colonnes.
+		$allowHtml = !empty($htmlFlags[$index]);
 		$pdf->SetXY($initialX + $offset, $initialY);
 		$pdf->MultiCell(
-		$width,
-		$rowHeight,
-		tw_pdf_format_cell_html($value),
-		$border,
-		$align,
-		$fill,
-		0,
-		'',
-		'',
-		true,
-		0,
-		true,
-		true,
-		$rowHeight,
-		'T',
-		false
+			$width,
+			$rowHeight,
+			tw_pdf_format_cell_html($value, $allowHtml),
+			$border,
+			$align,
+			$fill,
+			0,
+			'',
+			'',
+			true,
+			0,
+			true,
+			true,
+			$rowHeight,
+			'T',
+			false
 		);
 		$offset += $width;
 	}
-	// EN: Move the cursor under the row for the next drawing operations.
-	// FR: Replace le curseur sous la ligne pour les prochaines opérations de dessin.
 	$pdf->SetXY($initialX, $initialY + $rowHeight);
 }
 
@@ -457,28 +475,29 @@ function tw_pdf_render_row($pdf, array $columnWidths, array $values, $lineHeight
  * @param string[] $totalsRow
  * @param float $lineHeight
  * @param float $contentWidth
+ * @param bool[] $htmlFlags
+ * @param float[] $recordLineHeights
  * @return float
  */
-function tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, array $columnWidths, array $columnLabels, array $recordRows, array $totalsRow, $lineHeight, $contentWidth)
+function tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, array $columnWidths, array $columnLabels, array $recordRows, array $totalsRow, $lineHeight, $contentWidth, array $htmlFlags = array(), array $recordLineHeights = array())
 {
 	$bannerText = $langs->trans('TimesheetWeekSummaryUserTitle', $userObject->getFullName($langs));
 	$bannerPlain = dol_string_nohtmltag(tw_pdf_format_cell_html($bannerText));
-	// EN: Evaluate banner height using the same line width as the MultiCell call.
-	// FR: Évalue la hauteur de la bannière en utilisant la même largeur de ligne que l'appel MultiCell.
 	$bannerLines = max(1, $pdf->getNumLines($bannerPlain, $contentWidth));
 	$bannerHeight = 6 * $bannerLines;
-	
-	// EN: Account for the spacing introduced before the table header.
-	// FR: Prend en compte l'espacement introduit avant l'entête du tableau.
-	$headerHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight);
+
+	$headerHeight = tw_pdf_estimate_row_height($pdf, $columnWidths, $columnLabels, $lineHeight, $htmlFlags);
 	$totalHeight = $bannerHeight + 2 + $headerHeight;
-	
-	foreach ($recordRows as $rowValues) {
-		$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $rowValues, $lineHeight);
+
+	foreach ($recordRows as $rowIndex => $rowValues) {
+		// EN: Apply the precomputed line height when available to reflect the final rendering footprint.
+		// FR: Applique la hauteur de ligne pré-calculée lorsque disponible pour refléter l'empreinte finale du rendu.
+		$rowLineHeight = isset($recordLineHeights[$rowIndex]) ? (float) $recordLineHeights[$rowIndex] : $lineHeight;
+		$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $rowValues, $rowLineHeight, $htmlFlags);
 	}
-	
-	$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $totalsRow, $lineHeight);
-	
+
+	$totalHeight += tw_pdf_estimate_row_height($pdf, $columnWidths, $totalsRow, $lineHeight, $htmlFlags);
+
 	return $totalHeight;
 }
 
@@ -547,6 +566,115 @@ function tw_pdf_compute_column_widths(array $weights, $usableWidth)
 }
 
 /**
+ * EN: Resolve the user name who sealed a timesheet using linked agenda events.
+ * FR: Résout le nom de l'utilisateur ayant scellé une feuille via les événements agenda liés.
+ *
+ * @param DoliDB $db         Database handler / Gestionnaire de base de données
+ * @param int    $timesheetId Timesheet identifier / Identifiant de feuille de temps
+ * @param int    $entityId    Entity identifier / Identifiant d'entité
+ * @return string             User full name or empty string / Nom complet de l'utilisateur ou chaîne vide
+ */
+function tw_pdf_resolve_sealed_by($db, $timesheetId, $entityId)
+{
+	static $cache = array();
+
+	$timesheetId = (int) $timesheetId;
+	$entityId = (int) $entityId;
+	$cacheKey = $timesheetId.'-'.$entityId;
+
+	if (isset($cache[$cacheKey])) {
+		return $cache[$cacheKey];
+	}
+
+	if ($timesheetId <= 0) {
+		$cache[$cacheKey] = '';
+		return '';
+	}
+	$sql = "SELECT ac.fk_user_author as sealer_id, u.firstname, u.lastname";
+	$sql .= " FROM ".MAIN_DB_PREFIX."actioncomm as ac";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = ac.fk_user_author";
+	$sql .= " WHERE ac.code = 'TSWK_SEAL'";
+	$sql .= " AND ac.elementtype = 'timesheetweek'";
+	$sql .= " AND ac.fk_element = ".$timesheetId;
+	$sql .= " AND ac.entity = ".$entityId;
+	$sql .= " ORDER BY ac.rowid DESC";
+	$sql .= " LIMIT 1";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$cache[$cacheKey] = '';
+		return '';
+	}
+
+	$result = '';
+	if ($row = $db->fetch_object($resql)) {
+		if (!empty($row->lastname) || !empty($row->firstname)) {
+			$result = dolGetFirstLastname($row->firstname, $row->lastname);
+		}
+	}
+	$db->free($resql);
+
+	$cache[$cacheKey] = $result;
+
+	return $result;
+}
+
+/**
+ * EN: Build the HTML badge associated with a timesheet status for PDF rendering.
+ * FR: Construit le badge HTML associé à un statut de feuille pour le rendu PDF.
+ *
+ * @param int       $status Timesheet status code / Code de statut de la feuille
+ * @param Translate $langs  Translator / Gestionnaire de traductions
+ * @return string           HTML badge string / Chaîne HTML du badge
+ */
+function tw_pdf_build_status_badge($status, $langs)
+{
+	$status = (int) $status;
+	if (method_exists($langs, 'loadLangs')) {
+		$langs->loadLangs(array('timesheetweek@timesheetweek', 'other'));
+	}
+
+	$badge = TimesheetWeek::LibStatut($status, 5);
+	if (!is_string($badge) || $badge === '') {
+		return '<span>'.dol_escape_htmltag($langs->trans('Unknown')).'</span>';
+	}
+
+	return $badge;
+}
+
+/**
+ * EN: Compose the status cell with the badge and contextual messages for the PDF table.
+ * FR: Compose la cellule de statut avec le badge et les messages contextuels pour le tableau PDF.
+ *
+ * @param Translate $langs       Translator instance / Instance de traduction
+ * @param int       $status      Timesheet status code / Code du statut de la feuille
+ * @param string    $approvedBy  Approver full name / Nom complet de l'approbateur
+ * @param string    $sealedBy    Sealer full name / Nom complet du scelleur
+ * @return string                HTML snippet for the cell / Fragment HTML pour la cellule
+ */
+function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy)
+{
+	$status = (int) $status;
+	$approvedBy = trim((string) $approvedBy);
+	$sealedBy = trim((string) $sealedBy);
+
+	$parts = array();
+	$parts[] = tw_pdf_build_status_badge($status, $langs);
+
+	if ($status === TimesheetWeek::STATUS_APPROVED) {
+		$label = $approvedBy !== '' ? $approvedBy : $langs->trans('Unknown');
+		$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusApprovedBy', $label)).'</span>';
+	} elseif ($status === TimesheetWeek::STATUS_SEALED) {
+		$approvedLabel = $approvedBy !== '' ? $approvedBy : $langs->trans('Unknown');
+		$sealedLabel = $sealedBy !== '' ? $sealedBy : $langs->trans('Unknown');
+		$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusApprovedBy', $approvedLabel)).'</span>';
+		$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusSealedBy', $sealedLabel)).'</span>';
+	}
+
+	return implode('<br />', $parts);
+}
+
+/**
  * EN: Build the dataset required to generate a PDF summary of weekly timesheets.
  * FR: Construit l'ensemble de données nécessaire pour générer un résumé PDF des feuilles hebdomadaires.
  *
@@ -574,10 +702,10 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	}
 
 	$idList = implode(',', $ids);
-$sql = "SELECT t.rowid, t.entity, t.year, t.week, t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count, t.fk_user, t.fk_user_valid, u.lastname, u.firstname, u.weeklyhours, uv.lastname as validator_lastname, uv.firstname as validator_firstname";
-$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
-$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
+	$sql = "SELECT t.rowid, t.entity, t.year, t.week, t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count, t.fk_user, t.fk_user_valid, t.status, u.lastname, u.firstname, u.weeklyhours, uv.lastname as validator_lastname, uv.firstname as validator_firstname";
+	$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
 	$sql .= " WHERE t.rowid IN (".$idList.")";
 	$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
 
@@ -641,6 +769,7 @@ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
 				)
 			);
 		}
+
 		$approvedBy = '';
 		if (!empty($row->validator_lastname) || !empty($row->validator_firstname)) {
 			// EN: Build the approver full name respecting Dolibarr formatting.
@@ -648,23 +777,34 @@ $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
 			$approvedBy = dolGetFirstLastname($row->validator_firstname, $row->validator_lastname);
 		}
 
+		$status = (int) $row->status;
+		$sealedBy = '';
+		if ($status === TimesheetWeek::STATUS_SEALED) {
+			// EN: Resolve the user who sealed the timesheet through agenda history.
+			// FR: Résout l'utilisateur ayant scellé la feuille via l'historique agenda.
+			$sealedBy = tw_pdf_resolve_sealed_by($db, (int) $row->rowid, (int) $row->entity);
+		}
+
 		$record = array(
-'id' => (int) $row->rowid,
-'week' => $week,
-'year' => $year,
-'week_start' => $weekStart,
-'week_end' => $weekEnd,
-'total_hours' => (float) $row->total_hours,
-'contract_hours' => (float) $contractHours,
-'overtime_hours' => (float) $row->overtime_hours,
-'meal_count' => (int) $row->meal_count,
-'zone1_count' => (int) $row->zone1_count,
-'zone2_count' => (int) $row->zone2_count,
-'zone3_count' => (int) $row->zone3_count,
-'zone4_count' => (int) $row->zone4_count,
-'zone5_count' => (int) $row->zone5_count,
-'approved_by' => $approvedBy
-);
+			'id' => (int) $row->rowid,
+			'entity' => (int) $row->entity,
+			'week' => $week,
+			'year' => $year,
+			'week_start' => $weekStart,
+			'week_end' => $weekEnd,
+			'total_hours' => (float) $row->total_hours,
+			'contract_hours' => (float) $contractHours,
+			'overtime_hours' => (float) $row->overtime_hours,
+			'meal_count' => (int) $row->meal_count,
+			'zone1_count' => (int) $row->zone1_count,
+			'zone2_count' => (int) $row->zone2_count,
+			'zone3_count' => (int) $row->zone3_count,
+			'zone4_count' => (int) $row->zone4_count,
+			'zone5_count' => (int) $row->zone5_count,
+			'approved_by' => $approvedBy,
+			'sealed_by' => $sealedBy,
+			'status' => $status
+		);
 
 		$dataset[$targetUserId]['records'][] = $record;
 		$dataset[$targetUserId]['totals']['total_hours'] += $record['total_hours'];
@@ -907,7 +1047,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 
 	// EN: Describe the standard hour-based layout used for classic employees.
 	// FR: Décrit la mise en page standard en heures utilisée pour les salariés classiques.
-	$hoursColumnConfig = array(
+		$hoursColumnConfig = array(
 			'weights' => array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24),
 			'labels' => array(
 				$langs->trans('TimesheetWeekSummaryColumnWeek'),
@@ -922,15 +1062,14 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				$langs->trans('TimesheetWeekSummaryColumnZone3'),
 				$langs->trans('TimesheetWeekSummaryColumnZone4'),
 				$langs->trans('TimesheetWeekSummaryColumnZone5'),
-				$langs->trans('TimesheetWeekSummaryColumnApprovedBy')
+				$langs->trans('TimesheetWeekSummaryColumnStatus')
 			),
 			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
-			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L')
+			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
+			'html_flags' => array(false, false, false, false, false, false, false, false, false, false, false, false, true)
 		);
 
-	// EN: Define the reduced layout for forfait-jour employees expressed in days instead of hours.
-	// FR: Définit la mise en page réduite pour les salariés au forfait jour, exprimée en jours plutôt qu'en heures.
-	$dailyColumnConfig = array(
+		$dailyColumnConfig = array(
 			'weights' => array(16, 20, 20, 18, 18, 28),
 			'labels' => array(
 				$langs->trans('TimesheetWeekSummaryColumnWeek'),
@@ -938,13 +1077,14 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				$langs->trans('TimesheetWeekSummaryColumnEnd'),
 				$langs->trans('TimesheetWeekSummaryColumnTotalDays'),
 				$langs->trans('TimesheetWeekSummaryColumnContractDays'),
-				$langs->trans('TimesheetWeekSummaryColumnApprovedBy')
+				$langs->trans('TimesheetWeekSummaryColumnStatus')
 			),
 			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'L'),
-			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'L')
+			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'L'),
+			'html_flags' => array(false, false, false, false, false, true)
 		);
 
-	$lineHeight = 6;
+$lineHeight = 6;
 	$hoursPerDay = 8.0;
 
 	$isFirstUser = true;
@@ -960,7 +1100,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			$totalsAlignments = $columnConfig['totals_alignments'];
 
 			$recordRows = array();
-			foreach ($records as $record) {
+			$recordLineHeights = array();
+			// EN: Keep track of each row height to share the same baseline during layout estimation and rendering.
+			// FR: Suit la hauteur de chaque ligne pour partager la même base lors de l'estimation et du rendu de la mise en page.
+			foreach ($records as $recordIndex => $record) {
+				$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by']);
+				// EN: Double the base line height when the status is approved or sealed to provide extra vertical space.
+				// FR: Double la hauteur de ligne de base lorsque le statut est approuvé ou scellé pour offrir plus d'espace vertical.
+				$isDoubleHeightStatus = in_array((int) $record['status'], array(TimesheetWeek::STATUS_APPROVED, TimesheetWeek::STATUS_SEALED), true);
+				$recordLineHeights[$recordIndex] = $lineHeight * ($isDoubleHeightStatus ? 2 : 1);
 				if ($isDailyRateEmployee) {
 					$recordRows[] = array(
 						sprintf('%d / %d', $record['week'], $record['year']),
@@ -968,7 +1116,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 						dol_print_date($record['week_end']->getTimestamp(), 'day'),
 						tw_format_days_decimal(($record['total_hours'] / $hoursPerDay), $langs),
 						tw_format_days_decimal(($record['contract_hours'] / $hoursPerDay), $langs),
-						$record['approved_by']
+						$statusCell
 					);
 				} else {
 					$recordRows[] = array(
@@ -984,7 +1132,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 						(string) $record['zone3_count'],
 						(string) $record['zone4_count'],
 						(string) $record['zone5_count'],
-						$record['approved_by']
+						$statusCell
 					);
 				}
 			}
@@ -1016,7 +1164,11 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				);
 			}
 
-			$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth);
+			$htmlFlags = $columnConfig['html_flags'] ?? array();
+
+			// EN: Anticipate the dynamic line height of each record to size the table and manage page breaks accurately.
+			// FR: Anticipe la hauteur de ligne dynamique de chaque enregistrement pour dimensionner le tableau et gérer précisément les sauts de page.
+			$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth, $htmlFlags, $recordLineHeights);
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
@@ -1050,19 +1202,24 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		$pdf->SetX($margeGauche);
 		// EN: Draw the header row with uniform dimensions for every column.
 		// FR: Dessine la ligne d'entête avec des dimensions uniformes pour chaque colonne.
-		tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+			tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
 		'fill' => true,
-		'alignments' => array_fill(0, count($columnLabels), 'C')
-		));
-		
+		'alignments' => array_fill(0, count($columnLabels), 'C'),
+		'html_flags' => $htmlFlags
+	));
+
 		$pdf->SetFont('', '', $defaultFontSize - 1);
 		$alignments = $rowAlignments;
 		// EN: Render each data row while keeping consistent heights across the table.
 		// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
-		foreach ($recordRows as $rowData) {
+		foreach ($recordRows as $rowIndex => $rowData) {
+			// EN: Reuse the dynamic line height computed earlier to align rendering with the layout estimation.
+			// FR: Réutilise la hauteur de ligne dynamique calculée précédemment pour aligner le rendu sur l'estimation de mise en page.
+			$currentLineHeight = $recordLineHeights[$rowIndex] ?? $lineHeight;
 			$pdf->SetX($margeGauche);
-			tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
-				'alignments' => $alignments
+			tw_pdf_render_row($pdf, $columnWidths, $rowData, $currentLineHeight, array(
+				'alignments' => $alignments,
+				'html_flags' => $htmlFlags
 			));
 		}
 
@@ -1071,7 +1228,8 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		// EN: Print the totals row with left-aligned label and right-aligned figures.
 		// FR: Imprime la ligne de totaux avec libellé aligné à gauche et chiffres alignés à droite.
 		tw_pdf_render_row($pdf, $columnWidths, $totalsRow, $lineHeight, array(
-			'alignments' => $totalsAlignments
+			'alignments' => $totalsAlignments,
+			'html_flags' => $htmlFlags
 		));
 
 		}
