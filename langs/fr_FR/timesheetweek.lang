@@ -153,6 +153,8 @@ TimesheetWeekSummaryTableTooTall = La synthèse pour %s contient trop de lignes 
 TimesheetWeekSummaryGenerated = PDF de synthèse disponible.
 TimesheetWeekSummaryFilename = Synthese hebdomadaire des feuilles de temps - Semaine %s a %s.pdf
 TimesheetWeekSummaryHeaderWeekRange = Semaine n°%1$s %2$s
+TimesheetWeekPreviewPdf = Aperçu PDF
+TimesheetWeekDownloadPdf = Téléchargement PDF
 
 TimesheetWeekStatusDraft = Brouillon
 TimesheetWeekStatusSubmitted = Soumise

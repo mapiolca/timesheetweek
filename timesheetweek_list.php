@@ -50,6 +50,7 @@ if (!$permViewAny) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
@@ -147,6 +148,64 @@ if (!function_exists('tw_can_validate_timesheet_masslist')) {
 		return false;
 	}
 }
+
+if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
+	/**
+	 * EN: Render the dropdown to preview or download the sheet PDF directly from the list.
+	 * FR: Affiche le menu déroulant pour prévisualiser ou télécharger le PDF de la feuille depuis la liste.
+	 *
+	 * @param stdClass   $rowData Data row containing reference and entity information
+	 * @param Conf       $conf    Dolibarr global configuration
+	 * @param Translate  $langs   Translation handler
+	 * @return string HTML markup of the dropdown or an empty string when the PDF is unavailable
+	 */
+	function tw_render_timesheet_pdf_dropdown($rowData, Conf $conf, Translate $langs)
+	{
+		// EN: Secure the reference before building file paths.
+		// FR: Sécurise la référence avant de construire les chemins de fichiers.
+		$docRef = dol_sanitizeFileName($rowData->ref ?? '');
+		if ($docRef === '') {
+			return '';
+		}
+
+		// EN: Determine the entity and base output directory, compatible with Multicompany.
+		// FR: Détermine l'entité et le répertoire de sortie, compatible avec Multicompany.
+		$docEntityId = property_exists($rowData, 'entity') ? (int) $rowData->entity : (int) $conf->entity;
+		$entityOutputs = $conf->timesheetweek->multidir_output[$docEntityId] ?? null;
+		$baseOutput = $entityOutputs ? $entityOutputs : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+
+		// EN: Compose the expected PDF path and ensure the file exists before rendering actions.
+		// FR: Compose le chemin attendu du PDF et vérifie l'existence du fichier avant d'afficher les actions.
+		$relativeDir = 'timesheetweek/'.$docRef;
+		$pdfFilename = $docRef.'.pdf';
+		$relativeFile = $relativeDir.'/'.$pdfFilename;
+		$absoluteFile = rtrim($baseOutput, '/').'/'.$relativeFile;
+		if (!dol_is_file($absoluteFile)) {
+			return '';
+		}
+
+		// EN: Build preview and download URLs exactly like Dolibarr's invoice dropdown for consistency.
+		// FR: Construit les URLs d'aperçu et de téléchargement comme le menu des factures Dolibarr pour rester cohérent.
+		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment=1&permission=read';
+		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
+		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+		$titleLabel = dol_escape_htmltag($pdfFilename);
+
+		// EN: Return the dropdown markup prefixed with a non-breaking space to separate it from the reference.
+		// FR: Retourne le menu déroulant précédé d'une espace insécable pour le séparer de la référence.
+		$html = '&nbsp;<dl class="dropdown inline-block">';
+		$html .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
+		$html .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
+		$html .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
+		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
+		$html .= '</ul></div></dd>';
+		$html .= '</dl>';
+
+		return $html;
+	}
+}
+
 /**
  * Params
  */
@@ -289,26 +348,26 @@ if ($multicompanyEnabled) {
 }
 
 $arrayfields += array(
-        't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
-        't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
-        't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
-        't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
-        // EN: Zone counters columns for list display.
-        // FR: Colonnes des compteurs de zones pour l'affichage de la liste.
-        't.zone1_count'  => array('label' => $langs->trans("Zone1Count"),   'checked' => 0),
-        't.zone2_count'  => array('label' => $langs->trans("Zone2Count"),   'checked' => 0),
-        't.zone3_count'  => array('label' => $langs->trans("Zone3Count"),   'checked' => 0),
-        't.zone4_count'  => array('label' => $langs->trans("Zone4Count"),   'checked' => 0),
-        't.zone5_count'  => array('label' => $langs->trans("Zone5Count"),   'checked' => 0),
-        // EN: Meal counter column for list display.
-        // FR: Colonne du compteur de paniers pour l'affichage de la liste.
-        't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
-        't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
-        // EN: Validation timestamp column to expose approval dates in the list.
-        // FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
-        't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
-        't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
-        't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
+		't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
+		't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
+		't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
+		't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
+		// EN: Zone counters columns for list display.
+		// FR: Colonnes des compteurs de zones pour l'affichage de la liste.
+		't.zone1_count'  => array('label' => $langs->trans("Zone1Count"),   'checked' => 0),
+		't.zone2_count'  => array('label' => $langs->trans("Zone2Count"),   'checked' => 0),
+		't.zone3_count'  => array('label' => $langs->trans("Zone3Count"),   'checked' => 0),
+		't.zone4_count'  => array('label' => $langs->trans("Zone4Count"),   'checked' => 0),
+		't.zone5_count'  => array('label' => $langs->trans("Zone5Count"),   'checked' => 0),
+		// EN: Meal counter column for list display.
+		// FR: Colonne du compteur de paniers pour l'affichage de la liste.
+		't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
+		't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
+		// EN: Validation timestamp column to expose approval dates in the list.
+		// FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
+		't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
+		't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
+		't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
 
 // Update arrayfields from request (column selector)
@@ -910,20 +969,20 @@ if (!empty($arrayfields['t.tms']['checked'])) {
         print '<td class="liste_titre center">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.status']['checked'])) {
-        $statusOptions = array(
-                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
-                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
-                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
-                TimesheetWeek::STATUS_SEALED    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SEALED, 0),
-                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
-        );
+		$statusOptions = array(
+			TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
+			TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
+			TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+			TimesheetWeek::STATUS_SEALED    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SEALED, 0),
+			TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
+		);
 
-        print '<td class="liste_titre center">';
-        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
-        print '</td>';
+		print '<td class="liste_titre center">';
+		print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+		print '</td>';
 }
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-        print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
+	print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
 }
 print '</tr>'."\n";
 
@@ -1034,7 +1093,11 @@ while ($i < $imax) {
 		$tswstatic->id = $obj->rowid;
 		$tswstatic->ref = $obj->ref;
 		$tswstatic->status = $obj->status;
-		print '<td>'.$tswstatic->getNomUrl(1, 'ref').'</td>';
+		$refLink = $tswstatic->getNomUrl(1, 'ref');
+		// EN: Append the PDF dropdown inside the reference column to mirror the invoice behaviour.
+		// FR: Ajoute le menu PDF dans la colonne de référence pour reproduire le comportement des factures.
+		$refLink .= tw_render_timesheet_pdf_dropdown($obj, $conf, $langs);
+		print '<td>'.$refLink.'</td>';
 	}
 
 	// Employee
@@ -1125,14 +1188,14 @@ while ($i < $imax) {
         if (!empty($arrayfields['t.tms']['checked'])) {
                 print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
         }
-	// Status (badge)
-        if (!empty($arrayfields['t.status']['checked'])) {
-                $tswstatic->status = $obj->status;
-                print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-        }
-        // EN: Accumulate values to expose totals at the bottom of the table.
-        // FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
-        $totalsAccumulator['total_hours'] += (float) $obj->total_hours;
+		// Status (badge)
+		if (!empty($arrayfields['t.status']['checked'])) {
+			$tswstatic->status = $obj->status;
+			print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+		}
+// EN: Accumulate values to expose totals at the bottom of the table.
+// FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
+$totalsAccumulator['total_hours'] += (float) $obj->total_hours;
         $totalsAccumulator['overtime_hours'] += (float) $obj->overtime_hours;
         $totalsAccumulator['zone1_count'] += (int) $obj->zone1_count;
         $totalsAccumulator['zone2_count'] += (int) $obj->zone2_count;
@@ -1225,12 +1288,12 @@ if ($imax > 0) {
         if (!empty($arrayfields['t.tms']['checked'])) {
                 print '<td class="liste_total center">&nbsp;</td>';
         }
-        if (!empty($arrayfields['t.status']['checked'])) {
-                print '<td class="liste_total center">&nbsp;</td>';
-        }
-        if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-                print '<td class="liste_total">&nbsp;</td>';
-        }
+		if (!empty($arrayfields['t.status']['checked'])) {
+			print '<td class="liste_total center">&nbsp;</td>';
+		}
+		if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+			print '<td class="liste_total">&nbsp;</td>';
+		}
         print '</tr>';
 } else {
         $colspan = 1;
