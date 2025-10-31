@@ -148,6 +148,64 @@ if (!function_exists('tw_can_validate_timesheet_masslist')) {
 		return false;
 	}
 }
+
+if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
+	/**
+	 * EN: Render the dropdown to preview or download the sheet PDF directly from the list.
+	 * FR: Affiche le menu déroulant pour prévisualiser ou télécharger le PDF de la feuille depuis la liste.
+	 *
+	 * @param stdClass   $rowData Data row containing reference and entity information
+	 * @param Conf       $conf    Dolibarr global configuration
+	 * @param Translate  $langs   Translation handler
+	 * @return string HTML markup of the dropdown or an empty string when the PDF is unavailable
+	 */
+	function tw_render_timesheet_pdf_dropdown($rowData, Conf $conf, Translate $langs)
+	{
+		// EN: Secure the reference before building file paths.
+		// FR: Sécurise la référence avant de construire les chemins de fichiers.
+		$docRef = dol_sanitizeFileName($rowData->ref ?? '');
+		if ($docRef === '') {
+			return '';
+		}
+
+		// EN: Determine the entity and base output directory, compatible with Multicompany.
+		// FR: Détermine l'entité et le répertoire de sortie, compatible avec Multicompany.
+		$docEntityId = property_exists($rowData, 'entity') ? (int) $rowData->entity : (int) $conf->entity;
+		$entityOutputs = $conf->timesheetweek->multidir_output[$docEntityId] ?? null;
+		$baseOutput = $entityOutputs ? $entityOutputs : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+
+		// EN: Compose the expected PDF path and ensure the file exists before rendering actions.
+		// FR: Compose le chemin attendu du PDF et vérifie l'existence du fichier avant d'afficher les actions.
+		$relativeDir = 'timesheetweek/'.$docRef;
+		$pdfFilename = $docRef.'.pdf';
+		$relativeFile = $relativeDir.'/'.$pdfFilename;
+		$absoluteFile = rtrim($baseOutput, '/').'/'.$relativeFile;
+		if (!dol_is_file($absoluteFile)) {
+			return '';
+		}
+
+		// EN: Build preview and download URLs exactly like Dolibarr's invoice dropdown for consistency.
+		// FR: Construit les URLs d'aperçu et de téléchargement comme le menu des factures Dolibarr pour rester cohérent.
+		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment=1&permission=read';
+		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
+		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+		$titleLabel = dol_escape_htmltag($pdfFilename);
+
+		// EN: Return the dropdown markup prefixed with a non-breaking space to separate it from the reference.
+		// FR: Retourne le menu déroulant précédé d'une espace insécable pour le séparer de la référence.
+		$html = '&nbsp;<dl class="dropdown inline-block">';
+		$html .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
+		$html .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
+		$html .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
+		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
+		$html .= '</ul></div></dd>';
+		$html .= '</dl>';
+
+		return $html;
+	}
+}
+
 /**
  * Params
  */
@@ -310,9 +368,6 @@ $arrayfields += array(
 		't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
 		't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
 		't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
-		// EN: Document dropdown column exposing the generated PDF links.
-		// FR: Colonne du menu documentaire exposant les liens vers le PDF généré.
-		'documents'      => array('label' => $langs->trans('Documents'),     'checked' => 1),
 );
 
 // Update arrayfields from request (column selector)
@@ -926,11 +981,6 @@ if (!empty($arrayfields['t.status']['checked'])) {
 		print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
 		print '</td>';
 }
-if (!empty($arrayfields['documents']['checked'])) {
-	// EN: Keep the filter row aligned by adding an empty cell for the document column.
-	// FR: Maintient l'alignement de la ligne de filtres en ajoutant une cellule vide pour la colonne documentaire.
-	print '<td class="liste_titre center">&nbsp;</td>';
-}
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 	print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
 }
@@ -1000,11 +1050,6 @@ if (!empty($arrayfields['t.tms']['checked'])) {
 if (!empty($arrayfields['t.status']['checked'])) {
 	print_liste_field_titre($arrayfields['t.status']['label'], $_SERVER["PHP_SELF"], "t.status", "", $param, '', $sortfield, $sortorder, 'center ');
 }
-if (!empty($arrayfields['documents']['checked'])) {
-	// EN: Display the document column header without sorting to match Dolibarr document widgets.
-	// FR: Affiche l'entête de colonne documentaire sans tri pour rester cohérent avec les widgets Dolibarr.
-	print_liste_field_titre($arrayfields['documents']['label'], $_SERVER["PHP_SELF"], "", "", $param, '', $sortfield, $sortorder, 'center ');
-}
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
 	print_liste_field_titre($selectedfields, $_SERVER["PHP_SELF"], "", '', $param, '', $sortfield, $sortorder, 'center maxwidthsearch ');
 }
@@ -1048,7 +1093,11 @@ while ($i < $imax) {
 		$tswstatic->id = $obj->rowid;
 		$tswstatic->ref = $obj->ref;
 		$tswstatic->status = $obj->status;
-		print '<td>'.$tswstatic->getNomUrl(1, 'ref').'</td>';
+		$refLink = $tswstatic->getNomUrl(1, 'ref');
+		// EN: Append the PDF dropdown inside the reference column to mirror the invoice behaviour.
+		// FR: Ajoute le menu PDF dans la colonne de référence pour reproduire le comportement des factures.
+		$refLink .= tw_render_timesheet_pdf_dropdown($obj, $conf, $langs);
+		print '<td>'.$refLink.'</td>';
 	}
 
 	// Employee
@@ -1143,37 +1192,6 @@ while ($i < $imax) {
 		if (!empty($arrayfields['t.status']['checked'])) {
 			$tswstatic->status = $obj->status;
 			print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-		}
-		if (!empty($arrayfields['documents']['checked'])) {
-			// EN: Build the document dropdown only when the PDF exists for the current sheet.
-			// FR: Construit le menu documentaire uniquement lorsque le PDF existe pour la feuille courante.
-			$docEntityId = property_exists($obj, 'entity') ? (int) $obj->entity : (int) $conf->entity;
-			$docRef = dol_sanitizeFileName($obj->ref);
-			$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId] ?? null)
-				? $conf->timesheetweek->multidir_output[$docEntityId]
-				: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
-			$relativeDir = 'timesheetweek/'.$docRef;
-			$pdfFilename = $docRef.'.pdf';
-			$relativeFile = $relativeDir.'/'.$pdfFilename;
-			$absoluteFile = rtrim($entityOutput, '/').'/'.$relativeFile;
-			$documentCell = '&nbsp;';
-			if ($docRef !== '' && dol_is_file($absoluteFile)) {
-				// EN: Provide preview and download actions that mimic the Dolibarr invoice dropdown.
-				// FR: Fournit les actions d'aperçu et de téléchargement comme dans le menu des factures Dolibarr.
-				$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
-				$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment=1&permission=read';
-				$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
-				$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
-				$titleLabel = dol_escape_htmltag($pdfFilename);
-				$documentCell = '<dl class="dropdown inline-block">';
-				$documentCell .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
-				$documentCell .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
-				$documentCell .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
-				$documentCell .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
-				$documentCell .= '</ul></div></dd>';
-				$documentCell .= '</dl>';
-			}
-			print '<td class="center nowrap">'.$documentCell.'</td>';
 		}
 // EN: Accumulate values to expose totals at the bottom of the table.
 // FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
@@ -1271,9 +1289,6 @@ if ($imax > 0) {
                 print '<td class="liste_total center">&nbsp;</td>';
         }
 		if (!empty($arrayfields['t.status']['checked'])) {
-			print '<td class="liste_total center">&nbsp;</td>';
-		}
-		if (!empty($arrayfields['documents']['checked'])) {
 			print '<td class="liste_total center">&nbsp;</td>';
 		}
 		if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
