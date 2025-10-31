@@ -169,8 +169,36 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 		return array();
 	}
 
+	// EN: Remove document definitions that advertise an ODT extension to keep PDF-only generation.
+	// FR: Supprime les définitions de documents qui annoncent une extension ODT pour conserver une génération uniquement PDF.
+	foreach ($models as $code => $modelInfo) {
+		$type = '';
+		$extension = '';
+		if (is_array($modelInfo)) {
+			if (!empty($modelInfo['type'])) {
+				$type = strtolower((string) $modelInfo['type']);
+			}
+			if (!empty($modelInfo['extension'])) {
+				$extension = strtolower((string) $modelInfo['extension']);
+			}
+		}
+		$codeLower = strtolower((string) $code);
+		if ($type !== '' && $type !== 'pdf') {
+			unset($models[$code]);
+			continue;
+		}
+		if ($extension !== '' && $extension !== 'pdf') {
+			unset($models[$code]);
+			continue;
+		}
+		if (substr($codeLower, -4) === '_odt' || substr($codeLower, -4) === '.odt') {
+			unset($models[$code]);
+		}
+	}
+
 	return $models;
 }
+
 
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
