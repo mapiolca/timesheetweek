@@ -79,9 +79,41 @@ class modTimesheetWeek extends DolibarrModules
 		$this->editor_url = 'lesmetiersdubatiment.fr';		// Must be an external online web site
 		$this->editor_squarred_logo = '';					// Must be image filename into the module/img directory followed with @modulename. Example: 'myimage.png@timesheetweek'
 
+		// EN: Guarantee that the configuration container exists to store directory paths.
+		// FR: Garantir que le conteneur de configuration existe pour stocker les chemins des répertoires.
+		if (!isset($conf->timesheetweek) || !is_object($conf->timesheetweek)) {
+			$conf->timesheetweek = new stdClass();
+		}
+
+		// EN: Compute the entity-aware default directories for generated documents.
+		// FR: Calculer les répertoires par entité pour les documents générés.
+		$entity = !empty($conf->entity) ? (int) $conf->entity : 1;
+		$defaultDir = DOL_DATA_ROOT.($entity > 1 ? '/'.$entity : '').'/timesheetweek';
+
+		// EN: Register the default output directory if it was not yet defined.
+		// FR: Enregistrer le répertoire de sortie par défaut s'il n'était pas encore défini.
+		if (empty($conf->timesheetweek->dir_output)) {
+			$conf->timesheetweek->dir_output = $defaultDir;
+		}
+
+		// EN: Ensure a temporary working directory is available beside the output path.
+		// FR: S'assurer qu'un répertoire temporaire est disponible à côté du chemin de sortie.
+		if (empty($conf->timesheetweek->dir_temp)) {
+			$conf->timesheetweek->dir_temp = $conf->timesheetweek->dir_output.'/temp';
+		}
+
+		// EN: Prepare the multi-entity mapping used by the Dolibarr document helpers.
+		// FR: Préparer la correspondance multi-entité utilisée par les assistants de documents Dolibarr.
+		if (empty($conf->timesheetweek->multidir_output) || !is_array($conf->timesheetweek->multidir_output)) {
+			$conf->timesheetweek->multidir_output = array();
+		}
+		if (empty($conf->timesheetweek->multidir_output[$entity])) {
+			$conf->timesheetweek->multidir_output[$entity] = $conf->timesheetweek->dir_output;
+		}
+
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.2.0'; 	// EN: Adds forfait-jour daily rate selectors with automatic hour conversion.
-									// FR: Ajoute les sélecteurs forfait jour Journée/Matin/Après-midi avec conversion automatique des heures.
+		$this->version = '1.3.0'; 	// EN: Enables PDF generation with document model management like native Dolibarr cards.
+									// FR: Active la génération PDF avec gestion des modèles de documents comme sur les fiches Dolibarr natives.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -743,10 +775,16 @@ class modTimesheetWeek extends DolibarrModules
 		dol_include_once('/core/class/extrafields.class.php');
 		$extrafields = new ExtraFields($this->db);
 		$extrafields->fetch_name_optionals_label('user');
+		$dailyRateVisibility = '-1';
+		$dailyRateSharedEntity = '0';
 		if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
 			// EN: Register the daily rate toggle on employees when the module is activated.
 			// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
-			$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', '0', '', '', '', 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+			$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+		} else {
+			// EN: Align the existing daily rate toggle with the latest visibility and sharing rules.
+			// FR: Aligne l'option de forfait jour existante avec les nouvelles règles de visibilité et de partage.
+			$extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
 		}
 
 		// EN: Ensure existing installations receive the daily_rate column for time entries.
@@ -781,33 +819,33 @@ class modTimesheetWeek extends DolibarrModules
 		$myTmpObjects = array();
 		$myTmpObjects['TimesheetWeek'] = array('includerefgeneration' => 0, 'includedocgeneration' => 1);
 
-		foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
-			if (!empty($myTmpObjectArray['includerefgeneration']) || !empty($myTmpObjectArray['includedocgeneration'])) {
-				$src = DOL_DOCUMENT_ROOT.'/install/doctemplates/'.$moduledir.'/template_timesheetweek.odt';
-				$dirodt = DOL_DATA_ROOT.($conf->entity > 1 ? '/'.$conf->entity : '').'/doctemplates/'.$moduledir;
-				$dest = $dirodt.'/template_timesheetweek.odt';
 
-				if (file_exists($src) && !file_exists($dest)) {
-					require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
-					dol_mkdir($dirodt);
-					$result = dol_copy($src, $dest, '0', 0);
-					if ($result < 0) {
-						$langs->load("errors");
-						$this->error = $langs->trans('ErrorFailToCopyFile', $src, $dest);
-						return 0;
-					}
+			foreach ($myTmpObjects as $myTmpObjectKey => $myTmpObjectArray) {
+				if (!empty($myTmpObjectArray['includedocgeneration'])) {
+					// EN: Remove legacy ODT document registrations tied to the module scope.
+					// FR: Supprimer les enregistrements ODT hérités liés au périmètre du module.
+					$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE LOWER(nom) LIKE '%odt' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity);
+
+					// EN: Register the Dolibarr document models for the entity.
+					// FR: Enregistrer les modèles de documents Dolibarr pour l'entité.
+					$sql = array_merge($sql, array(
+						"DELETE FROM ".MAIN_DB_PREFIX."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
+						"INSERT INTO ".MAIN_DB_PREFIX."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
+					));
 				}
-
-				$sql = array_merge($sql, array(
-					"DELETE FROM ".$this->db->prefix()."document_model WHERE nom = 'standard_".strtolower($myTmpObjectKey)."' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
-					"INSERT INTO ".$this->db->prefix()."document_model (nom, type, entity) VALUES('standard_".strtolower($myTmpObjectKey)."', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")",
-					"DELETE FROM ".$this->db->prefix()."document_model WHERE nom = 'generic_".strtolower($myTmpObjectKey)."_odt' AND type = '".$this->db->escape(strtolower($myTmpObjectKey))."' AND entity = ".((int) $conf->entity),
-					"INSERT INTO ".$this->db->prefix()."document_model (nom, type, entity) VALUES('generic_".strtolower($myTmpObjectKey)."_odt', '".$this->db->escape(strtolower($myTmpObjectKey))."', ".((int) $conf->entity).")"
-				));
 			}
-		}
 
-                // EN: Register Multicompany sharing metadata when the module is enabled.
+			$currentPdfModel = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', '');
+			// EN: Detect whether the stored PDF model ends with an ODT suffix.
+			// FR: Détecter si le modèle PDF enregistré se termine par un suffixe ODT.
+			$hasOdtSuffix = (dol_strlen($currentPdfModel) >= 3 && strtolower(substr($currentPdfModel, -3)) === 'odt');
+			// EN: Ensure the default PDF model targets the standard document when unset or still linked to an ODT definition.
+			// FR: S'assurer que le modèle PDF par défaut pointe sur le document standard lorsqu'il est vide ou encore lié à une définition ODT.
+			if ($currentPdfModel === '' || $hasOdtSuffix) {
+				dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
+			}
+
+		// EN: Register Multicompany sharing metadata when the module is enabled.
                 // FR: Enregistrer les métadonnées de partage Multicompany lors de l'activation du module.
                 dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 

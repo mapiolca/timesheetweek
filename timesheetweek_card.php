@@ -30,6 +30,12 @@ if (!$res) die("Include of main fails");
 // ---- Requires ----
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+// EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
+// FR: Charge les définitions de modèles PDF pour réutiliser les filtres de Dolibarr.
+dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetweek.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
@@ -43,9 +49,14 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php'); // getWeekSelector
 $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'));
 
 // ---- Params ----
-$id      = GETPOSTINT('id');
-$action  = GETPOST('action', 'aZ09');
+$id = GETPOSTINT('id');
+$action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+// EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
+// FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
+$hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
+$hidedesc = GETPOSTISSET('hidedesc') ? GETPOSTINT('hidedesc') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0);
+$hideref = GETPOSTISSET('hideref') ? GETPOSTINT('hideref') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0);
 
 // ---- Init ----
 $object = new TimesheetWeek($db);
@@ -142,6 +153,52 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 	return $result;
 }
 
+/**
+ * EN: Retrieve the list of activated PDF models for the module with entity scoping.
+ * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
+ *
+ * @param DoliDB $db Database handler / Gestionnaire de base de données
+ * @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
+ */
+function tw_get_enabled_pdf_models(DoliDB $db)
+{
+	// EN: Ask the module manager for the enabled templates of TimesheetWeek.
+	// FR: Demande au gestionnaire du module les modèles activés de TimesheetWeek.
+	$models = ModelePDFTimesheetWeek::liste_modeles($db);
+	if (!is_array($models) || empty($models)) {
+		return array();
+	}
+
+	// EN: Remove document definitions that advertise an ODT extension to keep PDF-only generation.
+	// FR: Supprime les définitions de documents qui annoncent une extension ODT pour conserver une génération uniquement PDF.
+	foreach ($models as $code => $modelInfo) {
+		$type = '';
+		$extension = '';
+		if (is_array($modelInfo)) {
+			if (!empty($modelInfo['type'])) {
+				$type = strtolower((string) $modelInfo['type']);
+			}
+			if (!empty($modelInfo['extension'])) {
+				$extension = strtolower((string) $modelInfo['extension']);
+			}
+		}
+		$codeLower = strtolower((string) $code);
+		if ($type !== '' && $type !== 'pdf') {
+			unset($models[$code]);
+			continue;
+		}
+		if ($extension !== '' && $extension !== 'pdf') {
+			unset($models[$code]);
+			continue;
+		}
+		if (substr($codeLower, -4) === '_odt' || substr($codeLower, -4) === '.odt') {
+			unset($models[$code]);
+		}
+	}
+
+	return $models;
+}
+
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','readChild');
@@ -166,6 +223,10 @@ $permUnseal        = $user->hasRight('timesheetweek','unseal');
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
 $permDeleteAny = ($permDelete || $permDeleteChild || $permDeleteAll);
+
+// EN: Initialise the document creation permission flag to prevent undefined notices later.
+// FR: Initialise l'indicateur de permission de création documentaire pour éviter les notices plus tard.
+$permissiontoadd = 0;
 
 /** helpers permissions **/
 function tw_can_validate_timesheet(
@@ -222,7 +283,7 @@ if (!empty($id) && $object->id <= 0) $object->fetch($id);
 $canSendMail = false;
 if ($object->id > 0) {
 		$canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 }
 
 // ----------------- Inline edits (crayons) -----------------
@@ -267,7 +328,7 @@ if ($action === 'setweekyear' && $object->id > 0 && $object->status == tw_status
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
 		else setEventMessages($object->error, $object->errors, 'errors');
-	} else {
+		} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 	}
 		$action = '';
@@ -280,7 +341,7 @@ if ($action === 'presend' && $id > 0) {
 		}
 
 		$canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 		if (!$canSendMail) {
 				accessforbidden();
 		}
@@ -363,7 +424,7 @@ if ($action === 'add') {
 	// Validateur par défaut = manager du salarié cible si non fourni
 	if ($fk_user_valid > 0) {
 		$object->fk_user_valid = $fk_user_valid;
-	} else {
+		} else {
 		$uTmp = new User($db);
 		$uTmp->fetch($targetUserId);
 		$object->fk_user_valid = !empty($uTmp->fk_user) ? (int)$uTmp->fk_user : null;
@@ -373,7 +434,7 @@ if ($action === 'add') {
 	if (preg_match('/^(\d{4})-W(\d{2})$/', $weekyear, $m)) {
 		$object->year = (int) $m[1];
 		$object->week = (int) $m[2];
-	} else {
+		} else {
 		setEventMessages($langs->trans("InvalidWeekFormat"), null, 'errors');
 		$action = 'create';
 	}
@@ -402,7 +463,7 @@ if ($action === 'add') {
 			if ($res > 0) {
 				header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 				exit;
-			} else {
+		} else {
 				setEventMessages($object->error, $object->errors, 'errors');
 				$action = 'create';
 			}
@@ -496,7 +557,7 @@ $h = (float) str_replace(',', '.', $hoursStr);
 						header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id);
 						exit;
 					}
-				} else {
+		} else {
 										// EN: Store the line within the same entity as its parent timesheet to stay consistent.
 										// FR: Enregistre la ligne dans la même entité que sa feuille parente pour rester cohérent.
 										$sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."timesheet_week_line (entity, fk_timesheet_week, fk_task, day_date, hours, daily_rate, zone, meal) VALUES (".
@@ -517,7 +578,7 @@ $h = (float) str_replace(',', '.', $hoursStr);
 					}
 				}
 				$processed++;
-			} else {
+		} else {
 				if ($existingId > 0) {
 										// EN: Delete the line only if it belongs to an allowed entity scope.
 										// FR: Supprime la ligne uniquement si elle appartient à une entité autorisée.
@@ -762,7 +823,7 @@ if ($action === 'confirm_delete' && $confirm === 'yes' && $id > 0) {
 		// On autorise la suppression si l'utilisateur a les droits (own/child/all),
 		// ou s'il a des droits validate* (validateur), quelque soit le statut
 		$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 
 		if (!$canDelete) accessforbidden();
 
@@ -808,17 +869,109 @@ if ($object->id > 0) {
 		}
 
 		$param = array(
-				'sendcontext' => 'timesheetweek',
-				'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
-				'models' => $modelmail,
-				'trackid' => $trackid,
+			'sendcontext' => 'timesheetweek',
+			'returnurl' => dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.$object->id,
+			'models' => $modelmail,
+			'trackid' => $trackid,
 		);
 
+		include DOL_DOCUMENT_ROOT.'/core/actions_printing.inc.php';
 		include DOL_DOCUMENT_ROOT.'/core/actions_sendmails.inc.php';
-}
+
+		// EN: Prepare PDF generation permissions once the object is fully loaded.
+		// FR: Prépare les permissions de génération PDF une fois l'objet complètement chargé.
+		$entityIdForDocs = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$baseTimesheetDir = '';
+		if (!empty($conf->timesheetweek->multidir_output[$entityIdForDocs])) {
+			$baseTimesheetDir = $conf->timesheetweek->multidir_output[$entityIdForDocs];
+		} elseif (!empty($conf->timesheetweek->dir_output)) {
+			$baseTimesheetDir = $conf->timesheetweek->dir_output;
+		} else {
+			$baseTimesheetDir = DOL_DATA_ROOT.'/timesheetweek';
+		}
+		$upload_dir = $baseTimesheetDir.'/timesheetweek/'.dol_sanitizeFileName($object->ref);
+
+		// EN: Authorise document creation to employees or managers allowed to act on the sheet.
+		// FR: Autorise la création de documents aux salariés ou responsables habilités à agir sur la feuille.
+		$permissiontoadd = (
+			tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll)
+			|| !empty($user->admin)
+		);
+
+		if ($permissiontoadd && GETPOST('model', 'alpha')) {
+			// EN: Allow PDF model changes only to users authorised to act on the sheet.
+			// FR: Autorise le changement de modèle PDF uniquement aux utilisateurs habilités à agir sur la feuille.
+			// EN: Allow administrators to switch the PDF model directly from the card view.
+			// FR: Permet aux administrateurs de changer le modèle PDF directement depuis la fiche.
+			$object->setDocModel($user, GETPOST('model', 'alpha'));
+			$object->model_pdf = GETPOST('model', 'alpha');
+		}
+
+		if (empty($object->model_pdf)) {
+			// EN: Default to the module configuration when no PDF model has been selected yet.
+			// FR: Bascule sur la configuration du module lorsqu'aucun modèle PDF n'est encore sélectionné.
+			$object->model_pdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+		}
+
+		$moreparams = array(
+			'hidedetails' => $hidedetails,
+			'hidedesc' => $hidedesc,
+			'hideref' => $hideref,
+		);
+
+				include DOL_DOCUMENT_ROOT.'/core/actions_builddoc.inc.php';
+
+				// EN: Manage attachment upload and deletion with Dolibarr helper to keep buttons functional.
+				// FR: Gère l'envoi et la suppression des pièces jointes avec l'aide Dolibarr pour garder les boutons fonctionnels.
+				if ($action === 'remove_file') {
+					if (empty($permissiontoadd)) {
+						// EN: Block removal requests when the user lacks the document permission.
+						// FR: Bloque les demandes de suppression lorsque l'utilisateur n'a pas la permission sur le document.
+						setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+						$action = '';
+					} else {
+						// EN: Retrieve the requested filename and default to the generated PDF when missing.
+						// FR: Récupère le nom de fichier demandé et prend par défaut le PDF généré lorsqu'il est absent.
+						$requestedFile = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+						if ($requestedFile === '' && !empty($object->ref)) {
+							$requestedFile = dol_sanitizeFileName($object->ref).'.pdf';
+						}
+						// EN: Reduce the requested file to its basename to match Dolibarr's document deletion URL.
+						// FR: Réduit le fichier demandé à son basename pour respecter l'URL de suppression Dolibarr.
+						$requestedFile = dol_sanitizeFileName(basename((string) $requestedFile));
+						if ($requestedFile !== '') {
+							// EN: Store the sanitized filename for the confirmation dialog and Dolibarr workflow.
+							// FR: Stocke le nom de fichier assaini pour la boîte de confirmation et le flux Dolibarr.
+							$_GET['file'] = $requestedFile;
+							$_REQUEST['file'] = $requestedFile;
+							$_GET['urlfile'] = $requestedFile;
+							$_REQUEST['urlfile'] = $requestedFile;
+							$action = 'deletefile';
+						} else {
+							// EN: Warn the user when no filename is provided in the deletion URL.
+							// FR: Avertit l'utilisateur lorsqu'aucun nom de fichier n'est fourni dans l'URL de suppression.
+							setEventMessages($langs->trans('ErrorFieldRequired', $langs->transnoentitiesnoconv('File')), null, 'errors');
+							$action = '';
+						}
+					}
+				}
+
+		if (!empty($upload_dir)) {
+				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
+				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
+				$modulepart = 'timesheetweek';
+				$permissiontoread = $permReadAny ? 1 : 0;
+				$permissiontoadd = $permissiontoadd ? 1 : 0;
+				$permissiontodownload = $permissiontoread;
+				$permissiontodelete = $permissiontoadd;
+				include DOL_DOCUMENT_ROOT.'/core/actions_linkedfiles.inc.php';
+			}
+		}
 
 // ----------------- View -----------------
 $form = new Form($db);
+$formfile = new FormFile($db);
 $title = $langs->trans("TimesheetWeek");
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
@@ -952,43 +1105,75 @@ JS;
 		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
 		print timesheetweekRenderStatusBadgeCleanup();
 
-	// Confirm modals
-	if ($action === 'delete') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans('Delete'),
-			$langs->trans('ConfirmDeleteObject'),
-			'confirm_delete',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_validate') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-			$langs->trans('ConfirmValidate'),
-			'confirm_validate',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
-	if ($action === 'ask_refuse') {
-		$formconfirm = $form->formconfirm(
-			$_SERVER["PHP_SELF"].'?id='.$object->id,
-			$langs->trans("Refuse"),
-			$langs->trans('ConfirmRefuse'),
-			'confirm_refuse',
-			array(),
-			'yes',
-			1
-		);
-		print $formconfirm;
-	}
+		// Confirm modals
+		if ($action === 'deletefile') {
+			// EN: Ask for confirmation before delegating the deletion to Dolibarr core.
+			// FR: Demande une confirmation avant de déléguer la suppression au cœur de Dolibarr.
+			$urlfileForConfirm = GETPOST('urlfile', 'alphanohtml', 0, null, null, 1);
+			// EN: Keep track of the file parameter required by the document workflow.
+			// FR: Conserve le paramètre file requis par le workflow documentaire.
+			$confirmFileParam = GETPOST('file', 'alphanohtml', 0, null, null, 1);
+			$linkIdForConfirm = GETPOSTINT('linkid');
+			$confirmUrl = $_SERVER["PHP_SELF"].'?id='.$object->id;
+			if ($urlfileForConfirm !== '') {
+				$confirmUrl .= '&urlfile='.urlencode($urlfileForConfirm);
+			}
+			if ($confirmFileParam === '' && !empty($object->ref)) {
+				$confirmFileParam = dol_sanitizeFileName($object->ref).'.pdf';
+			}
+			if ($confirmFileParam !== '') {
+				$confirmUrl .= '&file='.urlencode($confirmFileParam);
+			}
+			if ($linkIdForConfirm > 0) {
+				$confirmUrl .= '&linkid='.$linkIdForConfirm;
+			}
+			$formconfirm = $form->formconfirm(
+				$confirmUrl,
+				$langs->trans('DeleteFile'),
+				$langs->trans('ConfirmDeleteFile'),
+				'confirm_deletefile',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'delete') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans('Delete'),
+				$langs->trans('ConfirmDeleteObject'),
+				'confirm_delete',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'ask_validate') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
+				$langs->trans('ConfirmValidate'),
+				'confirm_validate',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
+		if ($action === 'ask_refuse') {
+			$formconfirm = $form->formconfirm(
+				$_SERVER["PHP_SELF"].'?id='.$object->id,
+				$langs->trans("Refuse"),
+				$langs->trans('ConfirmRefuse'),
+				'confirm_refuse',
+				array(),
+				'yes',
+				1
+			);
+			print $formconfirm;
+		}
 
 	echo '<div class="fichecenter">';
 
@@ -1035,7 +1220,7 @@ JS;
 		echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';
-	} else {
+		} else {
 		echo dol_escape_htmltag($object->week).' / '.dol_escape_htmltag($object->year);
 		if ($canEditInline) {
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editweekyear" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
@@ -1053,7 +1238,7 @@ JS;
 		echo '<br><input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 		echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 		echo '</form>';
-	} else {
+		} else {
 		echo nl2br(dol_escape_htmltag($object->note));
 		if ($canEditInline) {
 			echo ' <a class="editfielda" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=editnote" title="'.$langs->trans("Edit").'">'.img_edit('',1).'</a>';
@@ -1132,12 +1317,12 @@ echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($ob
 echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
 if ($isDailyRateEmployee) {
 echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
-} else {
+		} else {
 echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
 }
 echo '</table>';
-echo '</div>';
+		echo '</div>';
 
 	echo '</div>'; // fichecenter
 
@@ -1311,7 +1496,7 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 						if (!empty($startRaw)) {
 								if (is_numeric($startRaw)) {
 										$startTs = (int)$startRaw;
-								} else {
+		} else {
 										$startTs = strtotime($startRaw);
 										if ($startTs === false) $startTs = null;
 								}
@@ -1319,7 +1504,7 @@ $dailyRateBy[$fk_task][$daydate] = $dailyRate;
 						if (!empty($endRaw)) {
 								if (is_numeric($endRaw)) {
 										$endTs = (int)$endRaw;
-								} else {
+		} else {
 										$endTs = strtotime($endRaw);
 										if ($endTs === false) $endTs = null;
 								}
@@ -1503,7 +1688,7 @@ $grandInit += $rowTotal;
 // FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
 if ($isDailyRateEmployee) {
 echo '<td class="center task-total cellule-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
-} else {
+		} else {
 echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
 }
 echo '</tr>';
@@ -1523,7 +1708,7 @@ echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</
 }
 echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
 echo '</tr>';
-} else {
+		} else {
 echo '<tr class="liste_total row-total-hours">';
 // EN: Center overall totals and daily sums for consistent middle alignment.
 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
@@ -1650,7 +1835,7 @@ function updateTotals(){
 
 if(isDailyRateMode){
 $(".meal-total").text('0');
-} else {
+		} else {
 var meals = $(".mealbox:checked").length;
 $(".meal-total").text(meals);
 var ot = grand - weeklyContract; if (ot < 0) ot = 0;
@@ -1729,7 +1914,7 @@ JS;
 
 				// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
 				$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-						|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 				if ($canDelete) {
 						echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
 				}
@@ -1737,7 +1922,139 @@ JS;
 
 		echo '</div>';
 
-		if ($action === 'presend') {
+			if ($action !== 'presend') {
+				// EN: Mirror Dolibarr's document block so PDF tools appear consistently on the card.
+				// FR: Reproduit le bloc documentaire de Dolibarr pour afficher les outils PDF de manière cohérente sur la fiche.
+				print '<div class="fichecenter"><div class="fichehalfleft">';
+				print '<a name="builddoc"></a>';
+
+				// EN: Enable the document generation area (can be toggled by hooks if needed).
+				// FR: Active la zone de génération documentaire (peut être désactivée via des hooks si nécessaire).
+				$includedocgeneration = 1;
+
+				if ($includedocgeneration) {
+					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
+					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
+					$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+					$object->element = 'timesheetweek';
+					$docRef = dol_sanitizeFileName($object->ref);
+					$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
+					if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
+						$entityOutput = $conf->timesheetweek->dir_output;
+					}
+					if (empty($entityOutput)) {
+						$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
+					}
+					$relativePath = $object->element.'/'.$docRef;
+					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
+					$genallowed = $permReadAny ? 1 : 0;
+					if ($permReadAny) {
+						// EN: Narrow the generation list to the PDF models enabled in the configuration.
+						// FR: Restreint la liste de génération aux modèles PDF activés dans la configuration.
+						$enabledDocModels = tw_get_enabled_pdf_models($db);
+						if (!empty($enabledDocModels)) {
+							$genallowed = $enabledDocModels;
+						}
+					}
+					$delallowed = $permissiontoadd ? 1 : 0;
+
+				$documentHtml = $formfile->showdocuments(
+					'timesheetweek:TimesheetWeek',
+					$relativePath,
+					$filedir,
+					$urlsource,
+					$genallowed,
+					$delallowed,
+					$object->model_pdf,
+					1,
+					0,
+					0,
+					28,
+					0,
+					'',
+					'',
+					'',
+					$langs->defaultlang,
+					'',
+					$object,
+					0,
+					'remove_file',
+					''
+				);
+				if (!empty($documentHtml)) {
+					// EN: Sanitize each segment of the file path to preserve directories while avoiding traversal attacks.
+					// FR: Assainit chaque segment du chemin du fichier pour conserver les dossiers tout en évitant les attaques de traversée.
+					$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = urldecode($matches[2]);
+						while (strpos($decoded, './') === 0) {
+							$decoded = substr($decoded, 2);
+						}
+						$decoded = ltrim($decoded, '/');
+						$parts = preg_split('#/+?#', $decoded, -1, PREG_SPLIT_NO_EMPTY);
+						$sanitizedParts = array();
+						foreach ($parts as $part) {
+							if ($part === '.' || $part === '..') {
+								continue;
+							}
+							$cleanPart = dol_sanitizeFileName($part);
+							if ($cleanPart === '') {
+								continue;
+							}
+							$sanitizedParts[] = $cleanPart;
+						}
+						if (empty($sanitizedParts)) {
+							$basename = dol_sanitizeFileName(basename($decoded));
+							if ($basename !== '') {
+								$sanitizedParts[] = $basename;
+							}
+						}
+						$cleanPath = implode('/', $sanitizedParts);
+						return $matches[1].rawurlencode($cleanPath);
+					}, $documentHtml);
+					// EN: Force remove actions to keep only the document basename to match Dolibarr expectations.
+					// FR: Force les actions de suppression à conserver uniquement le nom de fichier pour correspondre aux attentes Dolibarr.
+					$documentHtml = preg_replace_callback('/(action=remove_file[^"<>]*[?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = rawurldecode($matches[2]);
+						$normalized = str_replace('\\', '/', $decoded);
+						$basename = dol_sanitizeFileName(basename($normalized));
+						if ($basename === '') {
+							return $matches[0];
+						}
+						return $matches[1].rawurlencode($basename);
+					}, $documentHtml);
+					$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
+					$decodeFlags = ENT_QUOTES;
+					if (defined('ENT_HTML5')) {
+						$decodeFlags |= ENT_HTML5;
+					} else {
+						$decodeFlags |= ENT_COMPAT;
+					}
+					$documentHtml = preg_replace_callback('/href="([^"<>]*document\.php[^"<>]*)"/', function ($matches) use ($documentBaseUrl, $decodeFlags) {
+						$originalHref = $matches[1];
+						$decodedHref = html_entity_decode($originalHref, $decodeFlags, 'UTF-8');
+						if (preg_match('#^[a-z]+://#i', $decodedHref)) {
+							return 'href="'.$originalHref.'"';
+						}
+						$normalizedHref = $decodedHref;
+						if (strpos($normalizedHref, '/document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('/document.php'));
+						} elseif (strpos($normalizedHref, 'document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('document.php'));
+						} else {
+							return 'href="'.$originalHref.'"';
+						}
+						$absoluteHref = $documentBaseUrl.$normalizedHref;
+						return 'href="'.dol_escape_htmltag($absoluteHref).'"';
+					}, $documentHtml);
+				}
+				print $documentHtml;
+				}
+
+				print '</div></div>';
+			}
+
+			if ($action === 'presend') {
 				$formmail = new FormMail($db);
 				$formmail->showform = 1;
 				$formmail->withfrom = 1;
