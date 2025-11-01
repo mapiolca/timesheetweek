@@ -2,16 +2,8 @@
 
 ## 1.3.0
 - Active la génération de PDF depuis la fiche hebdomadaire avec le widget Documents Dolibarr et respecte les modèles configurés dans la page de setup. / Enables PDF generation from the weekly sheet using Dolibarr's Documents widget and honours the templates configured in the setup page.
-- Aligne la configuration sur le comportement Dolibarr pour activer ou désactiver les modèles PDF TimesheetWeek à l'aide des commutateurs natifs. / Aligns the setup configuration with Dolibarr behaviour to enable or disable TimesheetWeek PDF templates with native toggles.
-- Corrige l'affichage du bloc documentaire de la fiche hebdomadaire pour respecter le flux includedocgeneration Dolibarr. / Fixes the weekly card document block to follow Dolibarr's includedocgeneration flow.
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
-- Reproduit dans le PDF standard la grille de tâches de la fiche hebdomadaire et affiche la référence sous le titre pour faciliter les validations. / Mirrors the weekly card task grid in the standard PDF and shows the reference under the title to ease approvals.
-- Prépare automatiquement les répertoires documents et sélectionne le modèle PDF standard lors de l'activation du module. / Automatically prepares the document folders and selects the standard PDF model when the module is enabled.
-- Supprime le modèle documentaire ODT pour limiter la génération aux PDF natifs. / Removes the ODT document template to keep generation restricted to native PDFs.
-- Corrige l'affichage du résumé de feuille dans le bandeau pour remplacer les chaînes brutes par un bloc formaté selon Dolibarr. / Fixes the sheet summary display in the banner by replacing raw strings with a block formatted like Dolibarr.
 
-- Évite l'erreur SQL lors de la sauvegarde du modèle PDF en ajoutant la colonne dédiée et en gérant l'absence de colonne dans les schémas existants. / Avoids the SQL error while saving the PDF model by adding the dedicated column and handling legacy schemas.
-- Corrige l'erreur fatale lors du forçage de la génération PDF en implémentant generateDocument sur TimesheetWeek. / Fixes the fatal error when forcing PDF generation by implementing TimesheetWeek's generateDocument.
 ## 1.2.0
 - Ajoute le support des contrats « Cadre au forfait jour » avec sélecteurs Journée/Matin/Après-midi et conversion automatique des durées en base. / Adds support for "daily rate" contracts with Full day/Morning/Afternoon selectors and automatic duration conversion.
 - Crée l'extrafield salarié « Contrat forfait jour » et stocke la sélection correspondante dans la colonne dédiée. / Creates the employee extrafield "Daily rate contract" and stores the related selection in the dedicated column.
