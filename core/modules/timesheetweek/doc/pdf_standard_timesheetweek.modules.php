@@ -516,8 +516,8 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 				// FR: Ajoute les repères de durée à chaque option et expose l'entrée quart de jour lorsqu'elle est activée.
 				$dailyRateOptions[1] .= ' ('.$outputlangs->trans('TimesheetWeekDailyRateOneDay').')';
 				$halfDayLabel = $outputlangs->trans('TimesheetWeekDailyRateHalfDay');
-				$dailyRateOptions[2] .= ' ('.$halfDayLabel.')';
-				$dailyRateOptions[3] .= ' ('.$halfDayLabel.')';
+				$dailyRateOptions[2] = $halfDayLabel;
+				$dailyRateOptions[3] = $halfDayLabel;
 				$dailyRateOptions[4] = $outputlangs->trans('TimesheetWeekDailyRateQuarterDay');
 			}
 		}
