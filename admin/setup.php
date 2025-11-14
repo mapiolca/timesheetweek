@@ -276,12 +276,12 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 
 // EN: Verify CSRF token when the request changes the configuration.
 // FR: Vérifie le jeton CSRF lorsque la requête modifie la configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel'), true)) {
-		if (function_exists('dol_verify_token')) {
-				if (empty($token) || dol_verify_token($token) <= 0) {
-						accessforbidden();
-				}
+if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday'), true)) {
+	if (function_exists('dol_verify_token')) {
+		if (empty($token) || dol_verify_token($token) <= 0) {
+			accessforbidden();
 		}
+	}
 }
 
 // EN: Persist the chosen numbering module.
@@ -323,21 +323,37 @@ $res = timesheetweekEnableDocumentModel($value, $docLabel, $scanDir);
 // EN: Disable a PDF model and remove the default flag if needed.
 // FR: Désactive un modèle PDF et supprime le statut par défaut si nécessaire.
 if ($action === 'delmodel' && !empty($value)) {
-		$res = timesheetweekDisableDocumentModel($value);
-		if ($res > 0) {
-				if ($value === getDolGlobalString('TIMESHEETWEEK_ADDON_PDF')) {
-						dolibarr_del_const($db, 'TIMESHEETWEEK_ADDON_PDF', $conf->entity);
-				}
-				setEventMessages($langs->trans('ModelDisabled', $value), null, 'mesgs');
-		} else {
-				setEventMessages($langs->trans('Error'), null, 'errors');
+	$res = timesheetweekDisableDocumentModel($value);
+	if ($res > 0) {
+		if ($value === getDolGlobalString('TIMESHEETWEEK_ADDON_PDF')) {
+			dolibarr_del_const($db, 'TIMESHEETWEEK_ADDON_PDF', $conf->entity);
 		}
+		setEventMessages($langs->trans('ModelDisabled', $value), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+}
+
+// EN: Enable or disable the quarter-day selector for daily rate contracts.
+// FR: Active ou désactive le sélecteur quart de jour pour les contrats au forfait jour.
+if ($action === 'setquarterday') {
+	$targetValue = (int) GETPOST('value', 'int');
+	if ($targetValue !== 0) {
+		$targetValue = 1;
+	}
+	$res = dolibarr_set_const($db, 'TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', $targetValue, 'chaine', 0, '', $conf->entity);
+	if ($res > 0) {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
 }
 
 // EN: Read the selected options so we can highlight them in the UI.
 // FR: Lit les options sélectionnées pour les mettre en avant dans l'interface.
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+$useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -434,6 +450,40 @@ foreach ($numberingModules as $moduleInfo) {
 print '</table>';
 print '</div>';
 
+print '</div>';
+
+print '<br>';
+
+// EN: Display the helper switches dedicated to the daily-rate contract workflows.
+// FR: Affiche les commutateurs dédiés aux workflows des contrats au forfait jour.
+print load_fiche_titre($langs->trans('TimesheetWeekDailyRateOptions'), '', 'setup');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekDailyRateOptionsHelp').'</div>';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Status').'</th>';
+print '</tr>';
+
+// EN: Render the switch dedicated to the quarter-day declaration helper.
+// FR: Affiche le commutateur dédié à l'aide de déclaration des quarts de jour.
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekQuarterDayForDailyContract').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekQuarterDayForDailyContractHelp').'</td>';
+print '<td class="center">';
+	if (!empty($useQuarterDaySelector)) {
+	$url = $_SERVER['PHP_SELF'].'?action=setquarterday&value=0&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disable'), 'switch_on').'</a>';
+	} else {
+		$url = $_SERVER['PHP_SELF'].'?action=setquarterday&value=1&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Activate'), 'switch_off').'</a>';
+	}
+	print '</td>';
+print '</tr>';
+
+print '</table>';
 print '</div>';
 
 print '<br>';
