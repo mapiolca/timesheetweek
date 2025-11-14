@@ -65,6 +65,9 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 
 // EN: Default daily rate flag to avoid undefined notices before data loading.
 // FR: Définit le flag forfait jour par défaut pour éviter les notices avant chargement des données.
+// EN: Default the quarter-day flag and daily rate usage before evaluating the employee profile.
+// FR: Définit par défaut le drapeau quart de jour et l'utilisation du forfait avant d'évaluer le profil du salarié.
+$useQuarterDayDailyContract = !empty($conf->global->TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT);
 $isDailyRateEmployee = false;
 
 // ---- Fetch (set $object if id) ----
@@ -197,6 +200,28 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 	}
 
 	return $models;
+}
+
+/**
+ * EN: Return the hour equivalents for each daily rate code (adds quarter-day when enabled).
+ * FR: Retourne les équivalences en heures pour chaque code forfait (ajoute le quart de jour si activé).
+ *
+ * @param bool $useQuarterDayDailyContract Flag for quarter-day support / Drapeau d'activation du quart de jour
+ * @return array<int,float>               Hour mapping by code / Correspondance heures par code
+ */
+function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
+{
+	$map = array(
+		1 => 8.0,
+		2 => 4.0,
+		3 => 4.0,
+	);
+	if ($useQuarterDayDailyContract) {
+		// EN: Expose the quarter-day option with its 2-hour contribution when the feature is enabled.
+		// FR: Expose l'option quart de jour avec sa contribution de 2 heures lorsque la fonctionnalité est activée.
+		$map[4] = 2.0;
+	}
+	return $map;
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -497,7 +522,9 @@ $db->begin();
 
 $map = array("Monday"=>0,"Tuesday"=>1,"Wednesday"=>2,"Thursday"=>3,"Friday"=>4,"Saturday"=>5,"Sunday"=>6);
 $processed = 0;
-$dailyRateHours = array(1 => 8.0, 2 => 4.0, 3 => 4.0);
+// EN: Mirror the front-end quarter-day mapping when converting select choices into stored hours.
+// FR: Reflète le mapping quart de jour du front-end lors de la conversion des sélections en heures stockées.
+$dailyRateHours = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
 $cellPattern = $isDailyRateEmployee ? '/^daily_(\d+)_(\w+)$/' : '/^hours_(\d+)_(\w+)$/' ;
 
 	foreach ($_POST as $key => $val) {
@@ -1342,6 +1369,9 @@ echo '</table>';
 	// 1) CHARGER LIGNES EXISTANTES
 $hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
 $dailyRateBy = array(); // [taskid][YYYY-mm-dd] = daily rate code
+// EN: Track legacy afternoon code usage to keep it available in quarter-day mode.
+// FR: Suit l'utilisation de l'ancien code après-midi pour le conserver en mode quart de jour.
+$hasLegacyHalfDayDailyRate = false;
 	$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
 	$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
 	$taskIdsFromLines = array();
@@ -1368,6 +1398,11 @@ if (!isset($hoursBy[$fk_task])) $hoursBy[$fk_task] = array();
 $hoursBy[$fk_task][$daydate] = $hours;
 if (!isset($dailyRateBy[$fk_task])) $dailyRateBy[$fk_task] = array();
 $dailyRateBy[$fk_task][$daydate] = $dailyRate;
+if ($dailyRate === 3) {
+// EN: Remember the legacy afternoon code to keep it selectable when quarter-day mode is active.
+// FR: Retient l'ancien code après-midi pour le rendre sélectionnable lorsque le mode quart de jour est actif.
+$hasLegacyHalfDayDailyRate = true;
+}
 
 			$w = (int) date('N', strtotime($daydate));
 			$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
@@ -1622,13 +1657,28 @@ echo '</tr>';
 $grandInit = 0.0;
 $dailyRateOptions = array();
 if ($isDailyRateEmployee) {
-// EN: Prepare localized labels for each forfait-jour choice.
-// FR: Prépare les libellés localisés pour chaque choix de forfait jour.
-$dailyRateOptions = array(
-1 => $langs->trans('TimesheetWeekDailyRateFullDay'),
-2 => $langs->trans('TimesheetWeekDailyRateMorning'),
-3 => $langs->trans('TimesheetWeekDailyRateAfternoon'),
-);
+	if ($useQuarterDayDailyContract) {
+		// EN: Provide fractional-day labels when the quarter-day constant is enabled.
+		// FR: Fournit les libellés fractionnaires lorsque la constante quart de jour est activée.
+		$dailyRateOptions = array(
+			4 => $langs->trans('TimesheetWeekDailyRateQuarterDay'),
+			2 => $langs->trans('TimesheetWeekDailyRateHalfDay'),
+			1 => $langs->trans('TimesheetWeekDailyRateOneDay'),
+		);
+		if ($hasLegacyHalfDayDailyRate && empty($dailyRateOptions[3])) {
+			// EN: Keep the historical afternoon code selectable to display past data consistently.
+			// FR: Maintient le code historique de l'après-midi pour afficher les données passées de manière cohérente.
+			$dailyRateOptions[3] = $langs->trans('TimesheetWeekDailyRateHalfDay');
+		}
+	} else {
+		// EN: Prepare localized labels for each forfait-jour choice.
+		// FR: Prépare les libellés localisés pour chaque choix de forfait jour.
+		$dailyRateOptions = array(
+			1 => $langs->trans('TimesheetWeekDailyRateFullDay'),
+			2 => $langs->trans('TimesheetWeekDailyRateMorning'),
+			3 => $langs->trans('TimesheetWeekDailyRateAfternoon'),
+		);
+	}
 }
 foreach ($byproject as $pid => $pdata) {
 			// Ligne projet
@@ -1757,7 +1807,7 @@ echo '</tr>';
 <script>
 (function($){
 var isDailyRateMode = %s;
-var dailyRateHoursMap = {1:8,2:4,3:4};
+var dailyRateHoursMap = %s;
 var weeklyContract = %s;
 function parseHours(v){
 	if(!v) return 0;
@@ -1855,7 +1905,15 @@ $(".header-total-main").text(formatFn(grand));
 })(jQuery);
 </script>
 JS;
-		$jsGrid = sprintf($jsGrid, $isDailyRateEmployee ? 'true' : 'false', json_encode((float) price2num($contractedHours, '6')));
+				// EN: Reuse the PHP hour map so JavaScript mirrors the backend conversions (quarter-day included).
+				// FR: Réutilise la correspondance horaire PHP pour que JavaScript reflète les conversions (quart de jour inclus).
+				$jsDailyRateHoursMap = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
+				$jsGrid = sprintf(
+					$jsGrid,
+					$isDailyRateEmployee ? 'true' : 'false',
+					json_encode($jsDailyRateHoursMap),
+					json_encode((float) price2num($contractedHours, '6'))
+				);
 		echo $jsGrid;
 	}
 

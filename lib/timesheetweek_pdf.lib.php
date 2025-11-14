@@ -984,6 +984,20 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	});
 	$sortedUsers = array_values($dataset);
 
+	// EN: Detect whether at least one daily-rate employee is included to display duration hints later on.
+	// FR: Détecte si au moins un salarié au forfait jour est inclus afin d'afficher les repères de durée ensuite.
+	$hasDailyRateEmployee = false;
+	foreach ($sortedUsers as $sortedUserSummary) {
+		if (!empty($sortedUserSummary['is_daily_rate'])) {
+			$hasDailyRateEmployee = true;
+			break;
+		}
+	}
+
+	// EN: Remember if the quarter-day selector is enabled to conditionally show the duration legend in PDFs.
+	// FR: Mémorise si le sélecteur quart de jour est actif pour afficher conditionnellement la légende de durée dans les PDF.
+	$useQuarterDayDailyContract = (bool) getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
+
 	// EN: Track the lowest and highest ISO weeks among the selected records for filename generation.
 	// FR: Suit les semaines ISO minimale et maximale parmi les enregistrements sélectionnés pour le nom du fichier.
 	$earliestWeek = null;
@@ -1132,6 +1146,27 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$pdf->SetTextColor(0, 0, 0);
 
 	$usableWidth = $pdf->getPageWidth() - $margeGauche - $margeDroite;
+
+	// EN: Describe the legend reminding daily-rate durations whenever the quarter-day selector is active.
+	// FR: Décrit la légende rappelant les durées forfait jour lorsque le sélecteur quart de jour est actif.
+	$dailyRateLegendText = '';
+	if ($useQuarterDayDailyContract && $hasDailyRateEmployee) {
+		$dailyRateLegendText = $langs->trans(
+			'TimesheetWeekDailyRateDurationsLegend',
+			$langs->trans('TimesheetWeekDailyRateQuarterDay'),
+			$langs->trans('TimesheetWeekDailyRateHalfDay'),
+			$langs->trans('TimesheetWeekDailyRateOneDay')
+		);
+	}
+	if ($dailyRateLegendText !== '') {
+		// EN: Print the legend in italics to highlight the duration equivalences without overpowering the tables.
+		// FR: Affiche la légende en italique pour mettre en avant les équivalences de durée sans dominer les tableaux.
+		$pdf->SetFont('', 'I', max($defaultFontSize - 1, 6));
+		$pdf->SetX($margeGauche);
+		$pdf->MultiCell($usableWidth, 0, tw_pdf_normalize_string($dailyRateLegendText), 0, 'L', false);
+		$pdf->Ln(2);
+		$pdf->SetFont('', '', $defaultFontSize);
+	}
 
 	// EN: Describe the standard hour-based layout used for classic employees.
 	// FR: Décrit la mise en page standard en heures utilisée pour les salariés classiques.
