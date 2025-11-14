@@ -248,6 +248,7 @@ TimesheetWeekDailyRateAfternoon = Après-midi
 TimesheetWeekDailyRateOneDay = 1 jour
 TimesheetWeekDailyRateHalfDay = 0.5 jour
 TimesheetWeekDailyRateQuarterDay = 0.25 jour
+TimesheetWeekDailyRateDurationsLegend = Durées forfait jour disponibles : %1$s / %2$s / %3$s
 LastModification = Dernière modification
 TotalDays = Total jours
 TimesheetWeekTotalDays = Total jours

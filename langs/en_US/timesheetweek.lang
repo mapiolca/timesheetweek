@@ -180,6 +180,7 @@ TimesheetWeekDailyRateAfternoon = Afternoon
 TimesheetWeekDailyRateOneDay = 1 day
 TimesheetWeekDailyRateHalfDay = 0.5 day
 TimesheetWeekDailyRateQuarterDay = 0.25 day
+TimesheetWeekDailyRateDurationsLegend = Available daily-rate durations: %1$s / %2$s / %3$s
 LastModification = Last modification
 TotalDays = Total days
 TimesheetWeekTotalDays = Total days

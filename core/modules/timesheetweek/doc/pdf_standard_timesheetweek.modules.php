@@ -276,6 +276,10 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			return -1;
 		}
 		
+		// EN: Remember whether the quarter-day selector is enabled to adapt PDF hints and mappings.
+		// FR: Retient si le sélecteur quart de jour est actif afin d'adapter les aides et correspondances PDF.
+		$useQuarterDayDailyContract = (bool) getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
+
 		// EN: Collect employee details to reproduce the on-screen grid behaviour.
 		// FR: Récupère les informations salarié pour reproduire le comportement de la grille à l'écran.
 		$timesheetEmployee = null;
@@ -503,10 +507,19 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		$dailyRateOptions = array();
 		if ($isDailyRateEmployee) {
 			$dailyRateOptions = array(
-			1 => $outputlangs->trans('TimesheetWeekDailyRateFullDay'),
-			2 => $outputlangs->trans('TimesheetWeekDailyRateMorning'),
-			3 => $outputlangs->trans('TimesheetWeekDailyRateAfternoon')
+				1 => $outputlangs->trans('TimesheetWeekDailyRateFullDay'),
+				2 => $outputlangs->trans('TimesheetWeekDailyRateMorning'),
+				3 => $outputlangs->trans('TimesheetWeekDailyRateAfternoon')
 			);
+			if ($useQuarterDayDailyContract) {
+				// EN: Append the duration hints to each option and expose the quarter-day entry when enabled.
+				// FR: Ajoute les repères de durée à chaque option et expose l'entrée quart de jour lorsqu'elle est activée.
+				$dailyRateOptions[1] .= ' ('.$outputlangs->trans('TimesheetWeekDailyRateOneDay').')';
+				$halfDayLabel = $outputlangs->trans('TimesheetWeekDailyRateHalfDay');
+				$dailyRateOptions[2] .= ' ('.$halfDayLabel.')';
+				$dailyRateOptions[3] .= ' ('.$halfDayLabel.')';
+				$dailyRateOptions[4] = $outputlangs->trans('TimesheetWeekDailyRateQuarterDay');
+			}
 		}
 		$dailyRateHoursMap = $this->getDailyRateHoursMap();
 		$dayTotalsHours = array();
@@ -514,10 +527,25 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$dayTotalsHours[$dayName] = 0.0;
 		}
 		$grandHours = 0.0;
-		
+
+		// EN: Prepare the legend describing available daily-rate durations when quarter-day support is active.
+		// FR: Prépare la légende décrivant les durées forfait jour disponibles lorsque le quart de jour est actif.
+		$dailyRateLegendText = '';
+		if ($isDailyRateEmployee && $useQuarterDayDailyContract) {
+			$dailyRateLegendText = $outputlangs->trans(
+				'TimesheetWeekDailyRateDurationsLegend',
+				$outputlangs->trans('TimesheetWeekDailyRateQuarterDay'),
+				$outputlangs->trans('TimesheetWeekDailyRateHalfDay'),
+				$outputlangs->trans('TimesheetWeekDailyRateOneDay')
+			);
+		}
+
 		// EN: Build the HTML table mirroring the editable grid layout.
 		// FR: Construit le tableau HTML reflétant la grille éditable.
 		$htmlGrid = '';
+		if ($dailyRateLegendText !== '') {
+			$htmlGrid .= '<p style="font-size:9px;font-style:italic;">'.tw_pdf_format_cell_html($dailyRateLegendText).'</p>';
+		}
 		if (empty($tasksByProject)) {
 			$htmlGrid .= '<p>'.tw_pdf_format_cell_html($outputlangs->trans('NoTasksAssigned')).'</p>';
 		} else {
@@ -848,10 +876,16 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 	 */
 	protected function getDailyRateHoursMap()
 	{
-		return array(
+		$map = array(
 			1 => 8.0,
 			2 => 4.0,
 			3 => 4.0
 		);
+		if (getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0)) {
+			// EN: Register the quarter-day equivalence when the selector is enabled in configuration.
+			// FR: Enregistre l'équivalence du quart de jour lorsque le sélecteur est activé en configuration.
+			$map[4] = 2.0;
+		}
+		return $map;
 	}
 	}
