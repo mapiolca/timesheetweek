@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.4.0
+- Ajoute un interrupteur d'administration pour activer le sélecteur quart de jour des salariés au forfait jour. / Adds an admin switch to enable the quarter-day selector for daily-rate employees.
+- Affiche les durées forfait jour (0.25, 0.5 et 1 jour) dans les PDF standard et de synthèse lorsque le quart de jour est actif. / Displays the daily-rate durations (0.25, 0.5 and 1 day) inside the standard and summary PDFs whenever quarter-day mode is enabled.
+
 ## 1.3.0
 - Active la génération de PDF depuis la fiche hebdomadaire avec le widget Documents Dolibarr et respecte les modèles configurés dans la page de setup. / Enables PDF generation from the weekly sheet using Dolibarr's Documents widget and honours the templates configured in the setup page.
 - Introduit le modèle PDF « standard_timesheetweek » basé sur la synthèse partagée afin de produire les fichiers dans le répertoire documentaire Dolibarr. / Introduces the "standard_timesheetweek" PDF model powered by the shared summary engine so files land into Dolibarr's document directory.
