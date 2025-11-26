@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.4.0'; 	// EN: Enables PDF generation with document model management like native Dolibarr cards.
+		$this->version = '1.4.1'; 	// EN: Enables PDF generation with document model management like native Dolibarr cards.
 									// FR: Active la génération PDF avec gestion des modèles de documents comme sur les fiches Dolibarr natives.
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
