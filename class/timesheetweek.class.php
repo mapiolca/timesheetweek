@@ -976,92 +976,167 @@ class TimesheetWeek extends CommonObject
 		return 1;
 	}
 
-	/**
-	* Synchronize element_time rows with the validated timesheet lines.
-	* EN: Inserts dedicated rows into llx_element_time when approving a sheet, removing stale ones first.
-	* FR: Insère les lignes dans llx_element_time lors de l'approbation, après avoir supprimé les enregistrements obsolètes.
-	* @return int
-	*/
-	protected function syncElementTimeRecords()
-	{
-		if (empty($this->id)) {
-			return 0;
-		}
+		/**
+		 * Synchronize element_time rows with the validated timesheet lines.
+		 * EN: Inserts dedicated rows into llx_element_time when approving a sheet, removing stale ones first.
+		 * FR: Insère les lignes dans llx_element_time lors de l'approbation, après avoir supprimé les enregistrements obsolètes.
+		 * @return int
+		 */
+		protected function syncElementTimeRecords()
+		{
+			if (empty($this->id)) {
+				return 0;
+			}
 
-		// Clean previous entries tied to this sheet to avoid duplicates (EN)
-		// Nettoie les entrées existantes liées à cette fiche pour éviter les doublons (FR)
-		if ($this->deleteElementTimeRecords() < 0) {
-			return -1;
-		}
+			// Clean previous entries tied to this sheet to avoid duplicates (EN)
+			// Nettoie les entrées existantes liées à cette fiche pour éviter les doublons (FR)
+			if ($this->deleteElementTimeRecords() < 0) {
+				return -1;
+			}
 
-		$lines = $this->getLines();
-		if (empty($lines)) {
+			$lines = $this->getLines();
+			if (empty($lines)) {
+				return 1;
+			}
+
+			// Determine employee hourly rate for THM column (EN)
+			// Détermine le taux horaire salarié pour la colonne THM (FR)
+			$employeeThm = $this->resolveEmployeeThm();
+
+			// Prepare multilingual helper for note composition (EN)
+			// Prépare l'assistant multilingue pour composer la note (FR)
+			global $langs;
+			if (is_object($langs)) {
+				$langs->load('timesheetweek@timesheetweek');
+			}
+
+			$taskIds = array();
+
+			foreach ($lines as $line) {
+				$durationSeconds = (int) round(((float) $line->hours) * 3600);
+				if ($durationSeconds <= 0) {
+					continue;
+				}
+
+				if (!empty($line->fk_task)) {
+					$taskIds[] = (int) $line->fk_task;
+				}
+
+				$taskTimestamp = $this->normalizeLineDate($line->day_date);
+				$noteDateLabel = $taskTimestamp ? dol_print_date($taskTimestamp, '%d/%m/%Y') : dol_print_date(dol_now(), '%d/%m/%Y');
+				// Try Dolibarr helper then fallback to module formatter (EN)
+				// Tente l'assistant Dolibarr puis bascule sur le formateur du module (FR)
+				if (function_exists('dol_print_duration')) {
+					$noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
+				} else {
+					$noteDurationLabel = $this->formatDurationLabel($durationSeconds);
+				}
+				$noteDurationLabel = trim(str_replace('&nbsp;', ' ', $noteDurationLabel));
+				if ($noteDurationLabel === '') {
+					$noteDurationValue = price2num($line->hours, 'MT');
+					$noteDurationLabel = ($noteDurationValue !== '' ? number_format((float) $noteDurationValue, 2, '.', ' ') : '0.00').' h';
+				}
+
+				// Build the readable note with translations and fallback (EN)
+				// Construit la note lisible avec traductions et repli (FR)
+				if (is_object($langs)) {
+					$noteMessage = $langs->trans('TimesheetWeekElementTimeNote', (string) $this->ref, $noteDateLabel, $noteDurationLabel);
+				} else {
+					$noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
+				}
+
+				// Store a readable note for auditors and managers (EN)
+				// Enregistre une note lisible pour les contrôleurs et managers (FR)
+				$sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
+				$sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, note, import_key";
+				$sql .= ") VALUES (";
+				$sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
+				$sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
+				$sql .= " 'task',";
+				$sql .= " ".$durationSeconds.",";
+				$sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
+				$sql .= ($employeeThm !== null ? " ".$employeeThm : " NULL").",";
+				$sql .= " '".$this->db->escape($noteMessage)."',";
+				$sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
+				$sql .= ")";
+
+				if (!$this->db->query($sql)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			if (!empty($taskIds)) {
+				$taskIds = array_unique($taskIds);
+				if ($this->updateTasksDurationEffective($taskIds) < 0) {
+					return -1;
+				}
+			}
+
 			return 1;
 		}
 
-		// Determine employee hourly rate for THM column (EN)
-		// Détermine le taux horaire salarié pour la colonne THM (FR)
-		$employeeThm = $this->resolveEmployeeThm();
-
-		// Prepare multilingual helper for note composition (EN)
-		// Prépare l'assistant multilingue pour composer la note (FR)
-		global $langs;
-		if (is_object($langs)) {
-			$langs->load('timesheetweek@timesheetweek');
-		}
-
-		foreach ($lines as $line) {
-			$durationSeconds = (int) round(((float) $line->hours) * 3600);
-			if ($durationSeconds <= 0) {
-				continue;
+		/**
+		 * EN: Update project task effective durations based on aggregated element_time entries.
+		 * FR: Met à jour les durées effectives des tâches projet à partir des enregistrements element_time agrégés.
+		 *
+		 * @param array $taskIds
+		 * @return int
+		 */
+		protected function updateTasksDurationEffective($taskIds)
+		{
+			if (empty($taskIds)) {
+				return 1;
 			}
 
-			$taskTimestamp = $this->normalizeLineDate($line->day_date);
-			$noteDateLabel = $taskTimestamp ? dol_print_date($taskTimestamp, '%d/%m/%Y') : dol_print_date(dol_now(), '%d/%m/%Y');
-			// Try Dolibarr helper then fallback to module formatter (EN)
-			// Tente l'assistant Dolibarr puis bascule sur le formateur du module (FR)
-			if (function_exists('dol_print_duration')) {
-				$noteDurationLabel = dol_print_duration($durationSeconds, 'allhourmin');
-			} else {
-				$noteDurationLabel = $this->formatDurationLabel($durationSeconds);
-			}
-			$noteDurationLabel = trim(str_replace('&nbsp;', ' ', $noteDurationLabel));
-			if ($noteDurationLabel === '') {
-				$noteDurationValue = price2num($line->hours, 'MT');
-				$noteDurationLabel = ($noteDurationValue !== '' ? number_format((float) $noteDurationValue, 2, '.', ' ') : '0.00').' h';
+			// EN: Prepare unique task identifiers list for querying.
+			// FR: Prépare la liste unique des identifiants de tâches pour la requête.
+			$cleanTaskIds = array_unique(array_map('intval', $taskIds));
+			if (empty($cleanTaskIds)) {
+				return 1;
 			}
 
-			// Build the readable note with translations and fallback (EN)
-			// Construit la note lisible avec traductions et repli (FR)
-			if (is_object($langs)) {
-				$noteMessage = $langs->trans('TimesheetWeekElementTimeNote', (string) $this->ref, $noteDateLabel, $noteDurationLabel);
-			} else {
-				$noteMessage = 'Feuille de temps '.(string) $this->ref.' - '.$noteDateLabel.' - '.$noteDurationLabel;
-			}
+			$idList = implode(',', $cleanTaskIds);
 
-			// Store a readable note for auditors and managers (EN)
-			// Enregistre une note lisible pour les contrôleurs et managers (FR)
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."element_time(";
-			$sql .= " fk_user, fk_element, elementtype, element_duration, element_date, thm, note, import_key";
-			$sql .= ") VALUES (";
-			$sql .= " ".(!empty($this->fk_user) ? (int) $this->fk_user : "NULL").",";
-			$sql .= " ".(!empty($line->fk_task) ? (int) $line->fk_task : "NULL").",";
-			$sql .= " 'task',";
-			$sql .= " ".$durationSeconds.",";
-			$sql .= $taskTimestamp ? " '".$this->db->idate($taskTimestamp)."'," : " NULL,";
-			$sql .= ($employeeThm !== null ? " ".$employeeThm : " NULL").",";
-			$sql .= " '".$this->db->escape($noteMessage)."',";
-			$sql .= " '".$this->db->escape($this->buildElementTimeImportKey($line))."'";
-			$sql .= ")";
+			$sql = "SELECT fk_element, SUM(element_duration) AS total_duration";
+			$sql .= " FROM ".MAIN_DB_PREFIX."element_time";
+			$sql .= " WHERE elementtype='task'";
+			$sql .= " AND fk_element IN (".$idList.")";
+			$sql .= " GROUP BY fk_element";
 
-			if (!$this->db->query($sql)) {
+			$resql = $this->db->query($sql);
+			if (!$resql) {
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
+
+			$taskDurations = array();
+			while ($obj = $this->db->fetch_object($resql)) {
+				$taskDurations[(int) $obj->fk_element] = (int) $obj->total_duration;
+			}
+			$this->db->free($resql);
+
+			if (empty($taskDurations)) {
+				return 1;
+			}
+
+			foreach ($taskDurations as $taskId => $durationSeconds) {
+				// EN: Propagate consolidated duration into the project task record.
+				// FR: Propage la durée consolidée dans l'enregistrement de la tâche projet.
+				$sqlUpdate = "UPDATE ".MAIN_DB_PREFIX."projet_task SET";
+				$sqlUpdate .= " duration_effective=".(int) $durationSeconds;
+				$sqlUpdate .= " WHERE rowid=".(int) $taskId;
+				$sqlUpdate .= " AND entity IN (".getEntity('project').")";
+
+				if (!$this->db->query($sqlUpdate)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			return 1;
 		}
 
-		return 1;
-	}
 
 	/**
 	* Delete synced rows from llx_element_time for this sheet.
