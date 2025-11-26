@@ -1,10 +1,11 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.4.1
+## 1.4.1 (26/11/2025)
 - Met à jour automatiquement la durée effective des tâches après validation d'une feuille en se basant sur les temps consommés.
   / Automatically updates tasks' effective duration after approving a sheet based on consumed times.
 - Réajuste la durée effective des tâches lors du retour d'une feuille approuvée en brouillon pour refléter les temps restants.
   / Readjusts tasks' effective duration when reverting an approved sheet to draft to reflect remaining times.
+ - Ajoute la vérification de la dernière version disponible sur le Dolistore/Add a check for the latest version available on Dolistore.
 
 ## 1.4.0
 - Ajoute un interrupteur d'administration pour activer le sélecteur quart de jour des salariés au forfait jour. / Adds an admin switch to enable the quarter-day selector for daily-rate employees.
