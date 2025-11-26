@@ -781,53 +781,79 @@ class TimesheetWeek extends CommonObject
 		return 1;
 	}
 
-	/**
-	* Revert to draft
-	* @param User $user
-	* @return int
-	*/
-	public function revertToDraft($user)
-	{
-		$now = dol_now();
+        /**
+        * Revert to draft
+        * @param User $user
+        * @return int
+        */
+        public function revertToDraft($user)
+        {
+                $now = dol_now();
+                $previousStatus = (int) $this->status;
 
-		if ((int) $this->status === self::STATUS_DRAFT) {
-			$this->error = 'AlreadyDraft';
-			return 0;
-		}
+                if ((int) $this->status === self::STATUS_DRAFT) {
+                        $this->error = 'AlreadyDraft';
+                        return 0;
+                }
 
-		$this->db->begin();
+                $taskIds = array();
+                $lines = $this->getLines();
+                if (!empty($lines)) {
+                        foreach ($lines as $line) {
+                                if (empty($line->fk_task)) {
+                                        continue;
+                                }
 
-		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
-		" SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
-		// EN: Enforce the entity scope while reverting to draft.
-		// FR: Impose la portée d'entité lors du retour en brouillon.
-		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
-		if (!$this->db->query($sql)) {
-			$this->db->rollback();
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
+                                // EN: Track tasks with recorded hours to refresh effective durations after rollback.
+                                // FR: Suit les tâches ayant des heures saisies pour rafraîchir les durées effectives après retour en brouillon.
+                                if (((float) $line->hours) > 0) {
+                                        $taskIds[] = (int) $line->fk_task;
+                                }
+                        }
+                }
 
-		// Remove synced time entries to keep the ERP aligned (EN)
-		// Supprime les temps synchronisés pour garder l'ERP aligné (FR)
-		if ($this->deleteElementTimeRecords() < 0) {
-			$this->db->rollback();
-			return -1;
-		}
+                $this->db->begin();
 
-		$this->status = self::STATUS_DRAFT;
-		$this->tms = $now;
-		$this->date_validation = null;
+                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
+                        " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+                // EN: Enforce the entity scope while reverting to draft.
+                // FR: Impose la portée d'entité lors du retour en brouillon.
+                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
+                if (!$this->db->query($sql)) {
+                        $this->db->rollback();
+                        $this->error = $this->db->lasterror();
+                        return -1;
+                }
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
-			$this->db->rollback();
-			return -1;
-		}
+                // Remove synced time entries to keep the ERP aligned (EN)
+                // Supprime les temps synchronisés pour garder l'ERP aligné (FR)
+                if ($this->deleteElementTimeRecords() < 0) {
+                        $this->db->rollback();
+                        return -1;
+                }
 
-		$this->db->commit();
+                if (!empty($taskIds) && ($previousStatus === self::STATUS_APPROVED || $previousStatus === self::STATUS_SEALED)) {
+                        // EN: Recompute effective duration on related tasks after removing approved times.
+                        // FR: Recalcule la durée effective des tâches concernées après suppression des temps approuvés.
+                        if ($this->updateTasksDurationEffective($taskIds) < 0) {
+                                $this->db->rollback();
+                                return -1;
+                        }
+                }
 
-		return 1;
-	}
+                $this->status = self::STATUS_DRAFT;
+                $this->tms = $now;
+                $this->date_validation = null;
+
+                if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+                        $this->db->rollback();
+                        return -1;
+                }
+
+                $this->db->commit();
+
+                return 1;
+        }
 
 	/**
 	* Approve
