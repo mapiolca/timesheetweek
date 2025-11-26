@@ -1137,14 +1137,14 @@ class TimesheetWeek extends CommonObject
 			}
 
 			$taskDurations = array();
+			foreach ($cleanTaskIds as $taskId) {
+				$taskDurations[$taskId] = 0;
+			}
+
 			while ($obj = $this->db->fetch_object($resql)) {
 				$taskDurations[(int) $obj->fk_element] = (int) $obj->total_duration;
 			}
 			$this->db->free($resql);
-
-			if (empty($taskDurations)) {
-				return 1;
-			}
 
 			foreach ($taskDurations as $taskId => $durationSeconds) {
 				// EN: Propagate consolidated duration into the project task record.
@@ -1162,6 +1162,7 @@ class TimesheetWeek extends CommonObject
 
 			return 1;
 		}
+
 
 
 	/**
