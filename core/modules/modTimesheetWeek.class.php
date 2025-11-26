@@ -115,7 +115,7 @@ class modTimesheetWeek extends DolibarrModules
 		$this->version = '1.4.1'; 	// EN: Enables PDF generation with document model management like native Dolibarr cards.
 									// FR: Active la génération PDF avec gestion des modèles de documents comme sur les fiches Dolibarr natives.
 		// Url to the file with your last numberversion of this module
-		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek'
+		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
 
 		// Key used in llx_const table to save module status enabled/disabled (where TIMESHEETWEEK is value of property name of module in uppercase)
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
