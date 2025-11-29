@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.5.0 (19/02/2026)
+- Ajoute une action de masse pour générer un PDF unique fusionnant les feuilles sélectionnées en utilisant le modèle par défaut. / Adds a mass action to generate a single merged PDF for selected timesheets using the default template.
+
 ## 1.4.1 (26/11/2025)
 - Met à jour automatiquement la durée effective des tâches après validation d'une feuille en se basant sur les temps consommés.
   / Automatically updates tasks' effective duration after approving a sheet based on consumed times.
