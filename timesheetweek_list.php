@@ -604,118 +604,157 @@ if ($massaction === 'generate_summary_pdf') {
 if ($massaction === 'builddoc_merge_pdf') {
 	$massActionProcessed = true;
 	if (!$permissiontoread) {
-		// EN: Block the merge when the operator cannot read the selected sheets.
-		// FR: Bloque la fusion lorsque l'opérateur ne peut pas lire les feuilles sélectionnées.
-		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+			// EN: Block the merge when the operator cannot read the selected sheets.
+			// FR: Bloque la fusion lorsque l'opérateur ne peut pas lire les feuilles sélectionnées.
+			setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} elseif (empty($arrayofselected)) {
-		// EN: Inform the user that a selection is required before launching the merge.
-		// FR: Informe l'utilisateur qu'une sélection est nécessaire avant de lancer la fusion.
-		setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
+			// EN: Inform the user that a selection is required before launching the merge.
+			// FR: Informe l'utilisateur qu'une sélection est nécessaire avant de lancer la fusion.
+			setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
 	} else {
-		dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
-		$defaultModel = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
-		$tempDir = !empty($conf->timesheetweek->dir_temp) ? $conf->timesheetweek->dir_temp : (rtrim($uploaddir, '/').'/temp');
-		$generatedFiles = array();
-		$errors = array();
-		$warnings = array();
+			dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
+			$defaultModel = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+			$tempDir = !empty($conf->timesheetweek->dir_temp) ? $conf->timesheetweek->dir_temp : (rtrim($uploaddir, '/').'/temp');
+			$generatedFiles = array();
+			$errors = array();
+			$warnings = array();
 
-		foreach ((array) $arrayofselected as $id) {
-			$id = (int) $id;
-			if ($id <= 0) {
-				continue;
+			foreach ((array) $arrayofselected as $id) {
+					$id = (int) $id;
+					if ($id <= 0) {
+							continue;
+					}
+
+					$sheet = new TimesheetWeek($db);
+					if ($sheet->fetch($id) <= 0) {
+							$errors[] = $langs->trans('ErrorRecordNotFound').' (#'.$id.')';
+							continue;
+					}
+
+					if (!tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
+							// EN: Skip the timesheet when the user cannot access the employee scope.
+							// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
+							$warnings[] = $langs->trans('TimesheetWeekMassMergeForbidden', ($sheet->ref ?: '#'.$id));
+							continue;
+					}
+
+					$tempResult = tw_generate_timesheet_pdf_to_temp($sheet, $conf, $langs, $defaultModel, $tempDir);
+					if (empty($tempResult['success'])) {
+							// EN: Propagate detailed generation issues for transparency.
+							// FR: Propage les problèmes de génération pour plus de transparence.
+							if (!empty($tempResult['errors'])) {
+									$errors = array_merge($errors, (array) $tempResult['errors']);
+							} else {
+									$errors[] = $langs->trans('TimesheetWeekMassMergeGenerationFailed', ($sheet->ref ?: '#'.$id));
+							}
+							continue;
+					}
+
+					$generatedFiles[] = $tempResult['path'];
 			}
 
-			$sheet = new TimesheetWeek($db);
-			if ($sheet->fetch($id) <= 0) {
-				$errors[] = $langs->trans('ErrorRecordNotFound').' (#'.$id.')';
-				continue;
-			}
-
-			if (!tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
-				// EN: Skip the timesheet when the user cannot access the employee scope.
-				// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
-				$warnings[] = $langs->trans('TimesheetWeekMassMergeForbidden', ($sheet->ref ?: '#'.$id));
-				continue;
-			}
-
-			$tempResult = tw_generate_timesheet_pdf_to_temp($sheet, $conf, $langs, $defaultModel, $tempDir);
-			if (empty($tempResult['success'])) {
-				// EN: Propagate detailed generation issues for transparency.
-				// FR: Propage les problèmes de génération pour plus de transparence.
-				if (!empty($tempResult['errors'])) {
-					$errors = array_merge($errors, (array) $tempResult['errors']);
-				} else {
-					$errors[] = $langs->trans('TimesheetWeekMassMergeGenerationFailed', ($sheet->ref ?: '#'.$id));
-				}
-				continue;
-			}
-
-			$generatedFiles[] = $tempResult['path'];
-		}
-
-		if (empty($generatedFiles)) {
-			// EN: Stop early when no PDF could be prepared.
-			// FR: Arrête immédiatement lorsqu'aucun PDF n'a pu être préparé.
-			if (!empty($errors)) {
-				setEventMessages(null, array_values(array_unique($errors)), 'errors');
-			}
-			if (!empty($warnings)) {
-				setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
-			}
-			setEventMessages($langs->trans('TimesheetWeekMassMergeNoEligible'), null, 'errors');
-		} else {
-			require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
-
-			$mergedDir = rtrim($uploaddir, '/').'/'.TIMESHEETWEEK_PDF_MERGED_SUBDIR;
-			$mergeResult = null;
-			if (dol_mkdir($mergedDir) < 0) {
-				setEventMessages($langs->trans('ErrorCanNotCreateDir', $mergedDir), null, 'errors');
+			if (empty($generatedFiles)) {
+					// EN: Stop early when no PDF could be prepared.
+					// FR: Arrête immédiatement lorsqu'aucun PDF n'a pu être préparé.
+					if (!empty($errors)) {
+							setEventMessages(null, array_values(array_unique($errors)), 'errors');
+					}
+					if (!empty($warnings)) {
+							setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+					}
+					setEventMessages($langs->trans('TimesheetWeekMassMergeNoEligible'), null, 'errors');
 			} else {
-				$mergedFilename = dol_sanitizeFileName('timesheetweek_merged_'.dol_print_date(dol_now(), 'dayhourlog').'.pdf');
-				if ($mergedFilename === '') {
-					$mergedFilename = dol_sanitizeFileName('timesheetweek_merged.pdf');
-				}
-				$mergedFullPath = $mergedDir.'/'.$mergedFilename;
-				$mergeResult = pdf_merge($mergedFullPath, $generatedFiles);
-			}
+					require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 
-			foreach ($generatedFiles as $tempFilePath) {
-				if (dol_is_file($tempFilePath)) {
-					dol_delete_file($tempFilePath, 0, 0, 0, null, false);
-				}
-			}
+					$mergedDir = rtrim($uploaddir, '/').'/'.TIMESHEETWEEK_PDF_MERGED_SUBDIR;
+					$mergedFilename = dol_sanitizeFileName('timesheetweek_merged_'.dol_print_date(dol_now(), 'dayhourlog').'.pdf');
+					if ($mergedFilename === '') {
+							$mergedFilename = dol_sanitizeFileName('timesheetweek_merged.pdf');
+					}
+					$mergedFullPath = $mergedDir.'/'.$mergedFilename;
+					$mergeSucceeded = false;
 
-			if ($mergeResult !== null && $mergeResult <= 0) {
-				// EN: Inform the operator that merging failed.
-				// FR: Informe l'opérateur que la fusion a échoué.
-				if (!empty($warnings)) {
-					setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
-				}
-				if (!empty($errors)) {
-					setEventMessages(null, array_values(array_unique($errors)), 'warnings');
-				}
-				setEventMessages($langs->trans('TimesheetWeekMassMergeError'), null, 'errors');
-			} elseif ($mergeResult > 0) {
-				$relativeMerged = TIMESHEETWEEK_PDF_MERGED_SUBDIR.'/'.$mergedFilename;
-				if (!empty($warnings)) {
-					setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
-				}
-				if (!empty($errors)) {
-					setEventMessages(null, array_values(array_unique($errors)), 'warnings');
-				}
-				setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
-				$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&permission=read';
-				header('Location: '.$downloadUrl);
-				exit;
-			} else {
-				if (!empty($warnings)) {
-					setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
-				}
-				if (!empty($errors)) {
-					setEventMessages(null, array_values(array_unique($errors)), 'warnings');
-				}
+					if (dol_mkdir($mergedDir) < 0) {
+							setEventMessages($langs->trans('ErrorCanNotCreateDir', $mergedDir), null, 'errors');
+					} elseif (getDolGlobalString('USE_PDFTK_FOR_PDF_CONCAT')) {
+							$inputFiles = '';
+							foreach ($generatedFiles as $f) {
+									$inputFiles .= ' '.escapeshellarg($f);
+							}
+
+							exec('pdftk'.$inputFiles.' cat output '.escapeshellarg($mergedFullPath));
+							if (dol_is_file($mergedFullPath)) {
+									dolChmod($mergedFullPath);
+									$mergeSucceeded = true;
+							} else {
+									$errors[] = $langs->trans('ErrorPDFTkOutputFileNotFound');
+							}
+					} else {
+							$formatarray = pdf_getFormat();
+							$pageLargeur = $formatarray['width'];
+							$pageHauteur = $formatarray['height'];
+							$format = array($pageLargeur, $pageHauteur);
+
+							$pdf = pdf_getInstance($format);
+							if (class_exists('TCPDF')) {
+									$pdf->setPrintHeader(false);
+									$pdf->setPrintFooter(false);
+							}
+							$pdf->SetFont(pdf_getPDFFont($langs));
+							if (getDolGlobalString('MAIN_DISABLE_PDF_COMPRESSION')) {
+									$pdf->SetCompression(false);
+							}
+
+							$pagecount = 0;
+							foreach ($generatedFiles as $filePath) {
+									$pagecount = $pdf->setSourceFile($filePath);
+									for ($i = 1; $i <= $pagecount; $i++) {
+											$tplidx = $pdf->importPage($i);
+											$templatesize = $pdf->getTemplatesize($tplidx);
+											$pdf->AddPage($templatesize['h'] > $templatesize['w'] ? 'P' : 'L');
+											$pdf->useTemplate($tplidx);
+									}
+							}
+
+							if ($pagecount > 0) {
+									$pdf->Output($mergedFullPath, 'F');
+									dolChmod($mergedFullPath);
+									$mergeSucceeded = true;
+							} else {
+									$errors[] = $langs->trans('NoPDFAvailableForDocGenAmongChecked');
+							}
+					}
+
+					foreach ($generatedFiles as $tempFilePath) {
+							if (dol_is_file($tempFilePath)) {
+									dol_delete_file($tempFilePath, 0, 0, 0, null, false);
+							}
+					}
+
+					if (!$mergeSucceeded) {
+							// EN: Inform the operator that merging failed.
+							// FR: Informe l'opérateur que la fusion a échoué.
+							if (!empty($warnings)) {
+									setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+							}
+							if (!empty($errors)) {
+									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
+							}
+							setEventMessages($langs->trans('TimesheetWeekMassMergeError'), null, 'errors');
+					} else {
+							$relativeMerged = TIMESHEETWEEK_PDF_MERGED_SUBDIR.'/'.$mergedFilename;
+							if (!empty($warnings)) {
+									setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+							}
+							if (!empty($errors)) {
+									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
+							}
+							setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
+							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&permission=read';
+							header('Location: '.$downloadUrl);
+							exit;
+					}
 			}
-		}
 	}
 }
 if ($massaction === 'delete') {
