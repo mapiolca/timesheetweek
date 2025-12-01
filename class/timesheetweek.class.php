@@ -1460,7 +1460,7 @@ class TimesheetWeek extends CommonObject
 			'task_id' => (int) $obj->task_id,
 			'task_label' => (string) $obj->task_label,
 			'task_ref' => (string) $obj->task_ref,
-			'task_progress' => ($obj->task_progress !== null ? (float) $obj->task_progress : null),
+			//'task_progress' => ($obj->task_progress !== null ? (float) $obj->task_progress : null), // EN: Progress at 100% are not considered to not hide closed tasks // FR: Le sprogresdsion à 100% ne sont pas prises en compte pour ne pas masquer les tâches clôturées. 
 			//'task_status' => ($obj->task_status !== null ? (int) $obj->task_status : null), // EN: All status are considered to not hide closed tasks // FR: Tous les Statuts sont pris en compte pour ne pas masquer les tâches clôturées.
 			'task_date_start' => ($obj->task_date_start !== null ? (string) $obj->task_date_start : null),
 			'task_date_end' => ($obj->task_date_end !== null ? (string) $obj->task_date_end : null),
