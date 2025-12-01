@@ -33,6 +33,68 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 defined('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR') || define('TIMESHEETWEEK_PDF_SUMMARY_SUBDIR', 'summaries');
+defined('TIMESHEETWEEK_PDF_MERGED_SUBDIR') || define('TIMESHEETWEEK_PDF_MERGED_SUBDIR', 'merged');
+
+/**
+ * EN: Generate the PDF of a single timesheet in the standard directory and copy it to the provided temporary folder.
+ * FR: Génère le PDF d'une feuille dans le répertoire standard et le copie vers le dossier temporaire fourni.
+ *
+ * @param TimesheetWeek $sheet      Timesheet to render / Feuille à rendre
+ * @param Conf          $conf       Dolibarr global configuration / Configuration globale Dolibarr
+ * @param Translate     $langs      Translation handler / Gestionnaire de traductions
+ * @param string        $modelId    PDF model identifier / Identifiant du modèle PDF
+ * @param string        $tempDir    Destination temporary directory / Répertoire temporaire cible
+ * @return array{success:bool,path?:string,errors?:string[]}
+ */
+function tw_generate_timesheet_pdf_to_temp(TimesheetWeek $sheet, Conf $conf, Translate $langs, $modelId, $tempDir)
+{
+        // EN: Ensure the temporary directory exists before writing inside it.
+        // FR: S'assure que le répertoire temporaire existe avant d'y écrire.
+        if (dol_mkdir($tempDir) < 0) {
+                return array('success' => false, 'errors' => array($langs->trans('ErrorCanNotCreateDir', $tempDir)));
+        }
+
+        $sheet->model_pdf = $modelId;
+
+        // EN: Generate the PDF using the configured or provided model.
+        // FR: Génère le PDF en utilisant le modèle configuré ou fourni.
+        $generationResult = $sheet->generateDocument($modelId, $langs);
+        if ($generationResult <= 0) {
+                $errorMessage = !empty($sheet->errors) ? implode(', ', (array) $sheet->errors) : (!empty($sheet->error) ? $sheet->error : $langs->trans('TimesheetWeekMassMergeGenerationFailed', ($sheet->ref ?: '#'.$sheet->id)));
+                return array('success' => false, 'errors' => array($errorMessage));
+        }
+
+        // EN: Locate the freshly generated PDF inside the standard output directory.
+        // FR: Localise le PDF fraîchement généré dans le répertoire de sortie standard.
+        $entityId = !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity;
+        $baseOutput = !empty($conf->timesheetweek->multidir_output[$entityId] ?? null)
+                ? $conf->timesheetweek->multidir_output[$entityId]
+                : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+        $relativePath = $sheet->last_main_doc;
+        if (empty($relativePath)) {
+                $cleanRef = dol_sanitizeFileName($sheet->ref ?: 'timesheetweek-'.$sheet->id);
+                $relativePath = $sheet->element.'/'.$cleanRef.'/'.$cleanRef.'.pdf';
+        }
+
+        $sourcePath = rtrim($baseOutput, '/').'/'.ltrim($relativePath, '/');
+        if (!dol_is_file($sourcePath)) {
+                return array('success' => false, 'errors' => array($langs->trans('TimesheetWeekMassMergeMissingFile', ($sheet->ref ?: '#'.$sheet->id))));
+        }
+
+        // EN: Copy the generated PDF into the temporary directory to prepare the merge.
+        // FR: Copie le PDF généré dans le répertoire temporaire pour préparer la fusion.
+        $tempFilename = dol_sanitizeFileName(($sheet->ref ?: 'timesheetweek-'.$sheet->id).'-'.dol_print_date(dol_now(), 'dayhourlog').'.pdf');
+        if ($tempFilename === '') {
+                $tempFilename = dol_sanitizeFileName('timesheetweek-'.$sheet->id.'.pdf');
+        }
+        $tempPath = rtrim($tempDir, '/').'/'.$tempFilename;
+
+        if (dol_copy($sourcePath, $tempPath, 0, 1) <= 0) {
+                return array('success' => false, 'errors' => array($langs->trans('ErrorFailToCreateFile')));
+        }
+
+        return array('success' => true, 'path' => $tempPath);
+}
 
 /**
  * EN: Normalise a value before sending it to TCPDF by decoding HTML entities and applying the output charset.
