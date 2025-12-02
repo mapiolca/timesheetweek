@@ -40,6 +40,7 @@ if (!$res) {
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 // EN: Load document helper functions required for model toggles.
 // FR: Charge les fonctions d'aide aux documents nécessaires aux commutateurs de modèles.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
@@ -65,6 +66,13 @@ $token = GETPOST('token', 'alphanohtml');
 // FR: Capture les paramètres additionnels utilisés par les bascules de modèles de document Dolibarr.
 $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
+$reminderAction = GETPOST('reminder_action', 'aZ09');
+
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
+        dol_include_once('/core/class/cemailtemplates.class.php');
+} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
+        dol_include_once('/core/class/emailtemplates.class.php');
+}
 
 // EN: Helper to enable a PDF model in the database.
 // FR: Aide pour activer un modèle PDF dans la base.
@@ -277,6 +285,14 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 // EN: Verify CSRF token when the request changes the configuration.
 // FR: Vérifie le jeton CSRF lorsque la requête modifie la configuration.
 if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday'), true)) {
+        if (function_exists('dol_verify_token')) {
+                if (empty($token) || dol_verify_token($token) <= 0) {
+                        accessforbidden();
+                }
+        }
+}
+
+if ($reminderAction === 'savereminder') {
 	if (function_exists('dol_verify_token')) {
 		if (empty($token) || dol_verify_token($token) <= 0) {
 			accessforbidden();
@@ -337,10 +353,10 @@ if ($action === 'delmodel' && !empty($value)) {
 // EN: Enable or disable the quarter-day selector for daily rate contracts.
 // FR: Active ou désactive le sélecteur quart de jour pour les contrats au forfait jour.
 if ($action === 'setquarterday') {
-	$targetValue = (int) GETPOST('value', 'int');
-	if ($targetValue !== 0) {
-		$targetValue = 1;
-	}
+        $targetValue = (int) GETPOST('value', 'int');
+        if ($targetValue !== 0) {
+                $targetValue = 1;
+        }
 	$res = dolibarr_set_const($db, 'TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', $targetValue, 'chaine', 0, '', $conf->entity);
 	if ($res > 0) {
 		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
@@ -349,11 +365,56 @@ if ($action === 'setquarterday') {
 	}
 }
 
+if ($reminderAction === 'savereminder') {
+	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
+	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
+
+	$error = 0;
+
+	if ($reminderWeekdayValue < 1 || $reminderWeekdayValue > 7) {
+		setEventMessages($langs->trans('TimesheetWeekReminderWeekdayInvalid'), null, 'errors');
+		$error++;
+	}
+
+	if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHourValue)) {
+		setEventMessages($langs->trans('TimesheetWeekReminderHourInvalid'), null, 'errors');
+		$error++;
+	}
+
+	if (!$error) {
+		$results = array();
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_ENABLED', ($reminderEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $reminderWeekdayValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $reminderHourValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $reminderTemplateValue, 'chaine', 0, '', $conf->entity);
+
+		$hasError = false;
+		foreach ($results as $resultValue) {
+			if ($resultValue <= 0) {
+				$hasError = true;
+				break;
+			}
+		}
+
+		if ($hasError) {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		} else {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		}
+	}
+}
+
 // EN: Read the selected options so we can highlight them in the UI.
 // FR: Lit les options sélectionnées pour les mettre en avant dans l'interface.
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
+$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
+$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1);
+$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00');
+$reminderTemplateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -377,6 +438,26 @@ if ($resql) {
 $numberingModules = timesheetweekListNumberingModules($directories, $langs, $sampleTimesheet, $selectedNumbering);
 $documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
 $pageToken = function_exists('newToken') ? newToken() : '';
+$form = new Form($db);
+
+$emailTemplates = array();
+$emailTemplateClass = '';
+if (class_exists('CEmailTemplates')) {
+        $emailTemplateClass = 'CEmailTemplates';
+} elseif (class_exists('EmailTemplates')) {
+        $emailTemplateClass = 'EmailTemplates';
+}
+
+if (!empty($emailTemplateClass)) {
+        $emailTemplateObject = new $emailTemplateClass($db);
+        if (method_exists($emailTemplateObject, 'fetchAll')) {
+                $filters = array('entity' => $conf->entity);
+                $templatesResult = $emailTemplateObject->fetchAll('', '', 0, 0, $filters);
+                if (is_array($templatesResult)) {
+                        $emailTemplates = $templatesResult;
+                }
+        }
+}
 
 $title = $langs->trans('ModuleSetup', 'Timesheetweek');
 $helpurl = '';
@@ -485,6 +566,92 @@ print '</tr>';
 
 print '</table>';
 print '</div>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekReminderSectionTitle'), '', 'email');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekReminderSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+print '<input type="hidden" name="reminder_action" value="savereminder">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEnabled').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderEnabledHelp').'</td>';
+print '<td class="center">';
+print '<input type="checkbox" name="TIMESHEETWEEK_REMINDER_ENABLED" value="1"'.(!empty($reminderEnabled) ? ' checked' : '').'>';
+print '</td>';
+print '</tr>';
+
+$weekdayOptions = array(
+1 => $langs->trans('Monday'),
+2 => $langs->trans('Tuesday'),
+3 => $langs->trans('Wednesday'),
+4 => $langs->trans('Thursday'),
+5 => $langs->trans('Friday'),
+6 => $langs->trans('Saturday'),
+7 => $langs->trans('Sunday'),
+);
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderWeekday').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderWeekdayHelp').'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_WEEKDAY', $weekdayOptions, $reminderWeekday, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderHour').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderHourHelp').'</td>';
+print '<td class="center"><input type="text" name="TIMESHEETWEEK_REMINDER_HOUR" value="'.dol_escape_htmltag($reminderHour).'" size="6" maxlength="5"></td>';
+print '</tr>';
+
+$templateOptions = array(0 => $langs->trans('None'));
+foreach ($emailTemplates as $templateItem) {
+	$templateId = 0;
+	if (!empty($templateItem->id)) {
+		$templateId = (int) $templateItem->id;
+	} elseif (!empty($templateItem->rowid)) {
+		$templateId = (int) $templateItem->rowid;
+	}
+
+	if (empty($templateId)) {
+		continue;
+	}
+
+	$templateLabel = '';
+	if (!empty($templateItem->label)) {
+		$templateLabel = $templateItem->label;
+	} elseif (!empty($templateItem->ref)) {
+		$templateLabel = $templateItem->ref;
+	} elseif (!empty($templateItem->topic)) {
+		$templateLabel = $templateItem->topic;
+	} else {
+		$templateLabel = '#'.$templateId;
+	}
+
+	$templateOptions[$templateId] = $templateLabel;
+}
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+
+print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('Save').'"></div>';
+print '</form>';
 
 print '<br>';
 
