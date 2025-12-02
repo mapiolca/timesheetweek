@@ -102,18 +102,18 @@ class TimesheetweekReminder
 		$windowMinutes = 60;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
 		$upperBound = min(1440, $targetMinutes + $windowMinutes);
-
+		
 		if (empty($forcerun)) {
 			if ($currentWeekdayIso !== $reminderWeekday) {
-				dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
-				return 0;
+			dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
+			return 0;
 			}
 			if ($currentMinutes < $lowerBound || $currentMinutes > $upperBound) {
-				dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
-				return 0;
+			dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
+			return 0;
 			}
 		}
-
+		
 		$emailTemplateClass = '';
 		if (class_exists('CEmailTemplates')) {
 			$emailTemplateClass = 'CEmailTemplates';
@@ -147,12 +147,30 @@ class TimesheetweekReminder
 		}
 
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
-
-		$sql = 'SELECT rowid, lastname, firstname, email';
-		$sql .= ' FROM '.MAIN_DB_PREFIX."user";
-		$sql .= " WHERE statut = 1 AND email IS NOT NULL AND email <> ''";
-		$sql .= ' AND entity IN (0, '.((int) $conf->entity).')';
-		$sql .= ' ORDER BY rowid ASC';
+		
+		$eligibleRights = array(
+			45000301, // read own
+			45000302, // read child
+			45000303, // read all
+			45000304, // write own
+			45000305, // write child
+			45000306, // write all
+			45000310, // validate generic
+			45000311, // validate own
+			45000312, // validate child
+			45000313, // validate all
+			45000314, // seal
+			45000315, // unseal
+		);
+		
+		$entityFilter = getEntity('user');
+		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
+		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
+		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
+		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
+		$sql .= ' AND u.entity IN ('.$entityFilter.')';
+		$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
+		$sql .= ' ORDER BY u.rowid ASC';
 		if ($limit > 0) {
 			$sql .= $db->plimit((int) $limit);
 		}
