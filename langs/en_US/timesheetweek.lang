@@ -43,6 +43,7 @@ TimesheetWeekReminderCronLabel = Weekly timesheet reminder
 TimesheetWeekReminderCronComment = Send weekly reminder emails prompting users to complete their timesheets.
 TimesheetWeekReminderTemplateMissing = Reminder email template is not configured.
 TimesheetWeekReminderSendFailed = Failed to send the reminder email to %s.
+TimesheetWeekReminderSendSuccess = Reminder email successfully sent to %s.
 NewSection=New section
 TIMESHEETWEEK_MYPARAM1 = My param 1
 TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip

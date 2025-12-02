@@ -35,8 +35,10 @@ if (!defined('NOREQUIREMENU')) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.php';
+require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 dol_include_once('/core/class/emailtemplates.class.php');
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
@@ -147,6 +149,7 @@ class TimesheetweekReminder
 		}
 
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
+		complete_substitutions_array($substitutions, $langs, null);
 		
 		$eligibleRights = array(
 			45000301, // read own
@@ -190,10 +193,20 @@ class TimesheetweekReminder
 				continue;
 			}
 
+			$user = new User($db);
+			$fetchUser = $user->fetch($obj->rowid);
+			if ($fetchUser < 0) {
+				dol_syslog($user->error, LOG_ERR);
+				$errors++;
+				continue;
+			}
+
 			$userSubstitutions = $substitutions;
-			$userSubstitutions['__USER_FIRSTNAME__'] = $obj->firstname;
-			$userSubstitutions['__USER_LASTNAME__'] = $obj->lastname;
-			$userSubstitutions['__USER_FULLNAME__'] = dolGetFirstLastname($obj->firstname, $obj->lastname);
+			$userSubstitutions['__USER_FIRSTNAME__'] = $user->firstname;
+			$userSubstitutions['__USER_LASTNAME__'] = $user->lastname;
+			$userSubstitutions['__USER_FULLNAME__'] = dolGetFirstLastname($user->firstname, $user->lastname);
+			$userSubstitutions['__USER_EMAIL__'] = $recipient;
+			complete_substitutions_array($userSubstitutions, $langs, null, $user);
 
 			$preparedSubject = make_substitutions($subject, $userSubstitutions);
 			$preparedBody = make_substitutions($body, $userSubstitutions);
@@ -202,6 +215,7 @@ class TimesheetweekReminder
 			$resultSend = $mail->sendfile();
 			if ($resultSend) {
 				$emailsSent++;
+				dol_syslog($langs->trans('TimesheetWeekReminderSendSuccess', $recipient), LOG_INFO);
 			} else {
 				dol_syslog($langs->trans('TimesheetWeekReminderSendFailed', $recipient), LOG_ERR);
 				$errors++;

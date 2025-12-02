@@ -43,6 +43,7 @@ TimesheetWeekReminderCronLabel = Rappel hebdomadaire des feuilles d'heures
 TimesheetWeekReminderCronComment = Envoie un rappel hebdomadaire par email pour inviter les utilisateurs à compléter leurs feuilles d'heures.
 TimesheetWeekReminderTemplateMissing = Le modèle d'email de rappel n'est pas configuré.
 TimesheetWeekReminderSendFailed = Échec de l'envoi du rappel à %s.
+TimesheetWeekReminderSendSuccess = Rappel envoyé avec succès à %s.
 NewSection=Nouvelle section
 TIMESHEETWEEK_MYPARAM1 = Mon paramètre 1
 TIMESHEETWEEK_MYPARAM1Tooltip = Info-bulle de mon paramètre 1
