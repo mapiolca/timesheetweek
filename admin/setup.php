@@ -46,6 +46,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/class/timesheetweek_reminder.class.php');
 
 // EN: Load translation files required for the configuration page.
 // FR: Charge les fichiers de traduction nécessaires à la page de configuration.
@@ -292,7 +293,7 @@ if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 's
         }
 }
 
-if ($reminderAction === 'savereminder') {
+if (in_array($reminderAction, array('savereminder', 'testreminder'), true)) {
 	if (function_exists('dol_verify_token')) {
 		if (empty($token) || dol_verify_token($token) <= 0) {
 			accessforbidden();
@@ -366,9 +367,9 @@ if ($action === 'setquarterday') {
 }
 
 if ($reminderAction === 'savereminder') {
-	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
-	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
-	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
+$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 
 	$error = 0;
@@ -402,8 +403,17 @@ if ($reminderAction === 'savereminder') {
 			setEventMessages($langs->trans('Error'), null, 'errors');
 		} else {
 			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+}
+}
+}
+
+	if ($reminderAction === 'testreminder') {
+	$resultTest = TimesheetweekReminder::sendTest($db, $user);
+		if ($resultTest > 0) {
+			setEventMessages($langs->trans('TimesheetWeekReminderTestSuccess', $resultTest), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('TimesheetWeekReminderTestError'), null, 'errors');
 		}
-	}
 }
 
 // EN: Read the selected options so we can highlight them in the UI.
@@ -574,7 +584,6 @@ print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekRemi
 
 print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$pageToken.'">';
-print '<input type="hidden" name="reminder_action" value="savereminder">';
 
 print '<div class="div-table-responsive-no-min">';
 print '<table class="noborder centpercent">';
@@ -650,7 +659,11 @@ print '</tr>';
 print '</table>';
 print '</div>';
 
-print '<div class="center"><input type="submit" class="button" value="'.$langs->trans('Save').'"></div>';
+print '<div class="center">';
+print '<button type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</button>';
+print '&nbsp;';
+print '<button type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</button>';
+print '</div>';
 print '</form>';
 
 print '<br>';

@@ -51,12 +51,13 @@ class TimesheetweekReminder
 	/**
 	 * Run cron job to send weekly reminder emails.
 	 *
-	 * @param DoliDB $db        Database handler
-	 * @param int    $limit     Optional limit for recipients
-	 * @param int    $forcerun  Force execution (1) or use normal scheduling (0)
-	 * @return int              <0 if KO, >=0 if OK (number of emails sent)
+	 * @param DoliDB $db         Database handler
+	 * @param int    $limit      Optional limit for recipients
+	 * @param int    $forcerun   Force execution (1) or use normal scheduling (0)
+	 * @param array  $targetUserIds Limit execution to specific user ids when provided
+	 * @return int               <0 if KO, >=0 if OK (number of emails sent)
 	 */
-	public static function run($db, $limit = 0, $forcerun = 0)
+	public static function run($db, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
 		global $conf, $langs;
 
@@ -173,6 +174,9 @@ class TimesheetweekReminder
 		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
 		$sql .= ' AND u.entity IN ('.$entityFilter.')';
 		$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
+		if (!empty($targetUserIds)) {
+			$sql .= ' AND u.rowid IN ('.implode(',', array_map('intval', $targetUserIds)).')';
+		}
 		$sql .= ' ORDER BY u.rowid ASC';
 		if ($limit > 0) {
 			$sql .= $db->plimit((int) $limit);
@@ -229,5 +233,17 @@ class TimesheetweekReminder
 		}
 
 		return $emailsSent;
+	}
+
+	/**
+	 * Send a reminder test email to the current user using the configured template.
+	 *
+	 * @param DoliDB $db    Database handler
+	 * @param User   $user  Current user
+	 * @return int          <0 if KO, >=0 if OK (number of emails sent)
+	 */
+	public static function sendTest($db, User $user)
+	{
+		return self::run($db, 1, 1, array((int) $user->id));
 	}
 }
