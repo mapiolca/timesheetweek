@@ -62,55 +62,54 @@ class TimesheetweekReminder
 
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
-		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
+		$reminderEnabledConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_ENABLED', $conf->entity);
+		$reminderEnabled = !empty($reminderEnabledConst) ? (int) $reminderEnabledConst : 0;
 		if (empty($reminderEnabled) && empty($forcerun)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			return 0;
 		}
 
-		$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1);
+		$reminderWeekdayConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $conf->entity);
+		$reminderWeekday = !empty($reminderWeekdayConst) ? (int) $reminderWeekdayConst : 1;
 		if ($reminderWeekday < 1 || $reminderWeekday > 7) {
 			dol_syslog($langs->trans('TimesheetWeekReminderWeekdayInvalid'), LOG_ERR);
 			return -1;
 		}
 
-		$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00');
+		$reminderHourConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $conf->entity);
+		$reminderHour = !empty($reminderHourConst) ? $reminderHourConst : '18:00';
 		if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHour)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderHourInvalid'), LOG_ERR);
 			return -1;
 		}
 
-		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
+		$templateIdConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $conf->entity);
+		$templateId = !empty($templateIdConst) ? (int) $templateIdConst : 0;
 		if (empty($templateId)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
-			return -1;
+			return 0;
 		}
 
 		$timezoneCode = !empty($conf->timezone) ? $conf->timezone : 'UTC';
-		try {
-			$timezone = new DateTimeZone($timezoneCode);
-		} catch (Exception $e) {
-			dol_syslog($e->getMessage(), LOG_WARNING);
-			$timezone = new DateTimeZone('UTC');
-		}
-
 		$now = dol_now();
-		$currentDate = new DateTime('@'.$now);
-		$currentDate->setTimezone($timezone);
-
-		$currentWeekday = (int) $currentDate->format('N');
-		$currentMinutes = ((int) $currentDate->format('H') * 60) + (int) $currentDate->format('i');
+		$nowArray = dol_getdate($now, true, $timezoneCode);
+		$currentWeekday = (int) $nowArray['wday'];
+		$currentWeekdayIso = ($currentWeekday === 0) ? 7 : $currentWeekday;
+		$currentMinutes = ((int) $nowArray['hours'] * 60) + (int) $nowArray['minutes'];
 
 		list($targetHour, $targetMinute) = explode(':', $reminderHour);
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
+		$windowMinutes = 60;
+		$lowerBound = max(0, $targetMinutes - $windowMinutes);
+		$upperBound = min(1440, $targetMinutes + $windowMinutes);
 
 		if (empty($forcerun)) {
-			if ($currentWeekday !== $reminderWeekday) {
+			if ($currentWeekdayIso !== $reminderWeekday) {
 				dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
 				return 0;
 			}
-			if ($currentMinutes < $targetMinutes) {
-				dol_syslog('TimesheetweekReminder: configured hour not reached, skipping execution', LOG_DEBUG);
+			if ($currentMinutes < $lowerBound || $currentMinutes > $upperBound) {
+				dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
 				return 0;
 			}
 		}
@@ -130,16 +129,16 @@ class TimesheetweekReminder
 		$emailTemplate = new $emailTemplateClass($db);
 		$templateFetch = $emailTemplate->fetch($templateId);
 		if ($templateFetch <= 0) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_ERR);
-			return -1;
+			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
+			return 0;
 		}
 
 		$subject = !empty($emailTemplate->topic) ? $emailTemplate->topic : $emailTemplate->label;
 		$body = !empty($emailTemplate->content) ? $emailTemplate->content : '';
 
 		if (empty($subject) || empty($body)) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_ERR);
-			return -1;
+			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
+			return 0;
 		}
 
 		$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', '');
@@ -187,14 +186,14 @@ class TimesheetweekReminder
 				$emailsSent++;
 			} else {
 				dol_syslog($langs->trans('TimesheetWeekReminderSendFailed', $recipient), LOG_ERR);
-				$errors--;
+				$errors++;
 			}
 		}
 
 		$db->free($resql);
 
-		if ($errors < 0) {
-			return $errors;
+		if ($errors > 0) {
+			return -$errors;
 		}
 
 		return $emailsSent;
