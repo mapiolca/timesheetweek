@@ -309,20 +309,20 @@ class modTimesheetWeek extends DolibarrModules
 		// unit_frequency must be 60 for minute, 3600 for hour, 86400 for day, 604800 for week
 		/* BEGIN MODULEBUILDER CRON */
 		$this->cronjobs = array(
-			//  0 => array(
-			//      'label' => 'MyJob label',
-			//      'jobtype' => 'method',
-			//      'class' => '/timesheetweek/class/timesheetweek.class.php',
-			//      'objectname' => 'TimesheetWeek',
-			//      'method' => 'doScheduledJob',
-			//      'parameters' => '',
-			//      'comment' => 'Comment',
-			//      'frequency' => 2,
-			//      'unitfrequency' => 3600,
-			//      'status' => 0,
-			//      'test' => 'isModEnabled("timesheetweek")',
-			//      'priority' => 50,
-			//  ),
+			0 => array(
+				'label' => 'TimesheetWeekReminderCronLabel',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweek_reminder.class.php',
+				'objectname' => 'TimesheetweekReminder',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekReminderCronComment',
+				'frequency' => 1,
+				'unitfrequency' => 86400,
+				'status' => 0,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(
