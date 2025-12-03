@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+/*
 if (!defined('NOREQUIREUSER')) {
 	define('NOREQUIREUSER', 1);
 }
@@ -33,7 +33,7 @@ if (!defined('NOREQUIRESUBPERMS')) {
 if (!defined('NOREQUIREMENU')) {
 	define('NOREQUIREMENU', 1);
 }
-
+*/
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
