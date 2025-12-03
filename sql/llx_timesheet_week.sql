@@ -91,7 +91,7 @@ SELECT 1
 FROM llx_c_email_templates
 WHERE module = 'timesheetweek'
 AND entity IN (0, 1)
-AND code = 'TIMESHEETWEEK_REMINDER'
+AND label = 'TIMESHEETWEEK_REMINDER'
 );
 
 -- TimesheetWeek - lines
