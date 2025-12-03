@@ -39,7 +39,11 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-dol_include_once('/core/class/emailtemplates.class.php');
+if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
+	dol_include_once('/core/class/cemailtemplates.class.php');
+} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
+	dol_include_once('/core/class/emailtemplates.class.php');
+}
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 

@@ -915,24 +915,29 @@ class modTimesheetWeek extends DolibarrModules
 	 * @param Conf $conf
 	 * @return int
 	 */
-	protected function findReminderTemplateId($conf)
-	{
-		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE code = 'TIMESHEETWEEK_REMINDER' AND module = 'timesheetweek' AND entity IN (0, ".((int) $conf->entity).") ORDER BY entity DESC";
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			return 0;
+		protected function findReminderTemplateId($conf)
+		{
+			$hasCodeColumn = $this->emailTemplateHasCodeColumn();
+			$sql = 'SELECT rowid FROM ' . MAIN_DB_PREFIX."c_email_templates WHERE module = 'timesheetweek' AND entity IN (0, ".((int) $conf->entity).')';
+			if ($hasCodeColumn) {
+				$sql .= " AND code = 'TIMESHEETWEEK_REMINDER'";
+			}
+			$sql .= ' ORDER BY entity DESC';
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				return 0;
+			}
+
+			$templateId = 0;
+			if ($obj = $this->db->fetch_object($resql)) {
+				$templateId = (int) $obj->rowid;
+			}
+
+			$this->db->free($resql);
+
+			return $templateId;
 		}
-		
-		$templateId = 0;
-		if ($obj = $this->db->fetch_object($resql)) {
-			$templateId = (int) $obj->rowid;
-		}
-		
-		$this->db->free($resql);
-		
-		return $templateId;
-	}
-	
+
 	/**
 	 * Create the default weekly reminder email template.
 	 *
@@ -954,17 +959,17 @@ class modTimesheetWeek extends DolibarrModules
 		if (property_exists($template, "entity")) {
 			$template->entity = 0;
 		}
-		if (property_exists($template, "module")) {
-			$template->module = "timesheetweek";
-		}
-		if (property_exists($template, "type_template") && empty($template->type_template)) {
-			$template->type_template = "timesheetweek";
-		}
-		if (property_exists($template, "code")) {
-			$template->code = "TIMESHEETWEEK_REMINDER";
-		}
+			if (property_exists($template, "module")) {
+				$template->module = "timesheetweek";
+			}
+			if (property_exists($template, "type_template") && empty($template->type_template)) {
+				$template->type_template = "timesheetweek";
+			}
+			if ($this->emailTemplateHasCodeColumn() && property_exists($template, "code")) {
+				$template->code = "TIMESHEETWEEK_REMINDER";
+			}
 
-		$template->label = $langs->transnoentities("TimesheetWeekReminderTemplateLabel");
+			$template->label = $langs->transnoentities("TimesheetWeekReminderTemplateLabel");
 		if (property_exists($template, "topic")) {
 			$template->topic = $langs->transnoentities("TimesheetWeekReminderTemplateSubject");
 		}
@@ -1029,24 +1034,42 @@ class modTimesheetWeek extends DolibarrModules
 	 *
 	 * @return string
 	 */
-	protected function resolveEmailTemplateClass()
-	{
-		$templateClass = "";
-		if (is_readable(DOL_DOCUMENT_ROOT."/core/class/cemailtemplates.class.php")) {
-			dol_include_once("/core/class/cemailtemplates.class.php");
+		protected function resolveEmailTemplateClass()
+		{
+			$templateClass = "";
+			if (is_readable(DOL_DOCUMENT_ROOT."/core/class/cemailtemplates.class.php")) {
+				dol_include_once("/core/class/cemailtemplates.class.php");
+			}
+			if (is_readable(DOL_DOCUMENT_ROOT."/core/class/emailtemplates.class.php")) {
+				dol_include_once("/core/class/emailtemplates.class.php");
+			}
+			if (class_exists("CEmailTemplates")) {
+				$templateClass = "CEmailTemplates";
+			} elseif (class_exists("EmailTemplates")) {
+				$templateClass = "EmailTemplates";
+			}
+
+			return $templateClass;
 		}
-		if (is_readable(DOL_DOCUMENT_ROOT."/core/class/emailtemplates.class.php")) {
-			dol_include_once("/core/class/emailtemplates.class.php");
+
+		/**
+		 * Determine if the email template table exposes the code column.
+		 *
+		 * @return bool
+		 */
+		protected function emailTemplateHasCodeColumn()
+		{
+			$sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."c_email_templates LIKE 'code'";
+			$resql = $this->db->query($sql);
+			if ($resql) {
+				$hasColumn = ($this->db->num_rows($resql) > 0);
+				$this->db->free($resql);
+				return $hasColumn;
+			}
+
+			return false;
 		}
-		if (class_exists("CEmailTemplates")) {
-			$templateClass = "CEmailTemplates";
-		} elseif (class_exists("EmailTemplates")) {
-			$templateClass = "EmailTemplates";
-		}
-		
-		return $templateClass;
-	}
-	
+
 	/**
 	 *	Function called when module is disabled.
 	 *	Remove from database constants, boxes and permissions from Dolibarr database.
