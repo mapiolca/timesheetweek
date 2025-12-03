@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2025           Pierre Ardoin           <developpeur@lesmetiersdubatiment.fr>
+/* Copyright (C) 2025		Pierre Ardoin		<developpeur@lesmetiersdubatiment.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -8,7 +8,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -37,25 +37,27 @@ if (!defined('NOREQUIREMENU')) {
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 dol_include_once('/core/class/emailtemplates.class.php');
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 /**
- * Cron helper used to send weekly reminders.
+ * EN: Cron helper used to send weekly reminders.
+ * FR: Assistant cron utilisé pour envoyer les rappels hebdomadaires.
  */
 class TimesheetweekReminder
 {
 	/**
-	 * Run cron job to send weekly reminder emails.
+	 * EN: Run cron job to send weekly reminder emails.
+	 * FR: Exécuter la tâche planifiée pour envoyer les rappels hebdomadaires par email.
 	 *
-	 * @param DoliDB $db         Database handler
-	 * @param int    $limit      Optional limit for recipients
-	 * @param int    $forcerun   Force execution (1) or use normal scheduling (0)
-	 * @param array  $targetUserIds Limit execution to specific user ids when provided
-	 * @return int               <0 if KO, >=0 if OK (number of emails sent)
+	 * @param DoliDB $db	     Database handler
+	 * @param int	 $limit	     Optional limit for recipients
+	 * @param int	 $forcerun   Force execution (1) or use normal scheduling (0)
+	 * @param array	 $targetUserIds Limit execution to specific user ids when provided
+	 * @return int		     <0 if KO, >=0 if OK (number of emails sent)
 	 */
 	public static function run($db, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
@@ -238,9 +240,9 @@ class TimesheetweekReminder
 	/**
 	 * Send a reminder test email to the current user using the configured template.
 	 *
-	 * @param DoliDB $db    Database handler
-	 * @param User   $user  Current user
-	 * @return int          <0 if KO, >=0 if OK (number of emails sent)
+	 * @param DoliDB $db	Database handler
+	 * @param User	 $user	Current user
+	 * @return int		<0 if KO, >=0 if OK (number of emails sent)
 	 */
 	public static function sendTest($db, User $user)
 	{
