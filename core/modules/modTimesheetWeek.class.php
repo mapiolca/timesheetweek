@@ -777,37 +777,71 @@ class modTimesheetWeek extends DolibarrModules
 		$extrafields->fetch_name_optionals_label('user');
 		$dailyRateVisibility = '-1';
 		$dailyRateSharedEntity = '0';
-		if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
-			// EN: Register the daily rate toggle on employees when the module is activated.
-			// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
-			$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-		} else {
-			// EN: Align the existing daily rate toggle with the latest visibility and sharing rules.
-			// FR: Aligne l'option de forfait jour existante avec les nouvelles règles de visibilité et de partage.
-			$extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-		}
+			if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
+				// EN: Register the daily rate toggle on employees when the module is activated.
+				// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
+				$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+			} else {
+				// EN: Avoid reapplying updates on the daily rate toggle to prevent redundant schema operations.
+				// FR: Éviter de réappliquer les mises à jour du forfait jour pour prévenir les opérations de schéma redondantes.
+				$currentVisibility = (string) ($extrafields->attributes['user']['visible']['lmdb_daily_rate'] ?? '');
+				$currentSharedEntity = (string) ($extrafields->attributes['user']['shared']['lmdb_daily_rate'] ?? '');
+				$currentType = (string) ($extrafields->attributes['user']['type']['lmdb_daily_rate'] ?? '');
+				$requiresUpdate = ($currentType !== 'boolean' || $currentVisibility !== $dailyRateVisibility || $currentSharedEntity !== $dailyRateSharedEntity);
+				if ($requiresUpdate) {
+					// EN: Refresh the existing daily rate toggle only when its definition diverges from the expected one.
+					// FR: Rafraîchir l'option de forfait jour existante uniquement lorsque sa définition diverge de celle attendue.
+					$resultUpdateDailyRate = $extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+					if ($resultUpdateDailyRate < 0) {
+						$this->error = $extrafields->error;
+						return -1;
+					}
+				}
+			}
 
-		// EN: Ensure existing installations receive the daily_rate column for time entries.
-		// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
-		$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
-		$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
-		if (!$resqlCheckDailyRate) {
-			// EN: Abort activation when the structure verification query fails.
-			// FR: Interrompt l'activation si la requête de vérification de structure échoue.
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
-		$this->db->free($resqlCheckDailyRate);
-		if (!$hasDailyRateColumn) {
-			$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
-			if (!$this->db->query($sqlAdd)) {
-				// EN: Stop activation when adding the column fails to keep database consistent.
-				// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
+			// EN: Ensure existing installations receive the daily_rate column for time entries.
+			// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
+			$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
+			$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
+			if (!$resqlCheckDailyRate) {
+				// EN: Abort activation when the structure verification query fails.
+				// FR: Interrompt l'activation si la requête de vérification de structure échoue.
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
-		}
+			$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
+			$this->db->free($resqlCheckDailyRate);
+			if (!$hasDailyRateColumn) {
+				$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
+				if (!$this->db->query($sqlAdd)) {
+					// EN: Stop activation when adding the column fails to keep database consistent.
+					// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			// EN: Ensure existing installations keep the PDF model column on weekly sheets.
+			// FR: Garantit que les installations existantes conservent la colonne du modèle PDF sur les feuilles hebdomadaires.
+			$sqlCheckModelPdf = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'model_pdf'";
+			$resqlCheckModelPdf = $this->db->query($sqlCheckModelPdf);
+			if (!$resqlCheckModelPdf) {
+				// EN: Abort activation when the PDF model check fails.
+				// FR: Interrompre l'activation si la vérification du modèle PDF échoue.
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasModelPdfColumn = (bool) $this->db->num_rows($resqlCheckModelPdf);
+			$this->db->free($resqlCheckModelPdf);
+			if (!$hasModelPdfColumn) {
+				$sqlAddModelPdf = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN model_pdf VARCHAR(255) DEFAULT NULL AFTER status";
+				if (!$this->db->query($sqlAddModelPdf)) {
+					// EN: Stop activation if adding the PDF model column fails to preserve schema consistency.
+					// FR: Stopper l'activation si l'ajout de la colonne de modèle PDF échoue pour préserver la cohérence du schéma.
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
 
 		// Permissions
 		$this->remove($options);
