@@ -58,7 +58,6 @@ email_to,
 email_tocc,
 email_tobcc,
 topic,
-subject,
 content
 )
 SELECT
@@ -77,14 +76,13 @@ SELECT
 '',
 '',
 'Rappel d''envoi des feuilles d''heures',
-'Rappel d''envoi des feuilles d''heures',
 'Bonjour __TSW_USER_FIRSTNAME__,\\nMerci de soumettre votre feuille d''heures de la semaine pour lundi 8h.\\n__TSW_TIMESHEET_NEW_URL__\\nBon weekend, __TSW_DOLIBARR_TITLE__'
 WHERE EXISTS (
 SELECT 1
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
 AND TABLE_NAME = 'llx_c_email_templates'
-AND COLUMN_NAME IN ('code', 'email_cc', 'email_bcc', 'email_from', 'email_to', 'joinfiles')
+AND COLUMN_NAME IN ('email_tocc', 'email_tobcc', 'email_from', 'email_to', 'joinfiles')
 GROUP BY TABLE_NAME
 HAVING COUNT(DISTINCT COLUMN_NAME) = 6
 )
