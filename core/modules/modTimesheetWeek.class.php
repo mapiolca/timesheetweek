@@ -309,20 +309,20 @@ class modTimesheetWeek extends DolibarrModules
 		// unit_frequency must be 60 for minute, 3600 for hour, 86400 for day, 604800 for week
 		/* BEGIN MODULEBUILDER CRON */
 		$this->cronjobs = array(
-			//  0 => array(
-			//      'label' => 'MyJob label',
-			//      'jobtype' => 'method',
-			//      'class' => '/timesheetweek/class/timesheetweek.class.php',
-			//      'objectname' => 'TimesheetWeek',
-			//      'method' => 'doScheduledJob',
-			//      'parameters' => '',
-			//      'comment' => 'Comment',
-			//      'frequency' => 2,
-			//      'unitfrequency' => 3600,
-			//      'status' => 0,
-			//      'test' => 'isModEnabled("timesheetweek")',
-			//      'priority' => 50,
-			//  ),
+			0 => array(
+				'label' => 'TimesheetWeekReminderCronLabel',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweek_reminder.class.php',
+				'objectname' => 'TimesheetweekReminder',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekReminderCronComment',
+				'frequency' => 1,
+				'unitfrequency' => 86400,
+				'status' => 0,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(
@@ -867,20 +867,186 @@ class modTimesheetWeek extends DolibarrModules
                         $params = ActionsTimesheetweek::getMulticompanySharingDefinition();
                 }
 
-                if (!empty($params)) {
-                        // EN: Merge TimesheetWeek definitions with any existing external module configuration.
-                        // FR: Fusionner les définitions TimesheetWeek avec toute configuration de module externe existante.
-                        $externalmodule = array_merge($externalmodule, $params);
-
-                        // EN: Persist the refreshed configuration in the Dolibarr constants table.
-                        // FR: Persister la configuration actualisée dans la table des constantes de Dolibarr.
-                        $jsonformat = json_encode($externalmodule);
-                        dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
-                }
-
-                return $this->_init($sql, $options);
+		if (!empty($params)) {
+			// EN: Merge TimesheetWeek definitions with any existing external module configuration.
+			// FR: Fusionner les définitions TimesheetWeek avec toute configuration de module externe existante.
+			$externalmodule = array_merge($externalmodule, $params);
+			
+			// EN: Persist the refreshed configuration in the Dolibarr constants table.
+			// FR: Persister la configuration actualisée dans la table des constantes de Dolibarr.
+			$jsonformat = json_encode($externalmodule);
+			dolibarr_set_const($this->db, "MULTICOMPANY_EXTERNAL_MODULES_SHARING", $jsonformat, "chaine", 0, "", $conf->entity);
+		}
+		
+		$resultInit = $this->_init($sql, $options);
+		if ($resultInit <= 0) {
+			return $resultInit;
+		}
+		
+		$this->setupReminderEmailTemplate($conf, $langs);
+		
+		return $resultInit;
 	}
+	
+	/**
+	 * Ensure the weekly reminder email template exists and set the default constant when missing.
+	 *
+	 * @param Conf      $conf
+	 * @param Translate $langs
+	 * @return void
+	 */
+	protected function setupReminderEmailTemplate($conf, $langs)
+	{
+		global $user;
+		
+		$templateId = $this->findReminderTemplateId($conf);
+		if ($templateId <= 0) {
+			$templateId = $this->createReminderTemplate($conf, $langs, $user);
+		}
+		
+		if ($templateId > 0 && (int) getDolGlobalInt("TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE") === 0) {
+			dolibarr_set_const($this->db, "TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE", (int) $templateId, "chaine", 0, "", $conf->entity);
+		}
+	}
+	
+	/**
+	 * Search for the existing weekly reminder template.
+	 *
+	 * @param Conf $conf
+	 * @return int
+	 */
+	protected function findReminderTemplateId($conf)
+	{
+		$sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE code = 'TIMESHEETWEEK_REMINDER' AND module = 'timesheetweek' AND entity IN (0, ".((int) $conf->entity).") ORDER BY entity DESC";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return 0;
+		}
+		
+		$templateId = 0;
+		if ($obj = $this->db->fetch_object($resql)) {
+			$templateId = (int) $obj->rowid;
+		}
+		
+		$this->db->free($resql);
+		
+		return $templateId;
+	}
+	
+	/**
+	 * Create the default weekly reminder email template.
+	 *
+	 * @param Conf  $conf
+	 * @param mixed $langs
+	 * @param User  $user
+	 * @return int
+	 */
+	protected function createReminderTemplate($conf, $langs, $user)
+	{
+		$templateClass = $this->resolveEmailTemplateClass();
+		if (empty($templateClass)) {
+			return 0;
+		}
+		
+		dol_include_once("/core/class/CMailFile.class.php");
+		$template = new $templateClass($this->db);
+		
+		if (property_exists($template, "entity")) {
+			$template->entity = 0;
+		}
+		if (property_exists($template, "module")) {
+			$template->module = "timesheetweek";
+		}
+		if (property_exists($template, "type_template") && empty($template->type_template)) {
+			$template->type_template = "timesheetweek";
+		}
+		if (property_exists($template, "code")) {
+			$template->code = "TIMESHEETWEEK_REMINDER";
+		}
 
+		$template->label = $langs->transnoentities("TimesheetWeekReminderTemplateLabel");
+		if (property_exists($template, "topic")) {
+			$template->topic = $langs->transnoentities("TimesheetWeekReminderTemplateSubject");
+		}
+		if (property_exists($template, "subject")) {
+			$template->subject = $langs->transnoentities("TimesheetWeekReminderTemplateSubject");
+		}
+		if (property_exists($template, "content")) {
+			$template->content = $langs->transnoentities("TimesheetWeekReminderTemplateBody");
+		}
+		if (property_exists($template, "lang")) {
+			$template->lang = "fr_FR";
+		}
+		if (property_exists($template, "private")) {
+			$template->private = 0;
+		}
+		if (property_exists($template, "fk_user")) {
+			$template->fk_user = (int) $user->id;
+		}
+		if (property_exists($template, "active")) {
+			$template->active = 1;
+		}
+		if (property_exists($template, "enabled")) {
+			$template->enabled = 1;
+		}
+		if (property_exists($template, "email_from")) {
+			$template->email_from = "";
+		}
+		if (property_exists($template, "email_to")) {
+			$template->email_to = "";
+		}
+		if (property_exists($template, "email_cc")) {
+			$template->email_cc = "";
+		}
+		if (property_exists($template, "email_bcc")) {
+			$template->email_bcc = "";
+		}
+		if (property_exists($template, "joinfiles")) {
+			$template->joinfiles = 0;
+		}
+		if (property_exists($template, "position")) {
+			$template->position = 0;
+		}
+		
+		if (method_exists($template, "create")) {
+			$res = $template->create($user);
+			if ($res > 0) {
+				if (!empty($template->id)) {
+					return (int) $template->id;
+				}
+				if (!empty($template->rowid)) {
+					return (int) $template->rowid;
+				}
+				return (int) $this->db->last_insert_id(MAIN_DB_PREFIX."c_email_templates");
+			}
+		}
+		
+		return 0;
+	}
+	
+	/**
+	 * Resolve the email template class available in the current Dolibarr version.
+	 *
+	 * @return string
+	 */
+	protected function resolveEmailTemplateClass()
+	{
+		$templateClass = "";
+		if (is_readable(DOL_DOCUMENT_ROOT."/core/class/cemailtemplates.class.php")) {
+			dol_include_once("/core/class/cemailtemplates.class.php");
+		}
+		if (is_readable(DOL_DOCUMENT_ROOT."/core/class/emailtemplates.class.php")) {
+			dol_include_once("/core/class/emailtemplates.class.php");
+		}
+		if (class_exists("CEmailTemplates")) {
+			$templateClass = "CEmailTemplates";
+		} elseif (class_exists("EmailTemplates")) {
+			$templateClass = "EmailTemplates";
+		}
+		
+		return $templateClass;
+	}
+	
 	/**
 	 *	Function called when module is disabled.
 	 *	Remove from database constants, boxes and permissions from Dolibarr database.

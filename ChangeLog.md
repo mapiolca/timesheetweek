@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.6.0 (20/06/2026)
+- Ajoute un rappel hebdomadaire automatique par email configurable (activation, jour, heure, modèle) et une tâche planifiée dédiée avec bouton de test administrateur.
+ / Adds a configurable automatic weekly email reminder (enablement, day, time, template) plus a dedicated scheduled task and admin test button.
+
 ## 1.5.0 (01/12/2025)
 - Ajoute une action de masse pour générer un PDF unique fusionnant les feuilles sélectionnées en utilisant le modèle par défaut. / Adds a mass action to generate a single merged PDF for selected timesheets using the default template.
 
