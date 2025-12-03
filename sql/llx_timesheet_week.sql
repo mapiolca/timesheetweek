@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 ) ENGINE=innodb;
 
 
--- EN: Insert default weekly reminder email template when code column exists
+-- EN: Insert default weekly reminder email template when full email columns exist with code
 INSERT INTO llx_c_email_templates (
 entity,
 private,
@@ -86,7 +86,9 @@ SELECT 1
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
 AND TABLE_NAME = 'llx_c_email_templates'
-AND COLUMN_NAME = 'code'
+AND COLUMN_NAME IN ('code', 'email_cc', 'email_bcc', 'email_from', 'email_to', 'joinfiles')
+GROUP BY TABLE_NAME
+HAVING COUNT(DISTINCT COLUMN_NAME) = 6
 )
 AND NOT EXISTS (
 SELECT 1
@@ -96,7 +98,59 @@ AND entity IN (0, 1)
 AND code = 'TIMESHEETWEEK_REMINDER'
 );
 
--- EN: Insert default weekly reminder email template when code column is missing
+-- EN: Insert default weekly reminder email template when code exists but simplified email columns
+INSERT INTO llx_c_email_templates (
+entity,
+private,
+module,
+type_template,
+code,
+label,
+lang,
+position,
+active,
+enabled,
+topic,
+subject,
+content
+)
+SELECT
+0,
+0,
+'timesheetweek',
+'timesheetweek',
+'TIMESHEETWEEK_REMINDER',
+'Timesheetweek - Rappel des feuilles d''heures',
+'fr_FR',
+0,
+1,
+1,
+'Rappel d''envoi des feuilles d''heures',
+'Rappel d''envoi des feuilles d''heures',
+'Bonjour __TSW_USER_FIRSTNAME__,\\nMerci de soumettre votre feuille d''heures de la semaine pour lundi 8h.\\n__TSW_TIMESHEET_NEW_URL__\\nBon weekend, __TSW_DOLIBARR_TITLE__'
+WHERE EXISTS (
+SELECT 1
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'llx_c_email_templates'
+AND COLUMN_NAME = 'code'
+)
+AND NOT EXISTS (
+SELECT 1
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'llx_c_email_templates'
+AND COLUMN_NAME = 'email_cc'
+)
+AND NOT EXISTS (
+SELECT 1
+FROM llx_c_email_templates
+WHERE module = 'timesheetweek'
+AND entity IN (0, 1)
+AND code = 'TIMESHEETWEEK_REMINDER'
+);
+
+-- EN: Insert default weekly reminder email template when full email columns exist without code
 INSERT INTO llx_c_email_templates (
 entity,
 private,
@@ -140,6 +194,58 @@ FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
 AND TABLE_NAME = 'llx_c_email_templates'
 AND COLUMN_NAME = 'code'
+)
+AND EXISTS (
+SELECT 1
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'llx_c_email_templates'
+AND COLUMN_NAME IN ('email_cc', 'email_bcc', 'email_from', 'email_to', 'joinfiles')
+GROUP BY TABLE_NAME
+HAVING COUNT(DISTINCT COLUMN_NAME) = 5
+)
+AND NOT EXISTS (
+SELECT 1
+FROM llx_c_email_templates
+WHERE module = 'timesheetweek'
+AND entity IN (0, 1)
+AND (type_template = 'timesheetweek' OR type_template IS NULL)
+);
+
+-- EN: Insert default weekly reminder email template when code is missing and email columns are simplified
+INSERT INTO llx_c_email_templates (
+entity,
+private,
+module,
+type_template,
+label,
+lang,
+position,
+active,
+enabled,
+topic,
+subject,
+content
+)
+SELECT
+0,
+0,
+'timesheetweek',
+'timesheetweek',
+'Timesheetweek - Rappel des feuilles d''heures',
+'fr_FR',
+0,
+1,
+1,
+'Rappel d''envoi des feuilles d''heures',
+'Rappel d''envoi des feuilles d''heures',
+'Bonjour __TSW_USER_FIRSTNAME__,\\nMerci de soumettre votre feuille d''heures de la semaine pour lundi 8h.\\n__TSW_TIMESHEET_NEW_URL__\\nBon weekend, __TSW_DOLIBARR_TITLE__'
+WHERE NOT EXISTS (
+SELECT 1
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'llx_c_email_templates'
+AND COLUMN_NAME IN ('code', 'email_cc')
 )
 AND NOT EXISTS (
 SELECT 1
