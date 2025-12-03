@@ -133,11 +133,11 @@ class mod_timesheetweek_standard extends ModeleNumRefTimesheetWeek
 		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
 		$sql .= " FROM ".$db->prefix()."timesheetweek_timesheetweek";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefix)."____-%'";
-		if ($object->ismultientitymanaged == 1) {
-			$sql .= " AND entity = ".$conf->entity;
-		} elseif (!is_numeric($object->ismultientitymanaged)) {
+		//if ($object->ismultientitymanaged == 1) {
+		//	$sql .= " AND entity = ".$conf->entity;
+		//} elseif (!is_numeric($object->ismultientitymanaged)) {
 			// TODO
-		}
+		//}
 
 		$resql = $db->query($sql);
 		if ($resql) {
