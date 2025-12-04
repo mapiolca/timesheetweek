@@ -63,10 +63,33 @@ $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
 $reminderAction = GETPOST('reminder_action', 'aZ09');
 
-if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
-        dol_include_once('/core/class/cemailtemplates.class.php');
-} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
-        dol_include_once('/core/class/emailtemplates.class.php');
+dol_include_once('/core/class/cemailtemplates.class.php');
+
+if (!class_exists('FormSetup')) {
+	// For retrocompatibility Dolibarr < 16.0
+	if (floatval(DOL_VERSION) < 16.0 && !class_exists('FormSetup')) {
+		require_once __DIR__.'/../backport/v16/core/class/html.formsetup.class.php';
+	} else {
+		require_once DOL_DOCUMENT_ROOT.'/core/class/html.formsetup.class.php';
+	}
+}
+
+$formSetup = new FormSetup($db);
+$form = new Form($db);
+
+$sql = "SELECT rowid, label ";
+$sql.= "FROM ".MAIN_DB_PREFIX."c_email_templates ";
+$sql.= "WHERE enabled='1' ";
+$sql.= "AND active='1' ";
+$sql.= "AND type_template = 'actioncomm_send' ";
+$sql.= "AND entity='".getEntity('timesheetweek')."' ";
+//$sql.= "GROUP BY label";
+$result = $db->query($sql);
+$options = array();
+if ($result) {
+	while ($obj = $db->fetch_object($result)) {
+		$options[$obj->label] = $obj->label;
+	}
 }
 
 // EN: Helper to enable a PDF model in the database.
@@ -594,37 +617,10 @@ print '<td class="small">'.$langs->trans('TimesheetWeekReminderHourHelp').'</td>
 print '<td class="center"><input type="text" name="TIMESHEETWEEK_REMINDER_HOUR" value="'.dol_escape_htmltag($reminderHour).'" size="6" maxlength="5"></td>';
 print '</tr>';
 
-$templateOptions = array(0 => $langs->trans('None'));
-foreach ($emailTemplates as $templateItem) {
-	$templateId = 0;
-	if (!empty($templateItem->id)) {
-		$templateId = (int) $templateItem->id;
-	} elseif (!empty($templateItem->rowid)) {
-		$templateId = (int) $templateItem->rowid;
-	}
-
-	if (empty($templateId)) {
-		continue;
-	}
-
-	$templateLabel = '';
-	if (!empty($templateItem->label)) {
-		$templateLabel = $templateItem->label;
-	} elseif (!empty($templateItem->ref)) {
-		$templateLabel = $templateItem->ref;
-	} elseif (!empty($templateItem->topic)) {
-		$templateLabel = $templateItem->topic;
-	} else {
-		$templateLabel = '#'.$templateId;
-	}
-
-	$templateOptions[$templateId] = $templateLabel;
-}
-
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
-print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
 print '</tr>';
 
 print '</table>';
