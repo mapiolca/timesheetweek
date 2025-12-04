@@ -44,14 +44,12 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 /**
- * EN: Cron helper used to send weekly reminders.
- * FR: Assistant cron utilisé pour envoyer les rappels hebdomadaires.
+ * Cron helper used to send weekly reminders.
  */
 class TimesheetweekReminder
 {
-	/**
-	 * EN: Run cron job to send weekly reminder emails.
-	 * FR: Exécuter la tâche planifiée pour envoyer les rappels hebdomadaires par email.
+/**
+ * Run cron job to send weekly reminder emails.
 	 *
 	 * @param DoliDB $db	     Database handler
 	 * @param int	 $limit	     Optional limit for recipients
@@ -77,29 +75,25 @@ class TimesheetweekReminder
 
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
-		$reminderEnabledConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_ENABLED', $conf->entity);
-		$reminderEnabled = !empty($reminderEnabledConst) ? (int) $reminderEnabledConst : 0;
+		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
 		if (empty($reminderEnabled) && empty($forcerun)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			return 0;
 		}
 
-		$reminderWeekdayConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $conf->entity);
-		$reminderWeekday = !empty($reminderWeekdayConst) ? (int) $reminderWeekdayConst : 1;
+		$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1, $conf->entity);
 		if ($reminderWeekday < 1 || $reminderWeekday > 7) {
 			dol_syslog($langs->trans('TimesheetWeekReminderWeekdayInvalid'), LOG_ERR);
 			return -1;
 		}
 
-		$reminderHourConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $conf->entity);
-		$reminderHour = !empty($reminderHourConst) ? $reminderHourConst : '18:00';
+		$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00', $conf->entity);
 		if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHour)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderHourInvalid'), LOG_ERR);
 			return -1;
 		}
 
-		$templateIdConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $conf->entity);
-		$templateId = !empty($templateIdConst) ? (int) $templateIdConst : 0;
+		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
 		if (empty($templateId)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
 			return 0;
