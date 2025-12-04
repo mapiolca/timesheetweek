@@ -59,9 +59,19 @@ class TimesheetweekReminder
 	 * @param array	 $targetUserIds Limit execution to specific user ids when provided
 	 * @return int		     <0 if KO, >=0 if OK (number of emails sent)
 	 */
-	public static function run($db, $limit = 0, $forcerun = 0, array $targetUserIds = array())
+	public static function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
 		global $conf, $langs;
+
+		$db = $dbInstance;
+		if (empty($db) && !empty($GLOBALS['db'])) {
+			$db = $GLOBALS['db'];
+		}
+
+		if (empty($db)) {
+			dol_syslog($langs->transnoentitiesnoconv('ErrorNoDatabase'), LOG_ERR);
+			return -1;
+		}
 
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
