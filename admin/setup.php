@@ -75,10 +75,10 @@ $sql.= "AND type_template = 'actioncomm_send' ";
 //$sql.= "AND entity='".getEntity('timesheetweek')."' ";
 //$sql.= "GROUP BY label";
 $result = $db->query($sql);
-$options = array();
+$templateOptions = array();
 if ($result) {
 	while ($obj = $db->fetch_object($result)) {
-		$options[$obj->label] = $obj->label;
+		$templateOptions[$obj->label] = $obj->label;
 	}
 	var_dump($result);
 }
