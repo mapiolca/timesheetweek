@@ -72,7 +72,7 @@ $sql.= "FROM ".MAIN_DB_PREFIX."c_email_templates ";
 $sql.= "WHERE active='1' ";
 //$sql.= "AND enabled='1' ";
 $sql.= "AND type_template = 'actioncomm_send' ";
-$sql.= "AND entity='".getEntity('timesheetweek')."' ";
+//$sql.= "AND entity='".getEntity('timesheetweek')."' ";
 //$sql.= "GROUP BY label";
 $result = $db->query($sql);
 $options = array();
