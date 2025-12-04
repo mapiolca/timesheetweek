@@ -120,10 +120,8 @@ class TimesheetweekReminder
 		}
 		
 		$emailTemplateClass = '';
-		if (class_exists('CEmailTemplates')) {
-			$emailTemplateClass = 'CEmailTemplates';
-		} elseif (class_exists('EmailTemplates')) {
-			$emailTemplateClass = 'EmailTemplates';
+		if (class_exists('CEmailTemplate')) {
+			$emailTemplateClass = 'CEmailTemplate';
 		}
 
 		if (empty($emailTemplateClass)) {
