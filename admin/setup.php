@@ -76,7 +76,7 @@ $result = $db->query($sql);
 $templateOptions = array();
 if ($result) {
 	while ($obj = $db->fetch_object($result)) {
-		$templateOptions[$obj->label] = $obj->label;
+		$templateOptions[(int) $obj->rowid] = $obj->label;
 	}
 }
 
