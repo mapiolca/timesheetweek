@@ -290,7 +290,7 @@ if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 's
         }
 }
 
-if (in_array($reminderAction, array('savereminder', 'testreminder'), true)) {
+if (in_array($action, array('savereminder', 'testreminder'), true)) {
 	if (function_exists('dol_verify_token')) {
 		if (empty($token) || dol_verify_token($token) <= 0) {
 			accessforbidden();
