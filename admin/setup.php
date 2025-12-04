@@ -40,6 +40,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php';
 // EN: Load document helper functions required for model toggles.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
@@ -61,8 +62,6 @@ $token = GETPOST('token', 'alphanohtml');
 // EN: Capture additional parameters used to reproduce Dolibarr's document model toggles.
 $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
-
-dol_include_once('/core/class/cemailtemplates.class.php');
 
 $form = new Form($db);
 
