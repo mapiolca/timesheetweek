@@ -592,6 +592,7 @@ print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEnabled').'
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEnabledHelp').'</td>';
 print '<td class="center">';
 print '<input type="checkbox" name="TIMESHEETWEEK_REMINDER_ENABLED" value="1"'.(!empty($reminderEnabled) ? ' checked' : '').'>';
+$formSetup->newItem('STANCER_AUTO_MAIL_NOTIFICATIONS_PAYMENT_DETAILS')->setAsYesNo();
 print '</td>';
 print '</tr>';
 
@@ -620,7 +621,7 @@ print '</tr>';
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
-print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
+$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options);//print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
 print '</tr>';
 
 print '</table>';
