@@ -618,6 +618,7 @@ print '</table>';
 print '</div>';
 
 print '<div class="center">';
+print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
 print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
 print '&nbsp;';
 print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
