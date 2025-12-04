@@ -395,8 +395,8 @@ $reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'))
 			setEventMessages($langs->trans('Error'), null, 'errors');
 		} else {
 			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
-}
-}
+		}
+	}
 }
 
 	if ($action === 'testreminder') {
