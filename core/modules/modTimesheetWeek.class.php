@@ -971,7 +971,7 @@ class modTimesheetWeek extends DolibarrModules
 
 		$statusValue = ((int) $status === 1) ? 1 : 0;
 		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
-		$sql .= " WHERE jobtype = 'method' AND class = '/timesheetweek/class/timesheetweek_reminder.class.php' AND method = 'run'";
+		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND method = 'run'";
 
 		$resql = $this->db->query($sql);
 		if (!$resql) {
