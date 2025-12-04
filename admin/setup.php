@@ -623,6 +623,14 @@ print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTempla
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
 $formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options);//print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
 print '</tr>';
+if ($action == 'edit') {
+	print $formSetup->generateOutput(true);
+} else {
+	print $formSetup->generateOutput();
+	print '<div class="tabsAction">';
+	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a>';
+	print '</div>';
+}
 
 print '</table>';
 print '</div>';
