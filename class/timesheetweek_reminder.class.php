@@ -89,7 +89,6 @@ class TimesheetweekReminder
 		}
 
 		$templateIdConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $conf->entity);
-		var_dump($templateIdConst);
 		$templateId = !empty($templateIdConst) ? (int) $templateIdConst : 0;
 		if (empty($templateId)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
@@ -119,19 +118,26 @@ class TimesheetweekReminder
 			return 0;
 			}
 		}
-		
-		$emailTemplateClass = '';
+
+		$emailTemplate = null;
+		$templateFetch = 0;
 		if (class_exists('CEmailTemplate')) {
-			$emailTemplateClass = 'CEmailTemplate';
+			$emailTemplate = new CEmailTemplate($db);
+			if (method_exists($emailTemplate, 'apifetch')) {
+				$templateFetch = $emailTemplate->apifetch($templateId);
+			} else {
+				$templateFetch = $emailTemplate->fetch($templateId);
+			}
+		} elseif (class_exists('EmailTemplate')) {
+			$emailTemplate = new EmailTemplate($db);
+			$templateFetch = $emailTemplate->fetch($templateId);
 		}
 
-		if (empty($emailTemplateClass)) {
+		if (empty($emailTemplate)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_ERR);
 			return -1;
 		}
 
-		$emailTemplate = new $emailTemplateClass($db);
-		$templateFetch = $emailTemplate->fetch($templateId);
 		if ($templateFetch <= 0) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
 			return 0;
