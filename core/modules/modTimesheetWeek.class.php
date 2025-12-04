@@ -916,9 +916,7 @@ class modTimesheetWeek extends DolibarrModules
 		if ($resultInit <= 0) {
 			return $resultInit;
 		}
-		
-		$this->setupReminderEmailTemplate($conf, $langs);
-		
+				
 		return $resultInit;
 	}
 
