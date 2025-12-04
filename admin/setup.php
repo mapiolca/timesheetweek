@@ -359,9 +359,9 @@ if ($action === 'setquarterday') {
 }
 
 if ($action === 'savereminder') {
-$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
-$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
-$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
+	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 
 	$error = 0;
@@ -617,10 +617,10 @@ print '</table>';
 print '</div>';
 
 print '<div class="center">';
-print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=savereminder&token='.$pageToken);
+print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?action=savereminder&token='.$pageToken);
 //print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
 print '&nbsp;';
-print dolGetButtonAction('', ($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=testreminder&token='.$pageToken);
+print dolGetButtonAction('', ($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test'), 'default', $_SERVER["PHP_SELF"].'?action=testreminder&token='.$pageToken);
 //print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
 print '</div>';
 print '</form>';
