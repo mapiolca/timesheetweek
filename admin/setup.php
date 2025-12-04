@@ -350,10 +350,10 @@ if ($action === 'setquarterday') {
 }
 
 if ($action === 'savereminder') {
-	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int'); var_dump($reminderEnabledValue);
-	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int'); var_dump($reminderWeekdayValue);
-	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml')); var_dump($reminderHourValue);
-	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int'); var_dump($reminderTemplateValue);
+$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
+$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 
 	$error = 0;
 
@@ -608,11 +608,9 @@ print '</table>';
 print '</div>';
 
 print '<div class="center">';
-print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?action=savereminder&token='.$pageToken);
-//print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
+print '<button type="submit" class="button" name="action" value="savereminder">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '&nbsp;';
-print dolGetButtonAction('', ($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test'), 'default', $_SERVER["PHP_SELF"].'?action=testreminder&token='.$pageToken);
-//print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
+print '<button type="submit" class="button" name="action" value="testreminder">'.($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test').'</button>';
 print '</div>';
 print '</form>';
 
