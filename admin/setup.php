@@ -592,7 +592,6 @@ print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEnabled').'
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEnabledHelp').'</td>';
 print '<td class="center">';
 print '<input type="checkbox" name="TIMESHEETWEEK_REMINDER_ENABLED" value="1"'.(!empty($reminderEnabled) ? ' checked' : '').'>';
-$formSetup->newItem('STANCER_AUTO_MAIL_NOTIFICATIONS_PAYMENT_DETAILS')->setAsYesNo();
 print '</td>';
 print '</tr>';
 
@@ -621,24 +620,16 @@ print '</tr>';
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
-$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options);//print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
+print '<td class="center">'.$formSetup->newItem('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE')->setAsSelect($options).'</td>';
 print '</tr>';
-if ($action == 'edit') {
-	print $formSetup->generateOutput(true);
-} else {
-	print $formSetup->generateOutput();
-	print '<div class="tabsAction">';
-	print '<a class="butAction" href="'.$_SERVER["PHP_SELF"].'?action=edit&token='.newToken().'">'.$langs->trans("Modify").'</a>';
-	print '</div>';
-}
 
 print '</table>';
 print '</div>';
 
 print '<div class="center">';
-print '<button type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</button>';
+print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
 print '&nbsp;';
-print '<button type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</button>';
+print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
 print '</div>';
 print '</form>';
 
