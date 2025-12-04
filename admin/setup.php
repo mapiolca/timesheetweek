@@ -61,7 +61,6 @@ $token = GETPOST('token', 'alphanohtml');
 // EN: Capture additional parameters used to reproduce Dolibarr's document model toggles.
 $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
-$reminderAction = GETPOST('reminder_action', 'aZ09');
 
 dol_include_once('/core/class/cemailtemplates.class.php');
 
@@ -282,7 +281,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday','savereminder', 'testreminder'), true)) {
+if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
