@@ -89,6 +89,7 @@ class TimesheetweekReminder
 		}
 
 		$templateIdConst = dolibarr_get_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $conf->entity);
+		var_dump($templateIdConst);
 		$templateId = !empty($templateIdConst) ? (int) $templateIdConst : 0;
 		if (empty($templateId)) {
 			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
