@@ -80,7 +80,6 @@ if ($result) {
 	while ($obj = $db->fetch_object($result)) {
 		$templateOptions[$obj->label] = $obj->label;
 	}
-	var_dump($result);
 }
 
 // EN: Helper to enable a PDF model in the database.
