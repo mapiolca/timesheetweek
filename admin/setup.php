@@ -359,7 +359,7 @@ if ($action === 'setquarterday') {
 	}
 }
 
-if ($reminderAction === 'savereminder') {
+if ($action === 'savereminder') {
 $reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
 $reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
 $reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
@@ -400,7 +400,7 @@ $reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'))
 }
 }
 
-	if ($reminderAction === 'testreminder') {
+	if ($action === 'testreminder') {
 	$resultTest = TimesheetweekReminder::sendTest($db, $user);
 		if ($resultTest > 0) {
 			setEventMessages($langs->trans('TimesheetWeekReminderTestSuccess', $resultTest), null, 'mesgs');
@@ -618,10 +618,11 @@ print '</table>';
 print '</div>';
 
 print '<div class="center">';
-print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
+print dolGetButtonAction('', ($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=savereminder&token='.$token);
+//print '<input type="submit" class="button" value="'.$langs->trans("Save").'">';//'<input type="submit" class="button" name="reminder_action" value="savereminder">'.$langs->trans('Save').'</input>';
 print '&nbsp;';
-print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
+print dolGetButtonAction('', ($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=testreminder&token='.$token);
+//print '<input type="submit" class="button" name="reminder_action" value="testreminder">'.$langs->trans('TimesheetWeekReminderSendTest').'</input>';
 print '</div>';
 print '</form>';
 
