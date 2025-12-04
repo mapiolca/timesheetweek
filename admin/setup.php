@@ -282,20 +282,12 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday'), true)) {
+if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday','savereminder', 'testreminder'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
                 }
         }
-}
-
-if (in_array($action, array('savereminder', 'testreminder'), true)) {
-	if (function_exists('dol_verify_token')) {
-		if (empty($token) || dol_verify_token($token) <= 0) {
-			accessforbidden();
-		}
-	}
 }
 
 // EN: Persist the chosen numbering module.
