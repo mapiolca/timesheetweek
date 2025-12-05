@@ -33,15 +33,20 @@ if (!$res && file_exists(__DIR__.'/../../../main.inc.php')) {
 		$res = require_once __DIR__.'/../../../main.inc.php';
 }
 if (!$res) {
-		die('Include of main fails');
+			die('Include of main fails');
 }
-
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
-// EN: Load document helper functions required for model toggles.
+// EN: Load email template class with backward compatibility for older Dolibarr versions.
+
+if (floatval(DOL_VERSION) < 23) {
+		dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
+} else {
+	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
+}
+
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
