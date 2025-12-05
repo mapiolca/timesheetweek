@@ -48,19 +48,6 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class TimesheetweekReminder
 {
-	/**
-	 *  Constructor
-	 *
-	 *  @param  DoliDB      $db         Database handler
-	 */
-	public function __construct(DoliDB $db)
-	{
-		global $conf, $langs ;
-		$this->db = $db;
-		//var_dump($db);
-		$this->ismultientitymanaged = 1;
-		$this->isextrafieldmanaged = 1;
-	}
 
 /**
  * Run cron job to send weekly reminder emails.
@@ -73,9 +60,8 @@ class TimesheetweekReminder
 	 */
 	public static function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
-		global $db, $conf, $langs;
+		global $conf, $langs;
 
-		/*
 		$db = $dbInstance;
 		if (empty($db) && !empty($GLOBALS['db'])) {
 			$db = $GLOBALS['db'];
@@ -85,7 +71,7 @@ class TimesheetweekReminder
 			dol_syslog($langs->transnoentitiesnoconv('ErrorNoDatabase'), LOG_ERR);
 			return -1;
 		}
-		*/
+		
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
 		$forceExecution = !empty($forcerun);
