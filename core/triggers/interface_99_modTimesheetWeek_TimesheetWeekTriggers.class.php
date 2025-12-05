@@ -243,20 +243,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
 			dol_include_once('/core/lib/functions2.lib.php');
-			$emailTemplatePath = '';
-			$moduleEmailTemplatePath = dol_buildpath('/timesheetweek/core/class/cemailtemplate.class.php', 0);
 			if (version_compare(DOL_VERSION, '23.0.0', '<')) {
-				if (is_readable($moduleEmailTemplatePath)) {
-					$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
-				}
-			} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
-				$emailTemplatePath = '/core/class/cemailtemplate.class.php';
-			}
-			if (empty($emailTemplatePath) && is_readable($moduleEmailTemplatePath)) {
-				$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
-			}
-			if (!empty($emailTemplatePath)) {
-				dol_include_once($emailTemplatePath);
+				dol_inclunde_once('/timesheetweek/core/class/cemailtemplate.class.php');
+			} else {
+				require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 			}
 			dol_include_once('/core/class/CMailFile.class.php');
 
