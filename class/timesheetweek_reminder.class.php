@@ -95,21 +95,10 @@ class TimesheetweekReminder extends CommonObject
 			}
 		}
 
-		$emailTemplateClassFile = '';
-		$moduleEmailTemplatePath = dol_buildpath('/timesheetweek/core/class/cemailtemplate.class.php', 0);
 		if (version_compare(DOL_VERSION, '23.0.0', '<')) {
-			if (is_readable($moduleEmailTemplatePath)) {
-				$emailTemplateClassFile = '/timesheetweek/core/class/cemailtemplate.class.php';
-			}
-		} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
-			$emailTemplateClassFile = '/core/class/cemailtemplate.class.php';
-		}
-		if (empty($emailTemplateClassFile) && is_readable($moduleEmailTemplatePath)) {
-			$emailTemplateClassFile = '/timesheetweek/core/class/cemailtemplate.class.php';
-		}
-
-		if (!empty($emailTemplateClassFile)) {
-			dol_include_once($emailTemplateClassFile);
+			dol_inclunde_once('/timesheetweek/core/class/cemailtemplate.class.php');
+		} else {
+			require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 		}
 
 		if (!class_exists('CEmailTemplate') && !class_exists('EmailTemplate')) {
