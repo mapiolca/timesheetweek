@@ -102,8 +102,9 @@ class TimesheetweekReminder extends CommonObject
 		}
 
 		if (!class_exists('CEmailTemplate') && !class_exists('EmailTemplate')) {
+			$this->output = $langs->trans('ErrorFailedToLoadEmailTemplateClass');
 			dol_syslog($langs->trans('ErrorFailedToLoadEmailTemplateClass'), LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		dol_syslog(__METHOD__, LOG_DEBUG);
@@ -238,8 +239,9 @@ class TimesheetweekReminder extends CommonObject
 
 		$resql = $db->query($sql);
 		if (!$resql) {
+			$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $errors.' '.$sql);
 			dol_syslog($db->lasterror(), LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$emailsSent = 0;
