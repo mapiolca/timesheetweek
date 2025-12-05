@@ -141,7 +141,7 @@ class TimesheetweekReminder extends CommonObject
 
 		list($targetHour, $targetMinute) = explode(':', $reminderHour);
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
-		$windowMinutes = 5;
+		$windowMinutes = 2.5;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
 		$upperBound = min(1439, $targetMinutes + $windowMinutes);
 
