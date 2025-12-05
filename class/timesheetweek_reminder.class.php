@@ -39,7 +39,6 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
@@ -72,6 +71,22 @@ class TimesheetweekReminder
 		}
 
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+		$emailTemplateClassFile = '';
+		if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
+			$emailTemplateClassFile = '/core/class/cemailtemplate.class.php';
+		} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplate.class.php')) {
+			$emailTemplateClassFile = '/core/class/emailtemplate.class.php';
+		}
+
+		if (!empty($emailTemplateClassFile)) {
+			dol_include_once($emailTemplateClassFile);
+		}
+
+		if (!class_exists('CEmailTemplate') && !class_exists('EmailTemplate')) {
+			dol_syslog($langs->trans('ErrorFailedToLoadEmailTemplateClass'), LOG_ERR);
+			return -1;
+		}
 
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
