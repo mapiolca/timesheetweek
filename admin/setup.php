@@ -41,7 +41,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 // EN: Load email template class with backward compatibility for older Dolibarr versions.
 
-if (floatval(DOL_VERSION) < 23)) {
+if (floatval(DOL_VERSION) < 23) {
 		dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
 } else {
 	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
