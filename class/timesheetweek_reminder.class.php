@@ -307,8 +307,8 @@ class TimesheetweekReminder extends CommonObject
 	 * @param User	 $user	Current user
 	 * @return int		<0 if KO, >=0 if OK (number of emails sent)
 	 */
-	public static function sendTest($db, User $user)
+	public function sendTest($db, User $user)
 	{
-		return run($db, 1, 1, array((int) $user->id));
+		return self::run($db, 1, 1, array((int) $user->id));
 	}
 }
