@@ -39,7 +39,6 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
@@ -73,10 +72,38 @@ class TimesheetweekReminder
 
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
+		$forceExecution = !empty($forcerun);
+		if (!$forceExecution) {
+		$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
+		}
+		if (!$forceExecution) {
+			$action = GETPOST('action', 'aZ09');
+			$confirm = GETPOST('confirm', 'alpha');
+			if ($action === 'confirm_execute' && $confirm === 'yes') {
+				$forceExecution = true;
+			}
+		}
+
+		$emailTemplateClassFile = '';
+		if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
+			$emailTemplateClassFile = '/core/class/cemailtemplate.class.php';
+		} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplate.class.php')) {
+			$emailTemplateClassFile = '/core/class/emailtemplate.class.php';
+		}
+
+		if (!empty($emailTemplateClassFile)) {
+			dol_include_once($emailTemplateClassFile);
+		}
+
+		if (!class_exists('CEmailTemplate') && !class_exists('EmailTemplate')) {
+			dol_syslog($langs->trans('ErrorFailedToLoadEmailTemplateClass'), LOG_ERR);
+			return -1;
+		}
+
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
 		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
-		if (empty($reminderEnabled) && empty($forcerun)) {
+		if (empty($reminderEnabled) && empty($forceExecution)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			return 0;
 		}
@@ -108,18 +135,18 @@ class TimesheetweekReminder
 
 		list($targetHour, $targetMinute) = explode(':', $reminderHour);
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
-		$windowMinutes = 60;
+		$windowMinutes = 5;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
-		$upperBound = min(1440, $targetMinutes + $windowMinutes);
-		
-		if (empty($forcerun)) {
+		$upperBound = min(120, $targetMinutes + $windowMinutes);
+
+		if (empty($forceExecution)) {
 			if ($currentWeekdayIso !== $reminderWeekday) {
-			dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
-			return 0;
+				dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
+				return 0;
 			}
 			if ($currentMinutes < $lowerBound || $currentMinutes > $upperBound) {
-			dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
-			return 0;
+				dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
+				return 0;
 			}
 		}
 
@@ -162,7 +189,7 @@ class TimesheetweekReminder
 
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
 		complete_substitutions_array($substitutions, $langs, null);
-		
+
 		$eligibleRights = array(
 			45000301, // read own
 			45000302, // read child
@@ -177,7 +204,7 @@ class TimesheetweekReminder
 			45000314, // seal
 			45000315, // unseal
 		);
-		
+
 		$entityFilter = getEntity('user');
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
@@ -226,7 +253,12 @@ class TimesheetweekReminder
 			$preparedSubject = make_substitutions($subject, $userSubstitutions);
 			$preparedBody = make_substitutions($body, $userSubstitutions);
 
-			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBody, array(), array(), array(), '', '', 0, 0, '', '', '', 'utf-8');
+			$preparedSubject = dol_string_nohtmltag(html_entity_decode($preparedSubject, ENT_QUOTES, 'UTF-8'));
+			$preparedBodyHtml = html_entity_decode($preparedBody, ENT_QUOTES, 'UTF-8');
+			$isHtmlBody = (!empty($preparedBodyHtml) && preg_match('/<[^>]+>/', $preparedBodyHtml)) ? 1 : 0;
+			$preparedBodyFinal = $isHtmlBody ? $preparedBodyHtml : dol_string_nohtmltag($preparedBodyHtml);
+
+			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBodyFinal, array(), array(), array(), '', '', 0, $isHtmlBody, '', '', '', 'utf-8');
 			$resultSend = $mail->sendfile();
 			if ($resultSend) {
 				$emailsSent++;
