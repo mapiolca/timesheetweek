@@ -69,14 +69,13 @@ class TimesheetweekReminder extends CommonObject
 	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
 		global $db, $conf, $user, $langs;
-		
-		if($dbInstance) {
+
+		/*
 			$db = $dbInstance;
 			if (empty($db) && !empty($GLOBALS['db'])) {
 				$db = $GLOBALS['db'];
 			}
-		}
-		
+		*/
 		if (empty($db)) {
 			dol_syslog($langs->transnoentitiesnoconv('ErrorNoDatabase'), LOG_ERR);
 			return -1;
