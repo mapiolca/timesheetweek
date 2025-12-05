@@ -42,7 +42,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 // EN: Load email template class with backward compatibility for older Dolibarr versions.
 
 if (version_compare(DOL_VERSION, '23.0.0', '<')) {
-		dol_inclunde_once('/timesheetweek/core/class/cemailtemplate.class.php');
+		dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
 } else {
 	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 }
