@@ -979,6 +979,54 @@ class modTimesheetWeek extends DolibarrModules
 			return -1;
 		}
 
+		// EN: When enabling the cron job, make sure next run is computed for older Dolibarr versions.
+		// FR: Lors de l'activation du cron, s'assurer que la prochaine exécution est calculée pour les versions plus anciennes de Dolibarr.
+		if ($statusValue === 1) {
+			$now = dol_now();
+			$sqlSelect = 'SELECT rowid, datestart, datenextrun, frequency, unitfrequency';
+			$sqlSelect .= ' FROM '.MAIN_DB_PREFIX."cronjob";
+			$sqlSelect .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
+			$sqlSelect .= " AND (datenextrun IS NULL OR datenextrun <= 0 OR datestart IS NULL OR datestart <= 0)";
+
+			$resqlSelect = $this->db->query($sqlSelect);
+			if (!$resqlSelect) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+
+			while ($obj = $this->db->fetch_object($resqlSelect)) {
+				$startTs = (int) $this->db->jdate($obj->datestart);
+				$nextTs = (int) $this->db->jdate($obj->datenextrun);
+				$interval = ((int) $obj->frequency * (int) $obj->unitfrequency);
+
+				// EN: Fallback to now when start date is missing to unblock scheduling.
+				// FR: Repli sur la date courante quand la date de début est absente pour débloquer la planification.
+				if ($startTs <= 0) {
+					$startTs = $now;
+				}
+
+				// EN: Compute next run when Dolibarr did not populate it (notably on v21).
+				// FR: Calculer la prochaine exécution quand Dolibarr ne l'a pas renseignée (notamment en v21).
+				if ($nextTs <= 0 && $interval > 0) {
+					$nextTs = $startTs + $interval;
+				}
+
+				$updateSql = 'UPDATE '.MAIN_DB_PREFIX.'cronjob';
+				$updateSql .= ' SET datestart = '.$this->db->idate($startTs).', datenextrun = '.$this->db->idate($nextTs);
+				$updateSql .= ' WHERE rowid = '.((int) $obj->rowid);
+
+				$updateRes = $this->db->query($updateSql);
+				if (!$updateRes) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$this->db->free($resqlSelect);
+		}
+
 		return 1;
 	}
+
+
 }
