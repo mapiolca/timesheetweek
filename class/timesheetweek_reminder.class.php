@@ -66,7 +66,7 @@ class TimesheetweekReminder extends CommonObject
 	 * @param array	 $targetUserIds Limit execution to specific user ids when provided
 	 * @return int		     <0 if KO, >=0 if OK (number of emails sent)
 	 */
-	public function run($limit = 0, $forcerun = 0, array $targetUserIds = array()) //$dbInstance = null, 
+	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array()) //$dbInstance = null, 
 	{
 		global $db, $conf, $user, $langs;
 
