@@ -246,20 +246,20 @@ class TimesheetweekReminder extends CommonObject
 				continue;
 			}
 
-			$user = new User($db);
-			$fetchUser = $user->fetch($obj->rowid);
+			$recipientUser = new User($db);
+			$fetchUser = $recipientUser->fetch($obj->rowid);
 			if ($fetchUser < 0) {
-				dol_syslog($user->error, LOG_ERR);
+				dol_syslog($recipientUser->error, LOG_ERR);
 				$errors++;
 				continue;
 			}
 
 			$userSubstitutions = $substitutions;
-			$userSubstitutions['__USER_FIRSTNAME__'] = $user->firstname;
-			$userSubstitutions['__USER_LASTNAME__'] = $user->lastname;
-			$userSubstitutions['__USER_FULLNAME__'] = dolGetFirstLastname($user->firstname, $user->lastname);
+			$userSubstitutions['__USER_FIRSTNAME__'] = $recipientUser->firstname;
+			$userSubstitutions['__USER_LASTNAME__'] = $recipientUser->lastname;
+			$userSubstitutions['__USER_FULLNAME__'] = dolGetFirstLastname($recipientUser->firstname, $recipientUser->lastname);
 			$userSubstitutions['__USER_EMAIL__'] = $recipient;
-			complete_substitutions_array($userSubstitutions, $langs, null, $user);
+			complete_substitutions_array($userSubstitutions, $langs, null, $recipientUser);
 
 			$preparedSubject = make_substitutions($subject, $userSubstitutions);
 			$preparedBody = make_substitutions($body, $userSubstitutions);
