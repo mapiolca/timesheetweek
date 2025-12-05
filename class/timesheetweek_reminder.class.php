@@ -123,8 +123,9 @@ class TimesheetweekReminder extends CommonObject
 
 		$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00', $conf->entity);
 		if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHour)) {
+			$this->output = $langs->trans('TimesheetWeekReminderHourInvalid');
 			dol_syslog($langs->trans('TimesheetWeekReminderHourInvalid'), LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
