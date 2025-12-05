@@ -40,6 +40,60 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 		FOREIGN KEY (fk_user_valid) REFERENCES llx_user (rowid)
 ) ENGINE=innodb;
 
+
+-- EN: Insert default weekly reminder email template when full email columns exist with code
+INSERT INTO llx_c_email_templates (
+entity,
+private,
+module,
+type_template,
+label,
+lang,
+position,
+active,
+enabled,
+joinfiles,
+email_from,
+email_to,
+email_tocc,
+email_tobcc,
+topic,
+content
+)
+SELECT
+0,
+0,
+'timesheetweek',
+'timesheetweek',
+'TIMESHEETWEEK_REMINDER',
+'fr_FR',
+0,
+1,
+1,
+0,
+'',
+'',
+'',
+'',
+'Rappel d''envoi des feuilles d''heures',
+'Bonjour __TSW_USER_FIRSTNAME__,\\nMerci de soumettre votre feuille d''heures de la semaine pour lundi 8h.\\n__TSW_TIMESHEET_NEW_URL__\\nBon weekend, __TSW_DOLIBARR_TITLE__'
+WHERE EXISTS (
+SELECT 1
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+AND TABLE_NAME = 'llx_c_email_templates'
+AND COLUMN_NAME IN ('email_tocc', 'email_tobcc', 'email_from', 'email_to', 'joinfiles')
+GROUP BY TABLE_NAME
+HAVING COUNT(DISTINCT COLUMN_NAME) = 6
+)
+AND NOT EXISTS (
+SELECT 1
+FROM llx_c_email_templates
+WHERE module = 'timesheetweek'
+AND entity IN (0, 1)
+AND label = 'TIMESHEETWEEK_REMINDER'
+);
+
 -- TimesheetWeek - lines
 CREATE TABLE IF NOT EXISTS llx_timesheet_week_line (
 	rowid INT AUTO_INCREMENT PRIMARY KEY,

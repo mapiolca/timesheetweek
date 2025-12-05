@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.5.0';
+		$this->version = '1.6.0';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -309,20 +309,20 @@ class modTimesheetWeek extends DolibarrModules
 		// unit_frequency must be 60 for minute, 3600 for hour, 86400 for day, 604800 for week
 		/* BEGIN MODULEBUILDER CRON */
 		$this->cronjobs = array(
-			//  0 => array(
-			//      'label' => 'MyJob label',
-			//      'jobtype' => 'method',
-			//      'class' => '/timesheetweek/class/timesheetweek.class.php',
-			//      'objectname' => 'TimesheetWeek',
-			//      'method' => 'doScheduledJob',
-			//      'parameters' => '',
-			//      'comment' => 'Comment',
-			//      'frequency' => 2,
-			//      'unitfrequency' => 3600,
-			//      'status' => 0,
-			//      'test' => 'isModEnabled("timesheetweek")',
-			//      'priority' => 50,
-			//  ),
+			0 => array(
+				'label' => 'TimesheetWeekReminderCronLabel',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweek_reminder.class.php',
+				'objectname' => 'TimesheetweekReminder',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekReminderCronComment',
+				'frequency' => 5,
+				'unitfrequency' => 60,
+				'status' => 1,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(
@@ -777,37 +777,71 @@ class modTimesheetWeek extends DolibarrModules
 		$extrafields->fetch_name_optionals_label('user');
 		$dailyRateVisibility = '-1';
 		$dailyRateSharedEntity = '0';
-		if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
-			// EN: Register the daily rate toggle on employees when the module is activated.
-			// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
-			$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-		} else {
-			// EN: Align the existing daily rate toggle with the latest visibility and sharing rules.
-			// FR: Aligne l'option de forfait jour existante avec les nouvelles règles de visibilité et de partage.
-			$extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-		}
+			if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
+				// EN: Register the daily rate toggle on employees when the module is activated.
+				// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
+				$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+			} else {
+				// EN: Avoid reapplying updates on the daily rate toggle to prevent redundant schema operations.
+				// FR: Éviter de réappliquer les mises à jour du forfait jour pour prévenir les opérations de schéma redondantes.
+				$currentVisibility = (string) ($extrafields->attributes['user']['visible']['lmdb_daily_rate'] ?? '');
+				$currentSharedEntity = (string) ($extrafields->attributes['user']['shared']['lmdb_daily_rate'] ?? '');
+				$currentType = (string) ($extrafields->attributes['user']['type']['lmdb_daily_rate'] ?? '');
+				$requiresUpdate = ($currentType !== 'boolean' || $currentVisibility !== $dailyRateVisibility || $currentSharedEntity !== $dailyRateSharedEntity);
+				if ($requiresUpdate) {
+					// EN: Refresh the existing daily rate toggle only when its definition diverges from the expected one.
+					// FR: Rafraîchir l'option de forfait jour existante uniquement lorsque sa définition diverge de celle attendue.
+					$resultUpdateDailyRate = $extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+					if ($resultUpdateDailyRate < 0) {
+						$this->error = $extrafields->error;
+						return -1;
+					}
+				}
+			}
 
-		// EN: Ensure existing installations receive the daily_rate column for time entries.
-		// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
-		$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
-		$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
-		if (!$resqlCheckDailyRate) {
-			// EN: Abort activation when the structure verification query fails.
-			// FR: Interrompt l'activation si la requête de vérification de structure échoue.
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-		$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
-		$this->db->free($resqlCheckDailyRate);
-		if (!$hasDailyRateColumn) {
-			$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
-			if (!$this->db->query($sqlAdd)) {
-				// EN: Stop activation when adding the column fails to keep database consistent.
-				// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
+			// EN: Ensure existing installations receive the daily_rate column for time entries.
+			// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
+			$sqlCheckDailyRate = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week_line LIKE 'daily_rate'";
+			$resqlCheckDailyRate = $this->db->query($sqlCheckDailyRate);
+			if (!$resqlCheckDailyRate) {
+				// EN: Abort activation when the structure verification query fails.
+				// FR: Interrompt l'activation si la requête de vérification de structure échoue.
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
-		}
+			$hasDailyRateColumn = (bool) $this->db->num_rows($resqlCheckDailyRate);
+			$this->db->free($resqlCheckDailyRate);
+			if (!$hasDailyRateColumn) {
+				$sqlAdd = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week_line ADD COLUMN daily_rate INT NOT NULL DEFAULT 0";
+				if (!$this->db->query($sqlAdd)) {
+					// EN: Stop activation when adding the column fails to keep database consistent.
+					// FR: Stoppe l'activation si l'ajout de la colonne échoue pour conserver une base cohérente.
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			// EN: Ensure existing installations keep the PDF model column on weekly sheets.
+			// FR: Garantit que les installations existantes conservent la colonne du modèle PDF sur les feuilles hebdomadaires.
+			$sqlCheckModelPdf = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'model_pdf'";
+			$resqlCheckModelPdf = $this->db->query($sqlCheckModelPdf);
+			if (!$resqlCheckModelPdf) {
+				// EN: Abort activation when the PDF model check fails.
+				// FR: Interrompre l'activation si la vérification du modèle PDF échoue.
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasModelPdfColumn = (bool) $this->db->num_rows($resqlCheckModelPdf);
+			$this->db->free($resqlCheckModelPdf);
+			if (!$hasModelPdfColumn) {
+				$sqlAddModelPdf = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN model_pdf VARCHAR(255) DEFAULT NULL AFTER status";
+				if (!$this->db->query($sqlAddModelPdf)) {
+					// EN: Stop activation if adding the PDF model column fails to preserve schema consistency.
+					// FR: Stopper l'activation si l'ajout de la colonne de modèle PDF échoue pour préserver la cohérence du schéma.
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
 
 		// Permissions
 		$this->remove($options);
@@ -845,83 +879,106 @@ class modTimesheetWeek extends DolibarrModules
 				dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
 			}
 
-		// EN: Register Multicompany sharing metadata when the module is enabled.
-                // FR: Enregistrer les métadonnées de partage Multicompany lors de l'activation du module.
-                dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		// Register Multicompany sharing metadata when the module is enabled.
+		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 
-                // EN: Start from the current external module sharing configuration or an empty set.
-                // FR: Partir de la configuration de partage des modules externes actuelle ou d'un ensemble vide.
-                $externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-                if (!is_array($externalmodule)) {
-                        // EN: Guarantee an array structure even when the constant is missing or invalid.
-                        // FR: Garantir une structure de tableau même lorsque la constante est absente ou invalide.
-                        $externalmodule = array();
-                }
+		// Start from the current external module sharing configuration or an empty set.
+		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
+		if (!is_array($externalmodule)) {
+			// Guarantee an array structure even when the constant is missing or invalid.
+			$externalmodule = array();
+		}
 
-                // EN: Initialize the parameters container before filling it with sharing data.
-                // FR: Initialiser le conteneur de paramètres avant de le remplir avec les données de partage.
-                $params = array();
-                if (class_exists('ActionsTimesheetweek')) {
-                        // EN: Reuse the hook helper to expose the sharing parameters to Multicompany.
-                        // FR: Réutiliser l'assistant de hook pour exposer les paramètres de partage à Multicompany.
-                        $params = ActionsTimesheetweek::getMulticompanySharingDefinition();
-                }
+		// Initialize the parameters container before filling it with sharing data.
+		$params = array();
+		if (class_exists('ActionsTimesheetweek')) {
+			// Reuse the hook helper to expose the sharing parameters to Multicompany.
+			$params = ActionsTimesheetweek::getMulticompanySharingDefinition();
+		}
 
-                if (!empty($params)) {
-                        // EN: Merge TimesheetWeek definitions with any existing external module configuration.
-                        // FR: Fusionner les définitions TimesheetWeek avec toute configuration de module externe existante.
-                        $externalmodule = array_merge($externalmodule, $params);
+		if (!empty($params)) {
+			// Merge TimesheetWeek definitions with any existing external module configuration.
+			$externalmodule = array_merge($externalmodule, $params);
 
-                        // EN: Persist the refreshed configuration in the Dolibarr constants table.
-                        // FR: Persister la configuration actualisée dans la table des constantes de Dolibarr.
-                        $jsonformat = json_encode($externalmodule);
-                        dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
-                }
+			// Persist the refreshed configuration in the Dolibarr constants table.
+			$jsonformat = json_encode($externalmodule);
+			dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
+		}
 
-                return $this->_init($sql, $options);
+		$resultInit = $this->_init($sql, $options);
+		if ($resultInit <= 0) {
+			return $resultInit;
+		}
+
+		$cronStatus = $this->setReminderCronStatus(1);
+		if ($cronStatus < 0) {
+			return $cronStatus;
+		}
+
+		return $resultInit;
 	}
 
 	/**
-	 *	Function called when module is disabled.
-	 *	Remove from database constants, boxes and permissions from Dolibarr database.
-	 *	Data directories are not deleted
+	 *      Function called when module is disabled.
+	 *      Remove from database constants, boxes and permissions from Dolibarr database.
+	 *      Data directories are not deleted
 	 *
-	 *	@param	string		$options	Options when enabling module ('', 'noboxes')
-	 *	@return	int<-1,1>				1 if OK, <=0 if KO
+	 *      @param  string          $options        Options when enabling module ('', 'noboxes')
+	 *      @return int<-1,1>                               1 if OK, <=0 if KO
 	 */
 	public function remove($options = '')
 	{
-                // EN: Access the global configuration to manipulate stored constants.
-                // FR: Accéder à la configuration globale pour manipuler les constantes stockées.
-                global $conf;
+		// Access the global configuration to manipulate stored constants.
+		global $conf;
 
-                // EN: Load the hook helper to clean the sharing definition on deactivation.
-                // FR: Charger l'assistant de hook pour nettoyer la définition de partage à la désactivation.
-                dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		// Load the hook helper to clean the sharing definition on deactivation.
+		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 
-                // EN: Decode the current external module sharing configuration safely.
-                // FR: Décoder prudemment la configuration de partage des modules externes actuelle.
-                $externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-                if (!is_array($externalmodule)) {
-                        // EN: Fallback to an empty array when the stored value is not valid JSON.
-                        // FR: Revenir à un tableau vide lorsque la valeur stockée n'est pas un JSON valide.
-                        $externalmodule = array();
-                }
+		// Decode the current external module sharing configuration safely.
+		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
+		if (!is_array($externalmodule)) {
+			// Fallback to an empty array when the stored value is not valid JSON.
+			$externalmodule = array();
+		}
 
-                // EN: Determine the key used to store TimesheetWeek sharing data.
-                // FR: Déterminer la clé utilisée pour stocker les données de partage TimesheetWeek.
-                $sharingKey = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::MULTICOMPANY_SHARING_ROOT_KEY : 'timesheetweek';
+		// Determine the key used to store TimesheetWeek sharing data.
+		$sharingKey = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::MULTICOMPANY_SHARING_ROOT_KEY : 'timesheetweek';
 
-                // EN: Remove the module definition so Multicompany forgets our sharing options.
-                // FR: Retirer la définition du module pour que Multicompany oublie nos options de partage.
-                unset($externalmodule[$sharingKey]);
+		// Remove the module definition so Multicompany forgets our sharing options.
+		unset($externalmodule[$sharingKey]);
 
-                // EN: Persist the cleaned configuration back into Dolibarr constants.
-                // FR: Persister la configuration nettoyée dans les constantes Dolibarr.
-                $jsonformat = json_encode($externalmodule);
-                dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
+		// Persist the cleaned configuration back into Dolibarr constants.
+		$jsonformat = json_encode($externalmodule);
+		dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
 
-                $sql = array();
-                return $this->_remove($sql, $options);
-        }
+		$this->setReminderCronStatus(0);
+
+		$sql = array();
+		return $this->_remove($sql, $options);
+	}
+
+	/**
+	 * Update the cron status for the reminder job.
+	 *
+	 * @param int $status Target status (1 enabled, 0 disabled)
+	 * @return int        1 if OK, <0 if error
+	 */
+	protected function setReminderCronStatus($status)
+	{
+		if (empty($this->db)) {
+			return -1;
+		}
+
+		$statusValue = ((int) $status === 1) ? 1 : 0;
+		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
+		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return 1;
+	}
 }
