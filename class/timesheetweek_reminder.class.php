@@ -72,6 +72,11 @@ class TimesheetweekReminder
 
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
+		$forceExecution = !empty($forcerun);
+		if (!$forceExecution) {
+			$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
+		}
+
 		$emailTemplateClassFile = '';
 		if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
 			$emailTemplateClassFile = '/core/class/cemailtemplate.class.php';
@@ -91,7 +96,7 @@ class TimesheetweekReminder
 		dol_syslog(__METHOD__, LOG_DEBUG);
 
 		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
-		if (empty($reminderEnabled) && empty($forcerun)) {
+		if (empty($reminderEnabled) && empty($forceExecution)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			return 0;
 		}
@@ -126,15 +131,15 @@ class TimesheetweekReminder
 		$windowMinutes = 60;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
 		$upperBound = min(1440, $targetMinutes + $windowMinutes);
-		
-		if (empty($forcerun)) {
+
+		if (empty($forceExecution)) {
 			if ($currentWeekdayIso !== $reminderWeekday) {
-			dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
-			return 0;
+				dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
+				return 0;
 			}
 			if ($currentMinutes < $lowerBound || $currentMinutes > $upperBound) {
-			dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
-			return 0;
+				dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
+				return 0;
 			}
 		}
 
@@ -177,7 +182,7 @@ class TimesheetweekReminder
 
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
 		complete_substitutions_array($substitutions, $langs, null);
-		
+
 		$eligibleRights = array(
 			45000301, // read own
 			45000302, // read child
@@ -192,7 +197,7 @@ class TimesheetweekReminder
 			45000314, // seal
 			45000315, // unseal
 		);
-		
+
 		$entityFilter = getEntity('user');
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
