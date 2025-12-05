@@ -309,6 +309,6 @@ class TimesheetweekReminder extends CommonObject
 	 */
 	public static function sendTest($db, User $user)
 	{
-		return self::run($db, 1, 1, array((int) $user->id));
+		return run($db, 1, 1, array((int) $user->id));
 	}
 }
