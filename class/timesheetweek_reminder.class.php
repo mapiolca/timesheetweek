@@ -46,7 +46,7 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 /**
  * Cron helper used to send weekly reminders.
  */
-class TimesheetweekReminder
+class TimesheetweekReminder extends CommonObject
 {
 	public $db;
     public $error;
@@ -309,6 +309,6 @@ class TimesheetweekReminder
 	 */
 	public static function sendTest($db, User $user)
 	{
-		return self:run($db, 1, 1, array((int) $user->id));
+		return self::run($db, 1, 1, array((int) $user->id));
 	}
 }
