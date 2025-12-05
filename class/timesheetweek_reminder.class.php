@@ -214,10 +214,10 @@ class TimesheetweekReminder extends CommonObject
 		$entityFilter = getEntity('user');
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
-		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
+		//$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
 		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
 		$sql .= ' AND u.entity IN ('.$entityFilter.')';
-		$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
+		//$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
 		if (!empty($targetUserIds)) {
 			$sql .= ' AND u.rowid IN ('.implode(',', array_map('intval', $targetUserIds)).')';
 		}
@@ -265,7 +265,7 @@ class TimesheetweekReminder extends CommonObject
 			$preparedBodyFinal = $isHtmlBody ? $preparedBodyHtml : dol_string_nohtmltag($preparedBodyHtml);
 
 			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBodyFinal, array(), array(), array(), '', '', 0, $isHtmlBody, '', '', '', 'utf-8');
-			$resultSend = $mail->sendfile();
+			//$resultSend = $mail->sendfile();
 			if ($resultSend) {
 				$emailsSent++;
 				dol_syslog($langs->trans('TimesheetWeekReminderSendSuccess', $recipient), LOG_INFO);
@@ -276,17 +276,11 @@ class TimesheetweekReminder extends CommonObject
 		}
 
 		$db->free($resql);
-
-/*		if ($errors > 0) {
-			return -$errors;
-		}*/
-
-//		return $emailsSent;
 		
-		if ($errors) {
-            $this->error = $langs->trans('TimesheetWeekReminderSendFailed', $errors);
+		if ($errors != 0) {
+            $this->output = $langs->trans('TimesheetWeekReminderSendFailed', $errors.' '.$recipient.' '.$sql);
             dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
-            return 1;
+            return 0;
         }else{
             $this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
             dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
