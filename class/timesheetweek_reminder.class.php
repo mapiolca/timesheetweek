@@ -271,11 +271,21 @@ class TimesheetweekReminder
 
 		$db->free($resql);
 
-		if ($errors > 0) {
+/*		if ($errors > 0) {
 			return -$errors;
-		}
+		}*/
 
-		return $emailsSent;
+//		return $emailsSent;
+		
+		if ($errors) {
+            $this->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
+            dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
+            return 1;
+        }else{
+            $this->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
+            dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
+            return 0;
+        }
 	}
 
 	/**
