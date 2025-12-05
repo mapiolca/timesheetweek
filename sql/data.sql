@@ -7,5 +7,5 @@ INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_u
         'isModEnabled(\"timesheetweek\")',
         NULL,
         "Rappel Feuilles d\'heures hebodmadaires",
-        "Bonjour,<div style=\"margin-left:40px\"><br>Merci de soumettre vos feuilles d\'heures de la semaine pour lundi matin 8h.</div><div style=\"margin-left:80px\"><br>Bon week-end.</div>
-;
+        "Bonjour,<div style=\"margin-left:40px\"><br>Merci de soumettre vos feuilles d\'heures de la semaine pour lundi matin 8h.</div><div style=\"margin-left:80px\"><br>Bon week-end.</div>"
+    );
