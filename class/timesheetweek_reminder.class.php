@@ -75,8 +75,8 @@ class TimesheetweekReminder
 	{
 		global $db, $conf, $langs;
 
-		$db = $dbInstance;
 		/*
+		$db = $dbInstance;
 		if (empty($db) && !empty($GLOBALS['db'])) {
 			$db = $GLOBALS['db'];
 		}
