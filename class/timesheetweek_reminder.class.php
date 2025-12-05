@@ -143,7 +143,7 @@ class TimesheetweekReminder extends CommonObject
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
 		$windowMinutes = 5;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
-		$upperBound = min(120, $targetMinutes + $windowMinutes);
+		$upperBound = min(1439, $targetMinutes + $windowMinutes);
 
 		if (empty($forceExecution)) {
 			if ($currentWeekdayIso !== $reminderWeekday) {
