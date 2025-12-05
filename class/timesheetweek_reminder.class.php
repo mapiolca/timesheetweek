@@ -116,8 +116,9 @@ class TimesheetweekReminder extends CommonObject
 
 		$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1, $conf->entity);
 		if ($reminderWeekday < 1 || $reminderWeekday > 7) {
+			$this->output = $langs->trans('TimesheetWeekReminderWeekdayInvalid');
 			dol_syslog($langs->trans('TimesheetWeekReminderWeekdayInvalid'), LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00', $conf->entity);
