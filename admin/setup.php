@@ -40,21 +40,13 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 // EN: Load email template class with backward compatibility for older Dolibarr versions.
-$emailTemplatePath = '';
-$moduleEmailTemplatePath = dol_buildpath('/timesheetweek/core/class/cemailtemplate.class.php', 0);
+
 if (version_compare(DOL_VERSION, '23.0.0', '<')) {
-	if (is_readable($moduleEmailTemplatePath)) {
-		$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
-	}
-} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
-	$emailTemplatePath = '/core/class/cemailtemplate.class.php';
+		dol_inclunde_once('/timesheetweek/core/class/cemailtemplate.class.php');
+} else {
+	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 }
-if (empty($emailTemplatePath) && is_readable($moduleEmailTemplatePath)) {
-	$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
-}
-if (!empty($emailTemplatePath)) {
-	dol_include_once($emailTemplatePath);
-}
+
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
