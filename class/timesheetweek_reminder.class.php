@@ -135,9 +135,9 @@ class TimesheetweekReminder
 
 		list($targetHour, $targetMinute) = explode(':', $reminderHour);
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
-		$windowMinutes = 60;
+		$windowMinutes = 5;
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
-		$upperBound = min(1440, $targetMinutes + $windowMinutes);
+		$upperBound = min(120, $targetMinutes + $windowMinutes);
 
 		if (empty($forceExecution)) {
 			if ($currentWeekdayIso !== $reminderWeekday) {
