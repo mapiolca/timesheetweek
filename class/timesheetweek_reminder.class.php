@@ -73,18 +73,19 @@ class TimesheetweekReminder
 	 */
 	public static function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
-		global $conf, $langs;
+		global $db, $conf, $langs;
 
 		$db = $dbInstance;
+		/*
 		if (empty($db) && !empty($GLOBALS['db'])) {
 			$db = $GLOBALS['db'];
 		}
-
+		
 		if (empty($db)) {
 			dol_syslog($langs->transnoentitiesnoconv('ErrorNoDatabase'), LOG_ERR);
 			return -1;
 		}
-
+		*/
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
 		$forceExecution = !empty($forcerun);
