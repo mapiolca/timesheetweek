@@ -265,7 +265,7 @@ class TimesheetweekReminder extends CommonObject
 			$preparedBodyFinal = $isHtmlBody ? $preparedBodyHtml : dol_string_nohtmltag($preparedBodyHtml);
 
 			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBodyFinal, array(), array(), array(), '', '', 0, $isHtmlBody, '', '', '', 'utf-8');
-			//$resultSend = $mail->sendfile();
+			$resultSend = $mail->sendfile();
 			if ($resultSend) {
 				$emailsSent++;
 				dol_syslog($langs->trans('TimesheetWeekReminderSendSuccess', $recipient), LOG_INFO);
