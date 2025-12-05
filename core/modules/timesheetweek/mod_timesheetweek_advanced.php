@@ -146,7 +146,7 @@ class mod_timesheetweek_advanced extends ModeleNumRefTimesheetWeek
 
 		$date = $object->date_creation;
 
-		$numFinal = get_next_value($db, $mask, 'timesheetweek_timesheetweek', 'ref', '', '', $date);
+		$numFinal = get_next_value($db, $mask, 'timesheet_week', 'ref', '', '', $date);
 
 		return  $numFinal;
 	}
