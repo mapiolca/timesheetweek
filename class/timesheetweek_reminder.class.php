@@ -213,12 +213,20 @@ class TimesheetweekReminder extends CommonObject
 			45000315, // unseal
 		);
 
+		
 		$entityFilter = getEntity('user');
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
 		//$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
 		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
-		$sql .= ' AND u.entity IN ('.$entityFilter.')';
+		if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
+			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."usergroup_user as ug";
+			$sql .= " ON ((ug.fk_user = u.rowid";
+			$sql .= " AND ug.entity IN (".getEntity('usergroup')."))";
+			$sql .= " OR u.entity = 0)"; // Show always superadmin
+		} else {
+			$sql .= ' AND u.entity IN ('.getEntity("user").')'; //$sql .= " WHERE (u.entity IN (".getEntity('user')."))";
+		}
 		//$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
 		if (!empty($targetUserIds)) {
 			$sql .= ' AND u.rowid IN ('.implode(',', array_map('intval', $targetUserIds)).')';
