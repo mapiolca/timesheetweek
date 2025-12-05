@@ -393,7 +393,7 @@ $reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 
 		$reminder = new TimesheetweekReminder($db);
 		$resultTest = $reminder->sendTest($db, $user); //$resultTest = TimesheetweekReminder::sendTest($db, $user);
 		var_dump($resultTest);
-		if ($resultTest > 0) {
+		if ($resultTest == 0) {
 			setEventMessages($langs->trans('TimesheetWeekReminderTestSuccess', $resultTest), null, 'mesgs');
 		} else {
 			setEventMessages($langs->trans('TimesheetWeekReminderTestError'), null, 'errors');
