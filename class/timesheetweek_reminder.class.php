@@ -74,7 +74,14 @@ class TimesheetweekReminder
 
 		$forceExecution = !empty($forcerun);
 		if (!$forceExecution) {
-			$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
+		$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
+		}
+		if (!$forceExecution) {
+			$action = GETPOST('action', 'aZ09');
+			$confirm = GETPOST('confirm', 'alpha');
+			if ($action === 'confirm_execute' && $confirm === 'yes') {
+				$forceExecution = true;
+			}
 		}
 
 		$emailTemplateClassFile = '';
@@ -246,7 +253,12 @@ class TimesheetweekReminder
 			$preparedSubject = make_substitutions($subject, $userSubstitutions);
 			$preparedBody = make_substitutions($body, $userSubstitutions);
 
-			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBody, array(), array(), array(), '', '', 0, 0, '', '', '', 'utf-8');
+			$preparedSubject = dol_string_nohtmltag(html_entity_decode($preparedSubject, ENT_QUOTES, 'UTF-8'));
+			$preparedBodyHtml = html_entity_decode($preparedBody, ENT_QUOTES, 'UTF-8');
+			$isHtmlBody = (!empty($preparedBodyHtml) && preg_match('/<[^>]+>/', $preparedBodyHtml)) ? 1 : 0;
+			$preparedBodyFinal = $isHtmlBody ? $preparedBodyHtml : dol_string_nohtmltag($preparedBodyHtml);
+
+			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBodyFinal, array(), array(), array(), '', '', 0, $isHtmlBody, '', '', '', 'utf-8');
 			$resultSend = $mail->sendfile();
 			if ($resultSend) {
 				$emailsSent++;
