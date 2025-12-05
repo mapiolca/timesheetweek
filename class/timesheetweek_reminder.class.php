@@ -48,9 +48,17 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class TimesheetweekReminder
 {
+	public $db;
+    public $error;
+    public $errors = array();
+    public $output;
 
-/**
- * Run cron job to send weekly reminder emails.
+    public function __construct(DoliDB $db)
+    {
+        $this->db = $db;
+    }
+	/**
+ 	* Run cron job to send weekly reminder emails.
 	 *
 	 * @param DoliDB $db	     Database handler
 	 * @param int	 $limit	     Optional limit for recipients
@@ -58,9 +66,9 @@ class TimesheetweekReminder
 	 * @param array	 $targetUserIds Limit execution to specific user ids when provided
 	 * @return int		     <0 if KO, >=0 if OK (number of emails sent)
 	 */
-	public static function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
+	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
-		global $conf, $langs;
+		global $db, $conf, $user, $langs;
 
 		$db = $dbInstance;
 		if (empty($db) && !empty($GLOBALS['db'])) {
@@ -280,14 +288,14 @@ class TimesheetweekReminder
 //		return $emailsSent;
 		
 		if ($errors) {
-			$result = 1;
-            $result->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
-            dol_syslog(__METHOD__." end - ".$result->error, LOG_ERR);
+			//$result = 1;
+            $this->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
+            dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
             return $result;
         }else{
-			$result = 0;
-            $result->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
-            dol_syslog(__METHOD__." end - ".$result->output, LOG_INFO);
+			//$result = 0;
+            $this->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
+            dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
             return $result;
         }
 	}
