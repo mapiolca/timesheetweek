@@ -280,13 +280,15 @@ class TimesheetweekReminder
 //		return $emailsSent;
 		
 		if ($errors) {
-            $this->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
-            dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
-            return 1;
+			$result = 1;
+            $result->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
+            dol_syslog(__METHOD__." end - ".$result->error, LOG_ERR);
+            return $result;
         }else{
-            $this->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
-            dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
-            return 0;
+			$result = 0;
+            $result->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
+            dol_syslog(__METHOD__." end - ".$result->output, LOG_INFO);
+            return $result;
         }
 	}
 
