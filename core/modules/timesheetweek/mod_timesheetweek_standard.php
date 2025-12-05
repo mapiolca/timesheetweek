@@ -93,7 +93,7 @@ class mod_timesheetweek_standard extends ModeleNumRefTimesheetWeek
 
 		$posindice = strlen($this->prefix) + 6;
 		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
-		$sql .= " FROM ".$db->prefix()."timesheetweek_timesheetweek";
+		$sql .= " FROM ".$db->prefix()."timesheetweek_week";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefix)."____-%'";
 
 		$resql = $db->query($sql);
@@ -126,7 +126,7 @@ class mod_timesheetweek_standard extends ModeleNumRefTimesheetWeek
 		// first we get the max value
 		$posindice = strlen($this->prefix) + 6;
 		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
-		$sql .= " FROM ".$db->prefix()."timesheetweek_timesheetweek";
+		$sql .= " FROM ".$db->prefix()."timesheetweek_week";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefix)."____-%'";
 
 		$resql = $db->query($sql);
