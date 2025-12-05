@@ -43,6 +43,20 @@ require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 /**
+ *  Constructor
+ *
+ *  @param  DoliDB      $db         Database handler
+ */
+public function __construct(DoliDB $db)
+{
+	global $conf, $langs ;
+	$this->db = $db;
+	//var_dump($db);
+	$this->ismultientitymanaged = 1;
+	$this->isextrafieldmanaged = 1;
+}
+
+/**
  * Cron helper used to send weekly reminders.
  */
 class TimesheetweekReminder
@@ -278,12 +292,12 @@ class TimesheetweekReminder
 //		return $emailsSent;
 		
 		if ($errors) {
-            $cron_error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
-            dol_syslog(__METHOD__." end - ".$cron_error, LOG_ERR);
+            $this->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
+            dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
             return 1;
         }else{
-            $cron_output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
-            dol_syslog(__METHOD__." end - ".$cron_output, LOG_INFO);
+            $this->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
+            dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
             return 0;
         }
 	}
