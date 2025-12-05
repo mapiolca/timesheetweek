@@ -42,25 +42,26 @@ require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
-/**
- *  Constructor
- *
- *  @param  DoliDB      $db         Database handler
- */
-public function __construct(DoliDB $db)
-{
-	global $conf, $langs ;
-	$this->db = $db;
-	//var_dump($db);
-	$this->ismultientitymanaged = 1;
-	$this->isextrafieldmanaged = 1;
-}
 
 /**
  * Cron helper used to send weekly reminders.
  */
 class TimesheetweekReminder
 {
+	/**
+	 *  Constructor
+	 *
+	 *  @param  DoliDB      $db         Database handler
+	 */
+	public function __construct(DoliDB $db)
+	{
+		global $conf, $langs ;
+		$this->db = $db;
+		//var_dump($db);
+		$this->ismultientitymanaged = 1;
+		$this->isextrafieldmanaged = 1;
+	}
+
 /**
  * Run cron job to send weekly reminder emails.
 	 *
