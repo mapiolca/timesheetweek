@@ -289,12 +289,10 @@ class TimesheetweekReminder extends CommonObject
 //		return $emailsSent;
 		
 		if ($errors) {
-			//$result = 1;
             $this->error = $langs->trans('TimesheetWeekReminderSendFailed').' '.$errors;
             dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
             return 1;
         }else{
-			//$result = 0;
             $this->output = $langs->trans('TimesheetWeekReminderSendSuccess')." ".$emailsSent.".";
             dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
             return 0;
