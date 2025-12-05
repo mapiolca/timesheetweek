@@ -242,13 +242,23 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return 0;
                 }
 
-               dol_include_once('/core/lib/functions2.lib.php');
-               if (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplates.class.php')) {
-                        dol_include_once('/core/class/cemailtemplates.class.php');
-                } elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/emailtemplates.class.php')) {
-                        dol_include_once('/core/class/emailtemplates.class.php');
-                }
-                dol_include_once('/core/class/CMailFile.class.php');
+			dol_include_once('/core/lib/functions2.lib.php');
+			$emailTemplatePath = '';
+			$moduleEmailTemplatePath = dol_buildpath('/timesheetweek/core/class/cemailtemplate.class.php', 0);
+			if (version_compare(DOL_VERSION, '23.0.0', '<')) {
+				if (is_readable($moduleEmailTemplatePath)) {
+					$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
+				}
+			} elseif (is_readable(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
+				$emailTemplatePath = '/core/class/cemailtemplate.class.php';
+			}
+			if (empty($emailTemplatePath) && is_readable($moduleEmailTemplatePath)) {
+				$emailTemplatePath = '/timesheetweek/core/class/cemailtemplate.class.php';
+			}
+			if (!empty($emailTemplatePath)) {
+				dol_include_once($emailTemplatePath);
+			}
+			dol_include_once('/core/class/CMailFile.class.php');
 
                 $templateClass = '';
                 if (class_exists('CEmailTemplates')) {
