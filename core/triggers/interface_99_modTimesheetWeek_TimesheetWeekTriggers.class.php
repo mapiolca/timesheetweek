@@ -243,8 +243,8 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
 			dol_include_once('/core/lib/functions2.lib.php');
-			if (version_compare(DOL_VERSION, '23.0.0', '<')) {
-				dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
+			if (floatval(DOL_VERSION) < 23) {
+					dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
 			} else {
 				require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 			}
