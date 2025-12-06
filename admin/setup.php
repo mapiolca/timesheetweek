@@ -613,7 +613,7 @@ $weekdayOptions = array(
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderWeekday').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderWeekdayHelp').'</td>';
-print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_WEEKDAY', $weekdayOptions, $reminderWeekday, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_WEEKDAY', $weekdayOptions, $reminderWeekday, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
 print '</tr>';
 
 print '<tr class="oddeven">';
@@ -625,7 +625,7 @@ print '</tr>';
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
-print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
 print '</tr>';
 
 $selectExcludedUsers = $form->select_dolusers(
