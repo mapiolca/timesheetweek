@@ -33,12 +33,13 @@ if (!$res && file_exists(__DIR__.'/../../../main.inc.php')) {
 		$res = require_once __DIR__.'/../../../main.inc.php';
 }
 if (!$res) {
-			die('Include of main fails');
+die('Include of main fails');
 }
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
 // EN: Load email template class with backward compatibility for older Dolibarr versions.
 
 if (floatval(DOL_VERSION) < 23) {
@@ -355,8 +356,11 @@ if ($action === 'setquarterday') {
 
 if ($action === 'savereminder') {
 	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
-	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
-	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+	$reminderStartYear = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEyear', 'int');
+	$reminderStartMonth = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEmonth', 'int');
+	$reminderStartDay = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEday', 'int');
+	$reminderStartHour = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEhour', 'int');
+	$reminderStartMinute = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEmin', 'int');
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 	$reminderExcludedUsersValue = GETPOST('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 'array');
 	$reminderExcludedUsersList = array();
@@ -368,29 +372,24 @@ if ($action === 'savereminder') {
 			}
 		}
 	}
-
-
-
+	
+	
+	
 	$error = 0;
-
-	if ($reminderWeekdayValue < 1 || $reminderWeekdayValue > 7) {
-		setEventMessages($langs->trans('TimesheetWeekReminderWeekdayInvalid'), null, 'errors');
+	
+	$reminderStartTimestamp = dol_mktime($reminderStartHour, $reminderStartMinute, 0, $reminderStartMonth, $reminderStartDay, $reminderStartYear);
+	if (empty($reminderStartTimestamp)) {
+		setEventMessages($langs->trans('TimesheetWeekReminderStartTimeInvalid'), null, 'errors');
 		$error++;
 	}
-
-	if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHourValue)) {
-		setEventMessages($langs->trans('TimesheetWeekReminderHourInvalid'), null, 'errors');
-		$error++;
-	}
-
+	
 	if (!$error) {
 		$results = array();
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_ENABLED', ($reminderEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
-		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $reminderWeekdayValue, 'chaine', 0, '', $conf->entity);
-		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $reminderHourValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_STARTTIME', (string) $reminderStartTimestamp, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $reminderTemplateValue, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', implode(',', $reminderExcludedUsersList), 'chaine', 0, '', $conf->entity);
-
+		
 		$hasError = false;
 		foreach ($results as $resultValue) {
 			if ($resultValue <= 0) {
@@ -398,16 +397,22 @@ if ($action === 'savereminder') {
 				break;
 			}
 		}
-
+		
 		if ($hasError) {
 			setEventMessages($langs->trans('Error'), null, 'errors');
 		} else {
+			$cronUpdate = TimesheetweekReminder::updateCronStartTime($db, $reminderStartTimestamp, $user);
+			if ($cronUpdate < 0) {
+				setEventMessages($langs->trans('TimesheetWeekReminderCronUpdateFailed'), null, 'errors');
+			} elseif ($cronUpdate === 0) {
+				setEventMessages($langs->trans('TimesheetWeekReminderCronMissing'), null, 'warnings');
+			}
 			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
 		}
 	}
 }
 
-	if ($action === 'testreminder') {
+if ($action === 'testreminder') {
 		$reminder = new TimesheetweekReminder($db);
 		$resultTest = $reminder->sendTest($db, $user); //$resultTest = TimesheetweekReminder::sendTest($db, $user);
 		//var_dump($resultTest);
@@ -423,8 +428,18 @@ $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetwee
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
 $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
-$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1);
-$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00');
+$reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '');
+$reminderStartTimestamp = '';
+if ($reminderStartValue !== '') {
+	if (is_numeric($reminderStartValue)) {
+		$reminderStartTimestamp = (int) $reminderStartValue;
+	} else {
+		$reminderStartTimestamp = dol_stringtotime($reminderStartValue, 0);
+	}
+}
+if (empty($reminderStartTimestamp)) {
+	$reminderStartTimestamp = dol_now();
+}
 $reminderTemplateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
 $reminderExcludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '');
 $reminderExcludedUsers = array();
@@ -600,26 +615,12 @@ print '<input type="checkbox" name="TIMESHEETWEEK_REMINDER_ENABLED" value="1"'.(
 print '</td>';
 print '</tr>';
 
-$weekdayOptions = array(
-1 => $langs->trans('Monday'),
-2 => $langs->trans('Tuesday'),
-3 => $langs->trans('Wednesday'),
-4 => $langs->trans('Thursday'),
-5 => $langs->trans('Friday'),
-6 => $langs->trans('Saturday'),
-7 => $langs->trans('Sunday'),
-);
+$selectStartTime = $form->select_date($reminderStartTimestamp, 'TIMESHEETWEEK_REMINDER_STARTTIME', 1, 1, 0, '', 1, 0, 1, '', 0, 0, '', '', '', '');
 
 print '<tr class="oddeven">';
-print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderWeekday').'</td>';
-print '<td class="small">'.$langs->trans('TimesheetWeekReminderWeekdayHelp').'</td>';
-print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_WEEKDAY', $weekdayOptions, $reminderWeekday, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
-print '</tr>';
-
-print '<tr class="oddeven">';
-print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderHour').'</td>';
-print '<td class="small">'.$langs->trans('TimesheetWeekReminderHourHelp').'</td>';
-print '<td class="center"><input type="text" name="TIMESHEETWEEK_REMINDER_HOUR" value="'.dol_escape_htmltag($reminderHour).'" size="6" maxlength="5"></td>';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderStartTime').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderStartTimeHelp').'</td>';
+print '<td class="center">'.$selectStartTime.'</td>';
 print '</tr>';
 
 print '<tr class="oddeven">';
