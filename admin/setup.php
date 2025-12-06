@@ -628,10 +628,30 @@ print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp
 print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
 print '</tr>';
 
+$selectExcludedUsers = $form->select_dolusers(
+$reminderExcludedUsers,
+'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS',
+0,
+'',
+0,
+'',
+'',
+0,
+0,
+0,
+'',
+0,
+'',
+'minwidth300',
+0,
+0,
+1
+);
+
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderExcludedUsers').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderExcludedUsersHelp').'</td>';
-print '<td class="center">'.$form->select_dolusers($reminderExcludedUsers, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 0, '', 0, 0, 0, 0, 0, '', 0, '', 0, '', 0, false, false, 1, null, 'minwidth300').'</td>';
+print '<td class="center">'.$selectExcludedUsers.'</td>';
 print '</tr>';
 
 print '</table>';
