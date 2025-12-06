@@ -354,10 +354,22 @@ if ($action === 'setquarterday') {
 }
 
 if ($action === 'savereminder') {
-$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
-$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
-$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
-$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
+	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
+	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
+	$reminderExcludedUsersValue = GETPOST('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 'array');
+	$reminderExcludedUsersList = array();
+	if (is_array($reminderExcludedUsersValue)) {
+		foreach ($reminderExcludedUsersValue as $reminderExcludedUserId) {
+			$reminderExcludedUserId = (int) $reminderExcludedUserId;
+			if ($reminderExcludedUserId > 0) {
+				$reminderExcludedUsersList[] = $reminderExcludedUserId;
+			}
+		}
+	}
+
+
 
 	$error = 0;
 
@@ -377,6 +389,7 @@ $reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $reminderWeekdayValue, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $reminderHourValue, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $reminderTemplateValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', implode(',', $reminderExcludedUsersList), 'chaine', 0, '', $conf->entity);
 
 		$hasError = false;
 		foreach ($results as $resultValue) {
@@ -413,6 +426,11 @@ $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 $reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1);
 $reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00');
 $reminderTemplateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
+$reminderExcludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '');
+$reminderExcludedUsers = array();
+if ($reminderExcludedUsersString !== '') {
+	$reminderExcludedUsers = array_filter(array_map('intval', explode(',', $reminderExcludedUsersString)));
+}
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -608,6 +626,32 @@ print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEmailTemplate').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp').'</td>';
 print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', 1).'</td>';
+print '</tr>';
+
+$selectExcludedUsers = $form->select_dolusers(
+$reminderExcludedUsers,
+'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS',
+0,
+'',
+0,
+'',
+'',
+0,
+0,
+0,
+'',
+0,
+'',
+'minwidth300',
+0,
+0,
+1
+);
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderExcludedUsers').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderExcludedUsersHelp').'</td>';
+print '<td class="center">'.$selectExcludedUsers.'</td>';
 print '</tr>';
 
 print '</table>';

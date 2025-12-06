@@ -216,6 +216,11 @@ class TimesheetweekReminder extends CommonObject
 
 		
 		$entityFilter = getEntity('user');
+		$excludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '', $conf->entity);
+		$excludedUsers = array();
+		if ($excludedUsersString !== '') {
+		$excludedUsers = array_filter(array_map('intval', explode(',', $excludedUsersString)));
+		}
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
 		//$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
@@ -227,7 +232,10 @@ class TimesheetweekReminder extends CommonObject
 		}
 		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
 		if (isModEnabled('multicompany') && !getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
-			$sql .= ' AND u.entity IN ('.getEntity("user").')'; //$sql .= " WHERE (u.entity IN (".getEntity('user')."))";
+		$sql .= ' AND u.entity IN ('.getEntity("user").')'; //$sql .= " WHERE (u.entity IN (".getEntity('user')."))";
+		}
+		if (!empty($excludedUsers)) {
+		$sql .= ' AND u.rowid NOT IN ('.implode(',', $excludedUsers).')';
 		}
 		//$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
 		if (!empty($targetUserIds)) {
