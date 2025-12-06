@@ -357,6 +357,7 @@ if ($action === 'savereminder') {
 	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
 	$reminderWeekdayValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_WEEKDAY', 'int');
 	$reminderHourValue = trim(GETPOST('TIMESHEETWEEK_REMINDER_HOUR', 'alphanohtml'));
+	$reminderTimeWindowValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_TIMEWINDOW', 'int');
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 	$reminderExcludedUsersValue = GETPOST('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 'array');
 	$reminderExcludedUsersList = array();
@@ -369,8 +370,6 @@ if ($action === 'savereminder') {
 		}
 	}
 
-
-
 	$error = 0;
 
 	if ($reminderWeekdayValue < 1 || $reminderWeekdayValue > 7) {
@@ -378,7 +377,7 @@ if ($action === 'savereminder') {
 		$error++;
 	}
 
-	if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHourValue)) {
+	if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $reminderHourValue)) {
 		setEventMessages($langs->trans('TimesheetWeekReminderHourInvalid'), null, 'errors');
 		$error++;
 	}
@@ -388,6 +387,7 @@ if ($action === 'savereminder') {
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_ENABLED', ($reminderEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_WEEKDAY', $reminderWeekdayValue, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_HOUR', $reminderHourValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_TIMEWINDOW', ($reminderTimeWindowValue > 0 ? $reminderTimeWindowValue : 10), 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $reminderTemplateValue, 'chaine', 0, '', $conf->entity);
 		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', implode(',', $reminderExcludedUsersList), 'chaine', 0, '', $conf->entity);
 
@@ -425,6 +425,7 @@ $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRA
 $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 $reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1);
 $reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00');
+$reminderTimeWindow = getDolGlobalInt('TIMESHEETWEEK_REMINDER_TIMEWINDOW', 10);
 $reminderTemplateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
 $reminderExcludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '');
 $reminderExcludedUsers = array();
@@ -620,6 +621,12 @@ print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderHour').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderHourHelp').'</td>';
 print '<td class="center"><input type="text" name="TIMESHEETWEEK_REMINDER_HOUR" value="'.dol_escape_htmltag($reminderHour).'" size="6" maxlength="5"></td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderTimeWindow').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekReminderTimeWindowHelp').'</td>';
+print '<td class="center"><input type="number" name="TIMESHEETWEEK_REMINDER_TIMEWINDOW" value="'.((int) $reminderTimeWindow).'" min="1" max="720" step="1" class="width75"></td>';
 print '</tr>';
 
 print '<tr class="oddeven">';
