@@ -284,7 +284,7 @@ return 0;
 } else {
 $this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
 dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
-$this->scheduleNextStart($reminderStartTimestamp);
+//$this->scheduleNextStart($reminderStartTimestamp);
 return $emailsSent;
 }
 		}
