@@ -277,16 +277,16 @@ class TimesheetweekReminder extends CommonObject
 			
 			$db->free($resql);
 			
-if ($errors != 0) {
-$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $errors.' '.$sql);
-dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
-return 0;
-} else {
-$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
-dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
-//$this->scheduleNextStart($reminderStartTimestamp);
-return $emailsSent;
-}
+			if ($errors != 0) {
+			$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $errors.' '.$sql);
+			dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
+			return 0;
+			} else {
+			$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
+			dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
+			//$this->scheduleNextStart($reminderStartTimestamp);
+			return 0 ;
+			}
 		}
 		
 		/**
