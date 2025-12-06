@@ -135,7 +135,7 @@ class TimesheetweekReminder extends CommonObject
 			return 0;
 		}
 
-		$timezoneCode = !empty($conf->timezone) ? $conf->timezone : 'UTC';
+		$timezoneCode = !empty($conf->timezone) ? $conf->timezone : (string) getDolGlobalString('MAIN_TIMEZONE', 'UTC', $conf->entity);
 		$now = dol_now();
 		$nowArray = dol_getdate($now, true, $timezoneCode);
 		$currentWeekday = (int) $nowArray['wday'];
@@ -144,7 +144,7 @@ class TimesheetweekReminder extends CommonObject
 
 		list($targetHour, $targetMinute) = explode(':', $reminderHour);
 		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
-		$windowMinutes = 2;
+		$windowMinutes = max(1, (int) getDolGlobalInt('TIMESHEETWEEK_REMINDER_TIMEWINDOW', 10, $conf->entity));
 		$lowerBound = max(0, $targetMinutes - $windowMinutes);
 		$upperBound = min(1439, $targetMinutes + $windowMinutes);
 
