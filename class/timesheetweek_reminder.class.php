@@ -82,7 +82,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('ErrorNoDatabase');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$db = $this->db;
@@ -130,7 +130,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('TimesheetWeekReminderStartTimeInvalid');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
@@ -138,7 +138,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_WARNING);
-			return -1;
+			return 0;
 		}
 
 		$emailTemplate = null;
@@ -166,7 +166,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$subject = !empty($emailTemplate->topic) ? $emailTemplate->topic : $emailTemplate->label;
@@ -176,7 +176,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_WARNING);
-			return -1;
+			return 0;
 		}
 
 		$from = (!empty($emailTemplate->email_from) ? $emailTemplate->email_from : '');
@@ -224,7 +224,7 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $db->lasterror();
 			$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $this->error);
 			dol_syslog($this->error, LOG_ERR);
-			return -1;
+			return 0;
 		}
 
 		$emailsSent = 0;
