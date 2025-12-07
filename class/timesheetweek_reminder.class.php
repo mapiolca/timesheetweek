@@ -37,8 +37,10 @@ if (!defined('NOREQUIREMENU')) {
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
@@ -49,43 +51,47 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 class TimesheetweekReminder extends CommonObject
 {
 	public $db;
-    public $error;
-    public $errors = array();
-    public $output;
+	public $error;
+	public $errors = array();
+	public $output;
 
-    public function __construct(DoliDB $db)
-    {
-        $this->db = $db;
-    }
+	public function __construct(DoliDB $db)
+	{
+		$this->db = $db;
+	}
 	/**
- 	* Run cron job to send weekly reminder emails.
-	 *
-	 * @param DoliDB $db	     Database handler
-	 * @param int	 $limit	     Optional limit for recipients
-	 * @param int	 $forcerun   Force execution (1) or use normal scheduling (0)
-	 * @param array	 $targetUserIds Limit execution to specific user ids when provided
-	 * @return int		     <0 if KO, >=0 if OK (number of emails sent)
-	 */
-	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array()) //$dbInstance = null, 
+	* Run cron job to send weekly reminder emails.
+	*
+	* @param DoliDB|null $dbInstance    Optional database handler override
+	* @param int         $limit         Optional limit for recipients
+	* @param int         $forcerun      Force execution (1) or use normal scheduling (0)
+	* @param array       $targetUserIds Limit execution to specific user ids when provided
+	* @return int                        <0 if KO, >=0 if OK (number of emails sent)
+	*/
+	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
 		global $db, $conf, $user, $langs;
 
-		/*
-			$db = $dbInstance;
-			if (empty($db) && !empty($GLOBALS['db'])) {
-				$db = $GLOBALS['db'];
-			}
-		*/
-		if (empty($db)) {
-			dol_syslog($langs->transnoentitiesnoconv('ErrorNoDatabase'), LOG_ERR);
+		if ($dbInstance instanceof DoliDB) {
+			$this->db = $dbInstance;
+		} elseif (!empty($db) && $db instanceof DoliDB) {
+			$this->db = $db;
+		}
+
+		if (empty($this->db)) {
+			$this->error = $langs->trans('ErrorNoDatabase');
+			$this->output = $this->error;
+			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
-		
+
+		$db = $this->db;
+
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
 		$forceExecution = !empty($forcerun);
 		if (!$forceExecution) {
-		$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
+			$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
 		}
 		if (!$forceExecution) {
 			$action = GETPOST('action', 'aZ09');
@@ -95,100 +101,88 @@ class TimesheetweekReminder extends CommonObject
 			}
 		}
 
-		if (floatval(DOL_VERSION) < 23) {
-			dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
-		} else {
+		$useCoreTemplateClass = (version_compare(DOL_VERSION, '23.0.0', '>=') || file_exists(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) ? true : false;
+		if ($useCoreTemplateClass) {
 			require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
+			dol_syslog(__METHOD__.' use core CEmailTemplate', LOG_DEBUG);
+		} else {
+			require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
+			dol_syslog(__METHOD__.' use ModelMail', LOG_DEBUG);
 		}
-
-		if (!class_exists('CEmailTemplate') && !class_exists('EmailTemplate')) {
-			dol_syslog($langs->trans('ErrorFailedToLoadEmailTemplateClass'), LOG_ERR);
-			return -1;
-		}
-
-		dol_syslog(__METHOD__, LOG_DEBUG);
 
 		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
 		if (empty($reminderEnabled) && empty($forceExecution)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
+			$this->output = $langs->trans('TimesheetWeekReminderDisabled');
 			return 0;
 		}
 
-		$reminderWeekday = getDolGlobalInt('TIMESHEETWEEK_REMINDER_WEEKDAY', 1, $conf->entity);
-		if ($reminderWeekday < 1 || $reminderWeekday > 7) {
-			dol_syslog($langs->trans('TimesheetWeekReminderWeekdayInvalid'), LOG_ERR);
-			return -1;
+		$reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '', $conf->entity);
+		$reminderStartTimestamp = 0;
+		if ($reminderStartValue !== '') {
+			if (is_numeric($reminderStartValue)) {
+				$reminderStartTimestamp = (int) $reminderStartValue;
+			} else {
+				$reminderStartTimestamp = dol_stringtotime($reminderStartValue, 0);
+			}
 		}
-
-		$reminderHour = getDolGlobalString('TIMESHEETWEEK_REMINDER_HOUR', '18:00', $conf->entity);
-		if (!preg_match('/^(?:[01]\\d|2[0-3]):[0-5]\\d$/', $reminderHour)) {
-			dol_syslog($langs->trans('TimesheetWeekReminderHourInvalid'), LOG_ERR);
+		if (empty($reminderStartTimestamp)) {
+			$this->error = $langs->trans('TimesheetWeekReminderStartTimeInvalid');
+			$this->output = $this->error;
+			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
 
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
 		if (empty($templateId)) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
-			return 0;
-		}
-
-		$timezoneCode = !empty($conf->timezone) ? $conf->timezone : 'UTC';
-		$now = dol_now();
-		$nowArray = dol_getdate($now, true, $timezoneCode);
-		$currentWeekday = (int) $nowArray['wday'];
-		$currentWeekdayIso = ($currentWeekday === 0) ? 7 : $currentWeekday;
-		$currentMinutes = ((int) $nowArray['hours'] * 60) + (int) $nowArray['minutes'];
-
-		list($targetHour, $targetMinute) = explode(':', $reminderHour);
-		$targetMinutes = ((int) $targetHour * 60) + (int) $targetMinute;
-		$windowMinutes = 2;
-		$lowerBound = max(0, $targetMinutes - $windowMinutes);
-		$upperBound = min(1439, $targetMinutes + $windowMinutes);
-
-		if (empty($forceExecution)) {
-			if ($currentWeekdayIso !== $reminderWeekday) {
-				dol_syslog('TimesheetweekReminder: not the configured day, skipping execution', LOG_DEBUG);
-				return 0;
-			}
-			if ($currentMinutes < $lowerBound || $currentMinutes > $upperBound) {
-				dol_syslog('TimesheetweekReminder: outside configured time window, skipping execution', LOG_DEBUG);
-				return 0;
-			}
+			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
+			$this->output = $this->error;
+			dol_syslog($this->error, LOG_WARNING);
+			return -1;
 		}
 
 		$emailTemplate = null;
 		$templateFetch = 0;
-		if (class_exists('CEmailTemplate')) {
+		if ($useCoreTemplateClass && class_exists('CEmailTemplate')) {
 			$emailTemplate = new CEmailTemplate($db);
 			if (method_exists($emailTemplate, 'apifetch')) {
 				$templateFetch = $emailTemplate->apifetch($templateId);
 			} else {
 				$templateFetch = $emailTemplate->fetch($templateId);
 			}
-		} elseif (class_exists('EmailTemplate')) {
-			$emailTemplate = new EmailTemplate($db);
-			$templateFetch = $emailTemplate->fetch($templateId);
+			if ($templateFetch > 0) {
+				dol_syslog(__METHOD__.' template fetched via CEmailTemplate id='.$templateId, LOG_DEBUG);
+			}
+		} elseif (!$useCoreTemplateClass && class_exists('FormMail')) {
+			$formMail = new FormMail($db);
+			$emailTemplate = $formMail->getEMailTemplate($db, 'actioncomm_send', $user, $langs, $templateId, 1);
+			if ($emailTemplate instanceof ModelMail && $emailTemplate->id > 0) {
+				$templateFetch = 1;
+				dol_syslog(__METHOD__.' template fetched via ModelMail id='.$templateId, LOG_DEBUG);
+			}
 		}
 
-		if (empty($emailTemplate)) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_ERR);
+		if (empty($emailTemplate) || $templateFetch <= 0) {
+			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
+			$this->output = $this->error;
+			dol_syslog($this->error, LOG_ERR);
 			return -1;
-		}
-
-		if ($templateFetch <= 0) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
-			return 0;
 		}
 
 		$subject = !empty($emailTemplate->topic) ? $emailTemplate->topic : $emailTemplate->label;
 		$body = !empty($emailTemplate->content) ? $emailTemplate->content : '';
 
 		if (empty($subject) || empty($body)) {
-			dol_syslog($langs->trans('TimesheetWeekReminderTemplateMissing'), LOG_WARNING);
-			return 0;
+			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
+			$this->output = $this->error;
+			dol_syslog($this->error, LOG_WARNING);
+			return -1;
 		}
 
-		$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', '');
+		$from = (!empty($emailTemplate->email_from) ? $emailTemplate->email_from : '');
+		if (empty($from)) {
+			$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', '');
+		}
 		if (empty($from)) {
 			$from = getDolGlobalString('MAIN_INFO_SOCIETE_MAIL', '');
 		}
@@ -196,28 +190,27 @@ class TimesheetweekReminder extends CommonObject
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
 		complete_substitutions_array($substitutions, $langs, null);
 
-		$eligibleRights = array(
-			45000301, // read own
-			45000302, // read child
-			45000303, // read all
-			45000304, // write own
-			45000305, // write child
-			45000306, // write all
-			45000310, // validate generic
-			45000311, // validate own
-			45000312, // validate child
-			45000313, // validate all
-			45000314, // seal
-			45000315, // unseal
-		);
+		$excludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '', $conf->entity);
+		$excludedUsers = array();
+		if ($excludedUsersString !== '') {
+			$excludedUsers = array_filter(array_map('intval', explode(',', $excludedUsersString)));
+		}
 
-		$entityFilter = getEntity('user');
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
-		$sql .= ' INNER JOIN '.MAIN_DB_PREFIX."user_rights AS ur ON ur.fk_user = u.rowid AND ur.entity IN (".$entityFilter.')';
+		if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
+			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."usergroup_user as ug";
+			$sql .= " ON ((ug.fk_user = u.rowid";
+			$sql .= " AND ug.entity IN (".getEntity('usergroup')."))";
+			$sql .= " OR u.entity = 0)";
+		}
 		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
-		$sql .= ' AND u.entity IN ('.$entityFilter.')';
-		$sql .= ' AND ur.fk_id IN ('.implode(',', array_map('intval', $eligibleRights)).')';
+		if (isModEnabled('multicompany') && !getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
+			$sql .= ' AND u.entity IN ('.getEntity("user").')';
+		}
+		if (!empty($excludedUsers)) {
+			$sql .= ' AND u.rowid NOT IN ('.implode(',', $excludedUsers).')';
+		}
 		if (!empty($targetUserIds)) {
 			$sql .= ' AND u.rowid IN ('.implode(',', array_map('intval', $targetUserIds)).')';
 		}
@@ -228,7 +221,9 @@ class TimesheetweekReminder extends CommonObject
 
 		$resql = $db->query($sql);
 		if (!$resql) {
-			dol_syslog($db->lasterror(), LOG_ERR);
+			$this->error = $db->lasterror();
+			$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $this->error);
+			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
 
@@ -277,32 +272,72 @@ class TimesheetweekReminder extends CommonObject
 
 		$db->free($resql);
 
-/*		if ($errors > 0) {
+		if ($errors > 0) {
+			$this->error = $langs->trans('TimesheetWeekReminderSendFailed', $errors);
+			$this->output = $this->error;
+			dol_syslog(__METHOD__.' errors='.$errors, LOG_ERR);
 			return -$errors;
-		}*/
+		}
 
-//		return $emailsSent;
+		$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
+		dol_syslog(__METHOD__.' sent='.$emailsSent, LOG_DEBUG);
+
+		return $emailsSent;
+	}
+		/**
+		* Send a reminder test email to the current user using the configured template.
+		*
+		* @param User $user Current user
+		* @return int       <0 if KO, >=0 if OK (number of emails sent)
+		*/
+		public function sendTest(User $user)
+		{
+			return $this->run($this->db, 1, 1, array((int) $user->id));
+		}
 		
-		if ($errors) {
-            $this->error = $langs->trans('TimesheetWeekReminderSendFailed', $errors);
-            dol_syslog(__METHOD__." end - ".$this->error, LOG_ERR);
-            return 1;
-        }else{
-            $this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
-            dol_syslog(__METHOD__." end - ".$this->output, LOG_INFO);
-            return 0;
-        }
+		/**
+		* Update the cron job start date using the provided timestamp.
+		*
+		* @param DoliDB     $db              Database handler
+		* @param int        $startTimestamp  Next launch timestamp
+		* @param User|null  $currentUser     User performing the update
+		* @return int                        >0 if updated, 0 if cron missing, <0 on error
+		*/
+		public static function updateCronStartTime(DoliDB $db, int $startTimestamp, $currentUser = null)
+		{
+			global $user;
+			
+			$cronJob = new Cronjob($db);
+			$fetchResult = $cronJob->fetch(0, 'TimesheetweekReminder', 'run');
+			if ($fetchResult <= 0 || empty($cronJob->id)) {
+				return 0;
+			}
+			
+			$cronJob->datestart = $startTimestamp;
+			$cronJob->datenextrun = $startTimestamp;
+			
+			$userForUpdate = $currentUser;
+			if (empty($userForUpdate) && !empty($user) && $user instanceof User) {
+				$userForUpdate = $user;
+			}
+			
+			return $cronJob->update($userForUpdate);
+		}
+		
+		/**
+		* Store the next reminder start date based on the provided timestamp.
+		*
+		* @param int $currentStartTimestamp Current start timestamp
+		* @return int                       Next start timestamp
+		*/
+		private function scheduleNextStart($currentStartTimestamp)
+		{
+			global $db, $conf;
+			
+			$nextStartTimestamp = dol_time_plus_duree($currentStartTimestamp, 1, 'w');
+			dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_STARTTIME', (string) $nextStartTimestamp, 'chaine', 0, '', $conf->entity);
+			self::updateCronStartTime($db, $nextStartTimestamp);
+			
+			return $nextStartTimestamp;
+		}
 	}
-
-	/**
-	 * Send a reminder test email to the current user using the configured template.
-	 *
-	 * @param DoliDB $db	Database handler
-	 * @param User	 $user	Current user
-	 * @return int		<0 if KO, >=0 if OK (number of emails sent)
-	 */
-	public function sendTest($db, User $user)
-	{
-		return  self::run($db, 1, 1, array((int) $user->id));
-	}
-}
