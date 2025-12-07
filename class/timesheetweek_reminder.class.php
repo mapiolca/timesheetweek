@@ -71,24 +71,24 @@ class TimesheetweekReminder extends CommonObject
 	public function run($dbInstance = null, $limit = 0, $forcerun = 0, array $targetUserIds = array())
 	{
 		global $db, $conf, $user, $langs;
-		
+
 		if ($dbInstance instanceof DoliDB) {
 			$this->db = $dbInstance;
 		} elseif (!empty($db) && $db instanceof DoliDB) {
 			$this->db = $db;
 		}
-		
+
 		if (empty($this->db)) {
 			$this->error = $langs->trans('ErrorNoDatabase');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
-		
+
 		$db = $this->db;
-		
+
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
-		
+
 		$forceExecution = !empty($forcerun);
 		if (!$forceExecution) {
 			$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
@@ -100,7 +100,7 @@ class TimesheetweekReminder extends CommonObject
 				$forceExecution = true;
 			}
 		}
-		
+
 		$useCoreTemplateClass = (version_compare(DOL_VERSION, '23.0.0', '>=') || file_exists(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) ? true : false;
 		if ($useCoreTemplateClass) {
 			require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
@@ -109,14 +109,14 @@ class TimesheetweekReminder extends CommonObject
 			require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 			dol_syslog(__METHOD__.' use ModelMail', LOG_DEBUG);
 		}
-		
+
 		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
 		if (empty($reminderEnabled) && empty($forceExecution)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			$this->output = $langs->trans('TimesheetWeekReminderDisabled');
 			return 0;
 		}
-		
+
 		$reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '', $conf->entity);
 		$reminderStartTimestamp = 0;
 		if ($reminderStartValue !== '') {
@@ -132,7 +132,7 @@ class TimesheetweekReminder extends CommonObject
 			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
-		
+
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
 		if (empty($templateId)) {
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
@@ -140,7 +140,7 @@ class TimesheetweekReminder extends CommonObject
 			dol_syslog($this->error, LOG_WARNING);
 			return -1;
 		}
-		
+
 		$emailTemplate = null;
 		$templateFetch = 0;
 		if ($useCoreTemplateClass && class_exists('CEmailTemplate')) {
@@ -150,40 +150,43 @@ class TimesheetweekReminder extends CommonObject
 			} else {
 				$templateFetch = $emailTemplate->fetch($templateId);
 			}
-		} elseif (!$useCoreTemplateClass && class_exists('ModelMail')) {
-			$emailTemplate = new ModelMail($db);
-			$templateFetch = $emailTemplate->fetch($templateId);
+			if ($templateFetch > 0) {
+				dol_syslog(__METHOD__.' template fetched via CEmailTemplate id='.$templateId, LOG_DEBUG);
+			}
+		} elseif (!$useCoreTemplateClass && class_exists('FormMail')) {
+			$formMail = new FormMail($db);
+			$emailTemplate = $formMail->getEMailTemplate($db, 'actioncomm_send', $user, $langs, $templateId, 1);
+			if ($emailTemplate instanceof ModelMail && $emailTemplate->id > 0) {
+				$templateFetch = 1;
+				dol_syslog(__METHOD__.' template fetched via ModelMail id='.$templateId, LOG_DEBUG);
+			}
 		}
-		
-		if (empty($emailTemplate)) {
-			$this->error = $langs->trans('ErrorFailedToLoadEmailTemplateClass');
+
+		if (empty($emailTemplate) || $templateFetch <= 0) {
+			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
-		
-		if ($templateFetch <= 0) {
-			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
-			$this->output = $this->error;
-			dol_syslog($this->error, LOG_WARNING);
-			return -1;
-		}
-		
+
 		$subject = !empty($emailTemplate->topic) ? $emailTemplate->topic : $emailTemplate->label;
 		$body = !empty($emailTemplate->content) ? $emailTemplate->content : '';
-		
+
 		if (empty($subject) || empty($body)) {
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
 			dol_syslog($this->error, LOG_WARNING);
 			return -1;
 		}
-		
-		$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', '');
+
+		$from = (!empty($emailTemplate->email_from) ? $emailTemplate->email_from : '');
+		if (empty($from)) {
+			$from = getDolGlobalString('MAIN_MAIL_EMAIL_FROM', '');
+		}
 		if (empty($from)) {
 			$from = getDolGlobalString('MAIN_INFO_SOCIETE_MAIL', '');
 		}
-		
+
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
 		complete_substitutions_array($substitutions, $langs, null);
 
@@ -192,7 +195,7 @@ class TimesheetweekReminder extends CommonObject
 		if ($excludedUsersString !== '') {
 			$excludedUsers = array_filter(array_map('intval', explode(',', $excludedUsersString)));
 		}
-		
+
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
 		if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
@@ -215,7 +218,7 @@ class TimesheetweekReminder extends CommonObject
 		if ($limit > 0) {
 			$sql .= $db->plimit((int) $limit);
 		}
-		
+
 		$resql = $db->query($sql);
 		if (!$resql) {
 			$this->error = $db->lasterror();
@@ -223,16 +226,16 @@ class TimesheetweekReminder extends CommonObject
 			dol_syslog($this->error, LOG_ERR);
 			return -1;
 		}
-		
+
 		$emailsSent = 0;
 		$errors = 0;
-		
+
 		while ($obj = $db->fetch_object($resql)) {
 			$recipient = trim($obj->email);
 			if (empty($recipient)) {
 				continue;
 			}
-			
+
 			$recipientUser = new User($db);
 			$fetchUser = $recipientUser->fetch($obj->rowid);
 			if ($fetchUser < 0) {
@@ -240,22 +243,22 @@ class TimesheetweekReminder extends CommonObject
 				$errors++;
 				continue;
 			}
-			
+
 			$userSubstitutions = $substitutions;
 			$userSubstitutions['__USER_FIRSTNAME__'] = $recipientUser->firstname;
 			$userSubstitutions['__USER_LASTNAME__'] = $recipientUser->lastname;
 			$userSubstitutions['__USER_FULLNAME__'] = dolGetFirstLastname($recipientUser->firstname, $recipientUser->lastname);
 			$userSubstitutions['__USER_EMAIL__'] = $recipient;
 			complete_substitutions_array($userSubstitutions, $langs, null, $recipientUser);
-			
+
 			$preparedSubject = make_substitutions($subject, $userSubstitutions);
 			$preparedBody = make_substitutions($body, $userSubstitutions);
-			
+
 			$preparedSubject = dol_string_nohtmltag(html_entity_decode($preparedSubject, ENT_QUOTES, 'UTF-8'));
 			$preparedBodyHtml = html_entity_decode($preparedBody, ENT_QUOTES, 'UTF-8');
 			$isHtmlBody = (!empty($preparedBodyHtml) && preg_match('/<[^>]+>/', $preparedBodyHtml)) ? 1 : 0;
 			$preparedBodyFinal = $isHtmlBody ? $preparedBodyHtml : dol_string_nohtmltag($preparedBodyHtml);
-			
+
 			$mail = new CMailFile($preparedSubject, $recipient, $from, $preparedBodyFinal, array(), array(), array(), '', '', 0, $isHtmlBody, '', '', '', 'utf-8');
 			$resultSend = $mail->sendfile();
 			if ($resultSend) {
@@ -266,22 +269,21 @@ class TimesheetweekReminder extends CommonObject
 				$errors++;
 			}
 		}
-		
+
 		$db->free($resql);
-		
+
 		if ($errors > 0) {
 			$this->error = $langs->trans('TimesheetWeekReminderSendFailed', $errors);
 			$this->output = $this->error;
 			dol_syslog(__METHOD__.' errors='.$errors, LOG_ERR);
 			return -$errors;
 		}
-		
+
 		$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
 		dol_syslog(__METHOD__.' sent='.$emailsSent, LOG_DEBUG);
-		
+
 		return $emailsSent;
 	}
-	
 		/**
 		* Send a reminder test email to the current user using the configured template.
 		*
