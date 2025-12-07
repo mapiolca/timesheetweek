@@ -1,5 +1,19 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.5.0 (01/12/2025)
+- Ajoute une action de masse pour générer un PDF unique fusionnant les feuilles sélectionnées en utilisant le modèle par défaut. / Adds a mass action to generate a single merged PDF for selected timesheets using the default template.
+
+## 1.4.2 (01/12/2025)
+- Corrige le masquage par défaut des tâches dont la progression est de 100% dans les feuilles.
+  / Fixes the default hiding of tasks with 100% progress in sheets.
+
+## 1.4.1 (26/11/2025)
+- Met à jour automatiquement la durée effective des tâches après validation d'une feuille en se basant sur les temps consommés.
+  / Automatically updates tasks' effective duration after approving a sheet based on consumed times.
+- Réajuste la durée effective des tâches lors du retour d'une feuille approuvée en brouillon pour refléter les temps restants.
+  / Readjusts tasks' effective duration when reverting an approved sheet to draft to reflect remaining times.
+ - Ajoute la vérification de la dernière version disponible sur le Dolistore/Add a check for the latest version available on Dolistore.
+
 ## 1.4.0
 - Ajoute un interrupteur d'administration pour activer le sélecteur quart de jour des salariés au forfait jour. / Adds an admin switch to enable the quarter-day selector for daily-rate employees.
 - Affiche les durées forfait jour (0.25, 0.5 et 1 jour) dans les PDF standard et de synthèse lorsque le quart de jour est actif. / Displays the daily-rate durations (0.25, 0.5 and 1 day) inside the standard and summary PDFs whenever quarter-day mode is enabled.
