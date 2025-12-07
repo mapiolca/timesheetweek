@@ -40,12 +40,12 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
-// EN: Load email template class with backward compatibility for older Dolibarr versions.
+// EN: Load email template class with version-aware fallback.
 
-if (floatval(DOL_VERSION) < 23) {
-		dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
+if (version_compare(DOL_VERSION, '23.0.0', '>=') || file_exists(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) {
+require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
 } else {
-	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
@@ -414,12 +414,11 @@ if ($action === 'savereminder') {
 
 if ($action === 'testreminder') {
 		$reminder = new TimesheetweekReminder($db);
-		$resultTest = $reminder->sendTest($db, $user); //$resultTest = TimesheetweekReminder::sendTest($db, $user);
-		//var_dump($resultTest);
-		if ($resultTest == 0) {
-			setEventMessages($langs->trans('TimesheetWeekReminderTestSuccess'), null, 'mesgs');
+		$resultTest = $reminder->sendTest($user);
+		if ($resultTest >= 0) {
+				setEventMessages($langs->trans('TimesheetWeekReminderTestSuccess'), null, 'mesgs');
 		} else {
-			setEventMessages($langs->trans('TimesheetWeekReminderTestError'), null, 'errors');
+				setEventMessages($langs->trans('TimesheetWeekReminderTestError'), null, 'errors');
 		}
 }
 
