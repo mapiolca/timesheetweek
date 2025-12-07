@@ -440,6 +440,25 @@ if ($reminderStartValue !== '') {
 if (empty($reminderStartTimestamp)) {
 	$reminderStartTimestamp = dol_now();
 }
+$reminderCurrentHour = (int) dol_print_date($reminderStartTimestamp, '%H');
+$reminderCurrentMinute = (int) dol_print_date($reminderStartTimestamp, '%M');
+$reminderWeekday = (int) dol_print_date($reminderStartTimestamp, '%w');
+$now = dol_now();
+$currentWeekday = (int) dol_print_date($now, '%w');
+$daysAhead = ($reminderWeekday - $currentWeekday + 7) % 7;
+$referenceDate = dol_time_plus_duree($now, $daysAhead, 'd');
+$referenceYear = (int) dol_print_date($referenceDate, '%Y');
+$referenceMonth = (int) dol_print_date($referenceDate, '%m');
+$referenceDay = (int) dol_print_date($referenceDate, '%d');
+$nextReminderTimestamp = dol_mktime($reminderCurrentHour, $reminderCurrentMinute, 0, $referenceMonth, $referenceDay, $referenceYear);
+if ($nextReminderTimestamp <= $now) {
+	$nextReminderTimestamp = dol_time_plus_duree($nextReminderTimestamp, 7, 'd');
+}
+if ($nextReminderTimestamp !== $reminderStartTimestamp) {
+	dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_STARTTIME', (string) $nextReminderTimestamp, 'chaine', 0, '', $conf->entity);
+	TimesheetweekReminder::updateCronStartTime($db, $nextReminderTimestamp, $user);
+}
+$reminderStartTimestamp = $nextReminderTimestamp;
 $reminderTemplateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
 $reminderExcludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '');
 $reminderExcludedUsers = array();
