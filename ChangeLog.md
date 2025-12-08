@@ -1,6 +1,6 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.6.1 (09/12/2025)
+## 1.6.1 (08/12/2025)
 - Fige les heures contractuelles dans la fiche hebdomadaire et les PDF pour conserver le contexte en cas d'évolution du contrat. / Freezes contract hours in the weekly card and PDFs to preserve context when an employee contract changes.
 
 ## 1.6.0 (05/12/2025)
