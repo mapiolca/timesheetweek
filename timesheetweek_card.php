@@ -109,13 +109,13 @@ function tw_translate_error($errorKey, $langs)
 }
 
 /**
- * EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
- * FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
- *
- * @param float      $value  Day quantity to format / Quantité de jours à formater
- * @param Translate  $langs  Translator instance / Instance de traduction
- * @return string            Formatted value / Valeur formatée
- */
+* EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
+* FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
+*
+* @param float      $value  Day quantity to format / Quantité de jours à formater
+* @param Translate  $langs  Translator instance / Instance de traduction
+* @return string            Formatted value / Valeur formatée
+*/
 function tw_format_days($value, Translate $langs)
 {
 	global $conf;
@@ -128,13 +128,13 @@ function tw_format_days($value, Translate $langs)
 }
 
 /**
- * EN: Fetch the timesheet employee and detect the daily rate flag with caching.
- * FR: Récupère le salarié de la feuille et détecte le forfait jour avec mise en cache.
- *
- * @param DoliDB $db     Database handler / Gestionnaire de base de données
- * @param int    $userId Employee identifier / Identifiant du salarié
- * @return array         ['user' => ?User, 'is_daily_rate' => bool]
- */
+* EN: Fetch the timesheet employee and detect the daily rate flag with caching.
+* FR: Récupère le salarié de la feuille et détecte le forfait jour avec mise en cache.
+*
+* @param DoliDB $db     Database handler / Gestionnaire de base de données
+* @param int    $userId Employee identifier / Identifiant du salarié
+* @return array         ['user' => ?User, 'is_daily_rate' => bool]
+*/
 function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 {
 	static $cache = array();
@@ -157,12 +157,12 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 }
 
 /**
- * EN: Retrieve the list of activated PDF models for the module with entity scoping.
- * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
- *
- * @param DoliDB $db Database handler / Gestionnaire de base de données
- * @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
- */
+* EN: Retrieve the list of activated PDF models for the module with entity scoping.
+* FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
+*
+* @param DoliDB $db Database handler / Gestionnaire de base de données
+* @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
+*/
 function tw_get_enabled_pdf_models(DoliDB $db)
 {
 	// EN: Ask the module manager for the enabled templates of TimesheetWeek.
@@ -203,12 +203,12 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 }
 
 /**
- * EN: Return the hour equivalents for each daily rate code (adds quarter-day when enabled).
- * FR: Retourne les équivalences en heures pour chaque code forfait (ajoute le quart de jour si activé).
- *
- * @param bool $useQuarterDayDailyContract Flag for quarter-day support / Drapeau d'activation du quart de jour
- * @return array<int,float>               Hour mapping by code / Correspondance heures par code
- */
+* EN: Return the hour equivalents for each daily rate code (adds quarter-day when enabled).
+* FR: Retourne les équivalences en heures pour chaque code forfait (ajoute le quart de jour si activé).
+*
+* @param bool $useQuarterDayDailyContract Flag for quarter-day support / Drapeau d'activation du quart de jour
+* @return array<int,float>               Hour mapping by code / Correspondance heures par code
+*/
 function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 {
 	$map = array(

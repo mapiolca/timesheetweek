@@ -49,9 +49,9 @@ class TimesheetWeek extends CommonObject
 	public $date_validation;
 
 	public $total_hours = 0.0;      // total week hours
-public $overtime_hours = 0.0;   // overtime based on user weeklyhours
-public $contract = null;        // stored contract hours snapshot
-public $zone1_count = 0;         // zone 1 days count / nombre de jours en zone 1
+	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
+	public $contract = null;        // stored contract hours snapshot
+	public $zone1_count = 0;         // zone 1 days count / nombre de jours en zone 1
 	public $zone2_count = 0;         // zone 2 days count / nombre de jours en zone 2
 	public $zone3_count = 0;         // zone 3 days count / nombre de jours en zone 3
 	public $zone4_count = 0;         // zone 4 days count / nombre de jours en zone 4
@@ -695,11 +695,13 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	}
 
 	/**
-	* Save totals into DB
-	* @return int
-	*/
-		public function updateTotalsInDB()
-		{
+	 * EN: Save totals into DB.
+	 * FR: Enregistre les totaux en base.
+	 *
+	 * @return int
+	 */
+	public function updateTotalsInDB()
+	{
 		$this->computeTotals();
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
 		$sql .= " SET total_hours=".(float) $this->total_hours.", overtime_hours=".(float) $this->overtime_hours;
@@ -712,7 +714,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR: Contraint les mises à jour des totaux aux entités autorisées pour plus de sécurité.
 		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 		return $this->db->query($sql) ? 1 : -1;
-		}
+	}
 
 	/**
 	* Has at least one line
@@ -807,81 +809,79 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->db->commit();
 		return 1;
 	}
+	/**
+	 * Revert to draft
+	 * @param User $user
+	 * @return int
+	 */
+	public function revertToDraft($user)
+	{
+		$now = dol_now();
+		$previousStatus = (int) $this->status;
 
-        /**
-        * Revert to draft
-        * @param User $user
-        * @return int
-        */
-        public function revertToDraft($user)
-        {
-                $now = dol_now();
-                $previousStatus = (int) $this->status;
+		if ((int) $this->status === self::STATUS_DRAFT) {
+			$this->error = 'AlreadyDraft';
+			return 0;
+		}
 
-                if ((int) $this->status === self::STATUS_DRAFT) {
-                        $this->error = 'AlreadyDraft';
-                        return 0;
-                }
+		$taskIds = array();
+		$lines = $this->getLines();
+		if (!empty($lines)) {
+			foreach ($lines as $line) {
+				if (empty($line->fk_task)) {
+					continue;
+				}
 
-                $taskIds = array();
-                $lines = $this->getLines();
-                if (!empty($lines)) {
-                        foreach ($lines as $line) {
-                                if (empty($line->fk_task)) {
-                                        continue;
-                                }
+				// EN: Track tasks with recorded hours to refresh effective durations after rollback.
+				// FR: Suit les tâches ayant du temps saisi pour rafraîchir les durées effectives après retour.
+				$taskIds[(int) $line->fk_task] = (int) $line->fk_task;
+			}
+		}
 
-                                // EN: Track tasks with recorded hours to refresh effective durations after rollback.
-                                // FR: Suit les tâches ayant des heures saisies pour rafraîchir les durées effectives après retour en brouillon.
-                                if (((float) $line->hours) > 0) {
-                                        $taskIds[] = (int) $line->fk_task;
-                                }
-                        }
-                }
+		$this->db->begin();
 
-                $this->db->begin();
+		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
+		$up .= " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL";
+		// EN: Protect draft rollback with entity scoping for multi-company safety.
+		// FR: Protège le retour en brouillon en restreignant l'entité pour la sécurité multi-entreprise.
+		$up .= " WHERE rowid=".(int) $this->id;
+		$up .= " AND entity IN (".getEntity('timesheetweek').")";
+		if (!$this->db->query($up)) {
+			$this->db->rollback();
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 
-                $sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element.
-                        " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
-                // EN: Enforce the entity scope while reverting to draft.
-                // FR: Impose la portée d'entité lors du retour en brouillon.
-                $sql .= " AND entity IN (".getEntity('timesheetweek').")";
-                if (!$this->db->query($sql)) {
-                        $this->db->rollback();
-                        $this->error = $this->db->lasterror();
-                        return -1;
-                }
+		if ($previousStatus === self::STATUS_APPROVED || $previousStatus === self::STATUS_SEALED) {
+			$this->overtime_hours = 0;
+			$this->updateTotalsInDB();
+		}
 
-                // Remove synced time entries to keep the ERP aligned (EN)
-                // Supprime les temps synchronisés pour garder l'ERP aligné (FR)
-                if ($this->deleteElementTimeRecords() < 0) {
-                        $this->db->rollback();
-                        return -1;
-                }
+		$taskIds = array_filter($taskIds);
+		if (!empty($taskIds) && ($previousStatus === self::STATUS_APPROVED || $previousStatus === self::STATUS_SEALED)) {
+			// EN: Recompute effective duration on related tasks after removing approved times.
+			// FR: Recalcule la durée effective des tâches concernées après suppression des temps approuvés.
+			if ($this->updateTasksDurationEffective($taskIds) < 0) {
+				$this->db->rollback();
+				return -1;
+			}
+		}
 
-                if (!empty($taskIds) && ($previousStatus === self::STATUS_APPROVED || $previousStatus === self::STATUS_SEALED)) {
-                        // EN: Recompute effective duration on related tasks after removing approved times.
-                        // FR: Recalcule la durée effective des tâches concernées après suppression des temps approuvés.
-                        if ($this->updateTasksDurationEffective($taskIds) < 0) {
-                                $this->db->rollback();
-                                return -1;
-                        }
-                }
+		$this->status = self::STATUS_DRAFT;
+		$this->tms = $now;
+		$this->date_validation = null;
 
-                $this->status = self::STATUS_DRAFT;
-                $this->tms = $now;
-                $this->date_validation = null;
+		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+			$this->db->rollback();
+			return -1;
+		}
 
-                if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
-                        $this->db->rollback();
-                        return -1;
-                }
+		$this->db->commit();
 
-                $this->db->commit();
+		return 1;
+	}
 
-                return 1;
-        }
-
+	/**
 	/**
 	* Approve
 	* @param User $user
