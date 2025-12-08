@@ -94,7 +94,7 @@ function tw_generate_timesheet_pdf_to_temp(TimesheetWeek $sheet, Conf $conf, Tra
         }
 
         return array('success' => true, 'path' => $tempPath);
-}
+		}
 
 /**
  * EN: Normalise a value before sending it to TCPDF by decoding HTML entities and applying the output charset.
@@ -852,7 +852,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	}
 
 	$idList = implode(',', $ids);
-	$sql = "SELECT t.rowid, t.entity, t.year, t.week, t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count, t.fk_user, t.fk_user_valid, t.status, u.lastname, u.firstname, u.weeklyhours, uv.lastname as validator_lastname, uv.firstname as validator_firstname";
+	$sql = "SELECT t.rowid, t.entity, t.year, t.week, t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count, t.fk_user, t.fk_user_valid, t.status, u.lastname, u.firstname, u.weeklyhours, uv.lastname as validator_lastname, uv.firstname as validator_firstname";
 	$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
@@ -883,7 +883,10 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 		$weekEnd = clone $weekStart;
 		$weekEnd->modify('+6 days');
 
-		$contractHours = (float) $row->weeklyhours;
+		$contractHours = (float) $row->contract;
+		if ($contractHours <= 0 && !empty($row->weeklyhours)) {
+			$contractHours = (float) $row->weeklyhours;
+		}
 		if ($contractHours <= 0) {
 			$contractHours = 35.0;
 		}

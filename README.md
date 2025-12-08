@@ -12,6 +12,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Saisie dédiée pour les salariés en forfait jour grâce à des sélecteurs Journée/Matin/Après-midi convertissant automatiquement les heures.
 - Rappel hebdomadaire automatique par email configurable (activation, jour, heure, modèle) avec tâche planifiée dédiée et bouton d'envoi de test administrateur.
 - Affichage des compteurs dans la liste hebdomadaire et ajout du libellé « Zone » sur chaque sélecteur quotidien pour clarifier la saisie.
+- Capture les heures au contrat au moment de la soumission pour figer le calcul des heures supplémentaires et les PDF, même si le contrat salarié évolue ensuite.
 - Ligne de total en bas de la liste hebdomadaire pour additionner heures, zones, paniers et afficher la colonne de date de validation.
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
@@ -54,6 +55,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Dedicated input for daily rate employees with Full day/Morning/Afternoon selectors that automatically convert hours.
 - Configurable automatic weekly email reminder (enablement, weekday, time, template) with a dedicated scheduled task and admin test send button.
 - Counter display inside the weekly list plus a « Zone » caption on each daily selector for better input guidance.
+- Snapshots contract hours at submission so overtime calculations and PDFs stay aligned even if the employee contract changes later.
 - Total row at the bottom of the weekly list to sum hours, zones, meals and expose the validation date column.
 - Quick creation shortcut available from the top-right « Add » menu.
 - Multicompany compatibility for sharing timesheets and numbering sequences, with dedicated sharing options and native-aligned multi-select filters.
