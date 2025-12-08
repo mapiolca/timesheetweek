@@ -49,8 +49,9 @@ class TimesheetWeek extends CommonObject
 	public $date_validation;
 
 	public $total_hours = 0.0;      // total week hours
-	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
-	public $zone1_count = 0;         // zone 1 days count / nombre de jours en zone 1
+public $overtime_hours = 0.0;   // overtime based on user weeklyhours
+public $contract = null;        // stored contract hours snapshot
+public $zone1_count = 0;         // zone 1 days count / nombre de jours en zone 1
 	public $zone2_count = 0;         // zone 2 days count / nombre de jours en zone 2
 	public $zone3_count = 0;         // zone 3 days count / nombre de jours en zone 3
 	public $zone4_count = 0;         // zone 4 days count / nombre de jours en zone 4
@@ -141,6 +142,7 @@ class TimesheetWeek extends CommonObject
 		'fk_user_valid',
 		'total_hours',
 		'overtime_hours',
+		'contract',
 		'zone1_count',
 		'zone2_count',
 		'zone3_count',
@@ -160,6 +162,7 @@ class TimesheetWeek extends CommonObject
 		(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : 'NULL'),
 		(float) ($this->total_hours ?: 0),
 		(float) ($this->overtime_hours ?: 0),
+		($this->contract !== null ? (float) $this->contract : 'NULL'),
 		(int) ($this->zone1_count ?: 0),
 		(int) ($this->zone2_count ?: 0),
 		(int) ($this->zone3_count ?: 0),
@@ -279,7 +282,7 @@ class TimesheetWeek extends CommonObject
 		$includeModelPdf = $this->checkModelPdfColumnAvailability();
 
 		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
-		$sql .= " t.total_hours, t.overtime_hours, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
+$sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		if ($includeModelPdf) {
 			$sql .= ", t.model_pdf";
 		}
@@ -317,10 +320,11 @@ class TimesheetWeek extends CommonObject
 		$this->date_creation = $this->db->jdate($obj->date_creation);
 		$this->tms = $this->db->jdate($obj->tms);
 		$this->date_validation = $this->db->jdate($obj->date_validation);
-		$this->fk_user_valid = (int) $obj->fk_user_valid;
-		$this->total_hours = (float) $obj->total_hours;
-		$this->overtime_hours = (float) $obj->overtime_hours;
-		$this->zone1_count = (int) $obj->zone1_count;
+$this->fk_user_valid = (int) $obj->fk_user_valid;
+$this->total_hours = (float) $obj->total_hours;
+$this->overtime_hours = (float) $obj->overtime_hours;
+$this->contract = ($obj->contract !== null ? (float) $obj->contract : null);
+$this->zone1_count = (int) $obj->zone1_count;
 		$this->zone2_count = (int) $obj->zone2_count;
 		$this->zone3_count = (int) $obj->zone3_count;
 		$this->zone4_count = (int) $obj->zone4_count;
@@ -404,11 +408,12 @@ class TimesheetWeek extends CommonObject
 		if ($this->year) $sets[] = "year=".(int) $this->year;
 		if ($this->week) $sets[] = "week=".(int) $this->week;
 		if ($this->status !== null) $sets[] = "status=".(int) $this->status;
-		$sets[] = "note=".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL");
-		$sets[] = "fk_user_valid=".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL");
-		$sets[] = "total_hours=".(float) ($this->total_hours ?: 0);
-		$sets[] = "overtime_hours=".(float) ($this->overtime_hours ?: 0);
-		$sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
+$sets[] = "note=".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL");
+$sets[] = "fk_user_valid=".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL");
+$sets[] = "total_hours=".(float) ($this->total_hours ?: 0);
+$sets[] = "overtime_hours=".(float) ($this->overtime_hours ?: 0);
+$sets[] = "contract=".($this->contract !== null ? (float) $this->contract : 'NULL');
+$sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sets[] = "zone2_count=".(int) ($this->zone2_count ?: 0);
 		$sets[] = "zone3_count=".(int) ($this->zone3_count ?: 0);
 		$sets[] = "zone4_count=".(int) ($this->zone4_count ?: 0);
@@ -669,13 +674,21 @@ class TimesheetWeek extends CommonObject
 		$this->zone5_count = $zoneBuckets[5];
 		$this->meal_count = $mealDays;
 
-		// Weekly contracted hours from user
-		$weekly = 35.0;
+		// Weekly contracted hours snapshot
+		$weekly = ($this->contract !== null ? (float) $this->contract : 35.0);
 		if (!empty($this->fk_user)) {
 			$u = new User($this->db);
 			if ($u->fetch($this->fk_user) > 0) {
-				if (!empty($u->weeklyhours)) $weekly = (float) $u->weeklyhours;
+				if (!empty($u->weeklyhours)) {
+					$weekly = ($this->contract !== null ? (float) $this->contract : (float) $u->weeklyhours);
+					if ($this->contract === null) {
+						$this->contract = (float) $u->weeklyhours;
+					}
+				}
 			}
+		}
+		if ($this->contract === null) {
+			$this->contract = $weekly;
 		}
 		$ot = $total - $weekly;
 		$this->overtime_hours = ($ot > 0) ? $ot : 0.0;
@@ -685,11 +698,12 @@ class TimesheetWeek extends CommonObject
 	* Save totals into DB
 	* @return int
 	*/
-	public function updateTotalsInDB()
-	{
+		public function updateTotalsInDB()
+		{
 		$this->computeTotals();
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
 		$sql .= " SET total_hours=".(float) $this->total_hours.", overtime_hours=".(float) $this->overtime_hours;
+		$sql .= ", contract=".($this->contract !== null ? (float) $this->contract : 'NULL');
 		$sql .= ", zone1_count=".(int) $this->zone1_count.", zone2_count=".(int) $this->zone2_count;
 		$sql .= ", zone3_count=".(int) $this->zone3_count.", zone4_count=".(int) $this->zone4_count;
 		$sql .= ", zone5_count=".(int) $this->zone5_count.", meal_count=".(int) $this->meal_count;
@@ -698,7 +712,7 @@ class TimesheetWeek extends CommonObject
 		// FR: Contraint les mises à jour des totaux aux entités autorisées pour plus de sécurité.
 		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 		return $this->db->query($sql) ? 1 : -1;
-	}
+		}
 
 	/**
 	* Has at least one line
@@ -737,6 +751,19 @@ class TimesheetWeek extends CommonObject
 		}
 
 		$this->db->begin();
+
+		$contractHours = 35.0;
+		$employeeContract = new User($this->db);
+		if ($employeeContract->fetch($this->fk_user) > 0 && !empty($employeeContract->weeklyhours)) {
+			$contractHours = (float) $employeeContract->weeklyhours;
+		}
+		$this->contract = $contractHours;
+
+		if ($this->updateTotalsInDB() < 0) {
+			$this->db->rollback();
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
 
 		// Set definitive ref if provisional
 		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
