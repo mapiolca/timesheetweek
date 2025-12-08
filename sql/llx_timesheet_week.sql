@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	fk_user_valid INT DEFAULT NULL,
 	total_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
 	overtime_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
+	contract DOUBLE(24,8) DEFAULT NULL,
 	zone1_count SMALLINT NOT NULL DEFAULT 0,
 	zone2_count SMALLINT NOT NULL DEFAULT 0,
 	zone3_count SMALLINT NOT NULL DEFAULT 0,

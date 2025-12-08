@@ -109,13 +109,13 @@ function tw_translate_error($errorKey, $langs)
 }
 
 /**
- * EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
- * FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
- *
- * @param float      $value  Day quantity to format / Quantité de jours à formater
- * @param Translate  $langs  Translator instance / Instance de traduction
- * @return string            Formatted value / Valeur formatée
- */
+* EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
+* FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
+*
+* @param float      $value  Day quantity to format / Quantité de jours à formater
+* @param Translate  $langs  Translator instance / Instance de traduction
+* @return string            Formatted value / Valeur formatée
+*/
 function tw_format_days($value, Translate $langs)
 {
 	global $conf;
@@ -128,13 +128,13 @@ function tw_format_days($value, Translate $langs)
 }
 
 /**
- * EN: Fetch the timesheet employee and detect the daily rate flag with caching.
- * FR: Récupère le salarié de la feuille et détecte le forfait jour avec mise en cache.
- *
- * @param DoliDB $db     Database handler / Gestionnaire de base de données
- * @param int    $userId Employee identifier / Identifiant du salarié
- * @return array         ['user' => ?User, 'is_daily_rate' => bool]
- */
+* EN: Fetch the timesheet employee and detect the daily rate flag with caching.
+* FR: Récupère le salarié de la feuille et détecte le forfait jour avec mise en cache.
+*
+* @param DoliDB $db     Database handler / Gestionnaire de base de données
+* @param int    $userId Employee identifier / Identifiant du salarié
+* @return array         ['user' => ?User, 'is_daily_rate' => bool]
+*/
 function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 {
 	static $cache = array();
@@ -157,12 +157,12 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 }
 
 /**
- * EN: Retrieve the list of activated PDF models for the module with entity scoping.
- * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
- *
- * @param DoliDB $db Database handler / Gestionnaire de base de données
- * @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
- */
+* EN: Retrieve the list of activated PDF models for the module with entity scoping.
+* FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
+*
+* @param DoliDB $db Database handler / Gestionnaire de base de données
+* @return array<string,string> Enabled models keyed by code / Modèles actifs indexés par code
+*/
 function tw_get_enabled_pdf_models(DoliDB $db)
 {
 	// EN: Ask the module manager for the enabled templates of TimesheetWeek.
@@ -203,12 +203,12 @@ function tw_get_enabled_pdf_models(DoliDB $db)
 }
 
 /**
- * EN: Return the hour equivalents for each daily rate code (adds quarter-day when enabled).
- * FR: Retourne les équivalences en heures pour chaque code forfait (ajoute le quart de jour si activé).
- *
- * @param bool $useQuarterDayDailyContract Flag for quarter-day support / Drapeau d'activation du quart de jour
- * @return array<int,float>               Hour mapping by code / Correspondance heures par code
- */
+* EN: Return the hour equivalents for each daily rate code (adds quarter-day when enabled).
+* FR: Retourne les équivalences en heures pour chaque code forfait (ajoute le quart de jour si activé).
+*
+* @param bool $useQuarterDayDailyContract Flag for quarter-day support / Drapeau d'activation du quart de jour
+* @return array<int,float>               Hour mapping by code / Correspondance heures par code
+*/
 function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 {
 	$map = array(
@@ -1299,8 +1299,8 @@ JS;
 		}
 		echo '</td></tr>';
 
-	echo '</table>';
-	echo '</div>';
+		echo '</table>';
+		echo '</div>';
 
 	// EN: Load the employee once to reuse the daily rate flag across the header and grid.
 	// FR: Charge le salarié une seule fois pour réutiliser le flag forfait jour dans l'entête et la grille.
@@ -1308,47 +1308,47 @@ JS;
 	$timesheetEmployee = $employeeInfoDisplay['user'];
 	$isDailyRateEmployee = $employeeInfoDisplay['is_daily_rate'];
 
-// Right block (Totaux en entête)
-	$contractedHoursDisp = 35.0;
-	if ($timesheetEmployee instanceof User) {
-		$contractedHoursDisp = !empty($timesheetEmployee->weeklyhours) ? (float) $timesheetEmployee->weeklyhours : 35.0;
-	}
-$th = (float) $object->total_hours;
-$ot = (float) $object->overtime_hours;
-if ($th <= 0) {
-$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id;
-// EN: Respect entity boundaries when recomputing totals lazily.
-// FR: Respecte les frontières d'entité lors du recalcul paresseux des totaux.
-$sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
-$resSum = $db->query($sqlSum);
-if ($resSum) {
-$o = $db->fetch_object($resSum);
-$th = (float) $o->sh;
-$ot = max(0.0, $th - $contractedHoursDisp);
-}
-}
-$displayedTotal = $th;
-$displayedTotalLabel = $langs->trans("TotalHours");
-$headerTotalClass = 'header-total-hours header-total-main';
-if ($isDailyRateEmployee) {
-	// EN: Convert stored hours into days for header display when the employee is forfait jour.
-	// FR: Convertit les heures enregistrées en jours pour l'affichage d'entête lorsque le salarié est au forfait jour.
-	$displayedTotal = ($th > 0 ? ($th / 8.0) : 0.0);
-	$displayedTotalLabel = $langs->trans("TotalDays");
-	$headerTotalClass = 'header-total-days header-total-main';
-}
-echo '<div class="fichehalfright">';
-echo '<table class="border centpercent tableforfield">';
-echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
-echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
-echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
-if ($isDailyRateEmployee) {
-echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
+		// Right block (Totaux en entête)
+		$contractedHoursDisp = ($object->contract !== null ? (float) $object->contract : 35.0);
+		if ($contractedHoursDisp <= 0 && $timesheetEmployee instanceof User) {
+			$contractedHoursDisp = !empty($timesheetEmployee->weeklyhours) ? (float) $timesheetEmployee->weeklyhours : 35.0;
+		}
+		$th = (float) $object->total_hours;
+		$ot = (float) $object->overtime_hours;
+		if ($th <= 0) {
+			$sqlSum = "SELECT SUM(hours) as sh FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id;
+			// EN: Respect entity boundaries when recomputing totals lazily.
+			// FR: Respecte les frontières d'entité lors du recalcul paresseux des totaux.
+			$sqlSum .= " AND entity IN (".getEntity('timesheetweek').")";
+			$resSum = $db->query($sqlSum);
+			if ($resSum) {
+				$o = $db->fetch_object($resSum);
+				$th = (float) $o->sh;
+				$ot = max(0.0, $th - $contractedHoursDisp);
+			}
+		}
+		$displayedTotal = $th;
+		$displayedTotalLabel = $langs->trans("TotalHours");
+		$headerTotalClass = 'header-total-hours header-total-main';
+		if ($isDailyRateEmployee) {
+			// EN: Convert stored hours into days for header display when the employee is forfait jour.
+			// FR: Convertit les heures enregistrées en jours pour l'affichage d'entête lorsque le salarié est au forfait jour.
+			$displayedTotal = ($th > 0 ? ($th / 8.0) : 0.0);
+			$displayedTotalLabel = $langs->trans("TotalDays");
+			$headerTotalClass = 'header-total-days header-total-main';
+		}
+		echo '<div class="fichehalfright">';
+		echo '<table class="border centpercent tableforfield">';
+		echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
+		echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
+		echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
+		if ($isDailyRateEmployee) {
+			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
 		} else {
-echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
-echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
-}
-echo '</table>';
+			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
+			echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+		}
+		echo '</table>';
 		echo '</div>';
 
 	echo '</div>'; // fichecenter
