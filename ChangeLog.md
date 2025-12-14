@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.6.2 (09/12/2025)
+- Ajoute les traductions de TimesheetWeek en allemand, espagnol et italien. / Adds German, Spanish and Italian translations for TimesheetWeek.
+
 ## 1.6.1 (08/12/2025)
 - Fige les heures contractuelles dans la fiche hebdomadaire et les PDF pour conserver le contexte en cas d'évolution du contrat. / Freezes contract hours in the weekly card and PDFs to preserve context when an employee contract changes.
 
