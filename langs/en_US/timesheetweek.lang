@@ -242,11 +242,11 @@ TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (we
 TimesheetWeekMailSendToHelp = Separate email addresses with commas.
 Sendbymail = Send by mail
 TimesheetWeekNotificationSubmitSubject = Timesheet %s submitted
-TimesheetWeekNotificationSubmitBody = Hello %s,\n\nThe employee %s submitted the timesheet %s for week %s/%s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationSubmitBody = Hello %s,\n\nThe employee %s submitted the timesheet %s for week %s/%s.\nYou can review it here: %s\n\n%s
 TimesheetWeekNotificationApproveSubject = Timesheet %s approved
-TimesheetWeekNotificationApproveBody = Hello %s,\n\nYour timesheet %s for week %s/%s was approved by %s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationApproveBody = Hello %s,\n\nYour timesheet %s for week %s/%s was approved by %s.\nYou can review it here: %s\n\n%s
 TimesheetWeekNotificationRefuseSubject = Timesheet %s refused
-TimesheetWeekNotificationRefuseBody = Hello %s,\n\nYour timesheet %s for week %s/%s was refused by %s.\nYou can review it here: %s\n\nBest regards,\n%s
+TimesheetWeekNotificationRefuseBody = Hello %s,\n\nYour timesheet %s for week %s/%s was refused by %s.\nYou can review it here: %s\n\n%s
 TimesheetWeekNotificationMissingRecipient = No recipient available for notification (%s).
 TimesheetWeekNotificationMailError = Unable to send notification email: %s
 TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
@@ -274,13 +274,13 @@ ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager clas
 
 TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
 TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
-TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekTemplateApproveLabel = Timesheet approval notification
 TimesheetWeekTemplateApproveSubject = Timesheet __TIMESHEETWEEK_REF__ approved
-TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekTemplateRefuseLabel = Timesheet refusal notification
 TimesheetWeekTemplateRefuseSubject = Timesheet __TIMESHEETWEEK_REF__ refused
-TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\nBest regards,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 
 TimesheetWeekPDFModels = TimesheetWeek PDF templates
 
@@ -306,3 +306,6 @@ TimesheetWeekRightValidateChild = Validate subordinates' timesheets
 TimesheetWeekRightValidateAll = Validate all timesheets
 TimesheetWeekRightSeal = Seal timesheets
 TimesheetWeekRightUnseal = Unseal timesheets
+
+TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
+TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.

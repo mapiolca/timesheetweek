@@ -118,7 +118,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                        return 0;
                }
 
-               $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+               $meta = $this->buildNotificationData($timesheet, $actionUser, $langs, $conf);
                $baseSubstitutions = $meta['base_substitutions'];
 
                if (!is_array($timesheet->context)) {
@@ -187,12 +187,13 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $templateKeys = array();
                 $recipients = array();
 
-                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs, $conf);
                 $employee = $meta['employee'];
                 $validator = $meta['validator'];
                 $employeeName = $meta['employee_name'];
                 $validatorName = $meta['validator_name'];
                 $actionUserName = $meta['action_user_name'];
+                $mailSignature = $meta['mail_signature'];
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
 
@@ -268,6 +269,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
                         $substitutions = $baseSubstitutions;
                         $substitutions['__RECIPIENT_FULLNAME__'] = $recipient->getFullName($langs);
+                        $substitutions['__TIMESHEETWEEK_MAIL_SIGNATURE__'] = $mailSignature;
 
                         $template = null;
                         $tplResult = 0;
@@ -367,7 +369,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                                 $timesheet->week,
                                                 $timesheet->year,
                                                 $url,
-                                                $actionUserName,
+                                                $mailSignature,
                                         );
                                 } else {
                                         $messageArgs = array(
@@ -377,7 +379,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                                 $timesheet->year,
                                                 $actionUserName,
                                                 $url,
-                                                $actionUserName,
+                                                $mailSignature,
                                         );
                                 }
 
@@ -475,7 +477,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         return 0;
                 }
 
-                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs);
+               $meta = $this->buildNotificationData($timesheet, $actionUser, $langs, $conf);
                 $baseSubstitutions = $meta['base_substitutions'];
 
                 if (!is_array($timesheet->context)) {
@@ -759,49 +761,74 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         dol_syslog(__METHOD__.': failed to create default template for '.$action.' - '.(!empty($template->error) ? $template->error : 'unknown error'), LOG_WARNING);
                 }
 
-                return null;
-        }
+		return null;
+		}
 
-        /**
-         * Build common notification metadata reused across automatic e-mails and business notifications.
-         *
-         * FR : Construit les métadonnées partagées par les e-mails automatiques et les notifications métiers.
-         * EN : Build the metadata shared by automatic e-mails and business notifications.
-         *
-         * @param TimesheetWeek $timesheet
-         * @param User          $actionUser
-         * @param Translate     $langs
-         * @return array
-         */
-        protected function buildNotificationData(TimesheetWeek $timesheet, User $actionUser, $langs)
-        {
-                $employee = $this->fetchUser($timesheet->fk_user);
-                $validator = $this->fetchUser($timesheet->fk_user_valid);
+		/**
+		 * Build notification signature depending on Dolibarr configuration.
+		 *
+		 * @param Translate $langs
+		 * @param Conf      $conf
+		 *
+		 * @return string
+		 */
+		protected function buildMailSignature($langs, $conf)
+		{
+		$signature = '';
+		if (!empty($conf->global->MAIN_APPLICATION_TITLE)) {
+		$signature = $langs->transnoentities('TimesheetWeekMailSignatureWithAppTitle', $conf->global->MAIN_APPLICATION_TITLE);
+		} else {
+		$companyName = !empty($conf->global->MAIN_INFO_SOCIETE_NOM) ? $conf->global->MAIN_INFO_SOCIETE_NOM : '';
+		$signature = $langs->transnoentities('TimesheetWeekMailSignatureWithoutAppTitle', $companyName);
+		}
 
-                $employeeName = $employee ? $employee->getFullName($langs) : '';
-                $validatorName = $validator ? $validator->getFullName($langs) : '';
-                $actionUserName = $actionUser->getFullName($langs);
-                $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $timesheet->id;
+		return $signature;
+		}
 
-                $baseSubstitutions = array(
-                        '__TIMESHEETWEEK_REF__' => $timesheet->ref,
-                        '__TIMESHEETWEEK_WEEK__' => $timesheet->week,
-                        '__TIMESHEETWEEK_YEAR__' => $timesheet->year,
-                        '__TIMESHEETWEEK_URL__' => $url,
-                        '__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
-                        '__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
-                        '__ACTION_USER_FULLNAME__' => $actionUserName,
-                        '__RECIPIENT_FULLNAME__' => '',
-                );
+		/**
+		 * Build common notification metadata reused across automatic e-mails and business notifications.
+		 *
+		 * FR : Construit les métadonnées partagées par les e-mails automatiques et les notifications métiers.
+		 * EN : Build the metadata shared by automatic e-mails and business notifications.
+		 *
+		 * @param TimesheetWeek $timesheet
+		 * @param User          $actionUser
+		 * @param Translate     $langs
+		 * @param Conf          $conf
+		 * @return array
+		 */
+		protected function buildNotificationData(TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
+		{
+		$employee = $this->fetchUser($timesheet->fk_user);
+		$validator = $this->fetchUser($timesheet->fk_user_valid);
 
-                return array(
-                        'employee' => $employee,
-                        'validator' => $validator,
-                        'employee_name' => $employeeName,
-                        'validator_name' => $validatorName,
-                        'action_user_name' => $actionUserName,
-                        'url' => $url,
-                        'base_substitutions' => $baseSubstitutions,
-                );
-        }
-}
+		$employeeName = $employee ? $employee->getFullName($langs) : '';
+		$validatorName = $validator ? $validator->getFullName($langs) : '';
+		$actionUserName = $actionUser->getFullName($langs);
+		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $timesheet->id;
+		$mailSignature = $this->buildMailSignature($langs, $conf);
+
+		$baseSubstitutions = array(
+		'__TIMESHEETWEEK_REF__' => $timesheet->ref,
+		'__TIMESHEETWEEK_WEEK__' => $timesheet->week,
+		'__TIMESHEETWEEK_YEAR__' => $timesheet->year,
+		'__TIMESHEETWEEK_URL__' => $url,
+		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
+		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
+		'__ACTION_USER_FULLNAME__' => $actionUserName,
+		'__TIMESHEETWEEK_MAIL_SIGNATURE__' => $mailSignature,
+		'__RECIPIENT_FULLNAME__' => '',
+		);
+
+		return array(
+		'employee' => $employee,
+		'validator' => $validator,
+		'employee_name' => $employeeName,
+		'validator_name' => $validatorName,
+		'action_user_name' => $actionUserName,
+		'mail_signature' => $mailSignature,
+		'url' => $url,
+		'base_substitutions' => $baseSubstitutions,
+		);
+		}
+		}
