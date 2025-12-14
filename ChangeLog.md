@@ -1,5 +1,11 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.6.3 (10/12/2025)
+- Envoie les notifications de changement d'état avec des versions HTML pour conserver les actions et caractères spéciaux. / Sends status change notifications with HTML variants to preserve actions and special characters.
+- Décode les entités HTML dans les objets générés pour afficher correctement les accents dans les courriels. / Decodes HTML entities in generated subjects to display accented characters correctly in emails.
+- Calcule la signature des notifications en utilisant MAIN_APPLICATION_TITLE ou, à défaut, le nom de la société. / Builds notification signatures using MAIN_APPLICATION_TITLE or, if unavailable, the company name.
+- Aligne les traductions et la documentation pour les locales en_US, fr_FR, de_DE, es_ES et it_IT. / Aligns translations and documentation for en_US, fr_FR, de_DE, es_ES and it_IT locales.
+
 ## 1.6.2 (09/12/2025)
 - Ajoute les traductions de TimesheetWeek en allemand, espagnol et italien. / Adds German, Spanish and Italian translations for TimesheetWeek.
 
