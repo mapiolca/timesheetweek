@@ -295,16 +295,17 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 $emailFrom = $conf->global->MAIN_INFO_SOCIETE_MAIL;
                         }
 
-                        if ($tplResult > 0 && $template) {
-                                $subjectTemplate = !empty($template->subject) ? $template->subject : $template->topic;
-                                $bodyTemplate = $template->content;
+					if ($tplResult > 0 && $template) {
+						$subjectTemplate = !empty($template->subject) ? $template->subject : $template->topic;
+						$bodyTemplate = $template->content;
 
-                                $subject = make_substitutions($subjectTemplate, $substitutions);
-                                $message = make_substitutions($bodyTemplate, $substitutions);
+						$subject = make_substitutions($subjectTemplate, $substitutions);
+						$subject = dol_html_entity_decode($subject, ENT_QUOTES);
+						$message = make_substitutions($bodyTemplate, $substitutions);
 
-                                if (!empty($template->email_from)) {
-                                        $emailFrom = make_substitutions($template->email_from, $substitutions);
-                                }
+						if (!empty($template->email_from)) {
+							$emailFrom = make_substitutions($template->email_from, $substitutions);
+						}
 
                                 $templateTo = '';
                                 if (!empty($template->email_to)) {
@@ -353,9 +354,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                                 }
                                         }
                                 }
-                        } else {
-                                $recipientName = $recipient->getFullName($langs);
-                                $subject = $langs->trans($subjectKey, $timesheet->ref);
+					} else {
+						$recipientName = $recipient->getFullName($langs);
+						$subject = $langs->trans($subjectKey, $timesheet->ref);
+						$subject = dol_html_entity_decode($subject, ENT_QUOTES);
 
                                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
                                         $messageArgs = array(
