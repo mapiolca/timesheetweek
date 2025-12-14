@@ -230,11 +230,11 @@ TimesheetWeekMailDefaultBody = Bonjour,\n\nVeuillez trouver la feuille de temps 
 TimesheetWeekMailSendToHelp = Séparez les adresses e-mail par des virgules.
 Sendbymail = Envoyer par mail
 TimesheetWeekNotificationSubmitSubject = Feuille de temps %s soumise
-TimesheetWeekNotificationSubmitBody = Bonjour %s,\n\nLe salarié %s a soumis la feuille de temps %s pour la semaine %s/%s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
+TimesheetWeekNotificationSubmitBody = Bonjour %s,\n\nLe salarié %s a soumis la feuille de temps %s pour la semaine %s/%s.\nVous pouvez la consulter ici : %s\n\n%s
 TimesheetWeekNotificationApproveSubject = Feuille de temps %s approuvée
-TimesheetWeekNotificationApproveBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s est désormais approuvée par %s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
+TimesheetWeekNotificationApproveBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s est désormais approuvée par %s.\nVous pouvez la consulter ici : %s\n\n%s
 TimesheetWeekNotificationRefuseSubject = Feuille de temps %s refusée
-TimesheetWeekNotificationRefuseBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s a été refusée par %s.\nVous pouvez la consulter ici : %s\n\nCordialement,\n%s
+TimesheetWeekNotificationRefuseBody = Bonjour %s,\n\nVotre feuille de temps %s pour la semaine %s/%s a été refusée par %s.\nVous pouvez la consulter ici : %s\n\n%s
 TimesheetWeekNotificationMissingRecipient = Aucun destinataire défini pour la notification (%s).
 TimesheetWeekNotificationMailError = Impossible d'envoyer la notification e-mail : %s
 TimesheetWeekNotificationNoEmail = Le destinataire %s n'a pas d'adresse e-mail.
@@ -262,13 +262,13 @@ ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion
 
 TimesheetWeekTemplateSubmitLabel = Notification de soumission de feuille de temps
 TimesheetWeekTemplateSubmitSubject = Feuille de temps __TIMESHEETWEEK_REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
-TimesheetWeekTemplateSubmitBody = Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekTemplateApproveLabel = Notification d'approbation de feuille de temps
 TimesheetWeekTemplateApproveSubject = Feuille de temps __TIMESHEETWEEK_REF__ approuvée
-TimesheetWeekTemplateApproveBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est désormais approuvée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateApproveBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est désormais approuvée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekTemplateRefuseLabel = Notification de refus de feuille de temps
 TimesheetWeekTemplateRefuseSubject = Feuille de temps __TIMESHEETWEEK_REF__ refusée
-TimesheetWeekTemplateRefuseBody = Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\nCordialement,\n__ACTION_USER_FULLNAME__
+TimesheetWeekTemplateRefuseBody = \n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 
 TimesheetWeekPDFModels = Modèles PDF TimesheetWeek
 
@@ -306,3 +306,6 @@ TimesheetWeekRightValidateChild = Valider les feuilles des subordonnés
 TimesheetWeekRightValidateAll = Valider toutes les feuilles de temps
 TimesheetWeekRightSeal = Sceller les feuilles de temps
 TimesheetWeekRightUnseal = Desceller les feuilles de temps
+
+TimesheetWeekMailSignatureWithAppTitle = Cordialement,\n%s
+TimesheetWeekMailSignatureWithoutAppTitle = Cordialement,\nVotre Dolibarr %s.
