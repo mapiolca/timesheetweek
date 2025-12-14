@@ -1,0 +1,311 @@
+# Translation file
+
+#
+# Generic
+#
+
+# Module label 'ModuleTimesheetWeekName'
+ModuleTimesheetWeekName = Weekly timesheets
+# Module description 'ModuleTimesheetWeekDesc'
+ModuleTimesheetWeekDesc = Module to Manage Timesheets in Dolibarr
+
+#
+# Admin page
+#
+TimesheetWeekSetup = TimesheetWeek setup
+Settings = Settings
+TimesheetWeekSetupPage = TimesheetWeek setup page
+TimesheetWeekNumberingHelp = Choose the numbering mask that will generate references for weekly timesheets.
+TimesheetWeekNumberingEmpty = No numbering module is available.
+TimesheetWeekNumberingActivate = Activate this mask
+TimesheetWeekPDFModelsHelp = Enable the PDF templates that can be generated from a weekly timesheet.
+TimesheetWeekPDFModelsEmpty = No PDF template is available.
+PDFStandardTimesheetWeekDescription = Standard PDF model for weekly timesheets
+TimesheetWeekPdfReferenceLabel = Timesheet reference: %s
+TimesheetWeekPdfApprovedDetails = Approved on %s by %s
+TimesheetWeekDailyRateOptions = Daily-rate options
+TimesheetWeekDailyRateOptionsHelp = Configure the helpers available for daily-rate contracts.
+TimesheetWeekQuarterDayForDailyContract = Quarter-day selector for daily-rate contracts
+TimesheetWeekQuarterDayForDailyContractHelp = Allow daily-rate employees to declare quarter days instead of half-days only.
+TimesheetWeekReminderSectionTitle = Weekly email reminder
+TimesheetWeekReminderSectionHelp = Configure the automatic reminder asking users to fill, validate or send their weekly timesheets.
+TimesheetWeekReminderEnabled = Enable automatic reminder
+TimesheetWeekReminderEnabledHelp = Turn the weekly reminder on or off.
+TimesheetWeekReminderStartTime = Reminder start date and time
+TimesheetWeekReminderStartTimeHelp = Choose the exact date and time when the next reminder must start running.
+TimesheetWeekReminderStartTimeInvalid = Please select a valid date and time for the reminder start.
+TimesheetWeekReminderCronUpdateFailed = Unable to update the cron start date for the reminder task.
+TimesheetWeekReminderCronMissing = Reminder cron task not found; please reactivate the module to recreate it.
+TimesheetWeekReminderEmailTemplate = Email template for reminder
+TimesheetWeekReminderEmailTemplateHelp = Choose the Dolibarr email template used to send the reminder.
+TimesheetWeekReminderExcludedUsers = Users excluded from the reminder
+TimesheetWeekReminderExcludedUsersHelp = Select users who must not receive the weekly reminder email.
+TimesheetWeekReminderCronLabel = Weekly timesheet reminder
+TimesheetWeekReminderCronComment = Send weekly reminder emails prompting users to complete their timesheets.
+TimesheetWeekReminderTemplateMissing = Reminder email template is not configured.
+TimesheetWeekReminderSendFailed = Failed to send the reminder email to %s.
+TimesheetWeekReminderSendSuccess = Reminder email successfully sent to %s.
+TimesheetWeekReminderSendTest = Send test email
+TimesheetWeekReminderTestSuccess = Test reminder email sent
+TimesheetWeekReminderTestError = Unable to send the test reminder email.
+TimesheetWeekReminderTemplateLabel = Timesheetweek - Timesheet reminder
+TimesheetWeekReminderTemplateSubject = Timesheet submission reminder
+TimesheetWeekReminderTemplateBody = Hello __TSW_USER_FIRSTNAME__,\nPlease submit your weekly timesheet before Monday 8:00.\n__TSW_TIMESHEET_NEW_URL__\nRegards, __TSW_DOLIBARR_TITLE__
+NewSection=New section
+TIMESHEETWEEK_MYPARAM1 = My param 1
+TIMESHEETWEEK_MYPARAM1Tooltip = My param 1 tooltip
+TIMESHEETWEEK_MYPARAM2=My param 2
+TIMESHEETWEEK_MYPARAM2Tooltip=My param 2 tooltip
+
+#
+# Multicompany sharing
+#
+TIMESHEETWEEKSharing = TimesheetWeek sharing
+TIMESHEETWEEKSharingDescription = Configure Multicompany sharing for weekly timesheets.
+ShareTimesheetWeek = Share weekly timesheets
+ShareTimesheetweek = Share weekly timesheets
+ShareTimesheetWeekTooltip = Allow entities to access the same weekly timesheets across the group.
+ShareTimesheetWeekNumbering = Share weekly timesheet numbering
+ShareTimesheetweeknumbering = Share weekly timesheet numbering
+ShareTimesheetWeekNumberingTooltip = Synchronize numbering sequences for weekly timesheets between entities.
+SelectWeekPlaceholder = -- Select a week --
+
+
+#
+# About page
+#
+About = About
+TimesheetWeekAbout = About TimesheetWeek
+TimesheetWeekAboutPage = TimesheetWeek about page
+TimesheetWeekAboutGeneral = General information
+TimesheetWeekAboutVersion = Version
+TimesheetWeekAboutFamily = Family
+TimesheetWeekAboutDescription = Description
+TimesheetWeekAboutMaintainer = Publisher
+TimesheetWeekAboutResources = Resources
+TimesheetWeekAboutDocumentation = Documentation
+TimesheetWeekAboutDocumentationLink = Open the README
+TimesheetWeekAboutSupport = Support
+TimesheetWeekAboutSupportValue = Reach your integrator or the Dolistore support team for any request.
+TimesheetWeekAboutContact = Publisher website
+TimesheetWeekDescription = TimesheetWeek module to manage entry, approval and reporting of weekly timesheets.
+
+#
+# Sample page
+#
+TimesheetWeekArea = Home TimesheetWeek
+Timesheet = Timesheet
+TimesheetWeek = Timesheet week
+TimesheetWeek_List = List of timesheet weeks
+TimesheetWeekList = Timesheet weeks
+ListTimesheetWeek = Timesheet weeks
+NewTimesheetWeek = New timesheet week
+QuickCreateTimesheetWeek = Quick-create a weekly timesheet
+List TimesheetWeek = Timesheet weeks
+New TimesheetWeek = New timesheet week
+ShowTimesheetWeek = Show timesheet week %s
+MyPageName = My page name
+
+#
+# Sample widget
+#
+MyWidget = My widget
+MyWidgetDescription = My widget description
+
+#
+# Errors & status changes
+#
+BadStatusForSubmit = This timesheet cannot be submitted from its current status.
+NoLineToSubmit = No lines to submit on this timesheet.
+RefGenerationFailed = Unable to generate a definitive reference for the timesheet.
+BadStatusForApprove = Only submitted timesheets can be approved.
+BadStatusForRefuse = Only submitted timesheets can be refused.
+AlreadyDraft = This timesheet is already in draft status.
+TimesheetSaved = Timesheet saved.
+Lines = lines
+InvalidWeekFormat = Invalid week format (expected YYYY-Www).
+TimesheetIsNotEditable = This timesheet cannot be edited in its current status.
+NoHoursToSubmit = No hours have been recorded on this timesheet.
+TimesheetSubmitted = Timesheet submitted.
+TimesheetApproved = Timesheet approved.
+TimesheetRefused = Timesheet refused.
+TimesheetSealed = Timesheet sealed.
+TimesheetUnsealed = Timesheet unsealed.
+StatusSetToDraft = Timesheet set back to draft status.
+ActionNotAllowedOnThisStatus = This action is not allowed on the current status.
+CannotSetDraftWhenSealed = A sealed timesheet must be unsealed before returning to draft status.
+TimesheetWeekRedirectExisting = A timesheet already exists for this week. Redirecting to the existing sheet.
+Draft = Draft
+Submitted = Submitted
+Approved = Approved
+Refused = Refused
+SealTimesheet = Seal
+UnsealTimesheet = Unseal
+ConfirmValidate = Do you confirm the approval of this timesheet?
+ConfirmRefuse = Do you confirm the refusal of this timesheet?
+Refuse = Refuse
+ApproveSelection = Approve selection
+RefuseSelection = Refuse selection
+SealSelection = Seal selection
+DeleteSelection = Delete selection
+TimesheetWeekMassApproveSuccess = %s timesheet(s) approved.
+TimesheetWeekMassRefuseSuccess = %s timesheet(s) refused.
+TimesheetWeekMassSealSuccess = %s timesheet(s) sealed.
+TimesheetWeekMassActionErrors = Unable to process: %s.
+TimesheetWeekMassDeleteOnlyDraft = Only draft timesheets can be deleted in bulk.
+GenerateSummaryPdf = Generate summary PDF
+TimesheetWeekMassMergePdf = Generate merged PDF for selected timesheets
+TimesheetWeekMassMergeForbidden = You are not allowed to access timesheet %s
+TimesheetWeekMassMergeGenerationFailed = Failed to generate PDF for %s
+TimesheetWeekMassMergeMissingFile = Unable to find the generated PDF for %s
+TimesheetWeekMassMergeNoEligible = No PDF could be generated from the selected timesheets
+TimesheetWeekMassMergeError = Failed to merge the selected timesheets into a single PDF
+TimesheetWeekMassMergeSuccess = Merged PDF generated successfully
+TimesheetWeekSummaryNoSelection = Please select at least one timesheet to create the summary.
+TimesheetWeekSummaryUnauthorizedSheet = Some selected timesheets were ignored because you are not allowed to read them.
+TimesheetWeekSummaryMissingUser = The employee linked to a selected timesheet no longer exists.
+TimesheetWeekSummaryNoData = No readable timesheet was found in the selection.
+TimesheetWeekSummaryTitle = Weekly timesheets summary
+TimesheetWeekSummaryGeneratedOn = Generated on %s
+TimesheetWeekSummaryGeneratedOnBy = Generated on %s by %s
+TimesheetWeekSummaryColumnWeek = Week
+TimesheetWeekSummaryColumnStart = Start date
+TimesheetWeekSummaryColumnEnd = End date
+TimesheetWeekSummaryColumnTotalHours = Declared hours
+TimesheetWeekSummaryColumnTotalDays = Declared days
+TimesheetWeekSummaryColumnContractHours = Contract hours
+TimesheetWeekSummaryColumnContractDays = Contract days
+TimesheetWeekSummaryColumnOvertime = Overtime
+TimesheetWeekSummaryColumnMeals = Meal allowances
+TimesheetWeekSummaryColumnZone1 = Zone 1 trips
+TimesheetWeekSummaryColumnZone2 = Zone 2 trips
+TimesheetWeekSummaryColumnZone3 = Zone 3 trips
+TimesheetWeekSummaryColumnZone4 = Zone 4 trips
+TimesheetWeekSummaryColumnZone5 = Zone 5 trips
+TimesheetWeekSummaryColumnStatus = Status
+TimesheetWeekSummaryColumnApprovedBy = Approved by
+TimesheetWeekSummaryStatusApprovedBy = Approved by %s
+TimesheetWeekSummaryStatusSealedBy = Sealed by %s
+TimesheetWeekSummaryUserTitle = %s
+TimesheetWeekSummaryTotalsLabel = Totals
+TimesheetWeekSummaryTableTooTall = The summary for %s contains too many rows to fit on a single page.
+TimesheetWeekSummaryGenerated = Summary PDF ready.
+TimesheetWeekSummaryFilename = Weekly timesheets summary - Week %s to %s.pdf
+TimesheetWeekSummaryHeaderWeekRange = Week #%1$s %2$s
+TimesheetWeekPreviewPdf = PDF preview
+TimesheetWeekDownloadPdf = PDF download
+
+TimesheetWeekStatusDraft = Draft
+TimesheetWeekStatusSubmitted = Submitted
+TimesheetWeekStatusApproved = Approved
+TimesheetWeekStatusSealed = Sealed
+TimesheetWeekStatusRefused = Refused
+BadStatusForSeal = Only approved timesheets can be sealed.
+BadStatusForUnseal = Only sealed timesheets can be unsealed.
+TimesheetWeekAgendaCreated = Timesheet %s created.
+TimesheetWeekAgendaSubmitted = Timesheet %s submitted.
+TimesheetWeekDailyRateLabel = Daily rate contract
+TimesheetWeekDailyRateFullDay = Full day
+TimesheetWeekDailyRateMorning = Morning
+TimesheetWeekDailyRateAfternoon = Afternoon
+TimesheetWeekDailyRateOneDay = 1 day
+TimesheetWeekDailyRateHalfDay = 0.5 day
+TimesheetWeekDailyRateQuarterDay = 0.25 day
+TimesheetWeekDailyRateDurationsLegend = Available daily-rate durations: %1$s / %2$s / %3$s
+LastModification = Last modification
+TotalDays = Total days
+TimesheetWeekTotalDays = Total days
+TimesheetWeekAgendaApproved = Timesheet %s approved.
+TimesheetWeekAgendaRefused = Timesheet %s refused.
+TimesheetWeekAgendaSealed = Timesheet %s sealed.
+TimesheetWeekAgendaUnsealed = Timesheet %s unsealed.
+TimesheetWeekAgendaReopened = Timesheet %s reopened to draft.
+TimesheetWeekAgendaDeleted = Timesheet %s deleted.
+TimesheetWeekAgendaDefaultLabel = Timesheet %s activity.
+AgendaEventCreationFailed = Unable to create the agenda event linked to this timesheet.
+AssignedTasks = Assigned tasks
+NoTasksAssigned = No tasks are assigned for this week.
+ProjectTaskColumn = Project / Task
+Meal = Meal
+Meals = Meals
+Zone = Zone
+Zone1Count = Zone 1 days
+Zone2Count = Zone 2 days
+Zone3Count = Zone 3 days
+Zone4Count = Zone 4 days
+Zone5Count = Zone 5 days
+MealCount = Meals count
+TotalHours = Total hours
+Overtime = Overtime
+TimesheetWeekMailDefaultSubject = Timesheet %s
+TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
+TimesheetWeekMailSendToHelp = Separate email addresses with commas.
+Sendbymail = Send by mail
+TimesheetWeekNotificationSubmitSubject = Timesheet %s submitted
+TimesheetWeekNotificationSubmitBody = Hello %s,\n\nThe employee %s submitted the timesheet %s for week %s/%s.\nYou can review it here: %s\n\n%s
+TimesheetWeekNotificationApproveSubject = Timesheet %s approved
+TimesheetWeekNotificationApproveBody = Hello %s,\n\nYour timesheet %s for week %s/%s was approved by %s.\nYou can review it here: %s\n\n%s
+TimesheetWeekNotificationRefuseSubject = Timesheet %s refused
+TimesheetWeekNotificationRefuseBody = Hello %s,\n\nYour timesheet %s for week %s/%s was refused by %s.\nYou can review it here: %s\n\n%s
+TimesheetWeekNotificationMissingRecipient = No recipient available for notification (%s).
+TimesheetWeekNotificationMailError = Unable to send notification email: %s
+TimesheetWeekNotificationNoEmail = The recipient %s has no email address.
+Validator = User responsible for approval
+TimesheetWeekNotificationValidatorFallback = User responsible for approval
+TimesheetWeekNotificationEmployeeFallback = Employee
+TimesheetWeekAjaxForbidden = You are not allowed to update this timesheet.
+TimesheetWeekAjaxUpdateError = Unable to update field %s.
+TimesheetWeekAjaxUpdateSuccess = Field %s updated successfully.
+TimesheetWeekConfirmMassDelete = Do you confirm the deletion of the %s selected timesheets?
+TimesheetWeekErrorNoSelection = Please select at least one timesheet before launching a mass action.
+TimesheetWeekDayMonday = Monday
+TimesheetWeekDayTuesday = Tuesday
+TimesheetWeekDayWednesday = Wednesday
+TimesheetWeekDayThursday = Thursday
+TimesheetWeekDayFriday = Friday
+TimesheetWeekDaySaturday = Saturday
+TimesheetWeekDaySunday = Sunday
+TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %s.
+Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
+Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
+Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
+ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
+
+TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
+TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
+TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+TimesheetWeekTemplateApproveLabel = Timesheet approval notification
+TimesheetWeekTemplateApproveSubject = Timesheet __TIMESHEETWEEK_REF__ approved
+TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+TimesheetWeekTemplateRefuseLabel = Timesheet refusal notification
+TimesheetWeekTemplateRefuseSubject = Timesheet __TIMESHEETWEEK_REF__ refused
+TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+
+TimesheetWeekPDFModels = TimesheetWeek PDF templates
+
+ModelEnabled = Model %s enabled
+
+ModelDisabled = Model %s disabled
+
+#
+# Permissions
+#
+TimesheetWeekRightReadOwn = Read his own timesheets
+TimesheetWeekRightReadChild = Read subordinates' timesheets
+TimesheetWeekRightReadAll = Read all timesheets
+TimesheetWeekRightWriteOwn = Create/Update own timesheets
+TimesheetWeekRightWriteChild = Create/Update subordinates' timesheets
+TimesheetWeekRightWriteAll = Create/Update all timesheets
+TimesheetWeekRightDeleteOwn = Delete own timesheets
+TimesheetWeekRightDeleteChild = Delete subordinates' timesheets
+TimesheetWeekRightDeleteAll = Delete all timesheets
+TimesheetWeekRightValidateGeneric = Validate timesheets (generic)
+TimesheetWeekRightValidateOwn = Validate own timesheets
+TimesheetWeekRightValidateChild = Validate subordinates' timesheets
+TimesheetWeekRightValidateAll = Validate all timesheets
+TimesheetWeekRightSeal = Seal timesheets
+TimesheetWeekRightUnseal = Unseal timesheets
+
+TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
+TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.
