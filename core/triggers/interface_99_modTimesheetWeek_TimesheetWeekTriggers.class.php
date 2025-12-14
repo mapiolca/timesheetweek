@@ -405,51 +405,56 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         }
 
-                       if (empty($subject) || empty($message)) {
-                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
-                               continue;
-                       }
+			if (empty($subject) || empty($message)) {
+				dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
+				continue;
+			}
 
-                       $sendto = implode(',', array_unique(array_filter($sendtoList)));
-                       $cc = implode(',', array_unique(array_filter($ccList)));
-                       $bcc = implode(',', array_unique(array_filter($bccList)));
+			$sendto = implode(',', array_unique(array_filter($sendtoList)));
+			$cc = implode(',', array_unique(array_filter($ccList)));
+			$bcc = implode(',', array_unique(array_filter($bccList)));
+			$messageHtml = !empty($template) ? $message : dol_nl2br($message);
+			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
+			$isHtml = 1;
 
-                       $nativeResult = $timesheet->sendNativeMailNotification(
-                               $action,
-                               $actionUser,
-                               $recipient,
-                               $langs,
-                               $conf,
-                               $substitutions,
-                               array(
-                                       'subject' => $subject,
-                                       'message' => $message,
-                                       'sendto' => $sendto,
-                                       'cc' => $cc,
-                                       'bcc' => $bcc,
-                                       'replyto' => $emailFrom,
-                                       'trackid' => 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0),
-                               )
-                       );
+			$nativeResult = $timesheet->sendNativeMailNotification(
+				$action,
+				$actionUser,
+				$recipient,
+				$langs,
+				$conf,
+				$substitutions,
+				array(
+					'subject' => $subject,
+					'message' => $message,
+					'message_html' => $messageHtml,
+					'sendto' => $sendto,
+					'cc' => $cc,
+					'bcc' => $bcc,
+					'replyto' => $emailFrom,
+					'trackid' => $trackId,
+					'ishtml' => $isHtml,
+				)
+			);
 
-                       if ($nativeResult > 0) {
-                               $sent += $nativeResult;
-                               continue;
-                       }
+			if ($nativeResult > 0) {
+				$sent += $nativeResult;
+				continue;
+			}
 
-                       $mail = new CMailFile($subject, $sendto, $emailFrom, $message, array(), array(), array(), $cc, $bcc, 0, 0);
-                       if ($mail->sendfile()) {
-                               $sent++;
-                       } else {
-                               $errmsg = $mail->error ? $mail->error : 'Unknown error';
-                               dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
-                       }
-                }
+			$mail = new CMailFile($subject, $sendto, $emailFrom, $messageHtml, array(), array(), array(), $cc, $bcc, 0, $isHtml, '', '', $trackId);
+			if ($mail->sendfile()) {
+				$sent++;
+			} else {
+				$errmsg = $mail->error ? $mail->error : 'Unknown error';
+				dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', $errmsg), LOG_WARNING);
+			}
+		}
 
-                return $sent;
-        }
+		return $sent;
+	}
 
-        /**
+	/**
          * Dispatch business notifications relying on Dolibarr's Notification module.
          *
          * FR : Déclenche les notifications métier en s'appuyant sur le module Notification natif.
