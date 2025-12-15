@@ -1,5 +1,14 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.6.2 (14/12/2025)
+- Envoie les notifications de changement d'état avec des versions HTML pour conserver les actions et caractères spéciaux. / Sends status change notifications with HTML variants to preserve actions and special characters.
+- Décode les entités HTML dans les objets générés pour afficher correctement les accents dans les courriels. / Decodes HTML entities in generated subjects to display accented characters correctly in emails.
+- Calcule la signature des notifications en utilisant MAIN_APPLICATION_TITLE ou, à défaut, le nom de la société. / Builds notification signatures using MAIN_APPLICATION_TITLE or, if unavailable, the company name.
+- Ajoute les traductions de TimesheetWeek en allemand, espagnol et italien. / Adds German, Spanish and Italian translations for TimesheetWeek.
+- Aligne les traductions et la documentation pour les locales en_US, fr_FR, de_DE, es_ES et it_IT. / Aligns translations and documentation for en_US, fr_FR, de_DE, es_ES and it_IT locales.
+- Corrige l'ajout du modèle de template par défaut pour les installations Dolibarr utilisant multicompany. / Fixes adding the default template model for Dolibarr instances using multicompany.
+- Corrige le retour d'information lors de l'exécution du rappel de feuille d'heures. / Fixes the feedback returned when running the timesheet reminder.
+
 ## 1.6.1 (08/12/2025)
 - Fige les heures contractuelles dans la fiche hebdomadaire et les PDF pour conserver le contexte en cas d'évolution du contrat. / Freezes contract hours in the weekly card and PDFs to preserve context when an employee contract changes.
 

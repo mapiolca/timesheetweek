@@ -282,7 +282,7 @@ class TimesheetweekReminder extends CommonObject
 		$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
 		dol_syslog(__METHOD__.' sent='.$emailsSent, LOG_DEBUG);
 
-		return $emailsSent;
+		return 0;
 	}
 		/**
 		* Send a reminder test email to the current user using the configured template.
