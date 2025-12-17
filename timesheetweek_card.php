@@ -1609,7 +1609,7 @@ echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 						}
 						echo '</th>';
 				}
-echo '<th class="center cellule-total col-total">'.$langs->trans("Total").'</th>';
+echo '<th class="center cellule-total">'.$langs->trans("Total").'</th>';
 echo '</tr>';
 
 				// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
