@@ -1639,7 +1639,7 @@ $checked = $dayMeal[$d] ? ' checked' : '';
 echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
 echo '</td>';
 }
-echo '<td class="col-total"></td>';
+echo '<td class=""></td>';
 echo '</tr>';
 }
 
