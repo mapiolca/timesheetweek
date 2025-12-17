@@ -1569,22 +1569,24 @@ $hasLegacyHalfDayDailyRate = true;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-			echo '<div class="div-table-responsive">';
-				// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
-				// FR: Limite l'aide de centrage vertical et horizontal aux cellules spécifiques nécessitant l'alignement (jours/zones/paniers/heures/totaux).
-				echo '<style>';
-				echo '.grille-saisie-temps .cellule-jour,';
-				echo '.grille-saisie-temps .cellule-zone-panier,';
-				echo '.grille-saisie-temps .cellule-temps,';
-				echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
-				echo '</style>';
-				echo '<table class="noborder centpercent grille-saisie-temps">';
+echo '<div class="div-table-responsive">';
+// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
+// FR: Limite l'aide de centrage vertical et horizontal aux cellules spécifiques nécessitant l'alignement (jours/zones/paniers/heures/totaux).
+echo '<style>';
+echo '.grille-saisie-temps .cellule-jour,';
+echo '.grille-saisie-temps .cellule-zone-panier,';
+echo '.grille-saisie-temps .cellule-temps,';
+echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
+echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; background: #fff; z-index: 2; }';
+echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 3; }';
+echo '</style>';
+echo '<table class="noborder centpercent grille-saisie-temps">';
 
 				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
 				// FR: Applique l'aide de centrage vertical sur chaque en-tête de jour pour conserver des libellés alignés visuellement.
 				// Header jours
-		echo '<tr class="liste_titre">';
-				echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
+echo '<tr class="liste_titre">';
+echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 				foreach ($days as $d) {
 						// EN: Render day headers safely even if week dates are undefined.
 						// FR: Affiche les en-têtes de jours en sécurité même sans dates de semaine définies.
@@ -1613,7 +1615,7 @@ $hasLegacyHalfDayDailyRate = true;
 // Ligne zone + panier (préfills depuis lignes)
 if (!$isDailyRateEmployee) {
 echo '<tr class="liste_titre">';
-echo '<td></td>';
+echo '<td class="col-project-task"></td>';
 foreach ($days as $d) {
 // EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
 // FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
@@ -1682,11 +1684,11 @@ if ($isDailyRateEmployee) {
 }
 foreach ($byproject as $pid => $pdata) {
 			// Ligne projet
-			echo '<tr class="oddeven trforbreak nobold">';
-			$colspan = 1 + count($days) + 1;
-			echo '<td colspan="'.$colspan.'">';
-			$proj = new Project($db);
-			$proj->fetch($pid);
+echo '<tr class="oddeven trforbreak nobold">';
+$colspan = 1 + count($days) + 1;
+echo '<td colspan="'.$colspan.'" class="col-project-task">';
+$proj = new Project($db);
+$proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
 						echo tw_get_project_nomurl($proj, 1);
 			echo '</td>';
@@ -1695,7 +1697,7 @@ foreach ($byproject as $pid => $pdata) {
 			// Tâches
 foreach ($pdata['tasks'] as $task) {
 echo '<tr>';
-echo '<td class="paddingleft">';
+echo '<td class="paddingleft col-project-task">';
 $tsk = new Task($db);
 $tsk->fetch((int)$task['task_id']);
 if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
