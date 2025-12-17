@@ -1579,6 +1579,8 @@ echo '.grille-saisie-temps .cellule-temps,';
 echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
 echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 3; }';
+echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 2; }';
+echo '.grille-saisie-temps .liste_titre .col-total { z-index: 3; }';
 echo '</style>';
 echo '<table class="noborder centpercent grille-saisie-temps">';
 
@@ -1607,8 +1609,8 @@ echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 						}
 						echo '</th>';
 				}
-				echo '<th class="center cellule-total">'.$langs->trans("Total").'</th>';
-		echo '</tr>';
+echo '<th class="center cellule-total col-total">'.$langs->trans("Total").'</th>';
+echo '</tr>';
 
 				// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
 				// FR: Ajoute l'aide de centrage vertical sur les cellules zone et repas afin que les deux contrôles restent centrés quelle que soit leur hauteur.
@@ -1637,7 +1639,7 @@ $checked = $dayMeal[$d] ? ' checked' : '';
 echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
 echo '</td>';
 }
-echo '<td></td>';
+echo '<td class="col-total"></td>';
 echo '</tr>';
 }
 
@@ -1739,9 +1741,9 @@ $grandInit += $rowTotal;
 // EN: Center task totals so they stay aligned with other centered figures.
 // FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
 if ($isDailyRateEmployee) {
-echo '<td class="center task-total cellule-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
-		} else {
-echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
+echo '<td class="center task-total cellule-total col-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
+} else {
+echo '<td class="center task-total cellule-total col-total">'.formatHours($rowTotal).'</td>';
 }
 echo '</tr>';
 }
@@ -1758,9 +1760,9 @@ echo '<td class="left">'.$langs->trans("TimesheetWeekTotalDays").'</td>';
 foreach ($days as $d) {
 echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</td>';
 }
-echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
+echo '<td class="center grand-total cellule-total col-total">'.tw_format_days($grandDays, $langs).'</td>';
 echo '</tr>';
-		} else {
+} else {
 echo '<tr class="liste_total row-total-hours">';
 // EN: Center overall totals and daily sums for consistent middle alignment.
 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
@@ -1768,7 +1770,7 @@ echo '<td class="left">'.$langs->trans("Total").'</td>';
 foreach ($days as $d) {
 echo '<td class="center day-total cellule-total">00:00</td>';
 }
-echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
+echo '<td class="center grand-total cellule-total col-total">'.formatHours($grand).'</td>';
 echo '</tr>';
 
 echo '<tr class="liste_total">';
@@ -1777,7 +1779,7 @@ echo '<tr class="liste_total">';
 echo '<td class="left">'.$langs->trans("Meals").'</td>';
 $initMeals = array_sum($dayMeal);
 echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
-echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
+echo '<td class="left meal-total cellule-total col-total">'.$initMeals.'</td>';
 echo '</tr>';
 
 echo '<tr class="liste_total">';
@@ -1786,7 +1788,7 @@ echo '<tr class="liste_total">';
 echo '<td class="left">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
 $ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
 echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
-echo '<td class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
+echo '<td class="center overtime-total cellule-total col-total">'.formatHours($ot).'</td>';
 echo '</tr>';
 }
 
