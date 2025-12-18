@@ -1569,25 +1569,51 @@ $hasLegacyHalfDayDailyRate = true;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
-// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
-echo '<style>';
-echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
-echo '.grille-saisie-temps .cellule-jour,';
-echo '.grille-saisie-temps .cellule-zone-panier,';
-echo '.grille-saisie-temps .cellule-temps,';
-echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
-echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
-echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; z-index: 8; }';
-echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 21; }';
-echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 9; }';
-echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 8; }';
-echo '.grille-saisie-temps .trforbreak .col-project-task-filler {}';
-echo '.grille-saisie-temps .col-total { position: sticky; right: 0; z-index: 6; }';
-echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
-echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; }';
-echo '</style>';
-echo '<table class="noborder centpercent grille-saisie-temps">';
+		echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
+		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
+		echo '<style>';
+		echo ':root { --tw-grid-top-gap: 0px; }';
+		echo '.grille-saisie-temps-wrapper { max-height: calc(100vh - var(--tw-grid-top-gap, 0px)); overflow-y: auto; overflow-x: auto; position: sticky; top: var(--tw-grid-top-gap, 0px); z-index: 4; }';
+		echo '.grille-saisie-temps .cellule-jour,';
+		echo '.grille-saisie-temps .cellule-zone-panier,';
+		echo '.grille-saisie-temps .cellule-temps,';
+		echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
+		echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
+		echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; z-index: 8; }';
+		echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 21; }';
+		echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 9; }';
+		echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 8; }';
+		echo '.grille-saisie-temps .trforbreak .col-project-task-filler {}';
+		echo '.grille-saisie-temps .col-total { position: sticky; right: 0; z-index: 6; }';
+		echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
+		echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; }';
+		echo '</style>';
+		// EN: Keep the grid flush with the top menu while the bottom of the table is still outside the viewport.
+		echo '<script>';
+		echo '(function($){';
+		echo '$(function(){';
+		echo "\tvar \$wrapper = $('.grille-saisie-temps-wrapper');";
+		echo "\tif (!\$wrapper.length) { return; }";
+		echo "\tfunction updateGridTopGap() {";
+		echo "\t\tvar selectors = ['#id-top-menu', '#id-top', '#mainmenu', 'header.navbar', 'header.navbar-fixed-top', 'header'];";
+		echo "\t\tvar topGap = 0;";
+		echo "\t\tfor (var i = 0; i < selectors.length; i++) {";
+		echo "\t\t\tvar \$candidate = $(selectors[i]);";
+		echo "\t\t\tif (\$candidate.length && \$candidate.first().outerHeight()) {";
+		echo "\t\t\t\ttopGap = \$candidate.first().outerHeight();";
+		echo "\t\t\t\tbreak;";
+		echo "\t\t\t}";
+		echo "\t\t}";
+		echo "\t\tdocument.documentElement.style.setProperty('--tw-grid-top-gap', topGap + 'px');";
+		echo "\t\tvar maxHeight = 'calc(100vh - ' + topGap + 'px)';";
+		echo "\t\t\$wrapper.css('max-height', maxHeight);";
+		echo "\t}";
+		echo "\tupdateGridTopGap();";
+		echo "\t$(window).on('resize', updateGridTopGap);";
+		echo '});';
+		echo '})(jQuery);';
+		echo '</script>';
+		echo '<table class="noborder centpercent grille-saisie-temps">';
 
 				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
 				// Header jours
