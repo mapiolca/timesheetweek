@@ -1578,7 +1578,11 @@ echo '.grille-saisie-temps .cellule-zone-panier,';
 echo '.grille-saisie-temps .cellule-temps,';
 echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
 echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; background: #fff; z-index: 2; }';
+echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 3; }';
+echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 3; }';
+echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 3; }';
+echo '.grille-saisie-temps .trforbreak .col-project-task-filler { background: #fff; }';
 echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-total { z-index: 3; }';
 echo '</style>';
@@ -1687,13 +1691,14 @@ if ($isDailyRateEmployee) {
 foreach ($byproject as $pid => $pdata) {
 			// Ligne projet
 echo '<tr class="oddeven trforbreak nobold">';
-$colspan = 1 + count($days) + 1;
-echo '<td colspan="'.$colspan.'" class="col-project-task">';
+$colspanRemaining = count($days) + 1;
+echo '<td class="col-project-task col-summary-sticky">';
 $proj = new Project($db);
 $proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
 						echo tw_get_project_nomurl($proj, 1);
 			echo '</td>';
+echo '<td colspan="'.$colspanRemaining.'" class="col-project-task-filler"></td>';
 			echo '</tr>';
 
 			// Tâches
@@ -1766,7 +1771,7 @@ echo '</tr>';
 echo '<tr class="liste_total row-total-hours">';
 // EN: Center overall totals and daily sums for consistent middle alignment.
 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
-echo '<td class="left col-total">'.$langs->trans("Total").'</td>';
+echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Total").'</td>';
 foreach ($days as $d) {
 echo '<td class="center day-total cellule-total">00:00</td>';
 }
@@ -1776,7 +1781,7 @@ echo '</tr>';
 echo '<tr class="liste_total">';
 // EN: Center meal counters to match the rest of the grid alignment.
 // FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
-echo '<td class="left col-total">'.$langs->trans("Meals").'</td>';
+echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Meals").'</td>';
 $initMeals = array_sum($dayMeal);
 echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
 echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
@@ -1785,7 +1790,7 @@ echo '</tr>';
 echo '<tr class="liste_total">';
 // EN: Center overtime summary cells so every footer row follows the same alignment pattern.
 // FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
-echo '<td class="left col-total">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
+echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
 $ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
 echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
 echo '<td class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
