@@ -1569,29 +1569,29 @@ $hasLegacyHalfDayDailyRate = true;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-echo '<div class="div-table-responsive">';
+echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 // EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
-// FR: Limite l'aide de centrage vertical et horizontal aux cellules spécifiques nécessitant l'alignement (jours/zones/paniers/heures/totaux).
 echo '<style>';
+echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
 echo '.grille-saisie-temps .cellule-jour,';
 echo '.grille-saisie-temps .cellule-zone-panier,';
 echo '.grille-saisie-temps .cellule-temps,';
 echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
-echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; background: #fff; z-index: 2; }';
-echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; background: #fff; z-index: 2; }';
-echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 3; }';
-echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 3; }';
-echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 3; }';
+echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; background: #fff; z-index: 20; }';
+echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; background: #fff; z-index: 8; }';
+echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 21; }';
+echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 9; }';
+echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 8; }';
 echo '.grille-saisie-temps .trforbreak .col-project-task-filler { background: #fff; }';
-echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 2; }';
-echo '.grille-saisie-temps .liste_titre .col-total { z-index: 3; }';
+echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 6; }';
+echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
+echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; background: #fff; z-index: 12; }';
 echo '</style>';
 echo '<table class="noborder centpercent grille-saisie-temps">';
 
 				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
-				// FR: Applique l'aide de centrage vertical sur chaque en-tête de jour pour conserver des libellés alignés visuellement.
 				// Header jours
-echo '<tr class="liste_titre">';
+echo '<tr class="liste_titre sticky-header">';
 echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 				foreach ($days as $d) {
 						// EN: Render day headers safely even if week dates are undefined.
