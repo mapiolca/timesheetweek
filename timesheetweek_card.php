@@ -1581,6 +1581,8 @@ echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; backgr
 echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 3; }';
 echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 3; }';
+echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 3; }';
+echo '.grille-saisie-temps .trforbreak .col-project-task-filler { background: #fff; }';
 echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-total { z-index: 3; }';
 echo '</style>';
@@ -1689,13 +1691,14 @@ if ($isDailyRateEmployee) {
 foreach ($byproject as $pid => $pdata) {
 			// Ligne projet
 echo '<tr class="oddeven trforbreak nobold">';
-$colspan = 1 + count($days) + 1;
-echo '<td colspan="'.$colspan.'" class="col-project-task col-summary-sticky">';
+$colspanRemaining = count($days) + 1;
+echo '<td class="col-project-task col-summary-sticky">';
 $proj = new Project($db);
 $proj->fetch($pid);
 			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
 						echo tw_get_project_nomurl($proj, 1);
 			echo '</td>';
+echo '<td colspan="'.$colspanRemaining.'" class="col-project-task-filler"></td>';
 			echo '</tr>';
 
 			// Tâches
