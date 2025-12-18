@@ -1569,9 +1569,10 @@ $hasLegacyHalfDayDailyRate = true;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-echo '<div class="div-table-responsive">';
+echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 // EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 echo '<style>';
+echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
 echo '.grille-saisie-temps .cellule-jour,';
 echo '.grille-saisie-temps .cellule-zone-panier,';
 echo '.grille-saisie-temps .cellule-temps,';
@@ -1584,7 +1585,7 @@ echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 3; }';
 echo '.grille-saisie-temps .trforbreak .col-project-task-filler { background: #fff; }';
 echo '.grille-saisie-temps .col-total { position: sticky; right: 0; background: #fff; z-index: 2; }';
 echo '.grille-saisie-temps .liste_titre .col-total { z-index: 4; }';
-echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; background: #fff; z-index: 4; }';
+echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; background: #fff; z-index: 5; }';
 echo '</style>';
 echo '<table class="noborder centpercent grille-saisie-temps">';
 
