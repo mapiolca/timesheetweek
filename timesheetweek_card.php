@@ -1069,8 +1069,8 @@ if ($action === 'create') {
 			var m=/^(\d{4})-W(\d{2})$/.exec(val||'');return m?{y:parseInt(m[1],10),w:parseInt(m[2],10)}:null;
 		}
 		function isoWeekStart(y,w){var s=new Date(Date.UTC(y,0,1+(w-1)*7));var d=s.getUTCDay();var st=new Date(s);if(d>=1&&d<=4)st.setUTCDate(s.getUTCDate()-(d-1));else st.setUTCDate(s.getUTCDate()+(d===0?1:(8-d)));return st;}
-// EN: Local helper to zero-pad day/month values for legacy browser compatibility.
-// FR: Aide locale pour compléter les jours/mois avec un zéro et rester compatible avec les anciens navigateurs.
+		// EN: Local helper to zero-pad day/month values for legacy browser compatibility.
+		// FR: Aide locale pour compléter les jours/mois avec un zéro et rester compatible avec les anciens navigateurs.
 		function pad2(v){return (v<10?'0':'')+v;}
 		function fmt(d){var dd=pad2(d.getUTCDate());var mm=pad2(d.getUTCMonth()+1);var yy=d.getUTCFullYear();return dd+'/'+mm+'/'+yy;}
 		function updateWeekRange(){var v=$('#weekyear').val();var p=parseYearWeek(v);if(!p){$('#weekrange').text('');return;}var s=isoWeekStart(p.y,p.w);var e=new Date(s);e.setUTCDate(s.getUTCDate()+6);$('#weekrange').text('du '+fmt(s)+' au '+fmt(e));}
