@@ -1582,6 +1582,7 @@ if ($resLines) {
 			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
 			echo '.grille-saisie-temps .col-task { position: sticky; left: 0; z-index: 19; }';
 			echo '.grille-saisie-temps .col-project-task,';
+			echo '.grille-saisie-temps .col-task,';
 			echo '.grille-saisie-temps .col-summary-sticky,';
 			echo '.grille-saisie-temps .col-project-task-filler,';
 			echo '.grille-saisie-temps .trforbreak { background-color: var(--tw-project-task-bg); }';
