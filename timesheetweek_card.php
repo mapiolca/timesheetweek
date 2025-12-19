@@ -1991,9 +1991,9 @@ if ($resLines) {
 					$(".header-total-main").text(formatFn(grand));
 				}
 				$(function(){
-		updateTotals();				// au chargement
-		$(document).on("input change", "input.hourinput, select.daily-rate-select, input.mealbox", updateTotals);
-	});
+					updateTotals();	// au chargement
+					$(document).on("input change", "input.hourinput, select.daily-rate-select, input.mealbox", updateTotals);
+				});
 			})(jQuery);
 			</script>
 			JS;
