@@ -1674,7 +1674,7 @@ if ($resLines) {
 
 				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
 				// Header jours
-			echo '<tr class="liste_titre sticky-header">';
+			echo '<tr class="liste_titre sticky-header col-project-task">';
 			echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 			foreach ($days as $d) {
 				// EN: Render day headers safely even if week dates are undefined.
