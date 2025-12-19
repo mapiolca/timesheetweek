@@ -1621,6 +1621,14 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-col-total { display: none; }';
 			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
 			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
+			echo 'body.tw-mobile .tabsAction { display: none !important; }';
+			echo 'body.tw-mobile .tw-documents-block { display: none !important; }';
+			echo 'body.tw-mobile .tw-pdf-block, body.tw-mobile #builddoc, body.tw-mobile #document, body.tw-mobile #documents { display: none !important; }';
+			echo 'body.tw-mobile .grille-saisie-temps-wrapper { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }';
+			echo 'body.tw-mobile:not(.tw-mobile-header-open) { overflow: hidden; }';
+			echo 'body.tw-mobile:not(.tw-mobile-header-open) .grille-saisie-temps-wrapper { position: fixed; top: var(--tw-grid-top-gap, 0px); left: 0; right: 0; bottom: calc(var(--tw-kb, 0px) + 76px + env(safe-area-inset-bottom)); max-height: none; }';
+			echo 'body.tw-mobile:not(.tw-mobile-header-open) .grille-saisie-temps-wrapper .grille-saisie-temps { width: 100%; }';
+
 			echo 'body.tw-mobile .grille-saisie-temps { table-layout: fixed; width: 100%; }';
 			echo 'body.tw-mobile .grille-saisie-temps th, body.tw-mobile .grille-saisie-temps td { box-sizing: border-box; }';
 			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { width: 62%; min-width: 62%; max-width: 62%; }';
@@ -1635,6 +1643,8 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-fab-submit { background: #fff; }';
 			echo 'body.tw-mobile .tw-fab-submit i { color: #000; }';
 			echo 'body.tw-mobile .tw-fab i { font-size: 18px; }';
+			echo 'body.tw-mobile .grille-saisie-temps thead th { position: sticky; top: 0; z-index: 30; background-color: var(--tw-grid-header-bg, #e1e1e1); }';
+
 			echo '}';
 
 			echo '</style>';
@@ -2385,7 +2395,9 @@ JSM;
 						return 'href="'.dol_escape_htmltag($absoluteHref).'"';
 					}, $documentHtml);
 				}
+				print '<div class="tw-documents-block">';
 				print $documentHtml;
+				print '</div>';
 			}
 
 			print '</div></div>';
