@@ -1692,11 +1692,11 @@ if ($resLines) {
 				$dayLabel = $langs->trans($dayLabelKey);
 				echo '<th class="cellule-jour">'.$dayLabel;
 				if ($labelDate !== '') {
-					echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
+					echo '<br><span class="opacitymedium col-project-task">'.$labelDate.'</span>';
 				}
 				echo '</th>';
 			}
-			echo '<th class="center cellule-total">'.$langs->trans("Total").'</th>';
+			echo '<th class="center cellule-total col-project-task">'.$langs->trans("Total").'</th>';
 			echo '</tr>';
 
 			// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
