@@ -1572,7 +1572,7 @@ if ($resLines) {
 			echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 			echo '<style>';
-			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; }';
+			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-grid-header-bg: #e1e1e1; }';
 			echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
 			echo '.grille-saisie-temps-wrapper.sticky-active { max-height: calc(100vh - var(--tw-grid-top-gap, 0px)); position: sticky; top: var(--tw-grid-top-gap, 0px); z-index: 4; }';
 			echo '.grille-saisie-temps .cellule-jour,';
@@ -1594,7 +1594,7 @@ if ($resLines) {
 			echo '.grille-saisie-temps .trforbreak .col-project-task-filler {}';
 			echo '.grille-saisie-temps .col-total { position: sticky; right: 0; z-index: 6; }';
 			echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
-			echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; }';
+			echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; background-color: var(--tw-grid-header-bg, #e1e1e1); }';
 			echo '</style>';
 		// EN: Keep the grid flush with the top menu while the bottom of the table is still outside the viewport.
 			echo '<script>';
