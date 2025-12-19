@@ -1213,7 +1213,7 @@ if ($action === 'create') {
 		// Employé
 	echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
 	if ($action === 'editfk_user' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setfk_user">';
 			// EN: Keep avatar rendering when editing the employee inline.
@@ -1240,7 +1240,7 @@ if ($action === 'create') {
 	echo '<tr><td>'.$langs->trans("Week").'</td><td>';
 	if ($action === 'editweekyear' && $canEditInline) {
 		$prefill = sprintf("%04d-W%02d", (int)$object->year, (int)$object->week);
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setweekyear">';
 		echo getWeekSelectorDolibarr($form, 'weekyear', $prefill);
@@ -1258,7 +1258,7 @@ if ($action === 'create') {
 	// Note
 	echo '<tr><td>'.$langs->trans("Note").'</td><td>';
 	if ($action === 'editnote' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setnote">';
 		echo '<textarea name="note" class="quatrevingtpercent" rows="3">'.dol_escape_htmltag($object->note).'</textarea>';
@@ -1276,7 +1276,7 @@ if ($action === 'create') {
 	// Validator
 	echo '<tr><td>'.$langs->trans("Validator").'</td><td>';
 	if ($action === 'editvalidator' && $canEditInline) {
-		echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 		echo '<input type="hidden" name="token" value="'.newToken().'">';
 		echo '<input type="hidden" name="action" value="setvalidator">';
 			// EN: Preserve photo display while updating the validator inline.
@@ -1357,12 +1357,21 @@ if ($action === 'create') {
 	echo '<div class="clearboth"></div>';
 
 	// Clôt la fiche AVANT la grille
+		echo '</div>'; // tw-card-header-content
+
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
-	echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
+
+	// Mobile: floating mini actions (Save + Details)
+	echo '<div class="tw-mobile-actions" style="display:none">';
+	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
+	echo '</div>';
+
 
 	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
@@ -1479,6 +1488,7 @@ if ($resLines) {
 			$dto = new DateTime();
 			$dto->setISODate((int)$object->year, (int)$object->week);
 			foreach ($days as $d) {
+				$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
 				$weekdates[$d] = $dto->format('Y-m-d');
 				$dto->modify('+1 day');
 			}
@@ -1486,6 +1496,7 @@ if ($resLines) {
 			$weekEndDate = isset($weekdates['Sunday']) ? $weekdates['Sunday'] : null;
 		} else {
 			foreach ($days as $d) {
+				$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
 				$weekdates[$d] = null;
 			}
 		}
@@ -1572,7 +1583,7 @@ if ($resLines) {
 			echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 			echo '<style>';
-			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-grid-header-bg: #e1e1e1; }';
+			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-grid-header-bg: #e1e1e1; --tw-kb: 0px; }';
 			echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
 			echo '.grille-saisie-temps-wrapper.sticky-active { max-height: calc(100vh - var(--tw-grid-top-gap, 0px)); position: sticky; top: var(--tw-grid-top-gap, 0px); z-index: 4; }';
 			echo '.grille-saisie-temps .cellule-jour,';
@@ -1582,7 +1593,6 @@ if ($resLines) {
 			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
 			echo '.grille-saisie-temps .col-task { position: sticky; left: 0; z-index: 19; }';
 			echo '.grille-saisie-temps .col-project-task,';
-			echo '.grille-saisie-temps .col-task,';
 			echo '.grille-saisie-temps .col-summary-sticky,';
 			echo '.grille-saisie-temps .col-project-task-filler,';
 			echo '.grille-saisie-temps .trforbreak { background-color: var(--tw-project-task-bg); }';
@@ -1595,6 +1605,29 @@ if ($resLines) {
 			echo '.grille-saisie-temps .col-total { position: sticky; right: 0; z-index: 6; }';
 			echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
 			echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; background-color: var(--tw-grid-header-bg, #e1e1e1); }';
+			echo '.tw-day-nav { display: none; }';
+			
+			echo '@media (max-width: 768px) {';
+			echo 'body.tw-mobile .tw-card-header-content { display: none; }';
+			echo 'body.tw-mobile.tw-mobile-header-open .tw-card-header-content { display: block; }';
+			echo 'body.tw-mobile .tw-mobile-headerbar { display: flex; gap: 8px; align-items: center; margin: 6px 0 10px; }';
+			echo 'body.tw-mobile .tw-mobile-header-toggle { padding: 6px 10px; }';
+			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
+			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
+			echo 'body.tw-mobile .tw-day-header-text { flex: 1; }';
+			echo 'body.tw-mobile .tw-daycol { display: none; }';
+			echo 'body.tw-mobile .tw-daycol.tw-day-active { display: table-cell; }';
+			echo 'body.tw-mobile .tw-col-total { display: none; }';
+			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
+			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days { display: none; }';
+			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { max-width: 52vw; }';
+			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
+			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
+			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; }';
+			echo 'body.tw-mobile .tw-fab { width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.15); }';
+			echo 'body.tw-mobile .tw-fab i { font-size: 18px; }';
+			echo '}';
+
 			echo '</style>';
 		// EN: Keep the grid flush with the top menu while the bottom of the table is still outside the viewport.
 			echo '<script>';
@@ -1680,6 +1713,7 @@ if ($resLines) {
 			echo '<tr class="liste_titre sticky-header col-project-task">';
 			echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 			foreach ($days as $d) {
+				$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
 				// EN: Render day headers safely even if week dates are undefined.
 				// FR: Affiche les en-têtes de jours en sécurité même sans dates de semaine définies.
 				$labelDate = '';
@@ -1693,13 +1727,20 @@ if ($resLines) {
 				// EN: Translate the full day name to avoid ambiguous abbreviations.
 				// FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
 				$dayLabel = $langs->trans($dayLabelKey);
-				echo '<th class="cellule-jour col-day">'.$dayLabel;
+				$dayDateISO = !empty($weekdates[$d]) ? $weekdates[$d] : '';
+				echo '<th class="cellule-jour col-day tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($dayDateISO).'">';
+				echo '<div class="tw-day-header">';
+				echo '<button type="button" class="tw-day-nav tw-day-prev" aria-label="'.dol_escape_htmltag($langs->trans("Previous")).'">&#x2039;</button>';
+				echo '<div class="tw-day-header-text">'.$dayLabel;
 				if ($labelDate !== '') {
 					echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
 				}
+				echo '</div>';
+				echo '<button type="button" class="tw-day-nav tw-day-next" aria-label="'.dol_escape_htmltag($langs->trans("Next")).'">&#x203A;</button>';
+				echo '</div>';
 				echo '</th>';
 			}
-			echo '<th class="center cellule-total col-day">'.$langs->trans("Total").'</th>';
+			echo '<th class="center cellule-total tw-col-total">'.$langs->trans("Total").'</th>';
 			echo '</tr>';
 
 			// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
@@ -1709,9 +1750,10 @@ if ($resLines) {
 				echo '<tr class="liste_titre">';
 				echo '<td class=""></td>';
 				foreach ($days as $d) {
+					$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
 					// EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
 					// FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
-					echo '<td class="center cellule-zone-panier">';
+					echo '<td class="center cellule-zone-panier tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($weekdates[$d] ?? '').'">';
 					// EN: Prefix zone selector with its label to improve understanding.
 					// FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
 					echo '<span class="zone-select">'.$langs->trans("Zone").' ';
@@ -1794,11 +1836,20 @@ if ($resLines) {
 					$tsk = new Task($db);
 					$tsk->fetch((int)$task['task_id']);
 					if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-					echo tw_get_task_nomurl($tsk, 1);
+					$nomurl = tw_get_task_nomurl($tsk, 1);
+						$href = '';
+						if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
+						echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
+						if (!empty($href)) {
+							echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
+						} else {
+							echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
+						}
 					echo '</td>';
 
 					$rowTotal = 0.0;
 					foreach ($days as $d) {
+						$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
 					// EN: Attach the vertical-centering helper to each time entry cell for consistent layouts.
 					// FR: Attache l'aide de centrage vertical à chaque cellule de temps pour des mises en page cohérentes.
 						$iname = 'hours_'.$task['task_id'].'_'.$d;
@@ -1822,10 +1873,10 @@ if ($resLines) {
 								$selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
 							}
 							$selectHtml .= '</select>';
-							echo '<td class="center cellule-temps">'.$selectHtml.'</td>';
+							echo '<td class="center cellule-temps tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($keydate).'">'.$selectHtml.'</td>';
 						} else {
 							$readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
-							echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
+							echo '<td class="center cellule-temps tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($keydate).'"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
 						}
 					}
 					$grandInit += $rowTotal;
@@ -1849,7 +1900,8 @@ if ($resLines) {
 // FR: Centre les totaux globaux exprimés en jours pour les salariés au forfait jour.
 				echo '<td class="left">'.$langs->trans("TimesheetWeekTotalDays").'</td>';
 				foreach ($days as $d) {
-					echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</td>';
+					$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
+					echo '<td class="center day-total cellule-total tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($weekdates[$d] ?? '').'">'.tw_format_days(0, $langs).'</td>';
 				}
 				echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
 				echo '</tr>';
@@ -1859,7 +1911,8 @@ if ($resLines) {
 // FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Total").'</td>';
 				foreach ($days as $d) {
-					echo '<td class="center day-total cellule-total">00:00</td>';
+					$activeClass = ($d === $days[0]) ? ' tw-day-active' : '';
+					echo '<td class="center day-total cellule-total tw-daycol tw-day-'.$d.$activeClass.'" data-day="'.$d.'" data-date="'.dol_escape_htmltag($weekdates[$d] ?? '').'">00:00</td>';
 				}
 				echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
 				echo '</tr>';
@@ -2010,6 +2063,116 @@ if ($resLines) {
 				json_encode((float) price2num($contractedHours, '6'))
 			);
 			echo $jsGrid;
+
+			// Mobile: simplified view (1 day column + navigation) + keyboard-aware floating actions
+			$jsMobile = <<<'JSM'
+<script>
+(function($){
+	$(function(){
+		var mq = window.matchMedia('(max-width: 768px)');
+		var days = %s;
+		var weekdates = %s;
+
+		function setMobile(flag){
+			document.body.classList.toggle('tw-mobile', !!flag);
+			var bar = document.querySelector('.tw-mobile-headerbar');
+			var fabs = document.querySelector('.tw-mobile-actions');
+			if (bar) bar.style.display = flag ? 'flex' : 'none';
+			if (fabs) fabs.style.display = flag ? 'flex' : 'none';
+		}
+
+		function todayKey(){
+			var iso = '';
+			try { iso = (new Date()).toISOString().slice(0,10); } catch (e) {}
+			for (var k in weekdates) {
+				if (weekdates[k] === iso) return k;
+			}
+			return days[0] || null;
+		}
+
+		var current = null;
+
+		function showDay(k){
+			if (!k) return;
+			current = k;
+			$('.tw-daycol').removeClass('tw-day-active');
+			$('.tw-day-' + k).addClass('tw-day-active');
+		}
+
+		function step(dir){
+			if (!current) return;
+			var idx = days.indexOf(current);
+			if (idx < 0) idx = 0;
+			idx = idx + dir;
+			if (idx < 0) idx = 0;
+			if (idx >= days.length) idx = days.length - 1;
+			showDay(days[idx]);
+		}
+
+		function bindNav(){
+			var $tbl = $('.grille-saisie-temps');
+			$tbl.off('click.twDayNav')
+				.on('click.twDayNav', '.tw-day-prev', function(e){ e.preventDefault(); step(-1); })
+				.on('click.twDayNav', '.tw-day-next', function(e){ e.preventDefault(); step(1); });
+		}
+
+		function bindHeaderToggle(){
+			function toggle(){
+				document.body.classList.toggle('tw-mobile-header-open');
+				var open = document.body.classList.contains('tw-mobile-header-open');
+				var btn = document.getElementById('twMobileHeaderToggle');
+				if (btn) {
+					btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+					btn.textContent = open ? %s : %s;
+				}
+			}
+			var btn = document.getElementById('twMobileHeaderToggle');
+			if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+			var fab = document.getElementById('twMobileHeaderFab');
+			if (fab) fab.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+		}
+
+		function keyboardAware(){
+			if (!window.visualViewport) return;
+			var vv = window.visualViewport;
+			function upd(){
+				var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+				document.documentElement.style.setProperty('--tw-kb', kb + 'px');
+			}
+			vv.addEventListener('resize', upd);
+			vv.addEventListener('scroll', upd);
+			document.addEventListener('focusin', upd);
+			document.addEventListener('focusout', function(){ document.documentElement.style.setProperty('--tw-kb', '0px'); });
+			upd();
+		}
+
+		function init(flag){
+			setMobile(flag);
+			if (!flag) return;
+			document.body.classList.remove('tw-mobile-header-open');
+			bindNav();
+			bindHeaderToggle();
+			keyboardAware();
+			showDay(todayKey());
+		}
+
+		init(mq.matches);
+		if (mq.addEventListener) mq.addEventListener('change', function(e){ init(e.matches); });
+		else if (mq.addListener) mq.addListener(function(e){ init(e.matches); });
+	});
+})(jQuery);
+</script>
+JSM;
+			$jsMobile = sprintf(
+				$jsMobile,
+				json_encode(array_values($days)),
+				json_encode($weekdates),
+				json_encode($langs->trans("Hide")),
+				json_encode($langs->trans("Details"))
+			);
+			echo $jsMobile;
+
+
 		}
 
 		// ---- Boutons d’action (barre) ----
