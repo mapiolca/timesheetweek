@@ -1628,9 +1628,12 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-documents-block { display: none !important; }';
 			echo 'body.tw-mobile .tw-pdf-block, body.tw-mobile #builddoc, body.tw-mobile #document, body.tw-mobile #documents { display: none !important; }';
 			echo 'body.tw-mobile .grille-saisie-temps-wrapper { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }';
-			echo 'body.tw-mobile:not(.tw-mobile-header-open) { overflow: hidden; }';
-			echo 'body.tw-mobile:not(.tw-mobile-header-open) .grille-saisie-temps-wrapper { position: fixed; top: var(--tw-grid-top-gap, 0px); left: 0; right: 0; bottom: calc(var(--tw-kb, 0px) + 76px + env(safe-area-inset-bottom)); max-height: none; }';
-			echo 'body.tw-mobile:not(.tw-mobile-header-open) .grille-saisie-temps-wrapper .grille-saisie-temps { width: 100%; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .grille-saisie-temps-wrapper { display: none; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) form.tw-grid-form h3 { display: none; }';
+			echo 'body.tw-mobile form.tw-grid-form .center.margintoponly input[type=submit].button { display: none !important; }';
+			echo 'body.tw-mobile.tw-mobile-grid-open { overflow: hidden; }';
+			echo 'body.tw-mobile.tw-mobile-grid-open .grille-saisie-temps-wrapper { position: fixed; top: var(--tw-grid-top-gap, 0px); left: 0; right: 0; bottom: calc(var(--tw-kb, 0px) + 76px + env(safe-area-inset-bottom)); max-height: none; }';
+			echo 'body.tw-mobile.tw-mobile-grid-open .grille-saisie-temps-wrapper .grille-saisie-temps { width: 100%; }';
 
 			echo 'body.tw-mobile .grille-saisie-temps { table-layout: fixed; width: 100%; }';
 			echo 'body.tw-mobile .grille-saisie-temps th, body.tw-mobile .grille-saisie-temps td { box-sizing: border-box; }';
@@ -2151,7 +2154,11 @@ if ($resLines) {
 			var btn = document.getElementById('twMobileHeaderToggle');
 			if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
 			var fab = document.getElementById('twMobileHeaderFab');
-			if (fab) fab.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+			if (fab) fab.addEventListener('click', function(e){
+				e.preventDefault();
+				var openGrid = document.body.classList.contains('tw-mobile-grid-open');
+				document.body.classList.toggle('tw-mobile-grid-open', !openGrid);
+			});
 		}
 
 		function bindSubmitFab(){
@@ -2181,6 +2188,7 @@ if ($resLines) {
 
 		function init(flag){
 			setMobile(flag);
+			if (flag) document.body.classList.remove('tw-mobile-grid-open');
 			if (!flag) return;
 			document.body.classList.remove('tw-mobile-header-open');
 			bindNav();
