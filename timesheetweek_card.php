@@ -1613,6 +1613,9 @@ if ($resLines) {
 			echo 'body.tw-mobile.tw-mobile-header-open .tw-card-header-content { display: block; }';
 			echo 'body.tw-mobile .tw-mobile-headerbar { display: flex; gap: 8px; align-items: center; margin: 6px 0 10px; }';
 			echo 'body.tw-mobile .tw-mobile-header-toggle { padding: 6px 10px; }';
+			echo 'body.tw-mobile input, body.tw-mobile select, body.tw-mobile textarea { font-size: 16px !important; line-height: 1.2; }';
+			echo 'body.tw-mobile { -webkit-text-size-adjust: 100%; }';
+
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
 			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
 			echo 'body.tw-mobile .tw-day-header-text { flex: 1; }';
