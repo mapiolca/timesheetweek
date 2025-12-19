@@ -1369,6 +1369,7 @@ if ($action === 'create') {
 	// Mobile: floating mini actions (Save + Details)
 	echo '<div class="tw-mobile-actions" style="display:none">';
 	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
 	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
 	echo '</div>';
 
@@ -1620,11 +1621,19 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-col-total { display: none; }';
 			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
 			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
-			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { max-width: 52vw; }';
+			echo 'body.tw-mobile .grille-saisie-temps { table-layout: fixed; width: 100%; }';
+			echo 'body.tw-mobile .grille-saisie-temps th, body.tw-mobile .grille-saisie-temps td { box-sizing: border-box; }';
+			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { width: 62%; min-width: 62%; max-width: 62%; }';
+			echo 'body.tw-mobile .tw-daycol { width: 38%; min-width: 38%; max-width: 38%; }';
+			echo 'body.tw-mobile .tw-daycol select, body.tw-mobile .tw-daycol input, body.tw-mobile .tw-daycol textarea { width: 100%; max-width: 100%; }';
 			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
 			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
 			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; }';
 			echo 'body.tw-mobile .tw-fab { width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.15); }';
+			echo 'body.tw-mobile .tw-fab-save { background: #fff; }';
+			echo 'body.tw-mobile .tw-fab-save i { color: #000; }';
+			echo 'body.tw-mobile .tw-fab-submit { background: #fff; }';
+			echo 'body.tw-mobile .tw-fab-submit i { color: #000; }';
 			echo 'body.tw-mobile .tw-fab i { font-size: 18px; }';
 			echo '}';
 
@@ -2132,6 +2141,17 @@ if ($resLines) {
 			if (fab) fab.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
 		}
 
+		function bindSubmitFab(){
+			var btn = document.getElementById('twMobileSubmitFab');
+			if (!btn) return;
+			var a = document.querySelector('a[href*="action=submit"]');
+			if (!a) { btn.style.display = 'none'; return; }
+			var href = a.getAttribute('href');
+			btn.style.display = '';
+			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
+		}
+
+
 		function keyboardAware(){
 			if (!window.visualViewport) return;
 			var vv = window.visualViewport;
@@ -2152,6 +2172,7 @@ if ($resLines) {
 			document.body.classList.remove('tw-mobile-header-open');
 			bindNav();
 			bindHeaderToggle();
+			bindSubmitFab();
 			keyboardAware();
 			showDay(todayKey());
 		}
