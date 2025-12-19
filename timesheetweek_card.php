@@ -1690,9 +1690,9 @@ if ($resLines) {
 				// EN: Translate the full day name to avoid ambiguous abbreviations.
 				// FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
 				$dayLabel = $langs->trans($dayLabelKey);
-				echo '<th class="cellule-jour">'.$dayLabel;
+				echo '<th class="cellule-jour col-project-task">'.$dayLabel;
 				if ($labelDate !== '') {
-					echo '<br><span class="opacitymedium col-project-task">'.$labelDate.'</span>';
+					echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
 				}
 				echo '</th>';
 			}
