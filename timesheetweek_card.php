@@ -1580,12 +1580,14 @@ if ($resLines) {
 			echo '.grille-saisie-temps .cellule-temps,';
 			echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
 			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
+			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
 			echo '.grille-saisie-temps .col-project-task,';
 			echo '.grille-saisie-temps .col-summary-sticky,';
 			echo '.grille-saisie-temps .col-project-task-filler,';
 			echo '.grille-saisie-temps .trforbreak { background-color: var(--tw-project-task-bg); }';
 			echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; z-index: 8; }';
 			echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 21; }';
+			echo '.grille-saisie-temps .liste_titre .col-day { z-index: 19; }';
 			echo '.grille-saisie-temps .liste_titre .col-summary-sticky { z-index: 9; }';
 			echo '.grille-saisie-temps .trforbreak .col-summary-sticky { z-index: 8; }';
 			echo '.grille-saisie-temps .trforbreak .col-project-task-filler {}';
@@ -1690,13 +1692,13 @@ if ($resLines) {
 				// EN: Translate the full day name to avoid ambiguous abbreviations.
 				// FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
 				$dayLabel = $langs->trans($dayLabelKey);
-				echo '<th class="cellule-jour col-project-task">'.$dayLabel;
+				echo '<th class="cellule-jour col-day">'.$dayLabel;
 				if ($labelDate !== '') {
 					echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
 				}
 				echo '</th>';
 			}
-			echo '<th class="center cellule-total col-project-task">'.$langs->trans("Total").'</th>';
+			echo '<th class="center cellule-total col-day">'.$langs->trans("Total").'</th>';
 			echo '</tr>';
 
 			// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
