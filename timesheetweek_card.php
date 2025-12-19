@@ -1580,7 +1580,7 @@ if ($resLines) {
 			echo '.grille-saisie-temps .cellule-temps,';
 			echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
 			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
-			echo '.grille-saisie-temps .col-project-task { position: sticky; left: 0; z-index: 20; }';
+			echo '.grille-saisie-temps .col-task { position: sticky; left: 0; z-index: 19; }';
 			echo '.grille-saisie-temps .col-project-task,';
 			echo '.grille-saisie-temps .col-summary-sticky,';
 			echo '.grille-saisie-temps .col-project-task-filler,';
@@ -1789,7 +1789,7 @@ if ($resLines) {
 			// Tâches
 				foreach ($pdata['tasks'] as $task) {
 					echo '<tr>';
-					echo '<td class="paddingleft col-project-task">';
+					echo '<td class="paddingleft col-task">';
 					$tsk = new Task($db);
 					$tsk->fetch((int)$task['task_id']);
 					if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
