@@ -1619,7 +1619,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-daycol.tw-day-active { display: table-cell; }';
 			echo 'body.tw-mobile .tw-col-total { display: none; }';
 			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
-			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days { display: none; }';
+			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
 			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { max-width: 52vw; }';
 			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
 			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
@@ -1917,7 +1917,7 @@ if ($resLines) {
 				echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
 				echo '</tr>';
 
-				echo '<tr class="liste_total">';
+				echo '<tr class="liste_total row-total-meals">';
 // EN: Center meal counters to match the rest of the grid alignment.
 // FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Meals").'</td>';
@@ -1926,7 +1926,7 @@ if ($resLines) {
 				echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
 				echo '</tr>';
 
-				echo '<tr class="liste_total">';
+				echo '<tr class="liste_total row-total-overtime">';
 // EN: Center overtime summary cells so every footer row follows the same alignment pattern.
 // FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
