@@ -1621,7 +1621,8 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-grid-tabbar { padding: 0; margin: 0; background: transparent; border: 0; }';
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
-			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: none; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: block; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-save, body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-submit { display: none !important; }';
 
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
 			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
@@ -1717,6 +1718,7 @@ if ($resLines) {
 			echo "\t\t}";
 			echo "\t}";
 			echo "\tfunction updateStickyPosition() {";
+			echo "\t\tif (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) { return; }";
 			echo "\t\tif (!\$wrapper.length) { return; }";
 			echo "\t\tvar rect = \$wrapper[0].getBoundingClientRect();";
 			echo "\t\tvar bottomVisible = rect.bottom <= window.innerHeight;";
