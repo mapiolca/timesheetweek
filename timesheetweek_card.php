@@ -1362,6 +1362,9 @@ if ($action === 'create') {
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
+	echo '<div class="fiche tw-grid-fiche">';
+	echo '<div class="tabBar tw-grid-tabbar">';
+
 	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
@@ -1615,6 +1618,10 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-mobile-header-toggle { padding: 6px 10px; }';
 			echo 'body.tw-mobile input, body.tw-mobile select, body.tw-mobile textarea { font-size: 16px !important; line-height: 1.2; }';
 			echo 'body.tw-mobile { -webkit-text-size-adjust: 100%; }';
+			echo 'body.tw-mobile .tw-grid-tabbar { padding: 0; margin: 0; background: transparent; border: 0; }';
+			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { display: none; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: none; }';
 
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
 			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
@@ -1629,7 +1636,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-pdf-block, body.tw-mobile #builddoc, body.tw-mobile #document, body.tw-mobile #documents { display: none !important; }';
 			echo 'body.tw-mobile .grille-saisie-temps-wrapper { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .grille-saisie-temps-wrapper { display: none; }';
-			echo 'body.tw-mobile:not(.tw-mobile-grid-open) form.tw-grid-form h3 { display: none; }';
+			echo 'body.tw-mobile form.tw-grid-form h3 { display: none; }';
 			echo 'body.tw-mobile form.tw-grid-form .center.margintoponly input[type=submit].button { display: none !important; }';
 			echo 'body.tw-mobile.tw-mobile-grid-open { overflow: hidden; }';
 			echo 'body.tw-mobile.tw-mobile-grid-open .grille-saisie-temps-wrapper { position: fixed; top: var(--tw-grid-top-gap, 0px); left: 0; right: 0; bottom: calc(var(--tw-kb, 0px) + 76px + env(safe-area-inset-bottom)); max-height: none; }';
@@ -1979,6 +1986,10 @@ if ($resLines) {
 			}
 
 			echo '</form>';
+
+		echo '</div>'; // tw-grid-tabbar
+
+		echo '</div>'; // tw-grid-fiche
 
 		// JS totaux + mise à jour entête live
 		// EN: Use nowdoc to prevent PHP from stripping the JavaScript variable sigils.
