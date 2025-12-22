@@ -1364,6 +1364,7 @@ if ($action === 'create') {
 	// ------- GRID (Assigned Tasks grouped by Project) -------
 	echo '<div class="fiche tw-grid-fiche">';
 	echo '<div class="tabBar tw-grid-tabbar">';
+	echo '<div class="fichecenter tw-grid-fichecenter">';
 
 	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
@@ -1618,6 +1619,9 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-mobile-header-toggle { padding: 6px 10px; }';
 			echo 'body.tw-mobile input, body.tw-mobile select, body.tw-mobile textarea { font-size: 16px !important; line-height: 1.2; }';
 			echo 'body.tw-mobile { -webkit-text-size-adjust: 100%; }';
+			echo 'body.tw-mobile .tw-task-link-full { display: none !important; }';
+			echo 'body.tw-mobile .tw-task-link-labelonly { display: inline !important; }';
+			echo 'body:not(.tw-mobile) .tw-task-link-labelonly { display: none !important; }';
 			echo 'body.tw-mobile .tw-grid-tabbar { padding: 0; margin: 0; background: transparent; border: 0; }';
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
@@ -1632,8 +1636,8 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-col-total { display: none; }';
 			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
 			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
-			echo 'body.tw-mobile .tabsAction { display: none !important; }';
-			echo 'body.tw-mobile .tw-documents-block { display: none !important; }';
+			echo 'body.tw-mobile .tw-native-actions { display: none !important; }';
+			
 			echo 'body.tw-mobile .tw-pdf-block, body.tw-mobile #builddoc, body.tw-mobile #document, body.tw-mobile #documents { display: none !important; }';
 			echo 'body.tw-mobile .grille-saisie-temps-wrapper { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .grille-saisie-temps-wrapper { display: none; }';
@@ -2348,7 +2352,7 @@ JSM;
 		}
 
 		// ---- Boutons d’action (barre) ----
-		echo '<div class="tabsAction">';
+		echo '<div class="tabsAction tw-native-actions">';
 
 		$token = newToken();
 
@@ -2541,6 +2545,7 @@ JSM;
 				print '</div>';
 			}
 
+			print '</div>'; // tw-grid-fichecenter
 			print '</div></div>';
 		}
 
@@ -2580,6 +2585,8 @@ JSM;
 			$formmail->langcode = $langs->defaultlang;
 
 			include DOL_DOCUMENT_ROOT.'/core/tpl/card_presend.tpl.php';
+			print '</div>'; // tw-grid-fichecenter
+			print '</div></div>'; // tw-grid-tabbar + tw-grid-fiche
 		}
 
 	}
