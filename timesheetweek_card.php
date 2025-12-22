@@ -1581,7 +1581,7 @@ if ($resLines) {
 		// Inputs zone/panier bloqués si statut != brouillon
 			$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 
-			echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
+			echo '<div class="fichecenter div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 			echo '<style>';
 			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-grid-header-bg: #e1e1e1; --tw-kb: 0px; }';
