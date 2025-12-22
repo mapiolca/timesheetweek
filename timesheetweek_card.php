@@ -1639,6 +1639,13 @@ if ($resLines) {
 			echo 'body.tw-mobile .grille-saisie-temps th, body.tw-mobile .grille-saisie-temps td { box-sizing: border-box; }';
 			echo 'body.tw-mobile .col-project-task, body.tw-mobile .col-task { width: 62%; min-width: 62%; max-width: 62%; }';
 			echo 'body.tw-mobile .tw-daycol { width: 38%; min-width: 38%; max-width: 38%; }';
+			echo 'body.tw-mobile .hourinput.tw-time-hidden { display: none !important; }';
+			echo 'body.tw-mobile .tw-timepicker { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 100%; }';
+			echo 'body.tw-mobile .tw-timepicker .tw-time-sep { flex: 0 0 auto; padding: 0 2px; }';
+			echo 'body.tw-mobile .tw-timepicker select.tw-time-h { width: 45%; min-width: 0; }';
+			echo 'body.tw-mobile .tw-timepicker select.tw-time-m { width: 55%; min-width: 0; }';
+			echo 'body.tw-mobile .tw-timepicker select { max-width: 100%; }';
+
 			echo 'body.tw-mobile .tw-daycol select, body.tw-mobile .tw-daycol input, body.tw-mobile .tw-daycol textarea { width: 100%; max-width: 100%; }';
 			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
 			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
@@ -2186,10 +2193,120 @@ if ($resLines) {
 			upd();
 		}
 
+
+		function pad2(n){ n = parseInt(n, 10) || 0; return (n < 10 ? '0' : '') + n; }
+
+		function parseTimeToHM(v){
+			if (!v) return { h: 0, m: 0, empty: true };
+			var s = String(v).trim();
+			if (!s) return { h: 0, m: 0, empty: true };
+
+			var m = s.match(/^\s*(\d{1,2})\s*:\s*(\d{1,2})\s*$/);
+			if (m) {
+				var h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				var mi = Math.min(59, Math.max(0, parseInt(m[2], 10) || 0));
+				return { h: h, m: mi, empty: false };
+			}
+
+			// Accept decimal hours like 1.5 or 1,5 -> 01:30 (best-effort)
+			m = s.match(/^\s*(\d{1,2})[\.,](\d{1,2})\s*$/);
+			if (m) {
+				var hh = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				var frac = parseInt(m[2], 10) || 0;
+				// Treat 1.5 as 1h30, 1.25 as 1h15 (approx)
+				var mm = Math.round((frac / Math.pow(10, String(frac).length)) * 60);
+				mm = Math.min(59, Math.max(0, mm));
+				return { h: hh, m: mm, empty: false };
+			}
+
+			m = s.match(/^\s*(\d{1,2})\s*$/);
+			if (m) {
+				var h2 = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				return { h: h2, m: 0, empty: false };
+			}
+
+			return { h: 0, m: 0, empty: true };
+		}
+
+		function buildTimePickers(){
+			if (!document.body.classList.contains('tw-mobile')) return;
+
+			var inputs = document.querySelectorAll('input.hourinput');
+			inputs.forEach(function(inp){
+				if (inp.dataset.twPickerInit) return;
+				inp.dataset.twPickerInit = '1';
+
+				var parsed = parseTimeToHM(inp.value);
+				var isDisabled = !!inp.disabled || !!inp.readOnly || inp.getAttribute('readonly') !== null;
+
+				var wrap = document.createElement('div');
+				wrap.className = 'tw-timepicker';
+
+				var selH = document.createElement('select');
+				selH.className = 'flat tw-time-h';
+				for (var h = 0; h <= 23; h++) {
+					var optH = document.createElement('option');
+					optH.value = String(h);
+					optH.textContent = pad2(h);
+					selH.appendChild(optH);
+				}
+
+				var sep = document.createElement('span');
+				sep.className = 'tw-time-sep';
+				sep.textContent = ':';
+
+				var selM = document.createElement('select');
+				selM.className = 'flat tw-time-m';
+				for (var mi = 0; mi <= 59; mi++) {
+					var optM = document.createElement('option');
+					optM.value = String(mi);
+					optM.textContent = pad2(mi);
+					selM.appendChild(optM);
+				}
+
+				selH.value = String(parsed.h);
+				selM.value = String(parsed.m);
+
+				if (isDisabled) {
+					selH.disabled = true;
+					selM.disabled = true;
+				}
+
+				function sync(){
+					var hh = parseInt(selH.value, 10) || 0;
+					var mm = parseInt(selM.value, 10) || 0;
+					inp.value = pad2(hh) + ':' + pad2(mm);
+					if (window.jQuery) {
+						window.jQuery(inp).trigger('input').trigger('keyup').trigger('change');
+					} else {
+						try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
+						try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
+					}
+				}
+
+				selH.addEventListener('change', sync);
+				selM.addEventListener('change', sync);
+
+				wrap.appendChild(selH);
+				wrap.appendChild(sep);
+				wrap.appendChild(selM);
+
+				inp.classList.add('tw-time-hidden');
+				inp.insertAdjacentElement('afterend', wrap);
+			});
+		}
+
+		function destroyTimePickers(){
+			document.querySelectorAll('.tw-timepicker').forEach(function(w){ w.remove(); });
+			document.querySelectorAll('input.hourinput.tw-time-hidden').forEach(function(inp){ inp.classList.remove('tw-time-hidden'); });
+			document.querySelectorAll('input.hourinput[data-tw-picker-init]').forEach(function(inp){ delete inp.dataset.twPickerInit; });
+		}
+
 		function init(flag){
 			setMobile(flag);
 			if (flag) document.body.classList.remove('tw-mobile-grid-open');
-			if (!flag) return;
+			if (!flag) { destroyTimePickers(); return; }
+			buildTimePickers();
 			document.body.classList.remove('tw-mobile-header-open');
 			bindNav();
 			bindHeaderToggle();
