@@ -1638,7 +1638,8 @@ if ($resLines) {
 			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
 			echo 'body.tw-mobile .tw-native-actions { display: none !important; }';
 			
-			echo 'body.tw-mobile .tw-pdf-block, body.tw-mobile #builddoc, body.tw-mobile #document, body.tw-mobile #documents { display: none !important; }';
+			echo 'body.tw-mobile #builddoc { display: none !important; }';
+			echo 'body.tw-mobile .tw-documents-block { display: none !important; }';
 			echo 'body.tw-mobile .grille-saisie-temps-wrapper { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .grille-saisie-temps-wrapper { display: none; }';
 			echo 'body.tw-mobile form.tw-grid-form h3 { display: none; }';
