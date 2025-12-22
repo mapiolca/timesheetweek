@@ -1370,7 +1370,7 @@ if ($action === 'create') {
 	echo '<input type="hidden" name="action" value="save">';
 
 	// Mobile: floating mini actions (Save + Details)
-	echo '<div class="tw-mobile-actions" style="display:none">';
+	echo '<div class="tw-mobile-actions">';
 	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
 		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
 	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
@@ -1620,7 +1620,7 @@ if ($resLines) {
 			echo 'body.tw-mobile { -webkit-text-size-adjust: 100%; }';
 			echo 'body.tw-mobile .tw-grid-tabbar { padding: 0; margin: 0; background: transparent; border: 0; }';
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
-			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { display: none; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: none; }';
 
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
