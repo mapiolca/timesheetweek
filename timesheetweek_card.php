@@ -2197,37 +2197,81 @@ if ($resLines) {
 			});
 		}
 
+		function findNativeActionEl(actionValue){
+			var container = document.querySelector('.tw-native-actions');
+			if (!container) return null;
+
+			var links = container.querySelectorAll('a[href]');
+			for (var i = 0; i < links.length; i++) {
+				var href = links[i].getAttribute('href');
+				if (!href) continue;
+				try {
+					var url = new URL(href, window.location.href);
+					if (url.searchParams && url.searchParams.get('action') === actionValue) return links[i];
+				} catch (e) {
+					// ignore
+				}
+			}
+
+			// Also allow <input type="submit" name="action"> style buttons (rare)
+			var inputs = container.querySelectorAll('input[type="submit"][name="action"]');
+			for (var j = 0; j < inputs.length; j++) {
+				if (inputs[j].value === actionValue) return inputs[j];
+			}
+
+			return null;
+		}
+
 		function bindSubmitFab(){
 			var btn = document.getElementById('twMobileSubmitFab');
 			if (!btn) return;
-			var a = document.querySelector('a[href*="action=submit"]');
-			if (!a) { btn.style.display = 'none'; return; }
-			var href = a.getAttribute('href');
-			btn.style.display = '';
-			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
-		
-		function bindActionFab(btnId, selector){
-			var btn = document.getElementById(btnId);
-			if (!btn) return;
-			var a = document.querySelector(selector);
-			if (!a) { btn.style.display = 'none'; return; }
+
+			var el = findNativeActionEl('submit');
+			if (!el) { btn.style.display = 'none'; return; }
+
 			btn.style.display = '';
 			btn.addEventListener('click', function(e){
 				e.preventDefault();
-				try { a.click(); }
+				try { el.click(); }
 				catch (err) {
-					var href = a.getAttribute('href');
-					if (href) window.location.href = href;
+					if (el.tagName === 'A') {
+						var href = el.getAttribute('href');
+						if (href) window.location.href = href;
+					} else if (el.form) {
+						el.form.submit();
+					}
+				}
+			});
+		}
+
+		function bindActionFab(btnId, actionValue){
+			var btn = document.getElementById(btnId);
+			if (!btn) return;
+
+			var el = findNativeActionEl(actionValue);
+			if (!el) { btn.style.display = 'none'; return; }
+
+			btn.style.display = '';
+			btn.addEventListener('click', function(e){
+				e.preventDefault();
+				try { el.click(); }
+				catch (err) {
+					if (el.tagName === 'A') {
+						var href = el.getAttribute('href');
+						if (href) window.location.href = href;
+					} else if (el.form) {
+						el.form.submit();
+					}
 				}
 			});
 		}
 
 		function bindActionFabs(){
-			bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
-			bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
-			bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
-			bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
-			bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
+			bindActionFab('twMobileSetdraftFab', 'setdraft');
+			bindActionFab('twMobileApproveFab', 'ask_validate');
+			bindActionFab('twMobileRefuseFab', 'ask_refuse');
+			bindActionFab('twMobileSealFab', 'seal');
+			bindActionFab('twMobileDeleteFab', 'delete');
 		}
 
 }
