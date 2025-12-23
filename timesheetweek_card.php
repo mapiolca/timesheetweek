@@ -1359,74 +1359,74 @@ if ($action === 'create') {
 	// Clôt la fiche AVANT la grille
 		echo '</div>'; // tw-card-header-content
 
-		print dol_get_fiche_end();
+	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
-		echo '<div class="fiche tw-grid-fiche">';
-		echo '<div class="tabBar tw-grid-tabbar">';
-		echo '<div class="fichecenter tw-grid-fichecenter">';
+	echo '<div class="fiche tw-grid-fiche">';
+	echo '<div class="tabBar tw-grid-tabbar">';
+	echo '<div class="fichecenter tw-grid-fichecenter">';
 
-		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
-		echo '<input type="hidden" name="action" value="save">';
+	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<input type="hidden" name="token" value="'.newToken().'">';
+	echo '<input type="hidden" name="action" value="save">';
 
 	// Mobile: floating mini actions (Save + Details)
-		echo '<div class="tw-mobile-actions">';
-		echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
+	echo '<div class="tw-mobile-actions">';
+	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
 		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
-		echo '</div>';
+	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
+	echo '</div>';
 
 
-		echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
 	// 1) CHARGER LIGNES EXISTANTES
-		$hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
-		$dailyRateBy = array(); // [taskid][YYYY-mm-dd] = daily rate code
-		// EN: Track legacy afternoon code usage to keep it available in quarter-day mode.
-		// FR: Suit l'utilisation de l'ancien code après-midi pour le conserver en mode quart de jour.
-		$hasLegacyHalfDayDailyRate = false;
-		$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
-		$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
-		$taskIdsFromLines = array();
-		$linesCount = 0;
+$hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
+$dailyRateBy = array(); // [taskid][YYYY-mm-dd] = daily rate code
+// EN: Track legacy afternoon code usage to keep it available in quarter-day mode.
+// FR: Suit l'utilisation de l'ancien code après-midi pour le conserver en mode quart de jour.
+$hasLegacyHalfDayDailyRate = false;
+$dayMeal = array('Monday'=>0,'Tuesday'=>0,'Wednesday'=>0,'Thursday'=>0,'Friday'=>0,'Saturday'=>0,'Sunday'=>0);
+$dayZone = array('Monday'=>null,'Tuesday'=>null,'Wednesday'=>null,'Thursday'=>null,'Friday'=>null,'Saturday'=>null,'Sunday'=>null);
+$taskIdsFromLines = array();
+$linesCount = 0;
 
-		$sqlLines = "SELECT fk_task, day_date, hours, daily_rate, zone, meal
-		FROM ".MAIN_DB_PREFIX."timesheet_week_line
-		WHERE fk_timesheet_week=".(int)$object->id;
-				// EN: Limit the fetched lines to those belonging to authorized entities.
-				// FR: Limite les lignes récupérées à celles appartenant aux entités autorisées.
-		$sqlLines .= " AND entity IN (".getEntity('timesheetweek').")";
-		$resLines = $db->query($sqlLines);
-		if ($resLines) {
-			while ($o = $db->fetch_object($resLines)) {
-				$linesCount++;
-				$fk_task = (int)$o->fk_task;
-				$daydate = $o->day_date;
-				$hours   = (float)$o->hours;
-				$dailyRate = isset($o->daily_rate) ? (int)$o->daily_rate : 0;
-				$zone    = isset($o->zone) ? (int)$o->zone : null;
-				$meal    = (int)$o->meal;
+$sqlLines = "SELECT fk_task, day_date, hours, daily_rate, zone, meal
+FROM ".MAIN_DB_PREFIX."timesheet_week_line
+WHERE fk_timesheet_week=".(int)$object->id;
+		// EN: Limit the fetched lines to those belonging to authorized entities.
+		// FR: Limite les lignes récupérées à celles appartenant aux entités autorisées.
+$sqlLines .= " AND entity IN (".getEntity('timesheetweek').")";
+$resLines = $db->query($sqlLines);
+if ($resLines) {
+	while ($o = $db->fetch_object($resLines)) {
+		$linesCount++;
+		$fk_task = (int)$o->fk_task;
+		$daydate = $o->day_date;
+		$hours   = (float)$o->hours;
+		$dailyRate = isset($o->daily_rate) ? (int)$o->daily_rate : 0;
+		$zone    = isset($o->zone) ? (int)$o->zone : null;
+		$meal    = (int)$o->meal;
 
-				if (!isset($hoursBy[$fk_task])) $hoursBy[$fk_task] = array();
-				$hoursBy[$fk_task][$daydate] = $hours;
-				if (!isset($dailyRateBy[$fk_task])) $dailyRateBy[$fk_task] = array();
-				$dailyRateBy[$fk_task][$daydate] = $dailyRate;
-				if ($dailyRate === 3) {
-				// EN: Remember the legacy afternoon code to keep it selectable when quarter-day mode is active.
-				// FR: Retient l'ancien code après-midi pour le rendre sélectionnable lorsque le mode quart de jour est actif.
-					$hasLegacyHalfDayDailyRate = true;
-				}
-
-				$w = (int) date('N', strtotime($daydate));
-				$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
-
-				if ($meal) $dayMeal[$dayName] = 1;
-				if ($zone !== null) $dayZone[$dayName] = $zone;
-
-				$taskIdsFromLines[$fk_task] = 1;
-			}
+		if (!isset($hoursBy[$fk_task])) $hoursBy[$fk_task] = array();
+		$hoursBy[$fk_task][$daydate] = $hours;
+		if (!isset($dailyRateBy[$fk_task])) $dailyRateBy[$fk_task] = array();
+		$dailyRateBy[$fk_task][$daydate] = $dailyRate;
+		if ($dailyRate === 3) {
+// EN: Remember the legacy afternoon code to keep it selectable when quarter-day mode is active.
+// FR: Retient l'ancien code après-midi pour le rendre sélectionnable lorsque le mode quart de jour est actif.
+			$hasLegacyHalfDayDailyRate = true;
 		}
+
+		$w = (int) date('N', strtotime($daydate));
+		$dayName = array(1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday')[$w];
+
+		if ($meal) $dayMeal[$dayName] = 1;
+		if ($zone !== null) $dayZone[$dayName] = $zone;
+
+		$taskIdsFromLines[$fk_task] = 1;
+	}
+}
 
 	// 2) RÉCUPÉRER LES TÂCHES ASSIGNÉES
 		$tasks = $object->getAssignedTasks($object->fk_user); // id, label, project_id, project_ref, project_title, task_ref?
@@ -1819,8 +1819,8 @@ if ($action === 'create') {
 						echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 					}
 					echo '</select></span><br>';
-					$checked = $dayMeal[$d] ? ' checked' : '';
-					echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").'</span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
+				$checked = $dayMeal[$d] ? ' checked' : '';
+				echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").'</span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
 					echo '</td>';
 				}
 				echo '<td class=""></td>';
@@ -1889,14 +1889,14 @@ if ($action === 'create') {
 					$tsk->fetch((int)$task['task_id']);
 					if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
 					$nomurl = tw_get_task_nomurl($tsk, 1);
-					$href = '';
-					if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
-					echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
-					if (!empty($href)) {
-						echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
-					} else {
-						echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
-					}
+						$href = '';
+						if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
+						echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
+						if (!empty($href)) {
+							echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
+						} else {
+							echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
+						}
 					echo '</td>';
 
 					$rowTotal = 0.0;
@@ -2007,550 +2007,550 @@ if ($action === 'create') {
 		// JS totaux + mise à jour entête live
 		// EN: Use nowdoc to prevent PHP from stripping the JavaScript variable sigils.
 		// FR: Utilise nowdoc pour empêcher PHP de retirer les sigles de variables JavaScript.
-		$jsGrid = <<<'JS'
-		<script>
-		(function($){
-			var isDailyRateMode = %s;
-			var dailyRateHoursMap = %s;
-			var weeklyContract = %s;
-			function parseHours(v){
-				if(!v) return 0;
-				if(v.indexOf(":") === -1) return parseFloat(v)||0;
-				var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
-				return h + (m/60);
-			}
-			function elementHours($el){
-				if(isDailyRateMode && $el.is('select')){
-					var code=parseInt($el.val(),10);
-					return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
+			$jsGrid = <<<'JS'
+			<script>
+			(function($){
+				var isDailyRateMode = %s;
+				var dailyRateHoursMap = %s;
+				var weeklyContract = %s;
+				function parseHours(v){
+					if(!v) return 0;
+					if(v.indexOf(":") === -1) return parseFloat(v)||0;
+					var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
+					return h + (m/60);
 				}
-				return parseHours($el.val());
-			}
-			function elementDays($el){
+				function elementHours($el){
+					if(isDailyRateMode && $el.is('select')){
+						var code=parseInt($el.val(),10);
+						return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
+					}
+					return parseHours($el.val());
+				}
+				function elementDays($el){
 					// EN: Convert the hour contribution to days with a fixed 8h reference.
 					// FR: Convertit la contribution horaire en jours sur la base fixe de 8h.
-				return elementHours($el) / 8;
-			}
-			function formatHours(d){
-				if(isNaN(d)) return "00:00";
-				var h=Math.floor(d); var m=Math.round((d-h)*60);
-				if(m===60){ h++; m=0; }
+					return elementHours($el) / 8;
+				}
+				function formatHours(d){
+					if(isNaN(d)) return "00:00";
+					var h=Math.floor(d); var m=Math.round((d-h)*60);
+					if(m===60){ h++; m=0; }
 					// EN: Build HH:MM strings without padStart to work on legacy browsers.
 					// FR: Construit les chaînes HH:MM sans padStart pour fonctionner sur les anciens navigateurs.
-				var hh=(h<10?"0":"")+h;
-				var mm=(m<10?"0":"")+m;
-				return hh+":"+mm;
-			}
-			function formatDays(d){
-				if(isNaN(d)) return "0.00";
-				return (Math.round(d*100)/100).toFixed(2);
-			}
-			function updateTotals(){
-				var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
-				var formatFn = isDailyRateMode ? formatDays : formatHours;
-				var elementFn = isDailyRateMode ? elementDays : elementHours;
-				var grand=0;
-				var dayTotals=[];
+					var hh=(h<10?"0":"")+h;
+					var mm=(m<10?"0":"")+m;
+					return hh+":"+mm;
+				}
+				function formatDays(d){
+					if(isNaN(d)) return "0.00";
+					return (Math.round(d*100)/100).toFixed(2);
+				}
+				function updateTotals(){
+					var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
+					var formatFn = isDailyRateMode ? formatDays : formatHours;
+					var elementFn = isDailyRateMode ? elementDays : elementHours;
+					var grand=0;
+					var dayTotals=[];
 
 					// EN: Reset per-task and per-day totals before recomputing the grid.
 					// FR: Réinitialise les totaux par tâche et par jour avant de recalculer la grille.
-				$(".task-total").text(formatFn(0));
-				$(totalRowSelector+" .day-total").each(function(idx){
-					dayTotals[idx]=0;
-					$(this).text(formatFn(0));
-				});
-				$(totalRowSelector+" .grand-total").text(formatFn(0));
+					$(".task-total").text(formatFn(0));
+					$(totalRowSelector+" .day-total").each(function(idx){
+						dayTotals[idx]=0;
+						$(this).text(formatFn(0));
+					});
+					$(totalRowSelector+" .grand-total").text(formatFn(0));
 
-				$("table.noborder tr").each(function(){
-					var rowT=0;
-					$(this).find("input.hourinput, select.daily-rate-select").each(function(){
-						var v=elementFn($(this));
-						if(v>0){
-							rowT+=v;
+					$("table.noborder tr").each(function(){
+						var rowT=0;
+						$(this).find("input.hourinput, select.daily-rate-select").each(function(){
+							var v=elementFn($(this));
+							if(v>0){
+								rowT+=v;
 								// EN: Align the day counter with the footer cells by skipping the label column.
 								// FR: Aligne le compteur journalier sur les cellules du pied en ignorant la colonne du libellé.
-							var idx=$(this).closest("td").index()-1;
-							if(idx>=0 && typeof dayTotals[idx]!=="undefined"){
-								dayTotals[idx]+=v;
+								var idx=$(this).closest("td").index()-1;
+								if(idx>=0 && typeof dayTotals[idx]!=="undefined"){
+									dayTotals[idx]+=v;
+								}
+								grand+=v;
 							}
-							grand+=v;
-						}
+						});
+						if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
 					});
-					if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
-				});
 
 					// EN: Reflect the new per-day totals after iterating over every input cell.
 					// FR: Répercute les nouveaux totaux journaliers après l'analyse de chaque cellule de saisie.
-				$(totalRowSelector+" .day-total").each(function(idx){
-					$(this).text(formatFn(dayTotals[idx]));
-				});
+					$(totalRowSelector+" .day-total").each(function(idx){
+						$(this).text(formatFn(dayTotals[idx]));
+					});
 
-				$(totalRowSelector+" .grand-total").text(formatFn(grand));
+					$(totalRowSelector+" .grand-total").text(formatFn(grand));
 
-				if(isDailyRateMode){
-					$(".meal-total").text('0');
-				} else {
-					var meals = $(".mealbox:checked").length;
-					$(".meal-total").text(meals);
-					var ot = grand - weeklyContract; if (ot < 0) ot = 0;
-					$(".overtime-total").text(formatFn(ot));
-					if($(".header-overtime").length){
-						$(".header-overtime").text(formatFn(ot));
+					if(isDailyRateMode){
+						$(".meal-total").text('0');
+					} else {
+						var meals = $(".mealbox:checked").length;
+						$(".meal-total").text(meals);
+						var ot = grand - weeklyContract; if (ot < 0) ot = 0;
+						$(".overtime-total").text(formatFn(ot));
+						if($(".header-overtime").length){
+							$(".header-overtime").text(formatFn(ot));
+						}
 					}
-				}
 
 					// met à jour l'entête
-				$(".header-total-main").text(formatFn(grand));
-			}
-			$(function(){
+					$(".header-total-main").text(formatFn(grand));
+				}
+				$(function(){
 					updateTotals();	// au chargement
 					$(document).on("input change", "input.hourinput, select.daily-rate-select, input.mealbox", updateTotals);
 				});
-		})(jQuery);
-		</script>
-		JS;
+			})(jQuery);
+			</script>
+			JS;
 				// EN: Reuse the PHP hour map so JavaScript mirrors the backend conversions (quarter-day included).
 				// FR: Réutilise la correspondance horaire PHP pour que JavaScript reflète les conversions (quart de jour inclus).
-		$jsDailyRateHoursMap = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
-		$jsGrid = sprintf(
-			$jsGrid,
-			$isDailyRateEmployee ? 'true' : 'false',
-			json_encode($jsDailyRateHoursMap),
-			json_encode((float) price2num($contractedHours, '6'))
-		);
-		echo $jsGrid;
+			$jsDailyRateHoursMap = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
+			$jsGrid = sprintf(
+				$jsGrid,
+				$isDailyRateEmployee ? 'true' : 'false',
+				json_encode($jsDailyRateHoursMap),
+				json_encode((float) price2num($contractedHours, '6'))
+			);
+			echo $jsGrid;
 
 			// Mobile: simplified view (1 day column + navigation) + keyboard-aware floating actions
-		$jsMobile = <<<'JSM'
-								<script>
-								(function($){
-									$(function(){
-										var mq = window.matchMedia('(max-width: 768px)');
-										var days = %s;
-										var weekdates = %s;
-						
-										function setMobile(flag){
-											document.body.classList.toggle('tw-mobile', !!flag);
-											var bar = document.querySelector('.tw-mobile-headerbar');
-											var fabs = document.querySelector('.tw-mobile-actions');
-											if (bar) bar.style.display = flag ? 'flex' : 'none';
-											if (fabs) fabs.style.display = flag ? 'flex' : 'none';
-										}
-						
-										function todayKey(){
-											var iso = '';
-											try { iso = (new Date()).toISOString().slice(0,10); } catch (e) {}
-											for (var k in weekdates) {
-												if (weekdates[k] === iso) return k;
-											}
-											return days[0] || null;
-										}
-						
-										var current = null;
-						
-										function showDay(k){
-											if (!k) return;
-											current = k;
-											$('.tw-daycol').removeClass('tw-day-active');
-											$('.tw-day-' + k).addClass('tw-day-active');
-										}
-						
-										function step(dir){
-											if (!current) return;
-											var idx = days.indexOf(current);
-											if (idx < 0) idx = 0;
-											idx = idx + dir;
-											if (idx < 0) idx = 0;
-											if (idx >= days.length) idx = days.length - 1;
-											showDay(days[idx]);
-										}
-						
-										function bindNav(){
-											var $tbl = $('.grille-saisie-temps');
-											$tbl.off('click.twDayNav')
-											.on('click.twDayNav', '.tw-day-prev', function(e){ e.preventDefault(); step(-1); })
-											.on('click.twDayNav', '.tw-day-next', function(e){ e.preventDefault(); step(1); });
-										}
-						
-										function bindHeaderToggle(){
-											function toggle(){
-												document.body.classList.toggle('tw-mobile-header-open');
-												var open = document.body.classList.contains('tw-mobile-header-open');
-												var btn = document.getElementById('twMobileHeaderToggle');
-												if (btn) {
-													btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-													btn.textContent = open ? %s : %s;
-												}
-											}
-											var btn = document.getElementById('twMobileHeaderToggle');
-											if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
-											var fab = document.getElementById('twMobileHeaderFab');
-											if (fab) fab.addEventListener('click', function(e){
-												e.preventDefault();
-												var openGrid = document.body.classList.contains('tw-mobile-grid-open');
-												document.body.classList.toggle('tw-mobile-grid-open', !openGrid);
-												});
-											}
-						
-											function bindSubmitFab(){
-												var btn = document.getElementById('twMobileSubmitFab');
-												if (!btn) return;
-												var a = document.querySelector('a[href*="action=submit"]');
-												if (!a) { btn.style.display = 'none'; return; }
-												var href = a.getAttribute('href');
-												btn.style.display = '';
-												btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
-											}
-						
-						
-											function keyboardAware(){
-												if (!window.visualViewport) return;
-												var vv = window.visualViewport;
-												function upd(){
-													var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-													document.documentElement.style.setProperty('--tw-kb', kb + 'px');
-												}
-												vv.addEventListener('resize', upd);
-												vv.addEventListener('scroll', upd);
-												document.addEventListener('focusin', upd);
-												document.addEventListener('focusout', function(){ document.documentElement.style.setProperty('--tw-kb', '0px'); });
-												upd();
-											}
-						
-						
-											function pad2(n){ n = parseInt(n, 10) || 0; return (n < 10 ? '0' : '') + n; }
-						
-											function parseTimeToHM(v){
-												if (!v) return { h: 0, m: 0, empty: true };
-												var s = String(v).trim();
-												if (!s) return { h: 0, m: 0, empty: true };
-						
-												var m = s.match(/^\s*(\d{1,2})\s*:\s*(\d{1,2})\s*$/);
-												if (m) {
-													var h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-													var mi = Math.min(59, Math.max(0, parseInt(m[2], 10) || 0));
-													return { h: h, m: mi, empty: false };
-												}
-						
-									// Accept decimal hours like 1.5 or 1,5 -> 01:30 (best-effort)
-												m = s.match(/^\s*(\d{1,2})[\.,](\d{1,2})\s*$/);
-												if (m) {
-													var hh = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-													var frac = parseInt(m[2], 10) || 0;
-										// Treat 1.5 as 1h30, 1.25 as 1h15 (approx)
-													var mm = Math.round((frac / Math.pow(10, String(frac).length)) * 60);
-													mm = Math.min(59, Math.max(0, mm));
-													return { h: hh, m: mm, empty: false };
-												}
-						
-												m = s.match(/^\s*(\d{1,2})\s*$/);
-												if (m) {
-													var h2 = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-													return { h: h2, m: 0, empty: false };
-												}
-						
-												return { h: 0, m: 0, empty: true };
-											}
-						
-											function buildTimePickers(){
-												if (!document.body.classList.contains('tw-mobile')) return;
-						
-												var inputs = document.querySelectorAll('input.hourinput');
-												inputs.forEach(function(inp){
-													if (inp.dataset.twPickerInit) return;
-													inp.dataset.twPickerInit = '1';
-						
-													var parsed = parseTimeToHM(inp.value);
-													var isDisabled = !!inp.disabled || !!inp.readOnly || inp.getAttribute('readonly') !== null;
-						
-													var wrap = document.createElement('div');
-													wrap.className = 'tw-timepicker';
-						
-													var selH = document.createElement('select');
-													selH.className = 'flat tw-time-h';
-													for (var h = 0; h <= 23; h++) {
-														var optH = document.createElement('option');
-														optH.value = String(h);
-														optH.textContent = pad2(h);
-														selH.appendChild(optH);
-													}
-						
-													var sep = document.createElement('span');
-													sep.className = 'tw-time-sep';
-													sep.textContent = ':';
-						
-													var selM = document.createElement('select');
-													selM.className = 'flat tw-time-m';
-													for (var mi = 0; mi <= 59; mi++) {
-														var optM = document.createElement('option');
-														optM.value = String(mi);
-														optM.textContent = pad2(mi);
-														selM.appendChild(optM);
-													}
-						
-													selH.value = String(parsed.h);
-													selM.value = String(parsed.m);
-						
-													if (isDisabled) {
-														selH.disabled = true;
-														selM.disabled = true;
-													}
-						
-													function sync(){
-														var hh = parseInt(selH.value, 10) || 0;
-														var mm = parseInt(selM.value, 10) || 0;
-														inp.value = pad2(hh) + ':' + pad2(mm);
-														if (window.jQuery) {
-															window.jQuery(inp).trigger('input').trigger('keyup').trigger('change');
-															} else {
-																try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
-																try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
-															}
-														}
-						
-														selH.addEventListener('change', sync);
-														selM.addEventListener('change', sync);
-						
-														wrap.appendChild(selH);
-														wrap.appendChild(sep);
-														wrap.appendChild(selM);
-						
-														inp.classList.add('tw-time-hidden');
-														inp.insertAdjacentElement('afterend', wrap);
-														});
-													}
-						
-													function destroyTimePickers(){
-														document.querySelectorAll('.tw-timepicker').forEach(function(w){ w.remove(); });
-														document.querySelectorAll('input.hourinput.tw-time-hidden').forEach(function(inp){ inp.classList.remove('tw-time-hidden'); });
-														document.querySelectorAll('input.hourinput[data-tw-picker-init]').forEach(function(inp){ delete inp.dataset.twPickerInit; });
-													}
-						
-													function init(flag){
-														setMobile(flag);
-														if (flag) document.body.classList.remove('tw-mobile-grid-open');
-														if (!flag) { destroyTimePickers(); return; }
-														buildTimePickers();
-														document.body.classList.remove('tw-mobile-header-open');
-														bindNav();
-														bindHeaderToggle();
-														bindSubmitFab();
-														keyboardAware();
-														showDay(todayKey());
-													}
-						
-													init(mq.matches);
-													if (mq.addEventListener) mq.addEventListener('change', function(e){ init(e.matches); });
-													else if (mq.addListener) mq.addListener(function(e){ init(e.matches); });
-													});
-													})(jQuery);
-													</script>
-													JSM;
-									$jsMobile = sprintf(
-								$jsMobile,
-								json_encode(array_values($days)),
-								json_encode($weekdates),
-								json_encode($langs->trans("Hide")),
-								json_encode($langs->trans("Details"))
-							);
-							echo $jsMobile;
+			$jsMobile = <<<'JSM'
+<script>
+(function($){
+	$(function(){
+		var mq = window.matchMedia('(max-width: 768px)');
+		var days = %s;
+		var weekdates = %s;
+
+		function setMobile(flag){
+			document.body.classList.toggle('tw-mobile', !!flag);
+			var bar = document.querySelector('.tw-mobile-headerbar');
+			var fabs = document.querySelector('.tw-mobile-actions');
+			if (bar) bar.style.display = flag ? 'flex' : 'none';
+			if (fabs) fabs.style.display = flag ? 'flex' : 'none';
+		}
+
+		function todayKey(){
+			var iso = '';
+			try { iso = (new Date()).toISOString().slice(0,10); } catch (e) {}
+			for (var k in weekdates) {
+				if (weekdates[k] === iso) return k;
+			}
+			return days[0] || null;
+		}
+
+		var current = null;
+
+		function showDay(k){
+			if (!k) return;
+			current = k;
+			$('.tw-daycol').removeClass('tw-day-active');
+			$('.tw-day-' + k).addClass('tw-day-active');
+		}
+
+		function step(dir){
+			if (!current) return;
+			var idx = days.indexOf(current);
+			if (idx < 0) idx = 0;
+			idx = idx + dir;
+			if (idx < 0) idx = 0;
+			if (idx >= days.length) idx = days.length - 1;
+			showDay(days[idx]);
+		}
+
+		function bindNav(){
+			var $tbl = $('.grille-saisie-temps');
+			$tbl.off('click.twDayNav')
+				.on('click.twDayNav', '.tw-day-prev', function(e){ e.preventDefault(); step(-1); })
+				.on('click.twDayNav', '.tw-day-next', function(e){ e.preventDefault(); step(1); });
+		}
+
+		function bindHeaderToggle(){
+			function toggle(){
+				document.body.classList.toggle('tw-mobile-header-open');
+				var open = document.body.classList.contains('tw-mobile-header-open');
+				var btn = document.getElementById('twMobileHeaderToggle');
+				if (btn) {
+					btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+					btn.textContent = open ? %s : %s;
+				}
+			}
+			var btn = document.getElementById('twMobileHeaderToggle');
+			if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+			var fab = document.getElementById('twMobileHeaderFab');
+			if (fab) fab.addEventListener('click', function(e){
+				e.preventDefault();
+				var openGrid = document.body.classList.contains('tw-mobile-grid-open');
+				document.body.classList.toggle('tw-mobile-grid-open', !openGrid);
+			});
+		}
+
+		function bindSubmitFab(){
+			var btn = document.getElementById('twMobileSubmitFab');
+			if (!btn) return;
+			var a = document.querySelector('a[href*="action=submit"]');
+			if (!a) { btn.style.display = 'none'; return; }
+			var href = a.getAttribute('href');
+			btn.style.display = '';
+			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
+		}
 
 
-						}
+		function keyboardAware(){
+			if (!window.visualViewport) return;
+			var vv = window.visualViewport;
+			function upd(){
+				var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+				document.documentElement.style.setProperty('--tw-kb', kb + 'px');
+			}
+			vv.addEventListener('resize', upd);
+			vv.addEventListener('scroll', upd);
+			document.addEventListener('focusin', upd);
+			document.addEventListener('focusout', function(){ document.documentElement.style.setProperty('--tw-kb', '0px'); });
+			upd();
+		}
+
+
+		function pad2(n){ n = parseInt(n, 10) || 0; return (n < 10 ? '0' : '') + n; }
+
+		function parseTimeToHM(v){
+			if (!v) return { h: 0, m: 0, empty: true };
+			var s = String(v).trim();
+			if (!s) return { h: 0, m: 0, empty: true };
+
+			var m = s.match(/^\s*(\d{1,2})\s*:\s*(\d{1,2})\s*$/);
+			if (m) {
+				var h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				var mi = Math.min(59, Math.max(0, parseInt(m[2], 10) || 0));
+				return { h: h, m: mi, empty: false };
+			}
+
+			// Accept decimal hours like 1.5 or 1,5 -> 01:30 (best-effort)
+			m = s.match(/^\s*(\d{1,2})[\.,](\d{1,2})\s*$/);
+			if (m) {
+				var hh = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				var frac = parseInt(m[2], 10) || 0;
+				// Treat 1.5 as 1h30, 1.25 as 1h15 (approx)
+				var mm = Math.round((frac / Math.pow(10, String(frac).length)) * 60);
+				mm = Math.min(59, Math.max(0, mm));
+				return { h: hh, m: mm, empty: false };
+			}
+
+			m = s.match(/^\s*(\d{1,2})\s*$/);
+			if (m) {
+				var h2 = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+				return { h: h2, m: 0, empty: false };
+			}
+
+			return { h: 0, m: 0, empty: true };
+		}
+
+		function buildTimePickers(){
+			if (!document.body.classList.contains('tw-mobile')) return;
+
+			var inputs = document.querySelectorAll('input.hourinput');
+			inputs.forEach(function(inp){
+				if (inp.dataset.twPickerInit) return;
+				inp.dataset.twPickerInit = '1';
+
+				var parsed = parseTimeToHM(inp.value);
+				var isDisabled = !!inp.disabled || !!inp.readOnly || inp.getAttribute('readonly') !== null;
+
+				var wrap = document.createElement('div');
+				wrap.className = 'tw-timepicker';
+
+				var selH = document.createElement('select');
+				selH.className = 'flat tw-time-h';
+				for (var h = 0; h <= 23; h++) {
+					var optH = document.createElement('option');
+					optH.value = String(h);
+					optH.textContent = pad2(h);
+					selH.appendChild(optH);
+				}
+
+				var sep = document.createElement('span');
+				sep.className = 'tw-time-sep';
+				sep.textContent = ':';
+
+				var selM = document.createElement('select');
+				selM.className = 'flat tw-time-m';
+				for (var mi = 0; mi <= 59; mi++) {
+					var optM = document.createElement('option');
+					optM.value = String(mi);
+					optM.textContent = pad2(mi);
+					selM.appendChild(optM);
+				}
+
+				selH.value = String(parsed.h);
+				selM.value = String(parsed.m);
+
+				if (isDisabled) {
+					selH.disabled = true;
+					selM.disabled = true;
+				}
+
+				function sync(){
+					var hh = parseInt(selH.value, 10) || 0;
+					var mm = parseInt(selM.value, 10) || 0;
+					inp.value = pad2(hh) + ':' + pad2(mm);
+					if (window.jQuery) {
+						window.jQuery(inp).trigger('input').trigger('keyup').trigger('change');
+					} else {
+						try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
+						try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
+					}
+				}
+
+				selH.addEventListener('change', sync);
+				selM.addEventListener('change', sync);
+
+				wrap.appendChild(selH);
+				wrap.appendChild(sep);
+				wrap.appendChild(selM);
+
+				inp.classList.add('tw-time-hidden');
+				inp.insertAdjacentElement('afterend', wrap);
+			});
+		}
+
+		function destroyTimePickers(){
+			document.querySelectorAll('.tw-timepicker').forEach(function(w){ w.remove(); });
+			document.querySelectorAll('input.hourinput.tw-time-hidden').forEach(function(inp){ inp.classList.remove('tw-time-hidden'); });
+			document.querySelectorAll('input.hourinput[data-tw-picker-init]').forEach(function(inp){ delete inp.dataset.twPickerInit; });
+		}
+
+		function init(flag){
+			setMobile(flag);
+			if (flag) document.body.classList.remove('tw-mobile-grid-open');
+			if (!flag) { destroyTimePickers(); return; }
+			buildTimePickers();
+			document.body.classList.remove('tw-mobile-header-open');
+			bindNav();
+			bindHeaderToggle();
+			bindSubmitFab();
+			keyboardAware();
+			showDay(todayKey());
+		}
+
+		init(mq.matches);
+		if (mq.addEventListener) mq.addEventListener('change', function(e){ init(e.matches); });
+		else if (mq.addListener) mq.addListener(function(e){ init(e.matches); });
+	});
+})(jQuery);
+</script>
+JSM;
+			$jsMobile = sprintf(
+				$jsMobile,
+				json_encode(array_values($days)),
+				json_encode($weekdates),
+				json_encode($langs->trans("Hide")),
+				json_encode($langs->trans("Details"))
+			);
+			echo $jsMobile;
+
+
+		}
 
 		// ---- Boutons d’action (barre) ----
-						echo '<div class="tabsAction tw-native-actions">';
+		echo '<div class="tabsAction tw-native-actions">';
 
-						$token = newToken();
+		$token = newToken();
 
-						if ($object->status == tw_status('sealed')) {
+		if ($object->status == tw_status('sealed')) {
 				// EN: In sealed state only show the unseal control for authorized users.
 				// FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
-							if ($permUnseal) {
-								echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
-							}
-						} else {
-							if ($canSendMail) {
-								echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
-							}
+			if ($permUnseal) {
+				echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+			}
+		} else {
+			if ($canSendMail) {
+				echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+			}
 
 				// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-							if ($object->status == tw_status('draft')) {
+			if ($object->status == tw_status('draft')) {
 						// Compter les lignes
-								$nbLines = 0;
+				$nbLines = 0;
 						// EN: Count lines only within authorized entities before enabling submission.
 						// FR: Compte les lignes uniquement dans les entités autorisées avant d'autoriser la soumission.
-								$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
-								if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
-								if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-									echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
-								}
-							}
+				$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
+				if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
+				if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+					echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+				}
+			}
 
 				// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
-							if ($object->status != tw_status('draft')) {
-								$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
-								$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-								if ($canEmployee || $canValidator) {
-									echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
-								}
-							}
+			if ($object->status != tw_status('draft')) {
+				$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
+				$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+				if ($canEmployee || $canValidator) {
+					echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
+				}
+			}
 
 				// Approuver / Refuser quand soumis (validateur/manager/all/own)
-							if ($object->status == tw_status('submitted')) {
-								$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-								if ($canValidator) {
-									echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-									echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
-								}
-							}
+			if ($object->status == tw_status('submitted')) {
+				$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+				if ($canValidator) {
+					echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
+					echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
+				}
+			}
 
 				// EN: Allow sealing once the sheet is approved and the user is authorized.
 				// FR : Autorise le scellement dès que la feuille est approuvée et que l'utilisateur est habilité.
-							if ($object->status == tw_status('approved') && $permSeal) {
-								echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
-							}
+			if ($object->status == tw_status('approved') && $permSeal) {
+				echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
+			}
 
 				// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
-							$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-							|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-							if ($canDelete) {
-								echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
-							}
-						}
+			$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			if ($canDelete) {
+				echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+			}
+		}
 
-						echo '</div>';
+		echo '</div>';
 
-						if ($action !== 'presend') {
+		if ($action !== 'presend') {
 				// EN: Mirror Dolibarr's document block so PDF tools appear consistently on the card.
 				// FR: Reproduit le bloc documentaire de Dolibarr pour afficher les outils PDF de manière cohérente sur la fiche.
-							print '<div class="fichecenter"><div class="fichehalfleft">';
-							print '<a name="builddoc"></a>';
+			print '<div class="fichecenter"><div class="fichehalfleft">';
+			print '<a name="builddoc"></a>';
 
 				// EN: Enable the document generation area (can be toggled by hooks if needed).
 				// FR: Active la zone de génération documentaire (peut être désactivée via des hooks si nécessaire).
-							$includedocgeneration = 1;
+			$includedocgeneration = 1;
 
-							if ($includedocgeneration) {
+			if ($includedocgeneration) {
 					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
 					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
-								$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-								$object->element = 'timesheetweek';
-								$docRef = dol_sanitizeFileName($object->ref);
-								$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
-								if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
-									$entityOutput = $conf->timesheetweek->dir_output;
-								}
-								if (empty($entityOutput)) {
-									$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
-								}
-								$relativePath = $object->element.'/'.$docRef;
-								$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
-								$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
-								$genallowed = $permReadAny ? 1 : 0;
-								if ($permReadAny) {
+				$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+				$object->element = 'timesheetweek';
+				$docRef = dol_sanitizeFileName($object->ref);
+				$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
+				if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
+					$entityOutput = $conf->timesheetweek->dir_output;
+				}
+				if (empty($entityOutput)) {
+					$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
+				}
+				$relativePath = $object->element.'/'.$docRef;
+				$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+				$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
+				$genallowed = $permReadAny ? 1 : 0;
+				if ($permReadAny) {
 						// EN: Narrow the generation list to the PDF models enabled in the configuration.
 						// FR: Restreint la liste de génération aux modèles PDF activés dans la configuration.
-									$enabledDocModels = tw_get_enabled_pdf_models($db);
-									if (!empty($enabledDocModels)) {
-										$genallowed = $enabledDocModels;
-									}
-								}
-								$delallowed = $permissiontoadd ? 1 : 0;
+					$enabledDocModels = tw_get_enabled_pdf_models($db);
+					if (!empty($enabledDocModels)) {
+						$genallowed = $enabledDocModels;
+					}
+				}
+				$delallowed = $permissiontoadd ? 1 : 0;
 
-								$documentHtml = $formfile->showdocuments(
-									'timesheetweek:TimesheetWeek',
-									$relativePath,
-									$filedir,
-									$urlsource,
-									$genallowed,
-									$delallowed,
-									$object->model_pdf,
-									1,
-									0,
-									0,
-									28,
-									0,
-									'',
-									'',
-									'',
-									$langs->defaultlang,
-									'',
-									$object,
-									0,
-									'remove_file',
-									''
-								);
-								if (!empty($documentHtml)) {
+				$documentHtml = $formfile->showdocuments(
+					'timesheetweek:TimesheetWeek',
+					$relativePath,
+					$filedir,
+					$urlsource,
+					$genallowed,
+					$delallowed,
+					$object->model_pdf,
+					1,
+					0,
+					0,
+					28,
+					0,
+					'',
+					'',
+					'',
+					$langs->defaultlang,
+					'',
+					$object,
+					0,
+					'remove_file',
+					''
+				);
+				if (!empty($documentHtml)) {
 					// EN: Sanitize each segment of the file path to preserve directories while avoiding traversal attacks.
 					// FR: Assainit chaque segment du chemin du fichier pour conserver les dossiers tout en évitant les attaques de traversée.
-									$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
-										$decoded = urldecode($matches[2]);
-										while (strpos($decoded, './') === 0) {
-											$decoded = substr($decoded, 2);
-										}
-										$decoded = ltrim($decoded, '/');
-										$parts = preg_split('#/+?#', $decoded, -1, PREG_SPLIT_NO_EMPTY);
-										$sanitizedParts = array();
-										foreach ($parts as $part) {
-											if ($part === '.' || $part === '..') {
-												continue;
-											}
-											$cleanPart = dol_sanitizeFileName($part);
-											if ($cleanPart === '') {
-												continue;
-											}
-											$sanitizedParts[] = $cleanPart;
-										}
-										if (empty($sanitizedParts)) {
-											$basename = dol_sanitizeFileName(basename($decoded));
-											if ($basename !== '') {
-												$sanitizedParts[] = $basename;
-											}
-										}
-										$cleanPath = implode('/', $sanitizedParts);
-										return $matches[1].rawurlencode($cleanPath);
-									}, $documentHtml);
+					$documentHtml = preg_replace_callback('/([?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = urldecode($matches[2]);
+						while (strpos($decoded, './') === 0) {
+							$decoded = substr($decoded, 2);
+						}
+						$decoded = ltrim($decoded, '/');
+						$parts = preg_split('#/+?#', $decoded, -1, PREG_SPLIT_NO_EMPTY);
+						$sanitizedParts = array();
+						foreach ($parts as $part) {
+							if ($part === '.' || $part === '..') {
+								continue;
+							}
+							$cleanPart = dol_sanitizeFileName($part);
+							if ($cleanPart === '') {
+								continue;
+							}
+							$sanitizedParts[] = $cleanPart;
+						}
+						if (empty($sanitizedParts)) {
+							$basename = dol_sanitizeFileName(basename($decoded));
+							if ($basename !== '') {
+								$sanitizedParts[] = $basename;
+							}
+						}
+						$cleanPath = implode('/', $sanitizedParts);
+						return $matches[1].rawurlencode($cleanPath);
+					}, $documentHtml);
 					// EN: Force remove actions to keep only the document basename to match Dolibarr expectations.
 					// FR: Force les actions de suppression à conserver uniquement le nom de fichier pour correspondre aux attentes Dolibarr.
-									$documentHtml = preg_replace_callback('/(action=remove_file[^"<>]*[?&]file=)([^"&]+)/', function ($matches) {
-										$decoded = rawurldecode($matches[2]);
-										$normalized = str_replace('\\', '/', $decoded);
-										$basename = dol_sanitizeFileName(basename($normalized));
-										if ($basename === '') {
-											return $matches[0];
-										}
-										return $matches[1].rawurlencode($basename);
-									}, $documentHtml);
-									$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
-									$decodeFlags = ENT_QUOTES;
-									if (defined('ENT_HTML5')) {
-										$decodeFlags |= ENT_HTML5;
-									} else {
-										$decodeFlags |= ENT_COMPAT;
-									}
-									$documentHtml = preg_replace_callback('/href="([^"<>]*document\.php[^"<>]*)"/', function ($matches) use ($documentBaseUrl, $decodeFlags) {
-										$originalHref = $matches[1];
-										$decodedHref = html_entity_decode($originalHref, $decodeFlags, 'UTF-8');
-										if (preg_match('#^[a-z]+://#i', $decodedHref)) {
-											return 'href="'.$originalHref.'"';
-										}
-										$normalizedHref = $decodedHref;
-										if (strpos($normalizedHref, '/document.php') === 0) {
-											$normalizedHref = substr($normalizedHref, strlen('/document.php'));
-										} elseif (strpos($normalizedHref, 'document.php') === 0) {
-											$normalizedHref = substr($normalizedHref, strlen('document.php'));
-										} else {
-											return 'href="'.$originalHref.'"';
-										}
-										$absoluteHref = $documentBaseUrl.$normalizedHref;
-										return 'href="'.dol_escape_htmltag($absoluteHref).'"';
-									}, $documentHtml);
-								}
-								print '<div class="tw-documents-block">';
-								print $documentHtml;
-								print '</div>';
-							}
+					$documentHtml = preg_replace_callback('/(action=remove_file[^"<>]*[?&]file=)([^"&]+)/', function ($matches) {
+						$decoded = rawurldecode($matches[2]);
+						$normalized = str_replace('\\', '/', $decoded);
+						$basename = dol_sanitizeFileName(basename($normalized));
+						if ($basename === '') {
+							return $matches[0];
+						}
+						return $matches[1].rawurlencode($basename);
+					}, $documentHtml);
+					$documentBaseUrl = rtrim(dol_buildpath('/document.php', 2), '/');
+					$decodeFlags = ENT_QUOTES;
+					if (defined('ENT_HTML5')) {
+						$decodeFlags |= ENT_HTML5;
+					} else {
+						$decodeFlags |= ENT_COMPAT;
+					}
+					$documentHtml = preg_replace_callback('/href="([^"<>]*document\.php[^"<>]*)"/', function ($matches) use ($documentBaseUrl, $decodeFlags) {
+						$originalHref = $matches[1];
+						$decodedHref = html_entity_decode($originalHref, $decodeFlags, 'UTF-8');
+						if (preg_match('#^[a-z]+://#i', $decodedHref)) {
+							return 'href="'.$originalHref.'"';
+						}
+						$normalizedHref = $decodedHref;
+						if (strpos($normalizedHref, '/document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('/document.php'));
+						} elseif (strpos($normalizedHref, 'document.php') === 0) {
+							$normalizedHref = substr($normalizedHref, strlen('document.php'));
+						} else {
+							return 'href="'.$originalHref.'"';
+						}
+						$absoluteHref = $documentBaseUrl.$normalizedHref;
+						return 'href="'.dol_escape_htmltag($absoluteHref).'"';
+					}, $documentHtml);
+				}
+				print '<div class="tw-documents-block">';
+				print $documentHtml;
+				print '</div>';
+			}
 
 			print '</div>'; // tw-grid-fichecenter
 			print '</div></div>';
