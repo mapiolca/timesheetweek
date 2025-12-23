@@ -2122,231 +2122,231 @@ if ($action === 'create') {
 
 			// Mobile: simplified view (1 day column + navigation) + keyboard-aware floating actions
 		$jsMobile = <<<'JSM'
-		<script>
-		(function($){
-			$(function(){
-				var mq = window.matchMedia('(max-width: 768px)');
-				var days = %s;
-				var weekdates = %s;
-
-				function setMobile(flag){
-					document.body.classList.toggle('tw-mobile', !!flag);
-					var bar = document.querySelector('.tw-mobile-headerbar');
-					var fabs = document.querySelector('.tw-mobile-actions');
-					if (bar) bar.style.display = flag ? 'flex' : 'none';
-					if (fabs) fabs.style.display = flag ? 'flex' : 'none';
-				}
-
-				function todayKey(){
-					var iso = '';
-					try { iso = (new Date()).toISOString().slice(0,10); } catch (e) {}
-					for (var k in weekdates) {
-						if (weekdates[k] === iso) return k;
-					}
-					return days[0] || null;
-				}
-
-				var current = null;
-
-				function showDay(k){
-					if (!k) return;
-					current = k;
-					$('.tw-daycol').removeClass('tw-day-active');
-					$('.tw-day-' + k).addClass('tw-day-active');
-				}
-
-				function step(dir){
-					if (!current) return;
-					var idx = days.indexOf(current);
-					if (idx < 0) idx = 0;
-					idx = idx + dir;
-					if (idx < 0) idx = 0;
-					if (idx >= days.length) idx = days.length - 1;
-					showDay(days[idx]);
-				}
-
-				function bindNav(){
-					var $tbl = $('.grille-saisie-temps');
-					$tbl.off('click.twDayNav')
-					.on('click.twDayNav', '.tw-day-prev', function(e){ e.preventDefault(); step(-1); })
-					.on('click.twDayNav', '.tw-day-next', function(e){ e.preventDefault(); step(1); });
-				}
-
-				function bindHeaderToggle(){
-					function toggle(){
-						document.body.classList.toggle('tw-mobile-header-open');
-						var open = document.body.classList.contains('tw-mobile-header-open');
-						var btn = document.getElementById('twMobileHeaderToggle');
-						if (btn) {
-							btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-							btn.textContent = open ? %s : %s;
-						}
-					}
-					var btn = document.getElementById('twMobileHeaderToggle');
-					if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
-					var fab = document.getElementById('twMobileHeaderFab');
-					if (fab) fab.addEventListener('click', function(e){
-						e.preventDefault();
-						var openGrid = document.body.classList.contains('tw-mobile-grid-open');
-						document.body.classList.toggle('tw-mobile-grid-open', !openGrid);
-						});
-					}
-
-					function bindSubmitFab(){
-						var btn = document.getElementById('twMobileSubmitFab');
-						if (!btn) return;
-						var a = document.querySelector('a[href*="action=submit"]');
-						if (!a) { btn.style.display = 'none'; return; }
-						var href = a.getAttribute('href');
-						btn.style.display = '';
-						btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
-					}
-
-
-					function keyboardAware(){
-						if (!window.visualViewport) return;
-						var vv = window.visualViewport;
-						function upd(){
-							var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-							document.documentElement.style.setProperty('--tw-kb', kb + 'px');
-						}
-						vv.addEventListener('resize', upd);
-						vv.addEventListener('scroll', upd);
-						document.addEventListener('focusin', upd);
-						document.addEventListener('focusout', function(){ document.documentElement.style.setProperty('--tw-kb', '0px'); });
-						upd();
-					}
-
-
-					function pad2(n){ n = parseInt(n, 10) || 0; return (n < 10 ? '0' : '') + n; }
-
-					function parseTimeToHM(v){
-						if (!v) return { h: 0, m: 0, empty: true };
-						var s = String(v).trim();
-						if (!s) return { h: 0, m: 0, empty: true };
-
-						var m = s.match(/^\s*(\d{1,2})\s*:\s*(\d{1,2})\s*$/);
-						if (m) {
-							var h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-							var mi = Math.min(59, Math.max(0, parseInt(m[2], 10) || 0));
-							return { h: h, m: mi, empty: false };
-						}
-
-			// Accept decimal hours like 1.5 or 1,5 -> 01:30 (best-effort)
-						m = s.match(/^\s*(\d{1,2})[\.,](\d{1,2})\s*$/);
-						if (m) {
-							var hh = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-							var frac = parseInt(m[2], 10) || 0;
-				// Treat 1.5 as 1h30, 1.25 as 1h15 (approx)
-							var mm = Math.round((frac / Math.pow(10, String(frac).length)) * 60);
-							mm = Math.min(59, Math.max(0, mm));
-							return { h: hh, m: mm, empty: false };
-						}
-
-						m = s.match(/^\s*(\d{1,2})\s*$/);
-						if (m) {
-							var h2 = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
-							return { h: h2, m: 0, empty: false };
-						}
-
-						return { h: 0, m: 0, empty: true };
-					}
-
-					function buildTimePickers(){
-						if (!document.body.classList.contains('tw-mobile')) return;
-
-						var inputs = document.querySelectorAll('input.hourinput');
-						inputs.forEach(function(inp){
-							if (inp.dataset.twPickerInit) return;
-							inp.dataset.twPickerInit = '1';
-
-							var parsed = parseTimeToHM(inp.value);
-							var isDisabled = !!inp.disabled || !!inp.readOnly || inp.getAttribute('readonly') !== null;
-
-							var wrap = document.createElement('div');
-							wrap.className = 'tw-timepicker';
-
-							var selH = document.createElement('select');
-							selH.className = 'flat tw-time-h';
-							for (var h = 0; h <= 23; h++) {
-								var optH = document.createElement('option');
-								optH.value = String(h);
-								optH.textContent = pad2(h);
-								selH.appendChild(optH);
-							}
-
-							var sep = document.createElement('span');
-							sep.className = 'tw-time-sep';
-							sep.textContent = ':';
-
-							var selM = document.createElement('select');
-							selM.className = 'flat tw-time-m';
-							for (var mi = 0; mi <= 59; mi++) {
-								var optM = document.createElement('option');
-								optM.value = String(mi);
-								optM.textContent = pad2(mi);
-								selM.appendChild(optM);
-							}
-
-							selH.value = String(parsed.h);
-							selM.value = String(parsed.m);
-
-							if (isDisabled) {
-								selH.disabled = true;
-								selM.disabled = true;
-							}
-
-							function sync(){
-								var hh = parseInt(selH.value, 10) || 0;
-								var mm = parseInt(selM.value, 10) || 0;
-								inp.value = pad2(hh) + ':' + pad2(mm);
-								if (window.jQuery) {
-									window.jQuery(inp).trigger('input').trigger('keyup').trigger('change');
-									} else {
-										try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
-										try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
-									}
-								}
-
-								selH.addEventListener('change', sync);
-								selM.addEventListener('change', sync);
-
-								wrap.appendChild(selH);
-								wrap.appendChild(sep);
-								wrap.appendChild(selM);
-
-								inp.classList.add('tw-time-hidden');
-								inp.insertAdjacentElement('afterend', wrap);
-								});
-							}
-
-							function destroyTimePickers(){
-								document.querySelectorAll('.tw-timepicker').forEach(function(w){ w.remove(); });
-								document.querySelectorAll('input.hourinput.tw-time-hidden').forEach(function(inp){ inp.classList.remove('tw-time-hidden'); });
-								document.querySelectorAll('input.hourinput[data-tw-picker-init]').forEach(function(inp){ delete inp.dataset.twPickerInit; });
-							}
-
-							function init(flag){
-								setMobile(flag);
-								if (flag) document.body.classList.remove('tw-mobile-grid-open');
-								if (!flag) { destroyTimePickers(); return; }
-								buildTimePickers();
-								document.body.classList.remove('tw-mobile-header-open');
-								bindNav();
-								bindHeaderToggle();
-								bindSubmitFab();
-								keyboardAware();
-								showDay(todayKey());
-							}
-
-							init(mq.matches);
-							if (mq.addEventListener) mq.addEventListener('change', function(e){ init(e.matches); });
-							else if (mq.addListener) mq.addListener(function(e){ init(e.matches); });
-							});
-							})(jQuery);
-							</script>
-							JSM;
-							$jsMobile = sprintf(
+								<script>
+								(function($){
+									$(function(){
+										var mq = window.matchMedia('(max-width: 768px)');
+										var days = %s;
+										var weekdates = %s;
+						
+										function setMobile(flag){
+											document.body.classList.toggle('tw-mobile', !!flag);
+											var bar = document.querySelector('.tw-mobile-headerbar');
+											var fabs = document.querySelector('.tw-mobile-actions');
+											if (bar) bar.style.display = flag ? 'flex' : 'none';
+											if (fabs) fabs.style.display = flag ? 'flex' : 'none';
+										}
+						
+										function todayKey(){
+											var iso = '';
+											try { iso = (new Date()).toISOString().slice(0,10); } catch (e) {}
+											for (var k in weekdates) {
+												if (weekdates[k] === iso) return k;
+											}
+											return days[0] || null;
+										}
+						
+										var current = null;
+						
+										function showDay(k){
+											if (!k) return;
+											current = k;
+											$('.tw-daycol').removeClass('tw-day-active');
+											$('.tw-day-' + k).addClass('tw-day-active');
+										}
+						
+										function step(dir){
+											if (!current) return;
+											var idx = days.indexOf(current);
+											if (idx < 0) idx = 0;
+											idx = idx + dir;
+											if (idx < 0) idx = 0;
+											if (idx >= days.length) idx = days.length - 1;
+											showDay(days[idx]);
+										}
+						
+										function bindNav(){
+											var $tbl = $('.grille-saisie-temps');
+											$tbl.off('click.twDayNav')
+											.on('click.twDayNav', '.tw-day-prev', function(e){ e.preventDefault(); step(-1); })
+											.on('click.twDayNav', '.tw-day-next', function(e){ e.preventDefault(); step(1); });
+										}
+						
+										function bindHeaderToggle(){
+											function toggle(){
+												document.body.classList.toggle('tw-mobile-header-open');
+												var open = document.body.classList.contains('tw-mobile-header-open');
+												var btn = document.getElementById('twMobileHeaderToggle');
+												if (btn) {
+													btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+													btn.textContent = open ? %s : %s;
+												}
+											}
+											var btn = document.getElementById('twMobileHeaderToggle');
+											if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+											var fab = document.getElementById('twMobileHeaderFab');
+											if (fab) fab.addEventListener('click', function(e){
+												e.preventDefault();
+												var openGrid = document.body.classList.contains('tw-mobile-grid-open');
+												document.body.classList.toggle('tw-mobile-grid-open', !openGrid);
+												});
+											}
+						
+											function bindSubmitFab(){
+												var btn = document.getElementById('twMobileSubmitFab');
+												if (!btn) return;
+												var a = document.querySelector('a[href*="action=submit"]');
+												if (!a) { btn.style.display = 'none'; return; }
+												var href = a.getAttribute('href');
+												btn.style.display = '';
+												btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
+											}
+						
+						
+											function keyboardAware(){
+												if (!window.visualViewport) return;
+												var vv = window.visualViewport;
+												function upd(){
+													var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+													document.documentElement.style.setProperty('--tw-kb', kb + 'px');
+												}
+												vv.addEventListener('resize', upd);
+												vv.addEventListener('scroll', upd);
+												document.addEventListener('focusin', upd);
+												document.addEventListener('focusout', function(){ document.documentElement.style.setProperty('--tw-kb', '0px'); });
+												upd();
+											}
+						
+						
+											function pad2(n){ n = parseInt(n, 10) || 0; return (n < 10 ? '0' : '') + n; }
+						
+											function parseTimeToHM(v){
+												if (!v) return { h: 0, m: 0, empty: true };
+												var s = String(v).trim();
+												if (!s) return { h: 0, m: 0, empty: true };
+						
+												var m = s.match(/^\s*(\d{1,2})\s*:\s*(\d{1,2})\s*$/);
+												if (m) {
+													var h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+													var mi = Math.min(59, Math.max(0, parseInt(m[2], 10) || 0));
+													return { h: h, m: mi, empty: false };
+												}
+						
+									// Accept decimal hours like 1.5 or 1,5 -> 01:30 (best-effort)
+												m = s.match(/^\s*(\d{1,2})[\.,](\d{1,2})\s*$/);
+												if (m) {
+													var hh = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+													var frac = parseInt(m[2], 10) || 0;
+										// Treat 1.5 as 1h30, 1.25 as 1h15 (approx)
+													var mm = Math.round((frac / Math.pow(10, String(frac).length)) * 60);
+													mm = Math.min(59, Math.max(0, mm));
+													return { h: hh, m: mm, empty: false };
+												}
+						
+												m = s.match(/^\s*(\d{1,2})\s*$/);
+												if (m) {
+													var h2 = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+													return { h: h2, m: 0, empty: false };
+												}
+						
+												return { h: 0, m: 0, empty: true };
+											}
+						
+											function buildTimePickers(){
+												if (!document.body.classList.contains('tw-mobile')) return;
+						
+												var inputs = document.querySelectorAll('input.hourinput');
+												inputs.forEach(function(inp){
+													if (inp.dataset.twPickerInit) return;
+													inp.dataset.twPickerInit = '1';
+						
+													var parsed = parseTimeToHM(inp.value);
+													var isDisabled = !!inp.disabled || !!inp.readOnly || inp.getAttribute('readonly') !== null;
+						
+													var wrap = document.createElement('div');
+													wrap.className = 'tw-timepicker';
+						
+													var selH = document.createElement('select');
+													selH.className = 'flat tw-time-h';
+													for (var h = 0; h <= 23; h++) {
+														var optH = document.createElement('option');
+														optH.value = String(h);
+														optH.textContent = pad2(h);
+														selH.appendChild(optH);
+													}
+						
+													var sep = document.createElement('span');
+													sep.className = 'tw-time-sep';
+													sep.textContent = ':';
+						
+													var selM = document.createElement('select');
+													selM.className = 'flat tw-time-m';
+													for (var mi = 0; mi <= 59; mi++) {
+														var optM = document.createElement('option');
+														optM.value = String(mi);
+														optM.textContent = pad2(mi);
+														selM.appendChild(optM);
+													}
+						
+													selH.value = String(parsed.h);
+													selM.value = String(parsed.m);
+						
+													if (isDisabled) {
+														selH.disabled = true;
+														selM.disabled = true;
+													}
+						
+													function sync(){
+														var hh = parseInt(selH.value, 10) || 0;
+														var mm = parseInt(selM.value, 10) || 0;
+														inp.value = pad2(hh) + ':' + pad2(mm);
+														if (window.jQuery) {
+															window.jQuery(inp).trigger('input').trigger('keyup').trigger('change');
+															} else {
+																try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch(e) {}
+																try { inp.dispatchEvent(new Event('change', { bubbles: true })); } catch(e) {}
+															}
+														}
+						
+														selH.addEventListener('change', sync);
+														selM.addEventListener('change', sync);
+						
+														wrap.appendChild(selH);
+														wrap.appendChild(sep);
+														wrap.appendChild(selM);
+						
+														inp.classList.add('tw-time-hidden');
+														inp.insertAdjacentElement('afterend', wrap);
+														});
+													}
+						
+													function destroyTimePickers(){
+														document.querySelectorAll('.tw-timepicker').forEach(function(w){ w.remove(); });
+														document.querySelectorAll('input.hourinput.tw-time-hidden').forEach(function(inp){ inp.classList.remove('tw-time-hidden'); });
+														document.querySelectorAll('input.hourinput[data-tw-picker-init]').forEach(function(inp){ delete inp.dataset.twPickerInit; });
+													}
+						
+													function init(flag){
+														setMobile(flag);
+														if (flag) document.body.classList.remove('tw-mobile-grid-open');
+														if (!flag) { destroyTimePickers(); return; }
+														buildTimePickers();
+														document.body.classList.remove('tw-mobile-header-open');
+														bindNav();
+														bindHeaderToggle();
+														bindSubmitFab();
+														keyboardAware();
+														showDay(todayKey());
+													}
+						
+													init(mq.matches);
+													if (mq.addEventListener) mq.addEventListener('change', function(e){ init(e.matches); });
+													else if (mq.addListener) mq.addListener(function(e){ init(e.matches); });
+													});
+													})(jQuery);
+													</script>
+													JSM;
+									$jsMobile = sprintf(
 								$jsMobile,
 								json_encode(array_values($days)),
 								json_encode($weekdates),
