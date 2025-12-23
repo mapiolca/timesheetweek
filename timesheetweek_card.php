@@ -1521,8 +1521,8 @@ if ($resLines) {
 
 			$filteredTasks = array();
 			foreach ($tasks as $t) {
-						// EN: Skip tasks already completed or closed to declutter the weekly view.
-						// FR: Ignore les tâches déjà terminées ou clôturées pour épurer la vue hebdomadaire.
+				// EN: Skip tasks already completed or closed to declutter the weekly view.
+				// FR: Ignore les tâches déjà terminées ou clôturées pour épurer la vue hebdomadaire.
 				$progress = isset($t['task_progress']) ? $t['task_progress'] : null;
 				if ($progress !== null && (float)$progress >= 100) {
 					continue;
@@ -1538,8 +1538,8 @@ if ($resLines) {
 					}
 				}
 
-						// EN: Extract scheduling information to hide tasks outside the sheet week.
-						// FR: Analyse les dates de planification pour masquer les tâches hors de la semaine de la feuille.
+				// EN: Extract scheduling information to hide tasks outside the sheet week.
+				// FR: Analyse les dates de planification pour masquer les tâches hors de la semaine de la feuille.
 				$startRaw = isset($t['task_date_start']) ? $t['task_date_start'] : null;
 				$endRaw = isset($t['task_date_end']) ? $t['task_date_end'] : null;
 				$startTs = null;
@@ -1561,8 +1561,8 @@ if ($resLines) {
 					}
 				}
 
-						// EN: Ignore tasks that start after the sheet week or end before it.
-						// FR: Ignore les tâches qui commencent après la semaine ou se terminent avant celle-ci.
+				// EN: Ignore tasks that start after the sheet week or end before it.
+				// FR: Ignore les tâches qui commencent après la semaine ou se terminent avant celle-ci.
 				if ($weekStartTs !== null && $weekEndTs !== null && $startTs !== null && $startTs > $weekEndTs) {
 					continue;
 				}
@@ -1893,7 +1893,7 @@ if ($resLines) {
 						if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
 						echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
 						if (!empty($href)) {
-							echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
+							//echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
 						} else {
 							echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
 						}
@@ -1970,8 +1970,8 @@ if ($resLines) {
 				echo '</tr>';
 
 				echo '<tr class="liste_total row-total-meals">';
-// EN: Center meal counters to match the rest of the grid alignment.
-// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
+				// EN: Center meal counters to match the rest of the grid alignment.
+				// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Meals").'</td>';
 				$initMeals = array_sum($dayMeal);
 				echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
@@ -1979,8 +1979,8 @@ if ($resLines) {
 				echo '</tr>';
 
 				echo '<tr class="liste_total row-total-overtime">';
-// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
-// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
+				// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
+				// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
 				$ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
 				echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
