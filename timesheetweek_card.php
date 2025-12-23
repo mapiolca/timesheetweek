@@ -1820,7 +1820,7 @@ if ($resLines) {
 					}
 					echo '</select></span><br>';
 				$checked = $dayMeal[$d] ? ' checked' : '';
-				echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").'</span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
+				echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").' </span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
 					echo '</td>';
 				}
 				echo '<td class=""></td>';
