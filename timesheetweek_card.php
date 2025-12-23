@@ -1378,11 +1378,12 @@ if ($action === 'create') {
 			// EN: In sealed state only show the unseal control for authorized users.
 			// FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
 		if ($permUnseal) {
-			echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+			//echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+			echo '<button type="button" class="tw-fab tw-fab-unseal" id="twMobileUnsealFab" title="'.$langs->trans("UnSeal").'"><i class="fa fa-unlock"></i></button>';
 		}
 	} else {
 		if ($canSendMail) {
-			echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+			//echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
 		}
 	
 			// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
