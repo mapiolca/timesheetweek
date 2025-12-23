@@ -1370,12 +1370,18 @@ if ($action === 'create') {
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
 
-	// Mobile: floating mini actions (Save + Details)
+	// Mobile: floating mini actions
 	echo '<div class="tw-mobile-actions">';
-	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
-	echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
-	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
+	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.$langs->trans("Submit").'"><i class="fa fa-paper-plane"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-approve" id="twMobileApproveFab" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-seal" id="twMobileSealFab" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-delete" id="twMobileDeleteFab" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
 	echo '</div>';
+	
 
 
 	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
@@ -2421,17 +2427,6 @@ JSM;
 			}
 		}
 
-		echo '</div>';
-			// Mobile: floating mini actions
-		echo '<div class="tw-mobile-actions">';
-		echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.$langs->trans("Submit").'"><i class="fa fa-paper-plane"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-approve" id="twMobileApproveFab" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-seal" id="twMobileSealFab" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-delete" id="twMobileDeleteFab" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
 		echo '</div>';
 
 		if ($action !== 'presend') {
