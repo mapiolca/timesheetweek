@@ -1373,7 +1373,7 @@ if ($action === 'create') {
 	// Mobile: floating mini actions (Save + Details)
 	echo '<div class="tw-mobile-actions">';
 	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
 	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
 	echo '</div>';
 
@@ -2417,9 +2417,21 @@ JSM;
 			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 			if ($canDelete) {
 				echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+				
 			}
 		}
 
+		echo '</div>';
+			// Mobile: floating mini actions
+		echo '<div class="tw-mobile-actions">';
+		echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.$langs->trans("Submit").'"><i class="fa fa-paper-plane"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-approve" id="twMobileApproveFab" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-seal" id="twMobileSealFab" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-delete" id="twMobileDeleteFab" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></button>';
+		echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
 		echo '</div>';
 
 		if ($action !== 'presend') {
