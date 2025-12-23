@@ -1892,7 +1892,6 @@ if ($resLines) {
 					$href = '';
 					if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
 					//echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
-					echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
 					if (empty($href)) {
 						echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
 					} else {
