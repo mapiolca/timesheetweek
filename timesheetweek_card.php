@@ -1521,8 +1521,8 @@ if ($resLines) {
 
 			$filteredTasks = array();
 			foreach ($tasks as $t) {
-				// EN: Skip tasks already completed or closed to declutter the weekly view.
-				// FR: Ignore les tâches déjà terminées ou clôturées pour épurer la vue hebdomadaire.
+						// EN: Skip tasks already completed or closed to declutter the weekly view.
+						// FR: Ignore les tâches déjà terminées ou clôturées pour épurer la vue hebdomadaire.
 				$progress = isset($t['task_progress']) ? $t['task_progress'] : null;
 				if ($progress !== null && (float)$progress >= 100) {
 					continue;
@@ -1538,8 +1538,8 @@ if ($resLines) {
 					}
 				}
 
-				// EN: Extract scheduling information to hide tasks outside the sheet week.
-				// FR: Analyse les dates de planification pour masquer les tâches hors de la semaine de la feuille.
+						// EN: Extract scheduling information to hide tasks outside the sheet week.
+						// FR: Analyse les dates de planification pour masquer les tâches hors de la semaine de la feuille.
 				$startRaw = isset($t['task_date_start']) ? $t['task_date_start'] : null;
 				$endRaw = isset($t['task_date_end']) ? $t['task_date_end'] : null;
 				$startTs = null;
@@ -1561,8 +1561,8 @@ if ($resLines) {
 					}
 				}
 
-				// EN: Ignore tasks that start after the sheet week or end before it.
-				// FR: Ignore les tâches qui commencent après la semaine ou se terminent avant celle-ci.
+						// EN: Ignore tasks that start after the sheet week or end before it.
+						// FR: Ignore les tâches qui commencent après la semaine ou se terminent avant celle-ci.
 				if ($weekStartTs !== null && $weekEndTs !== null && $startTs !== null && $startTs > $weekEndTs) {
 					continue;
 				}
@@ -1611,6 +1611,7 @@ if ($resLines) {
 			echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
 			echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; background-color: var(--tw-grid-header-bg, #e1e1e1); }';
 			echo '.tw-day-nav { display: none; }';
+			echo '.tw-task-link-labelonly { display: none !important; }';
 			
 			echo '@media (max-width: 768px) {';
 			echo 'body.tw-mobile .tw-card-header-content { display: none; }';
@@ -1619,9 +1620,8 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-mobile-header-toggle { padding: 6px 10px; }';
 			echo 'body.tw-mobile input, body.tw-mobile select, body.tw-mobile textarea { font-size: 16px !important; line-height: 1.2; }';
 			echo 'body.tw-mobile { -webkit-text-size-adjust: 100%; }';
-			echo 'body.tw-mobile .tw-task-link-full { display: none !important; }';
-			echo 'body.tw-mobile .tw-task-link-labelonly { display: inline !important; }';
-			echo 'body:not(.tw-mobile) .tw-task-link-labelonly { display: none !important; }';
+			echo '.tw-task-link-full { display: none !important; }';
+			echo '.tw-task-link-labelonly { display: inline !important; }';
 			echo 'body.tw-mobile .tw-grid-tabbar { padding: 0; margin: 0; background: transparent; border: 0; }';
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
@@ -1820,7 +1820,7 @@ if ($resLines) {
 					}
 					echo '</select></span><br>';
 				$checked = $dayMeal[$d] ? ' checked' : '';
-				echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").' </span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
+				echo '<label class="tw-meal-inline"><span class="tw-meal-label">'.$langs->trans("Meal").'</span><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'></label>';
 					echo '</td>';
 				}
 				echo '<td class=""></td>';
@@ -1889,12 +1889,14 @@ if ($resLines) {
 					$tsk->fetch((int)$task['task_id']);
 					if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
 					$nomurl = tw_get_task_nomurl($tsk, 1);
-					$href = '';
-					if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
-					
-					echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
-					echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
-					
+						$href = '';
+						if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
+						echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
+						if (!empty($href)) {
+							echo '<a class="tw-task-link-labelonly" href="'.$href.'">'.dol_escape_htmltag($tsk->label).'</a>';
+						} else {
+							echo '<span class="tw-task-link-labelonly">'.dol_escape_htmltag($tsk->label).'</span>';
+						}
 					echo '</td>';
 
 					$rowTotal = 0.0;
@@ -1968,8 +1970,8 @@ if ($resLines) {
 				echo '</tr>';
 
 				echo '<tr class="liste_total row-total-meals">';
-				// EN: Center meal counters to match the rest of the grid alignment.
-				// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
+// EN: Center meal counters to match the rest of the grid alignment.
+// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Meals").'</td>';
 				$initMeals = array_sum($dayMeal);
 				echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
@@ -1977,8 +1979,8 @@ if ($resLines) {
 				echo '</tr>';
 
 				echo '<tr class="liste_total row-total-overtime">';
-				// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
-				// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
+// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
+// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
 				echo '<td class="left col-project-task col-summary-sticky">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
 				$ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
 				echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
