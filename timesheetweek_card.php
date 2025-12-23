@@ -2133,6 +2133,10 @@ if ($resLines) {
 		var mq = window.matchMedia('(max-width: 768px)');
 		var days = %s;
 		var weekdates = %s;
+		var twCurrentStatus = %s;
+		var TW_STATUS_DRAFT = %s;
+		var TW_STATUS_SUBMITTED = %s;
+		var TW_STATUS_APPROVED = %s;
 
 		function setMobile(flag){
 			document.body.classList.toggle('tw-mobile', !!flag);
@@ -2197,81 +2201,51 @@ if ($resLines) {
 			});
 		}
 
-		function findNativeActionEl(actionValue){
-			var container = document.querySelector('.tw-native-actions');
-			if (!container) return null;
-
-			var links = container.querySelectorAll('a[href]');
-			for (var i = 0; i < links.length; i++) {
-				var href = links[i].getAttribute('href');
-				if (!href) continue;
-				try {
-					var url = new URL(href, window.location.href);
-					if (url.searchParams && url.searchParams.get('action') === actionValue) return links[i];
-				} catch (e) {
-					// ignore
-				}
-			}
-
-			// Also allow <input type="submit" name="action"> style buttons (rare)
-			var inputs = container.querySelectorAll('input[type="submit"][name="action"]');
-			for (var j = 0; j < inputs.length; j++) {
-				if (inputs[j].value === actionValue) return inputs[j];
-			}
-
-			return null;
-		}
-
 		function bindSubmitFab(){
 			var btn = document.getElementById('twMobileSubmitFab');
 			if (!btn) return;
-
-			var el = findNativeActionEl('submit');
-			if (!el) { btn.style.display = 'none'; return; }
-
+			var a = document.querySelector('a[href*="action=submit"]');
+			if (!a) { btn.style.display = 'none'; return; }
+			var href = a.getAttribute('href');
 			btn.style.display = '';
-			btn.addEventListener('click', function(e){
-				e.preventDefault();
-				try { el.click(); }
-				catch (err) {
-					if (el.tagName === 'A') {
-						var href = el.getAttribute('href');
-						if (href) window.location.href = href;
-					} else if (el.form) {
-						el.form.submit();
-					}
-				}
-			});
-		}
-
-		function bindActionFab(btnId, actionValue){
+			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
+		
+		function bindActionFab(btnId, selector){
 			var btn = document.getElementById(btnId);
 			if (!btn) return;
-
-			var el = findNativeActionEl(actionValue);
-			if (!el) { btn.style.display = 'none'; return; }
-
+			var a = document.querySelector(selector);
+			if (!a) { btn.style.display = 'none'; return; }
 			btn.style.display = '';
 			btn.addEventListener('click', function(e){
 				e.preventDefault();
-				try { el.click(); }
+				try { a.click(); }
 				catch (err) {
-					if (el.tagName === 'A') {
-						var href = el.getAttribute('href');
-						if (href) window.location.href = href;
-					} else if (el.form) {
-						el.form.submit();
-					}
+					var href = a.getAttribute('href');
+					if (href) window.location.href = href;
 				}
 			});
 		}
 
 		function bindActionFabs(){
-			bindActionFab('twMobileSetdraftFab', 'setdraft');
-			bindActionFab('twMobileApproveFab', 'ask_validate');
-			bindActionFab('twMobileRefuseFab', 'ask_refuse');
-			bindActionFab('twMobileSealFab', 'seal');
-			bindActionFab('twMobileDeleteFab', 'delete');
+			// Hide all by default, then enable only what is allowed for current status
+			['twMobileSetdraftFab','twMobileApproveFab','twMobileRefuseFab','twMobileSealFab','twMobileDeleteFab'].forEach(function(id){
+				var b = document.getElementById(id);
+				if (b) b.style.display = 'none';
+			});
+
+			// Only show actions that match the TimesheetWeek workflow:
+			// - Soumise: retour brouillon / approuver / refuser
+			// - Brouillon: supprimer
+			// - Approuvée: sceller
+			if (twCurrentStatus === TW_STATUS_SUBMITTED) {
+				bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
+				bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
+				bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
+			} else if (twCurrentStatus === TW_STATUS_DRAFT) {
+				bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
+			} else if (twCurrentStatus === TW_STATUS_APPROVED) {
+				bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
+			}
 		}
 
 }
@@ -2425,6 +2399,10 @@ JSM;
 				$jsMobile,
 				json_encode(array_values($days)),
 				json_encode($weekdates),
+				json_encode((int) $object->status),
+				json_encode((int) tw_status('draft')),
+				json_encode((int) tw_status('submitted')),
+				json_encode((int) tw_status('approved')),
 				json_encode($langs->trans("Hide")),
 				json_encode($langs->trans("Details"))
 			);
