@@ -1370,15 +1370,19 @@ if ($action === 'create') {
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
 
-	// Mobile: floating mini actions (Save + Details)
+	// Mobile: floating mini actions
 	echo '<div class="tw-mobile-actions">';
-	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.dol_escape_htmltag($langs->trans("Save")).'"><i class="fa fa-save"></i></button>';
-		echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.dol_escape_htmltag($langs->trans("Submit")).'"><i class="fa fa-paper-plane"></i></button>';
-	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.dol_escape_htmltag($langs->trans("Details")).'"><i class="fa fa-info-circle"></i></button>';
+	echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-submit" id="twMobileSubmitFab" title="'.$langs->trans("Submit").'"><i class="fa fa-paper-plane"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-approve" id="twMobileApproveFab" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-seal" id="twMobileSealFab" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-delete" id="twMobileDeleteFab" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></button>';
+	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
 	echo '</div>';
 
-
-	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
 	// 1) CHARGER LIGNES EXISTANTES
 $hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
@@ -1627,7 +1631,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: block; }';
-			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-save, body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-submit { display: none !important; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab:not(.tw-fab-details) { display: none !important; }';
 
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
 			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
@@ -1669,7 +1673,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-daycol select, body.tw-mobile .tw-daycol input, body.tw-mobile .tw-daycol textarea { width: 100%; max-width: 100%; }';
 			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
 			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
-			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; }';
+			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; position: fixed; left: 12px; right: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 4px 0; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; }';
 			echo 'body.tw-mobile .tw-fab { width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.15); }';
 			echo 'body.tw-mobile .tw-fab-save { background: #fff; }';
 			echo 'body.tw-mobile .tw-fab-save i { color: #000; }';
@@ -2201,7 +2205,32 @@ if ($resLines) {
 			var href = a.getAttribute('href');
 			btn.style.display = '';
 			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
+		
+		function bindActionFab(btnId, selector){
+			var btn = document.getElementById(btnId);
+			if (!btn) return;
+			var a = document.querySelector(selector);
+			if (!a) { btn.style.display = 'none'; return; }
+			btn.style.display = '';
+			btn.addEventListener('click', function(e){
+				e.preventDefault();
+				try { a.click(); }
+				catch (err) {
+					var href = a.getAttribute('href');
+					if (href) window.location.href = href;
+				}
+			});
 		}
+
+		function bindActionFabs(){
+			bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
+			bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
+			bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
+			bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
+			bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
+		}
+
+}
 
 
 		function keyboardAware(){
@@ -2336,6 +2365,7 @@ if ($resLines) {
 			bindNav();
 			bindHeaderToggle();
 			bindSubmitFab();
+			bindActionFabs();
 			keyboardAware();
 			showDay(todayKey());
 		}
