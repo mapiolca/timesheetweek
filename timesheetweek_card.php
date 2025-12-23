@@ -2209,6 +2209,28 @@ if ($resLines) {
 			btn.addEventListener('click', function(e){ e.preventDefault(); if (href) window.location.href = href; });
 		}
 
+		function bindActionFabs(){
+			// Hide all by default, then enable only what is allowed for current status
+			['twMobileSetdraftFab','twMobileApproveFab','twMobileRefuseFab','twMobileSealFab','twMobileDeleteFab'].forEach(function(id){
+				var b = document.getElementById(id);
+				if (b) b.style.display = 'none';
+			});
+
+			// Only show actions that match the TimesheetWeek workflow:
+			// - Soumise: retour brouillon / approuver / refuser
+			// - Brouillon: supprimer
+			// - Approuvée: sceller
+			if (twCurrentStatus === TW_STATUS_SUBMITTED) {
+				bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
+				bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
+				bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
+			} else if (twCurrentStatus === TW_STATUS_DRAFT) {
+				bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
+			} else if (twCurrentStatus === TW_STATUS_APPROVED) {
+				bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
+			}
+		}
+
 
 		function keyboardAware(){
 			if (!window.visualViewport) return;
