@@ -1588,7 +1588,7 @@ if ($resLines) {
 			echo '<div class="fichecenter div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 			echo '<style>';
-			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-grid-header-bg: #e1e1e1; --tw-kb: 0px; }';
+			echo ':root { --tw-grid-top-gap: 0px; --tw-project-task-bg: #f5f5f5; --tw-project-row-bg: var(--tw-project-task-bg); --tw-grid-header-bg: #e1e1e1; --tw-kb: 0px; }';
 			echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
 			echo '.grille-saisie-temps-wrapper.sticky-active { max-height: calc(100vh - var(--tw-grid-top-gap, 0px)); position: sticky; top: var(--tw-grid-top-gap, 0px); z-index: 4; }';
 			echo '.grille-saisie-temps .cellule-jour,';
@@ -1600,7 +1600,8 @@ if ($resLines) {
 			echo '.grille-saisie-temps .col-project-task,';
 			echo '.grille-saisie-temps .col-summary-sticky,';
 			echo '.grille-saisie-temps .col-project-task-filler,';
-			echo '.grille-saisie-temps .trforbreak { background-color: var(--tw-project-task-bg); }';
+			echo '.grille-saisie-temps .trforbreak { background-color: var(--tw-project-row-bg, var(--tw-project-task-bg)); }';
+			echo '.grille-saisie-temps tr.trforbreak td, .grille-saisie-temps tr.trforbreak th { background-color: var(--tw-project-row-bg, var(--tw-project-task-bg)) !important; }';
 			echo '.grille-saisie-temps .col-summary-sticky { position: sticky; left: 0; z-index: 8; }';
 			echo '.grille-saisie-temps .liste_titre .col-project-task { z-index: 21; }';
 			echo '.grille-saisie-temps .liste_titre .col-day { z-index: 19; }';
@@ -1634,7 +1635,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-daycol { display: none; }';
 			echo 'body.tw-mobile .tw-daycol.tw-day-active { display: table-cell; }';
 			echo 'body.tw-mobile .tw-col-total { display: none; }';
-			echo 'body.tw-mobile .col-project-task-filler { display: none; }';
+			echo 'body.tw-mobile .col-project-task-filler { display: table-cell; }';
 			echo 'body.tw-mobile .row-total-hours, body.tw-mobile .row-total-days, body.tw-mobile .row-total-meals, body.tw-mobile .row-total-overtime { display: none; }';
 			echo 'body.tw-mobile .tw-native-actions { display: none !important; }';
 			
