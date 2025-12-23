@@ -1888,7 +1888,7 @@ if ($resLines) {
 					$tsk = new Task($db);
 					$tsk->fetch((int)$task['task_id']);
 					if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-					$nomurl = tw_get_task_nomurl($tsk, 1);
+					$nomurl = tw_get_task_nomurl($tsk, 2);
 					$href = '';
 					if (preg_match('/href="([^"]+)"/', $nomurl, $m)) $href = $m[1];
 					//echo '<span class="tw-task-link-full">'.$nomurl.'</span>';
