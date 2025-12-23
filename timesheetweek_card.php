@@ -2133,10 +2133,6 @@ if ($resLines) {
 		var mq = window.matchMedia('(max-width: 768px)');
 		var days = %s;
 		var weekdates = %s;
-		var twCurrentStatus = %s;
-		var TW_STATUS_DRAFT = %s;
-		var TW_STATUS_SUBMITTED = %s;
-		var TW_STATUS_APPROVED = %s;
 
 		function setMobile(flag){
 			document.body.classList.toggle('tw-mobile', !!flag);
@@ -2227,25 +2223,11 @@ if ($resLines) {
 		}
 
 		function bindActionFabs(){
-			// Hide all by default, then enable only what is allowed for current status
-			['twMobileSetdraftFab','twMobileApproveFab','twMobileRefuseFab','twMobileSealFab','twMobileDeleteFab'].forEach(function(id){
-				var b = document.getElementById(id);
-				if (b) b.style.display = 'none';
-			});
-
-			// Only show actions that match the TimesheetWeek workflow:
-			// - Soumise: retour brouillon / approuver / refuser
-			// - Brouillon: supprimer
-			// - Approuvée: sceller
-			if (twCurrentStatus === TW_STATUS_SUBMITTED) {
-				bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
-				bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
-				bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
-			} else if (twCurrentStatus === TW_STATUS_DRAFT) {
-				bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
-			} else if (twCurrentStatus === TW_STATUS_APPROVED) {
-				bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
-			}
+			bindActionFab('twMobileSetdraftFab', '.tw-native-actions a[href*="action=setdraft"]');
+			bindActionFab('twMobileApproveFab', '.tw-native-actions a[href*="action=ask_validate"]');
+			bindActionFab('twMobileRefuseFab', '.tw-native-actions a[href*="action=ask_refuse"]');
+			bindActionFab('twMobileSealFab', '.tw-native-actions a[href*="action=seal"]');
+			bindActionFab('twMobileDeleteFab', '.tw-native-actions a[href*="action=delete"]');
 		}
 
 }
@@ -2399,10 +2381,6 @@ JSM;
 				$jsMobile,
 				json_encode(array_values($days)),
 				json_encode($weekdates),
-				json_encode((int) $object->status),
-				json_encode((int) tw_status('draft')),
-				json_encode((int) tw_status('submitted')),
-				json_encode((int) tw_status('approved')),
 				json_encode($langs->trans("Hide")),
 				json_encode($langs->trans("Details"))
 			);
