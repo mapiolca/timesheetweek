@@ -1213,8 +1213,9 @@ if ($action === 'create') {
 		// Employé
 	echo '<tr><td class="titlefield">'.$langs->trans("Employee").'</td><td>';
 	if ($action === 'editfk_user' && $canEditInline) {
-		echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-		echo '<input type="hidden" name="token" value="'.newToken().'">';
+		$token = newToken();
+	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<input type="hidden" name="token" value="'.$token.'">';
 		echo '<input type="hidden" name="action" value="setfk_user">';
 			// EN: Keep avatar rendering when editing the employee inline.
 			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
@@ -1366,85 +1367,77 @@ if ($action === 'create') {
 	echo '<div class="tabBar tw-grid-tabbar">';
 	echo '<div class="fichecenter tw-grid-fichecenter">';
 
+	$token = newToken();
 	echo '<form id="tw-grid-form" class="tw-grid-form" method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
-	echo '<input type="hidden" name="token" value="'.newToken().'">';
+	echo '<input type="hidden" name="token" value="'.$token.'">';
 	echo '<input type="hidden" name="action" value="save">';
 
-	$token = newToken();
-	// Mobile: floating mini actions
+
+	// Mobile: floating mini actions (UI only on mobile)
 	echo '<div class="tw-mobile-actions">';
 
+	// EN: Always provide the info toggle to show/hide the grid on mobile.
+	// FR: Toujours fournir le bouton "info" pour afficher/masquer la grille sur mobile.
+	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
+
+	// EN: Do not render other actions when sheet is sealed (except unseal).
+	// FR: Ne pas afficher d'autres actions quand la feuille est scellée (sauf desceller).
 	if ($object->status == tw_status('sealed')) {
-			// EN: In sealed state only show the unseal control for authorized users.
-			// FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
 		if ($permUnseal) {
-			//echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
-			echo '<button type="button" class="tw-fab tw-fab-unseal" id="twMobileUnsealFab" title="'.$langs->trans("UnSeal").'"><i class="fa fa-unlock"></i></button>';
+			echo '<a class="tw-fab tw-fab-unseal" id="twMobileUnsealFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token.'" title="'.$langs->trans("UnSeal").'"><i class="fa fa-unlock"></i></a>';
 		}
 	} else {
-		if ($canSendMail) {
-			//echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
-		}
-	
-			// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
-		if ($object->status == tw_status('draft')) {
-					// Compter les lignes
+		// Save (only useful when editable)
+		$canEmployeeWrite = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
+
+		if ($object->status == tw_status('draft') && $canEmployeeWrite) {
+			echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
+
+			// Submit: draft + at least one line + authorized
 			$nbLines = 0;
-					// EN: Count lines only within authorized entities before enabling submission.
-					// FR: Compte les lignes uniquement dans les entités autorisées avant d'autoriser la soumission.
-			$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
-			if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
-			if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-				//echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
-				echo '<button type="submit" class="tw-fab tw-fab-save" title="'.$langs->trans("Save").'"><i class="fa fa-save"></i></button>';
+			$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $object->id." AND entity IN (".getEntity('timesheetweek').")");
+			if ($rescnt) {
+				$o = $db->fetch_object($rescnt);
+				$nbLines = (int) $o->nb;
+			}
+			if ($nbLines > 0) {
+				echo '<a class="tw-fab tw-fab-submit" id="twMobileSubmitFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token.'" title="'.$langs->trans("Submit").'"><i class="fa fa-paper-plane"></i></a>';
+			}
+
+			// Delete (keep same permission checks as desktop)
+			$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
+				|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
+			if ($canDelete) {
+				echo '<a class="tw-fab tw-fab-delete" id="twMobileDeleteFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token.'" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></a>';
 			}
 		}
-	
-			// Retour brouillon : si statut != brouillon (soumis / approuvé / refusé) pour salarié/or valideur
+
+		// Set to draft
 		if ($object->status != tw_status('draft')) {
 			$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 			$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 			if ($canEmployee || $canValidator) {
-				//echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
-				echo '<button type="button" class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></button>';
+				echo '<a class="tw-fab tw-fab-setdraft" id="twMobileSetdraftFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token.'" title="'.$langs->trans("SetToDraft").'"><i class="fa fa-undo"></i></a>';
 			}
 		}
-	
-			// Approuver / Refuser quand soumis (validateur/manager/all/own)
+
+		// Approve / Refuse when submitted
 		if ($object->status == tw_status('submitted')) {
 			$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 			if ($canValidator) {
-				//echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-				echo '<button type="button" class="tw-fab tw-fab-approve" id="twMobileApproveFab" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></button>';
-				//echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
-				echo '<button type="button" class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></button>';
-				
+				echo '<a class="tw-fab tw-fab-approve" id="twMobileApproveFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token.'" title="'.$langs->trans("Approve").'"><i class="fa fa-check"></i></a>';
+				echo '<a class="tw-fab tw-fab-refuse" id="twMobileRefuseFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token.'" title="'.$langs->trans("Refuse").'"><i class="fa fa-times"></i></a>';
 			}
 		}
-	
-			// EN: Allow sealing once the sheet is approved and the user is authorized.
-			// FR : Autorise le scellement dès que la feuille est approuvée et que l'utilisateur est habilité.
+
+		// Seal when approved
 		if ($object->status == tw_status('approved') && $permSeal) {
-			//echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
-			echo '<button type="button" class="tw-fab tw-fab-seal" id="twMobileSealFab" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></button>';
-		}
-	
-			// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
-		$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
-		|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
-		if ($canDelete) {
-			//echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
-			echo '<button type="button" class="tw-fab tw-fab-delete" id="twMobileDeleteFab" title="'.$langs->trans("Delete").'"><i class="fa fa-trash"></i></button>';
-			
+			echo '<a class="tw-fab tw-fab-seal" id="twMobileSealFab" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token.'" title="'.$langs->trans("Seal").'"><i class="fa fa-lock"></i></a>';
 		}
 	}
-	
-	echo '<button type="button" class="tw-fab tw-fab-details" id="twMobileHeaderFab" title="'.$langs->trans("Details").'"><i class="fa fa-info-circle"></i></button>';
+
 	echo '</div>';
-	
-
-
-	echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
+echo '<h3>'.$langs->trans("AssignedTasks").'</h3>';
 
 	// 1) CHARGER LIGNES EXISTANTES
 $hoursBy = array(); // [taskid][YYYY-mm-dd] = hours
@@ -1678,6 +1671,7 @@ if ($resLines) {
 			echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
 			echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; background-color: var(--tw-grid-header-bg, #e1e1e1); }';
 			echo '.tw-day-nav { display: none; }';
+			echo '.tw-mobile-actions { display: none; }';
 			echo '.tw-task-link-labelonly { display: none !important; }';
 			
 			echo '@media (max-width: 768px) {';
@@ -1693,7 +1687,7 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-grid-fiche { margin: 0; padding: 0; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-fiche { border: 0; background: transparent; box-shadow: none; }';
 			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-grid-tabbar { display: block; }';
-			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-save, body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab-submit { display: none !important; }';
+			echo 'body.tw-mobile:not(.tw-mobile-grid-open) .tw-mobile-actions .tw-fab:not(.tw-fab-details) { display: none !important; }';
 
 			echo 'body.tw-mobile .tw-day-nav { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background: rgba(255,255,255,.6); }';
 			echo 'body.tw-mobile .tw-day-header { display: flex; gap: 6px; align-items: center; justify-content: space-between; }';
@@ -1735,8 +1729,9 @@ if ($resLines) {
 			echo 'body.tw-mobile .tw-daycol select, body.tw-mobile .tw-daycol input, body.tw-mobile .tw-daycol textarea { width: 100%; max-width: 100%; }';
 			echo 'body.tw-mobile .col-task a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }';
 			echo 'body.tw-mobile .tw-task-ref, body.tw-mobile .tw-task-sep { display: none; }';
-			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; }';
-			echo 'body.tw-mobile .tw-fab { width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.15); }';
+			echo 'body.tw-mobile .tw-mobile-actions { display: flex; flex-direction: row; gap: 8px; position: fixed; left: 50%; transform: translateX(-50%); right: auto; bottom: calc(var(--tw-kb, 0px) + 12px + env(safe-area-inset-bottom)); z-index: 9999; padding: 6px 8px; border-radius: 999px; background: rgba(255,255,255,.92); box-shadow: 0 2px 10px rgba(0,0,0,.18); max-width: calc(100vw - 24px); overflow-x: auto; -webkit-overflow-scrolling: touch; }';
+			echo 'body.tw-mobile .tw-mobile-actions::-webkit-scrollbar { display: none; }';
+			echo 'body.tw-mobile .tw-fab { width: 42px; height: 42px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,.25); background: rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.15); text-decoration: none; color: inherit; }';
 			echo 'body.tw-mobile .tw-fab-save { background: #fff; }';
 			echo 'body.tw-mobile .tw-fab-save i { color: #000; }';
 			echo 'body.tw-mobile .tw-fab-submit { background: #fff; }';
