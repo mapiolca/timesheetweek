@@ -90,6 +90,36 @@ class TimesheetWeek extends CommonObject
 			$this->dir_output = DOL_DATA_ROOT.'/timesheetweek';
 		}
 	}
+	/**
+		 * Initialise un objet specimen (prévisualisation / exemple de numérotation).
+		 *
+		 * @return int 1 si OK, <0 si KO
+		 */
+		public function initAsSpecimen()
+		{
+			$ret = 1;
+	
+			// CommonObject (Dolibarr) fournit généralement initAsSpecimenCommon()
+			if (method_exists($this, 'initAsSpecimenCommon')) {
+				$ret = $this->initAsSpecimenCommon();
+				if ($ret < 0) return $ret;
+			}
+	
+			$now = dol_now();
+	
+			$this->id = 0;
+			$this->ref = 'TSW-SPECIMEN';
+			$this->status = self::STATUS_DRAFT;
+	
+			// Utilisé par le modèle de numérotation (get_next_value) via $object->date_creation
+			$this->date_creation = $now;
+	
+			// Valeurs cohérentes si le masque exploite l'année / semaine
+			$this->year = (int) dol_print_date($now, '%Y');
+			$this->week = (int) dol_print_date($now, '%V');
+	
+			return 1;
+		}
 
 	/**
 	* EN: Detect lazily if the database schema already stores the PDF model.
