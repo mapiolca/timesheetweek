@@ -1858,6 +1858,18 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : $message;
 		$isHtml = !empty($options['ishtml']) ? 1 : 0;
 
+		// FR: En HTML, une URL brute n'est pas toujours rendue cliquable par les clients mail.
+		// EN: In HTML, raw URLs are not always auto-linked by mail clients.
+		if ($isHtml && !preg_match('/<a\s/i', $htmlMessage) && preg_match('~https?://~i', $htmlMessage)) {
+			$htmlMessage = preg_replace_callback('~(https?://[^\s<]+)~i', function ($matches) {
+				$url = $matches[1];
+				$trimmed = rtrim($url, ".,);:!?");
+				$decoded = html_entity_decode($trimmed, ENT_QUOTES | ENT_HTML5);
+
+				return '<a href="'.dol_escape_htmltag($decoded).'">'.dol_escape_htmltag($decoded).'</a>'.substr($url, strlen($trimmed));
+			}, $htmlMessage);
+		}
+
 		$payload = array(
 			'trigger' => $triggerCode,
 			'action' => $triggerCode,
