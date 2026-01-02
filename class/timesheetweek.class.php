@@ -1858,36 +1858,36 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : $message;
 		$isHtml = !empty($options['ishtml']) ? 1 : 0;
 
-		
+
 		// FR: En HTML, une URL brute n'est pas toujours rendue cliquable par les clients mail.
 		// EN: In HTML, raw URLs are not always auto-linked by mail clients.
-		if ($isHtml) {
-			$linkify = function ($input) {
-				if ($input === '' || stripos($input, 'http') === false) return $input;
+		$linkifyUrls = function ($html) {
+			return preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
+				$shown = $m[1];
+				$trimmed = rtrim($shown, ".,);:!?");
 
-				$parts = preg_split('/(<[^>]*>)/', $input, -1, PREG_SPLIT_DELIM_CAPTURE);
-				foreach ($parts as $i => $part) {
-					if ($part === '' || $part[0] === '<') continue;
+				// Decode entities for href (avoid &amp; in href)
+				$href = html_entity_decode($trimmed, ENT_QUOTES | ENT_HTML5);
 
-					$parts[$i] = preg_replace_callback('~(https?://[^\s<]+)~i', function ($matches) {
-						$url = $matches[1];
-						$trimmed = rtrim($url, ".,);:!?");
+				return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($trimmed).'</a>'.substr($shown, strlen($trimmed));
+			}, $html);
+		};
 
-						// Decode entities for the href to avoid href=&amp;... issues
-						$decoded = html_entity_decode($trimmed, ENT_QUOTES | ENT_HTML5);
+		// If multipart is enabled and no HTML message was provided, build a safe HTML version from text.
+		if (getDolGlobalInt('MAIN_MAIL_USE_MULTI_PART') && empty($options['message_html'])) {
+			$htmlMessage = dol_escape_htmltag($message);
+			$htmlMessage = $linkifyUrls($htmlMessage);
+			$htmlMessage = nl2br($htmlMessage, false);
+			$htmlMessage = '<html><head><title></title></head><body>'.$htmlMessage.'</body></html>';
 
-						return '<a href="'.dol_escape_htmltag($decoded).'">'.dol_escape_htmltag($trimmed).'</a>'.substr($url, strlen($trimmed));
-					}, $part);
-				}
-				return implode('', $parts);
-			};
-
-			// Some Dolibarr send* methods use 'message' even when ishtml=1, others use 'message_html'.
-			// So we linkify both to be safe.
-			$message = $linkify($message);
-			$htmlMessage = $linkify($htmlMessage);
+			// Ensure mailer treats provided HTML as HTML.
+			$isHtml = 1;
+		} elseif ($isHtml && !preg_match('/<a\s/i', $htmlMessage) && preg_match('~https?://~i', $htmlMessage)) {
+			// HTML provided but URLs not anchored -> linkify.
+			$htmlMessage = $linkifyUrls($htmlMessage);
 		}
-$payload = array(
+
+		$payload = array(
 			'trigger' => $triggerCode,
 			'action' => $triggerCode,
 			'code' => $triggerCode,
