@@ -1858,44 +1858,50 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : $message;
 		$isHtml = !empty($options['ishtml']) ? 1 : 0;
 
-
-		// FR: En HTML, une URL brute n'est pas toujours rendue cliquable par les clients mail.
-		// EN: In HTML, raw URLs are not always auto-linked by mail clients.
-		$linkifyUrls = function ($html) {
-			return preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
-				$shown = $m[1];
-				$trimmed = rtrim($shown, ".,);:!?");
-
-				// Decode entities for href (avoid &amp; in href)
-				$href = html_entity_decode($trimmed, ENT_QUOTES | ENT_HTML5);
-
-				return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($trimmed).'</a>'.substr($shown, strlen($trimmed));
-			}, $html);
-		};
-
-		// If multipart is enabled and no HTML message was provided, build a safe HTML version from text.
-		if (getDolGlobalInt('MAIN_MAIL_USE_MULTI_PART') && empty($options['message_html'])) {
-			$htmlMessage = dol_escape_htmltag($message);
-			$htmlMessage = $linkifyUrls($htmlMessage);
-			$htmlMessage = nl2br($htmlMessage, false);
-			$htmlMessage = '<html><head><title></title></head><body>'.$htmlMessage.'</body></html>';
-
-			// Ensure mailer treats provided HTML as HTML.
-			$isHtml = 1;
-		} elseif ($isHtml && !preg_match('/<a\s/i', $htmlMessage) && preg_match('~https?://~i', $htmlMessage)) {
-			// HTML provided but URLs not anchored -> linkify.
-			$htmlMessage = $linkifyUrls($htmlMessage);
-		}
-
 		$payload = array(
 			'trigger' => $triggerCode,
 			'action' => $triggerCode,
-			'code' => $triggerCode,
-			'event' => $triggerCode,
-			'user' => $actionUser,
-			'actionuser' => $actionUser,
-			'actor' => $actionUser,
-			'currentuser' => $actionUser,
+			'code' => $tri		$message = isset($options['message']) ? (string) $options['message'] : '';
+		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : '';
+		$hasHtmlMessage = ($htmlMessage !== '');
+
+		// FR: Si un contenu HTML est fourni, on force msgishtml=1. Sinon, Dolibarr génère un HTML "automatique"
+		//     (dol_nl2br) qui ne rend pas toujours les URLs cliquables.
+		// EN: If an HTML body is provided, force msgishtml=1. Otherwise Dolibarr auto-builds HTML from text (dol_nl2br)
+		//     and raw URLs may not become clickable.
+		$isHtml = (!empty($options['ishtml']) || $hasHtmlMessage || getDolGlobalInt('MAIN_MAIL_USE_MULTI_PART')) ? 1 : 0;
+
+		if ($isHtml) {
+			// Build HTML from plain text if needed
+			if (!$hasHtmlMessage) {
+				$htmlMessage = dol_nl2br(dol_escape_htmltag($message));
+				$hasHtmlMessage = true;
+			} elseif (strpos($htmlMessage, '<') === false) {
+				// Looks like plain text: escape + nl2br
+				$htmlMessage = dol_nl2br(dol_escape_htmltag($htmlMessage));
+			}
+
+			// Linkify URLs in HTML body (many clients won't auto-link raw URLs in HTML)
+			if (!preg_match('/<a\s/i', $htmlMessage) && preg_match('~https?://~i', $htmlMessage)) {
+				$htmlMessage = preg_replace_callback('~(https?://[^\s<]+)~i', function ($matches) {
+					$url = $matches[1];
+					$trimmed = rtrim($url, ".,);:!?");
+
+					// Use decoded URL for href to avoid &amp; in href
+					$href = html_entity_decode($trimmed, ENT_QUOTES | ENT_HTML5);
+
+					return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($trimmed).'</a>'.substr($url, strlen($trimmed));
+				}, $htmlMessage);
+			}
+
+			// Most native senders accept a single "message" body + msgishtml flag.
+			// So ensure $message contains the HTML body when msgishtml=1.
+			$message = $htmlMessage;
+		} else {
+			// No HTML: keep a mirror for payload completeness
+			$htmlMessage = $message;
+		}
+tionUser,
 			'langs' => $langs,
 			'language' => $langs,
 			'conf' => $conf,
