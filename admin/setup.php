@@ -286,7 +286,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -303,6 +303,22 @@ if ($action === 'setmodule' && !empty($value)) {
 				setEventMessages($langs->trans('Error'), null, 'errors');
 		}
 }
+
+// EN: Persist mask configuration for numbering models (action=updateMask).
+if ($action === 'updateMask') {
+	$maskconst = GETPOST('maskconst', 'alphanohtml');
+	$maskconst = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $maskconst);
+	$maskvalue = GETPOST('maskvalue', 'nohtml'); // Allow mask tokens like {yy}{mm}...
+	if (!empty($maskconst)) {
+		$result = dolibarr_set_const($db, $maskconst, $maskvalue, 'chaine', 0, '', $conf->entity);
+		if ($result > 0) {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
+	}
+}
+
 
 // EN: Set the default PDF model while ensuring the model is enabled.
 if ($action === 'setdoc' && !empty($value)) {
