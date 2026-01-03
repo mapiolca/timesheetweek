@@ -417,9 +417,21 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			$sendto = implode(',', array_unique(array_filter($sendtoList)));
 			$cc = implode(',', array_unique(array_filter($ccList)));
 			$bcc = implode(',', array_unique(array_filter($bccList)));
-			$messageHtml = !empty($template) ? $message : dol_nl2br($message);
-			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
+						// Build HTML version of message (so URLs are clickable in HTML emails)
 			$isHtml = 1;
+			if (function_exists('dol_textishtml') && dol_textishtml($message)) {
+				$messageHtml = $message;
+			} else {
+				$messageHtml = dol_nl2br(dol_escape_htmltag($message));
+				$messageHtml = preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
+					$urlfull = $m[1];
+					$url = rtrim($urlfull, ".,);:!?");
+					$href = html_entity_decode($url, ENT_QUOTES);
+					return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($url).'</a>'.substr($urlfull, strlen($url));
+				}, $messageHtml);
+			}
+
+			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
 
 			$nativeResult = $timesheet->sendNativeMailNotification(
 				$action,
