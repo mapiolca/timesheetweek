@@ -431,7 +431,18 @@ if (!empty($template->email_from)) {
 			$cc = implode(',', array_unique(array_filter($ccList)));
 			$bcc = implode(',', array_unique(array_filter($bccList)));
 			$message = $normalizeNewlines($message);
-			$messageHtml = !empty($template) ? $message : dol_nl2br($message);
+			// Build a real HTML version from plain text (escape + nl2br) so URLs can be made clickable
+			$messageHtml = dol_nl2br(dol_escape_htmltag($message));
+
+			// Make raw URLs clickable in HTML part
+			if (preg_match('~https?://~i', $messageHtml)) {
+				$messageHtml = preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
+					$urlfull = $m[1];
+					$url = rtrim($urlfull, ".,);:!?"); // trailing punctuation out of link
+					$href = html_entity_decode($url, ENT_QUOTES | ENT_HTML5);
+					return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($url).'</a>'.substr($urlfull, strlen($url));
+				}, $messageHtml);
+			}
 			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
 			$isHtml = 1;
 
