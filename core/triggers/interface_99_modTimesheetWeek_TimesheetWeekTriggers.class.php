@@ -197,6 +197,17 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
 
+				$normalizeNewlines = function ($str) {
+					if ($str === null) return $str;
+					return str_replace(
+						array('\\r\\n', '\\n', '\\r', '\r\n', '\n', '\r'),
+						array("\r\n", "\n", "\r", "\r\n", "\n", "\r"),
+						$str
+					);
+				};
+
+				$mailSignature = $normalizeNewlines($mailSignature);
+
                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
@@ -305,7 +316,9 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 						$subject = dol_html_entity_decode($subject, ENT_QUOTES);
 						$message = make_substitutions($bodyTemplate, $substitutions);
 
-						if (!empty($template->email_from)) {
+						
+						$message = $normalizeNewlines($message);
+if (!empty($template->email_from)) {
 							$emailFrom = make_substitutions($template->email_from, $substitutions);
 						}
 
@@ -409,12 +422,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         }
 
-			
-			// Convert escaped newlines from templates (\n) into real newlines
-			$subject = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $subject);
-			$message = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $message);
-
-if (empty($subject) || empty($message)) {
+			if (empty($subject) || empty($message)) {
 				dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
 				continue;
 			}
@@ -422,21 +430,10 @@ if (empty($subject) || empty($message)) {
 			$sendto = implode(',', array_unique(array_filter($sendtoList)));
 			$cc = implode(',', array_unique(array_filter($ccList)));
 			$bcc = implode(',', array_unique(array_filter($bccList)));
-						// Build HTML version of message (so URLs are clickable in HTML emails)
-			$isHtml = 1;
-			if (function_exists('dol_textishtml') && dol_textishtml($message)) {
-				$messageHtml = $message;
-			} else {
-				$messageHtml = dol_nl2br(dol_escape_htmltag($message));
-				$messageHtml = preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
-					$urlfull = $m[1];
-					$url = rtrim($urlfull, ".,);:!?");
-					$href = html_entity_decode($url, ENT_QUOTES);
-					return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($url).'</a>'.substr($urlfull, strlen($url));
-				}, $messageHtml);
-			}
-
+			$message = $normalizeNewlines($message);
+			$messageHtml = !empty($template) ? $message : dol_nl2br($message);
 			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
+			$isHtml = 1;
 
 			$nativeResult = $timesheet->sendNativeMailNotification(
 				$action,
@@ -798,9 +795,6 @@ if (empty($subject) || empty($message)) {
 		$companyName = !empty($conf->global->MAIN_INFO_SOCIETE_NOM) ? $conf->global->MAIN_INFO_SOCIETE_NOM : '';
 		$signature = $langs->transnoentities('TimesheetWeekMailSignatureWithoutAppTitle', $companyName);
 		}
-
-		// Convert escaped newlines (\n) into real newlines
-		$signature = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $signature);
 
 		return $signature;
 		}
