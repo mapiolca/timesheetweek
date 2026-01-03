@@ -1864,49 +1864,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : $message;
 		$isHtml = !empty($options['ishtml']) ? 1 : 0;
 
-		// FR: En HTML, une URL brute n'est pas toujours cliquable. On génère donc un HTML avec <a href> et on force msgishtml=1.
-		// EN: In HTML, raw URLs are not always clickable. Build HTML with <a href> and force msgishtml=1.
-		$linkifyText = function ($text) {
-			return preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
-				$urlfull = $m[1];
-				$url = rtrim($urlfull, ".,);:!?");
-				$decoded = html_entity_decode($url, ENT_QUOTES | ENT_HTML5);
-				return '<a href="'.dol_escape_htmltag($decoded).'">'.dol_escape_htmltag($url).'</a>'.substr($urlfull, strlen($url));
-			}, $text);
-		};
-
-		$buildHtmlFromText = function ($text) use ($linkifyText) {
-			// Escape then convert newlines to <br>, then linkify URLs.
-			$safe = dol_escape_htmltag($text);
-			$safe = nl2br($safe);
-			$safe = $linkifyText($safe);
-			return $safe;
-		};
-
 		if (empty($options['message_html'])) {
-			$htmlMessage = $buildHtmlFromText($message);
+			$htmlMessage = dol_nl2br(dol_escape_htmltag($message));
 		} else {
-			// If HTML is provided, linkify URLs in text nodes only (keep tags intact) when no link exists.
-			if (stripos($htmlMessage, '<a ') === false && preg_match('~https?://~i', $htmlMessage)) {
-				$parts = preg_split('/(<[^>]+>)/', $htmlMessage, -1, PREG_SPLIT_DELIM_CAPTURE);
-				$newhtml = '';
-				foreach ($parts as $part) {
-					if ($part === '') continue;
-					if ($part[0] === '<') {
-						$newhtml .= $part;
-					} else {
-						$newhtml .= $linkifyText($part);
-					}
-				}
-				$htmlMessage = $newhtml;
-			}
+			$htmlMessage = (string) $options['message_html'];
 		}
 
-		// Important: when MAIN_MAIL_USE_MULTI_PART is enabled, Dolibarr will auto-generate HTML from plain text if msgishtml=0.
-		// We force msgishtml=1 and pass our HTML so the link stays clickable.
 		if (!empty($conf->global->MAIN_MAIL_USE_MULTI_PART) || $isHtml) {
 			$isHtml = 1;
-			$message = $htmlMessage;
 		}
 
 		$payload = array(
