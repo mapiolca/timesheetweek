@@ -428,25 +428,32 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 				return str_replace(array('\\r\\n', '\\n', '\\r'), array("\r\n", "\n", "\r"), $str);
 			};
 
-			$message = $normalizeNewlines($message);
+			$messageText = $normalizeNewlines($message);
 
 			// Build HTML part from message (keep existing HTML if message already contains tags)
-			if (function_exists('dol_textishtml') && dol_textishtml($message)) {
-				$messageHtml = $message;
+			if (function_exists('dol_textishtml') && dol_textishtml($messageText)) {
+				$messageHtml = $messageText;
 			} else {
-				$messageHtml = dol_nl2br(dol_escape_htmltag($message));
+				$messageHtml = dol_nl2br(dol_escape_htmltag($messageText));
 			}
 
 			// Make URL clickable in HTML part using Dolibarr helper (no regex linkify).
-			// FR: En HTML, une URL brute n'est pas toujours cliquable. On remplace l'URL par dol_print_url().
-			// EN: In HTML, a raw URL may not be clickable. Replace the URL with dol_print_url().
-			if (!empty($url) && function_exists('dol_print_url')) {
-				$escapedUrl = dol_escape_htmltag($url); // messageHtml was built from escaped text
+			if (!empty($url) && function_exists('dol_print_url') && strpos($messageHtml, '<a ') === false) {
+				$escapedUrl = dol_escape_htmltag($url);
 				$clickableUrl = dol_print_url($url, '_blank', 255, 0, '');
 				if (!empty($clickableUrl)) {
 					$messageHtml = str_replace($escapedUrl, $clickableUrl, $messageHtml);
 				}
 			}
+
+			dol_syslog(
+				__METHOD__.
+				': prepare mail action='.$action.
+				' msgishtml=1 textlen='.(function_exists('dol_strlen') ? dol_strlen($messageText) : strlen($messageText)).
+				' htmllen='.(function_exists('dol_strlen') ? dol_strlen($messageHtml) : strlen($messageHtml)).
+				' haslink='.((strpos($messageHtml, '<a ') !== false) ? 'yes' : 'no'),
+				LOG_DEBUG
+			);
 			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
 			$isHtml = 1;
 
@@ -459,7 +466,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 				$substitutions,
 				array(
 					'subject' => $subject,
-					'message' => $message,
+					'message' => $messageText,
 					'message_html' => $messageHtml,
 					'sendto' => $sendto,
 					'cc' => $cc,
