@@ -409,7 +409,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                                 }
                         }
 
-			if (empty($subject) || empty($message)) {
+			
+			// Convert escaped newlines from translation/templates (\n, \r) into real newlines.
+			$message = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $message);
+if (empty($subject) || empty($message)) {
 				dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
 				continue;
 			}
