@@ -423,12 +423,16 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
 				// Handle double-escaped sequences first
 				$str = str_replace(array('\\\\r\\\\n', '\\\\n', '\\\\r'), array("\r\n", "\n", "\r"), $str);
+				$str = preg_replace('/\\\\+r\\\\+n/', "\r\n", $str);
+				$str = preg_replace('/\\\\+n/', "\n", $str);
+				$str = preg_replace('/\\\\+r/', "\r", $str);
 
 				// Then handle standard escaped sequences
 				return str_replace(array('\\r\\n', '\\n', '\\r'), array("\r\n", "\n", "\r"), $str);
 			};
 
 			$messageText = $normalizeNewlines($message);
+			$messageText = str_replace(array("\\r\\n", "\\n", "\\r"), array("\r\n", "\n", "\r"), $messageText);
 
 			// Build HTML part from message (keep existing HTML if message already contains tags)
 			if (function_exists('dol_textishtml') && dol_textishtml($messageText)) {
@@ -445,6 +449,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 					$messageHtml = str_replace($escapedUrl, $clickableUrl, $messageHtml);
 				}
 			}
+			$messageHtml = str_replace(array("\\r\\n", "\\n", "\\r"), array('<br>', '<br>', ''), $messageHtml);
 
 			dol_syslog(
 				__METHOD__.
