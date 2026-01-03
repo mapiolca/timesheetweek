@@ -410,8 +410,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         }
 
 			
-			// Convert escaped newlines from translation/templates (\n, \r) into real newlines.
+			// Convert escaped newlines from templates (\n) into real newlines
+			$subject = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $subject);
 			$message = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $message);
+
 if (empty($subject) || empty($message)) {
 				dol_syslog(__METHOD__.': '.$langs->trans('TimesheetWeekNotificationMailError', 'Empty template'), LOG_WARNING);
 				continue;
@@ -796,6 +798,9 @@ if (empty($subject) || empty($message)) {
 		$companyName = !empty($conf->global->MAIN_INFO_SOCIETE_NOM) ? $conf->global->MAIN_INFO_SOCIETE_NOM : '';
 		$signature = $langs->transnoentities('TimesheetWeekMailSignatureWithoutAppTitle', $companyName);
 		}
+
+		// Convert escaped newlines (\n) into real newlines
+		$signature = str_replace(array("\\r\\n", "\\n", "\\r"), "\n", $signature);
 
 		return $signature;
 		}
