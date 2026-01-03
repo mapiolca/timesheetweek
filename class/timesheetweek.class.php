@@ -90,6 +90,36 @@ class TimesheetWeek extends CommonObject
 			$this->dir_output = DOL_DATA_ROOT.'/timesheetweek';
 		}
 	}
+	/**
+		 * Initialise un objet specimen (prévisualisation / exemple de numérotation).
+		 *
+		 * @return int 1 si OK, <0 si KO
+		 */
+		public function initAsSpecimen()
+		{
+			$ret = 1;
+	
+			// CommonObject (Dolibarr) fournit généralement initAsSpecimenCommon()
+			if (method_exists($this, 'initAsSpecimenCommon')) {
+				$ret = $this->initAsSpecimenCommon();
+				if ($ret < 0) return $ret;
+			}
+	
+			$now = dol_now();
+	
+			$this->id = 0;
+			$this->ref = 'TSW-SPECIMEN';
+			$this->status = self::STATUS_DRAFT;
+	
+			// Utilisé par le modèle de numérotation (get_next_value) via $object->date_creation
+			$this->date_creation = $now;
+	
+			// Valeurs cohérentes si le masque exploite l'année / semaine
+			$this->year = (int) dol_print_date($now, '%Y');
+			$this->week = (int) dol_print_date($now, '%V');
+	
+			return 1;
+		}
 
 	/**
 	* EN: Detect lazily if the database schema already stores the PDF model.
@@ -1596,6 +1626,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// EN: Build the direct link to the card so it can be injected inside the e-mail template.
 		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
 
+		// FR: Conserve aussi une version HTML cliquable du lien.
+		// EN: Keep a clickable HTML version of the link as well.
+		$urlRaw = $url;
+		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
+
 		$employeeName = $employee ? $employee->getFullName($langs) : '';
 		$validatorName = $validator ? $validator->getFullName($langs) : '';
 		$actionUserName = $actionUser->getFullName($langs);
@@ -1606,7 +1641,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		'__TIMESHEETWEEK_REF__' => $this->ref,
 		'__TIMESHEETWEEK_WEEK__' => $this->week,
 		'__TIMESHEETWEEK_YEAR__' => $this->year,
-		'__TIMESHEETWEEK_URL__' => $url,
+		'__TIMESHEETWEEK_URL__' => $urlHtml,
+		'__TIMESHEETWEEK_URL_RAW__' => $urlRaw,
 		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
 		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
 		'__ACTION_USER_FULLNAME__' => $actionUserName,
@@ -1827,6 +1863,16 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$message = isset($options['message']) ? (string) $options['message'] : '';
 		$htmlMessage = isset($options['message_html']) ? (string) $options['message_html'] : $message;
 		$isHtml = !empty($options['ishtml']) ? 1 : 0;
+
+		if (empty($options['message_html'])) {
+			$htmlMessage = dol_nl2br(dol_escape_htmltag($message));
+		} else {
+			$htmlMessage = (string) $options['message_html'];
+		}
+
+		if (!empty($conf->global->MAIN_MAIL_USE_MULTI_PART) || $isHtml) {
+			$isHtml = 1;
+		}
 
 		$payload = array(
 			'trigger' => $triggerCode,
