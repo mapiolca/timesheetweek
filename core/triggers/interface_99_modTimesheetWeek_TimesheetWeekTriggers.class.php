@@ -197,17 +197,6 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
 
-				$normalizeNewlines = function ($str) {
-					if ($str === null) return $str;
-					return str_replace(
-						array('\\r\\n', '\\n', '\\r', '\r\n', '\n', '\r'),
-						array("\r\n", "\n", "\r", "\r\n", "\n", "\r"),
-						$str
-					);
-				};
-
-				$mailSignature = $normalizeNewlines($mailSignature);
-
                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
@@ -316,9 +305,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 						$subject = dol_html_entity_decode($subject, ENT_QUOTES);
 						$message = make_substitutions($bodyTemplate, $substitutions);
 
-						
-						$message = $normalizeNewlines($message);
-if (!empty($template->email_from)) {
+						if (!empty($template->email_from)) {
 							$emailFrom = make_substitutions($template->email_from, $substitutions);
 						}
 
@@ -430,12 +417,28 @@ if (!empty($template->email_from)) {
 			$sendto = implode(',', array_unique(array_filter($sendtoList)));
 			$cc = implode(',', array_unique(array_filter($ccList)));
 			$bcc = implode(',', array_unique(array_filter($bccList)));
+			// Normalize escaped newlines coming from lang/templates ("\\n" -> "\n")
+			$normalizeNewlines = function ($str) {
+				if ($str === null) return $str;
+
+				// Handle double-escaped sequences first
+				$str = str_replace(array('\\\\r\\\\n', '\\\\n', '\\\\r'), array("\r\n", "\n", "\r"), $str);
+
+				// Then handle standard escaped sequences
+				return str_replace(array('\\r\\n', '\\n', '\\r'), array("\r\n", "\n", "\r"), $str);
+			};
+
 			$message = $normalizeNewlines($message);
-			// Build a real HTML version from plain text (escape + nl2br) so URLs can be made clickable
-			$messageHtml = dol_nl2br(dol_escape_htmltag($message));
+
+			// Build HTML part from message (keep existing HTML if message already contains tags)
+			if (function_exists('dol_textishtml') && dol_textishtml($message)) {
+				$messageHtml = $message;
+			} else {
+				$messageHtml = dol_nl2br(dol_escape_htmltag($message));
+			}
 
 			// Make raw URLs clickable in HTML part
-			if (preg_match('~https?://~i', $messageHtml)) {
+			if (stripos($messageHtml, '<a ') === false && preg_match('~https?://~i', $messageHtml)) {
 				$messageHtml = preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
 					$urlfull = $m[1];
 					$url = rtrim($urlfull, ".,);:!?"); // trailing punctuation out of link
