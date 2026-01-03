@@ -437,14 +437,15 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 				$messageHtml = dol_nl2br(dol_escape_htmltag($message));
 			}
 
-			// Make raw URLs clickable in HTML part
-			if (stripos($messageHtml, '<a ') === false && preg_match('~https?://~i', $messageHtml)) {
-				$messageHtml = preg_replace_callback('~(https?://[^\s<]+)~i', function ($m) {
-					$urlfull = $m[1];
-					$url = rtrim($urlfull, ".,);:!?"); // trailing punctuation out of link
-					$href = html_entity_decode($url, ENT_QUOTES | ENT_HTML5);
-					return '<a href="'.dol_escape_htmltag($href).'">'.dol_escape_htmltag($url).'</a>'.substr($urlfull, strlen($url));
-				}, $messageHtml);
+			// Make URL clickable in HTML part using Dolibarr helper (no regex linkify).
+			// FR: En HTML, une URL brute n'est pas toujours cliquable. On remplace l'URL par dol_print_url().
+			// EN: In HTML, a raw URL may not be clickable. Replace the URL with dol_print_url().
+			if (!empty($url) && function_exists('dol_print_url')) {
+				$escapedUrl = dol_escape_htmltag($url); // messageHtml was built from escaped text
+				$clickableUrl = dol_print_url($url, '_blank', 255, 0, '');
+				if (!empty($clickableUrl)) {
+					$messageHtml = str_replace($escapedUrl, $clickableUrl, $messageHtml);
+				}
 			}
 			$trackId = 'timesheetweek-'.$timesheet->id.'-'.$action.'-'.($recipient ? (int) $recipient->id : 0);
 			$isHtml = 1;
