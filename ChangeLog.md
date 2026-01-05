@@ -1,6 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.6.2 (14/12/2025)
+## 1.6.2 (02/01/2026)
+- Correctif : ajout de TimesheetWeek::initAsSpecimen() pour éviter une erreur fatale lors de l’aperçu du modèle de numérotation “advanced”. / Fix: add missing TimesheetWeek::initAsSpecimen() to prevent a fatal error when previewing the “advanced” numbering model.
+- Correctif : prise en charge de action=updateMask dans la page de configuration pour enregistrer correctement le masque “advanced” (TIMESHEETWEEK_ADVANCED_MASK). / Fix: handle action=updateMask in setup page to correctly save the “advanced” mask (TIMESHEETWEEK_ADVANCED_MASK).
 - Envoie les notifications de changement d'état avec des versions HTML pour conserver les actions et caractères spéciaux. / Sends status change notifications with HTML variants to preserve actions and special characters.
 - Décode les entités HTML dans les objets générés pour afficher correctement les accents dans les courriels. / Decodes HTML entities in generated subjects to display accented characters correctly in emails.
 - Calcule la signature des notifications en utilisant MAIN_APPLICATION_TITLE ou, à défaut, le nom de la société. / Builds notification signatures using MAIN_APPLICATION_TITLE or, if unavailable, the company name.
