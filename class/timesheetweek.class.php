@@ -978,13 +978,33 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* @param User $user
 	* @return int
 	*/
-	public function seal($user)
+	public function seal($user, $origin = 'manual')
 	{
+		global $langs;
+
 		$now = dol_now();
+		$noteUpdate = null;
 
 		if ((int) $this->status !== self::STATUS_APPROVED) {
 			$this->error = 'BadStatusForSeal';
 			return -1;
+		}
+
+		if ($origin === 'auto') {
+			// EN: Build the automatic sealing trace for the note field.
+			// FR: Construit la trace de scellement automatique pour le champ note.
+			if ($langs instanceof Translate) {
+				$langs->loadLangs(array('timesheetweek@timesheetweek'));
+			}
+			$noteDateLabel = dol_print_date($now, '%Y-%m-%d');
+			$noteMessage = $langs->trans('TimesheetWeekAutoSealTrace', $noteDateLabel, (int) $user->id);
+			if (!empty($noteMessage)) {
+				if (!empty($this->note)) {
+					$noteUpdate = $this->note."\n".$noteMessage;
+				} else {
+					$noteUpdate = $noteMessage;
+				}
+			}
 		}
 
 		$this->db->begin();
@@ -992,6 +1012,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_SEALED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		if ($noteUpdate !== null) {
+			$sql .= ", note='".$this->db->escape($noteUpdate)."'";
+		}
 		$sql .= " WHERE rowid=".(int) $this->id;
 
 		if (!$this->db->query($sql)) {
@@ -1004,6 +1027,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR : Conserve les métadonnées d'approbation tout en verrouillant la feuille.
 		$this->status = self::STATUS_SEALED;
 		$this->tms = $now;
+		if ($noteUpdate !== null) {
+			$this->note = $noteUpdate;
+		}
 
 		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
 			$this->db->rollback();

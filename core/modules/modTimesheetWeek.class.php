@@ -323,6 +323,20 @@ class modTimesheetWeek extends DolibarrModules
 				'test' => 'isModEnabled("timesheetweek")',
 				'priority' => 50,
 			),
+			1 => array(
+				'label' => 'TimesheetWeekAutoSeal',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweekautoseal.class.php',
+				'objectname' => 'TimesheetweekAutoSeal',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekAutoSealComment',
+				'frequency' => 1,
+				'unitfrequency' => 86400,
+				'status' => 0,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(

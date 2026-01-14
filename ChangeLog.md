@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.6.3 (14/01/2026)
+- Ajoute un scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native. / Adds automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
+
 ## 1.6.2 (02/01/2026)
 - Correctif : ajout de TimesheetWeek::initAsSpecimen() pour éviter une erreur fatale lors de l’aperçu du modèle de numérotation “advanced”. / Fix: add missing TimesheetWeek::initAsSpecimen() to prevent a fatal error when previewing the “advanced” numbering model.
 - Correctif : prise en charge de action=updateMask dans la page de configuration pour enregistrer correctement le masque “advanced” (TIMESHEETWEEK_ADVANCED_MASK). / Fix: handle action=updateMask in setup page to correctly save the “advanced” mask (TIMESHEETWEEK_ADVANCED_MASK).
