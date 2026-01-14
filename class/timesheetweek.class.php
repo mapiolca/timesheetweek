@@ -123,6 +123,16 @@ class TimesheetWeek extends CommonObject
 				'fk_user_author' => (int) $obj->fk_user,
 				'fk_user_valid' => (int) $obj->fk_user_valid,
 			);
+		} elseif (!empty($this->id)) {
+			// EN: Fallback to in-memory properties when SQL filters prevent a row.
+			// FR: Repli sur les propriétés mémoire quand les filtres SQL bloquent la ligne.
+			$this->info = array(
+				'datec' => $this->date_creation,
+				'datev' => $this->date_validation,
+				'datem' => $this->tms,
+				'fk_user_author' => (int) $this->fk_user,
+				'fk_user_valid' => (int) $this->fk_user_valid,
+			);
 		}
 
 		$this->db->free($resql);
