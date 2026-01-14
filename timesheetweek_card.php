@@ -809,7 +809,7 @@ if ($action === 'seal' && $id > 0) {
 		// FR : Marque l'action courante pour les triggers et journaux.
 		$object->context['timesheetweek_card_action'] = 'seal';
 
-		$res = $object->seal($user);
+		$res = $object->seal($user, 'manual');
 		if ($res > 0) {
 				setEventMessages($langs->trans('TimesheetSealed'), null, 'mesgs');
 		} else {

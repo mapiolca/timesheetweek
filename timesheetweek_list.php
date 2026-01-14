@@ -545,7 +545,7 @@ if ($massaction === 'sceller') {
 				$ko[] = $o->ref ?: '#'.$id;
 				continue;
 			}
-			$res = $o->seal($user);
+			$res = $o->seal($user, 'manual');
 			if ($res > 0) {
 				$ok++;
 			} else {

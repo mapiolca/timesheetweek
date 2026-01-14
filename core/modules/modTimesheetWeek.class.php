@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.6.2';
+		$this->version = '1.7.0';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -319,6 +319,20 @@ class modTimesheetWeek extends DolibarrModules
 				'comment' => 'TimesheetWeekReminderCronComment',
 				'frequency' => 5,
 				'unitfrequency' => 60,
+				'status' => 1,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
+			1 => array(
+				'label' => 'TimesheetWeekAutoSeal',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweekautoseal.class.php',
+				'objectname' => 'TimesheetweekAutoSeal',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekAutoSealComment',
+				'frequency' => 1,
+				'unitfrequency' => 86400,
 				'status' => 1,
 				'test' => 'isModEnabled("timesheetweek")',
 				'priority' => 50,

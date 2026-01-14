@@ -438,6 +438,35 @@ if ($action === 'testreminder') {
 		}
 }
 
+if ($action === 'saveautoseal') {
+	$autoSealEnabledValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_ENABLE', 'int');
+	$autoSealDelayValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 'int');
+	$autoSealUserIdValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_USERID', 'int');
+
+	if ($autoSealDelayValue < 0) {
+		$autoSealDelayValue = 0;
+	}
+
+	$results = array();
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_ENABLE', ($autoSealEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', $autoSealDelayValue, 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_USERID', $autoSealUserIdValue, 'chaine', 0, '', $conf->entity);
+
+	$hasError = false;
+	foreach ($results as $resultValue) {
+		if ($resultValue <= 0) {
+			$hasError = true;
+			break;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 // EN: Read the selected options so we can highlight them in the UI.
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
@@ -480,6 +509,9 @@ $reminderExcludedUsers = array();
 if ($reminderExcludedUsersString !== '') {
 	$reminderExcludedUsers = array_filter(array_map('intval', explode(',', $reminderExcludedUsersString)));
 }
+$autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
+$autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
+$autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -696,6 +728,69 @@ print '<div class="center">';
 print '<button type="submit" class="butAction" name="action" value="savereminder">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '&nbsp;';
 print '<button type="submit" class="butAction" name="action" value="testreminder">'.($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test').'</button>';
+print '</div>';
+print '</form>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekAutoSealSectionTitle'), '', 'calendar');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekAutoSealSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_ENABLE').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealEnableHelp').'</td>';
+print '<td class="center">';
+print '<input type="checkbox" name="TIMESHEETWEEK_AUTOSEAL_ENABLE" value="1"'.(!empty($autoSealEnabled) ? ' checked' : '').'>';
+print '</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealDelayHelp').'</td>';
+print '<td class="center">';
+print '<input type="number" name="TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS" min="0" class="width60" value="'.(int) $autoSealDelayDays.'">';
+print '</td>';
+print '</tr>';
+
+$selectAutoSealUser = $form->select_dolusers(
+	$autoSealUserId,
+	'TIMESHEETWEEK_AUTOSEAL_USERID',
+	1,
+	'',
+	0,
+	'',
+	'',
+	0,
+	0,
+	0,
+	'',
+	0,
+	'',
+	'minwidth300'
+);
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_USERID').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealUserHelp').'</td>';
+print '<td class="center">'.$selectAutoSealUser.'</td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+
+print '<div class="center">';
+print '<button type="submit" class="butAction" name="action" value="saveautoseal">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '</div>';
 print '</form>';
 
