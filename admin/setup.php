@@ -790,7 +790,7 @@ print '</table>';
 print '</div>';
 
 print '<div class="center">';
-print '<button type="submit" class="butAction" name="action" value="saveautoseal">'.($langs->trans(\"Save\")!='Save'?$langs->trans(\"Save\"):'Enregistrer').'</button>';
+print '<button type="submit" class="butAction" name="action" value="saveautoseal">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '</div>';
 print '</form>';
 
