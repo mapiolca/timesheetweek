@@ -469,7 +469,7 @@ if ($object->id > 0) {
                                 }
                         }
 
-                        $titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
+                        $titlelist = $langs->trans("Actions");
                         print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
 
                         print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';

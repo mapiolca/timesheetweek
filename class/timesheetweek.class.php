@@ -996,7 +996,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			if ($langs instanceof Translate) {
 				$langs->loadLangs(array('timesheetweek@timesheetweek'));
 			}
-			$noteDateLabel = dol_print_date($now, '%Y-%m-%d');
+			$noteDateLabel = dol_print_date($now, '%d/%m/%Y');
 			$userFullName = method_exists($user, 'getFullName') ? $user->getFullName($langs) : trim($user->firstname.' '.$user->lastname);
 			$noteMessage = $langs->trans('TimesheetWeekAutoSealTrace', $noteDateLabel, $userFullName);
 			if (!empty($noteMessage)) {
