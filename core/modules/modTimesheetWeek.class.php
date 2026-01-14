@@ -333,7 +333,7 @@ class modTimesheetWeek extends DolibarrModules
 				'comment' => 'TimesheetWeekAutoSealComment',
 				'frequency' => 1,
 				'unitfrequency' => 86400,
-				'status' => 0,
+				'status' => 1,
 				'test' => 'isModEnabled("timesheetweek")',
 				'priority' => 50,
 			),

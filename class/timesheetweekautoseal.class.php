@@ -143,6 +143,6 @@ class TimesheetweekAutoSeal extends CommonObject
 			dol_syslog($this->output, LOG_WARNING);
 		}
 
-		return $sealedCount;
+		return 0;
 	}
 }
