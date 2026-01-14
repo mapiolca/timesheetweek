@@ -1,6 +1,6 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.6.3 (14/01/2026)
+## 1.7.0 (14/01/2026)
 - Ajoute un scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native. / Adds automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
 
 ## 1.6.2 (02/01/2026)
