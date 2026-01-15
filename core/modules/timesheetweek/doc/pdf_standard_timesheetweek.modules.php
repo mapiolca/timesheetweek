@@ -769,8 +769,8 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			// EN: Prepare the approval trace with validation date and validator name for the PDF header.
 			// FR: Prépare la trace d'approbation avec la date de validation et le validateur pour l'entête PDF.
 			$approvalDateLabel = '';
-			if (!empty($object->date_validation)) {
-				$approvalDateLabel = dol_print_date($object->date_validation, '%d/%m/%Y');
+			if (!empty($object->datev)) {
+				$approvalDateLabel = dol_print_date($object->datev, '%d/%m/%Y');
 			}
 			$validatorName = '';
 			if (!empty($object->fk_user_valid)) {

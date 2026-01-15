@@ -809,7 +809,7 @@ if ($action === 'seal' && $id > 0) {
 		// FR : Marque l'action courante pour les triggers et journaux.
 		$object->context['timesheetweek_card_action'] = 'seal';
 
-		$res = $object->seal($user);
+		$res = $object->seal($user, 'manual');
 		if ($res > 0) {
 				setEventMessages($langs->trans('TimesheetSealed'), null, 'mesgs');
 		} else {
@@ -1341,7 +1341,7 @@ JS;
 		echo '<table class="border centpercent tableforfield">';
 		echo '<tr><td>'.$langs->trans("DateCreation").'</td><td>'.dol_print_date($object->date_creation, 'dayhour').'</td></tr>';
 		echo '<tr><td>'.$langs->trans("LastModification").'</td><td>'.dol_print_date($object->tms, 'dayhour').'</td></tr>';
-		echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->date_validation, 'dayhour').'</td></tr>';
+		echo '<tr><td>'.$langs->trans("DateValidation").'</td><td>'.dol_print_date($object->datev, 'dayhour').'</td></tr>';
 		if ($isDailyRateEmployee) {
 			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.tw_format_days($displayedTotal, $langs).'</span></td></tr>';
 		} else {

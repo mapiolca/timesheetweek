@@ -46,7 +46,7 @@ class TimesheetWeek extends CommonObject
 	public $fk_user_valid;    // validator (user id)
 	public $date_creation;
 	public $tms;
-	public $date_validation;
+	public $datev;
 
 	public $total_hours = 0.0;      // total week hours
 	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
@@ -90,36 +90,84 @@ class TimesheetWeek extends CommonObject
 			$this->dir_output = DOL_DATA_ROOT.'/timesheetweek';
 		}
 	}
+
 	/**
-		 * Initialise un objet specimen (prévisualisation / exemple de numérotation).
-		 *
-		 * @return int 1 si OK, <0 si KO
-		 */
-		public function initAsSpecimen()
-		{
-			$ret = 1;
-	
-			// CommonObject (Dolibarr) fournit généralement initAsSpecimenCommon()
-			if (method_exists($this, 'initAsSpecimenCommon')) {
-				$ret = $this->initAsSpecimenCommon();
-				if ($ret < 0) return $ret;
-			}
-	
-			$now = dol_now();
-	
-			$this->id = 0;
-			$this->ref = 'TSW-SPECIMEN';
-			$this->status = self::STATUS_DRAFT;
-	
-			// Utilisé par le modèle de numérotation (get_next_value) via $object->date_creation
-			$this->date_creation = $now;
-	
-			// Valeurs cohérentes si le masque exploite l'année / semaine
-			$this->year = (int) dol_print_date($now, '%Y');
-			$this->week = (int) dol_print_date($now, '%V');
-	
-			return 1;
+	* EN: Load object info for dol_print_object_info (author/validator/date).
+	* FR: Charge les informations d'objet pour dol_print_object_info (auteur/validateur/date).
+	*
+	* @param int $id
+	* @return int <0 if KO, >0 if OK
+	*/
+	public function info($id)
+	{
+		$sql = 'SELECT rowid, fk_user, fk_user_author, fk_user_valid, datec, datev, tms';
+		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element;
+		$sql .= ' WHERE rowid='.(int) $id;
+		// EN: Restrict info fetch to authorized entities.
+		// FR: Restreint la lecture aux entités autorisées.
+		$sql .= ' AND entity IN ('.getEntity($this->element).')';
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
 		}
+
+		if ($obj = $this->db->fetch_object($resql)) {
+			// EN: Map custom fields to CommonObject info keys.
+			// FR: Mappe les champs personnalisés aux clés info CommonObject.
+			$this->info = array(
+				'datec' => $this->db->jdate($obj->datec),
+				'datev' => $this->db->jdate($obj->datev),
+				'datem' => $this->db->jdate($obj->tms),
+				'fk_user_author' => (int) $obj->fk_user_author,
+				'fk_user_valid' => (int) $obj->fk_user_valid,
+			);
+		} elseif (!empty($this->id)) {
+			// EN: Fallback to in-memory properties when SQL filters prevent a row.
+			// FR: Repli sur les propriétés mémoire quand les filtres SQL bloquent la ligne.
+			$this->info = array(
+				'datec' => $this->date_creation,
+				'datev' => $this->datev,
+				'datem' => $this->tms,
+				'fk_user_author' => (int) $this->fk_user_author,
+				'fk_user_valid' => (int) $this->fk_user_valid,
+			);
+		}
+
+		$this->db->free($resql);
+		return 1;
+	}
+	/**
+	* Initialise un objet specimen (prévisualisation / exemple de numérotation).
+	*
+	* @return int 1 si OK, <0 si KO
+	*/
+	public function initAsSpecimen()
+	{
+		$ret = 1;
+
+		// CommonObject (Dolibarr) fournit généralement initAsSpecimenCommon()
+		if (method_exists($this, 'initAsSpecimenCommon')) {
+			$ret = $this->initAsSpecimenCommon();
+			if ($ret < 0) return $ret;
+		}
+
+		$now = dol_now();
+
+		$this->id = 0;
+		$this->ref = 'TSW-SPECIMEN';
+		$this->status = self::STATUS_DRAFT;
+
+		// Utilisé par le modèle de numérotation (get_next_value) via $object->date_creation
+		$this->date_creation = $now;
+
+		// Valeurs cohérentes si le masque exploite l'année / semaine
+		$this->year = (int) dol_print_date($now, '%Y');
+		$this->week = (int) dol_print_date($now, '%V');
+
+		return 1;
+	}
 
 	/**
 	* EN: Detect lazily if the database schema already stores the PDF model.
@@ -168,7 +216,7 @@ class TimesheetWeek extends CommonObject
 		'week',
 		'status',
 		'note',
-		'date_creation',
+		'datec',
 		'fk_user_valid',
 		'total_hours',
 		'overtime_hours',
@@ -311,7 +359,7 @@ class TimesheetWeek extends CommonObject
 
 		$includeModelPdf = $this->checkModelPdfColumnAvailability();
 
-		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.fk_user_author, t.year, t.week, t.status, t.note, t.datec, t.tms, t.datev, t.fk_user_valid,";
 $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		if ($includeModelPdf) {
 			$sql .= ", t.model_pdf";
@@ -343,13 +391,14 @@ $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_co
 		$this->ref = $obj->ref;
 		$this->entity = (int) $obj->entity;
 		$this->fk_user = (int) $obj->fk_user;
+		$this->fk_user_author = (int) $obj->fk_user_author;
 		$this->year = (int) $obj->year;
 		$this->week = (int) $obj->week;
 		$this->status = (int) $obj->status;
 		$this->note = $obj->note;
-		$this->date_creation = $this->db->jdate($obj->date_creation);
+		$this->date_creation = $this->db->jdate($obj->datec);
 		$this->tms = $this->db->jdate($obj->tms);
-		$this->date_validation = $this->db->jdate($obj->date_validation);
+		$this->datev = $this->db->jdate($obj->datev);
 $this->fk_user_valid = (int) $obj->fk_user_valid;
 $this->total_hours = (float) $obj->total_hours;
 $this->overtime_hours = (float) $obj->overtime_hours;
@@ -817,7 +866,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			}
 		}
 
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', datev=NULL WHERE rowid=".(int) $this->id;
 		// EN: Apply the status change strictly within the accessible entities.
 		// FR: Applique le changement de statut strictement au sein des entités accessibles.
 		$up .= " AND entity IN (".getEntity('timesheetweek').")";
@@ -829,7 +878,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->status = self::STATUS_SUBMITTED;
 		$this->tms = $now;
-		$this->date_validation = null;
+		$this->datev = null;
 
 		if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
 			$this->db->rollback();
@@ -871,7 +920,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->db->begin();
 
 		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
-		$up .= " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL";
+		$up .= " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', datev=NULL";
 		// EN: Protect draft rollback with entity scoping for multi-company safety.
 		// FR: Protège le retour en brouillon en restreignant l'entité pour la sécurité multi-entreprise.
 		$up .= " WHERE rowid=".(int) $this->id;
@@ -899,7 +948,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->status = self::STATUS_DRAFT;
 		$this->tms = $now;
-		$this->date_validation = null;
+		$this->datev = null;
 
 		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
 			$this->db->rollback();
@@ -937,7 +986,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_APPROVED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
+		$sql .= ", datev='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
 		$sql .= $setvalid;
 		$sql .= " WHERE rowid=".(int) $this->id;
@@ -959,7 +1008,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		$this->status = self::STATUS_APPROVED;
-		$this->date_validation = $now;
+		$this->datev = $now;
 		$this->tms = $now;
 
 		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
@@ -978,13 +1027,34 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* @param User $user
 	* @return int
 	*/
-	public function seal($user)
+	public function seal($user, $origin = 'manual')
 	{
+		global $langs;
+
 		$now = dol_now();
+		$noteUpdate = null;
 
 		if ((int) $this->status !== self::STATUS_APPROVED) {
 			$this->error = 'BadStatusForSeal';
 			return -1;
+		}
+
+		if ($origin === 'auto') {
+			// EN: Build the automatic sealing trace for the note field.
+			// FR: Construit la trace de scellement automatique pour le champ note.
+			if ($langs instanceof Translate) {
+				$langs->loadLangs(array('timesheetweek@timesheetweek'));
+			}
+			$noteDateLabel = dol_print_date($now, '%d/%m/%Y');
+			$userFullName = method_exists($user, 'getFullName') ? $user->getFullName($langs) : trim($user->firstname.' '.$user->lastname);
+			$noteMessage = $langs->trans('TimesheetWeekAutoSealTrace', $noteDateLabel, $userFullName);
+			if (!empty($noteMessage)) {
+				if (!empty($this->note)) {
+					$noteUpdate = $this->note."\n".$noteMessage;
+				} else {
+					$noteUpdate = $noteMessage;
+				}
+			}
 		}
 
 		$this->db->begin();
@@ -992,6 +1062,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_SEALED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		if ($noteUpdate !== null) {
+			$sql .= ", note='".$this->db->escape($noteUpdate)."'";
+		}
 		$sql .= " WHERE rowid=".(int) $this->id;
 
 		if (!$this->db->query($sql)) {
@@ -1004,6 +1077,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR : Conserve les métadonnées d'approbation tout en verrouillant la feuille.
 		$this->status = self::STATUS_SEALED;
 		$this->tms = $now;
+		if ($noteUpdate !== null) {
+			$this->note = $noteUpdate;
+		}
 
 		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
 			$this->db->rollback();
@@ -1396,7 +1472,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_REFUSED;
-		$sql .= ", date_validation='".$this->db->idate($now)."'";
+		$sql .= ", datev='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
 		$sql .= $setvalid;
 		$sql .= " WHERE rowid=".(int) $this->id;
@@ -1408,7 +1484,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		$this->status = self::STATUS_REFUSED;
-		$this->date_validation = $now;
+		$this->datev = $now;
 		$this->tms = $now;
 
 		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {

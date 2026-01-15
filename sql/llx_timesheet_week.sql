@@ -10,8 +10,11 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	model_pdf VARCHAR(255) DEFAULT NULL,
 	-- EN: Stores the preferred PDF model per sheet / FR: Stocke le modèle PDF préféré par feuille
 	note TEXT,
+	datec DATETIME DEFAULT CURRENT_TIMESTAMP,
 	date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+	datev DATETIME DEFAULT NULL,
 	date_validation DATETIME DEFAULT NULL,
+	fk_user_author INT DEFAULT NULL,
 	fk_user_valid INT DEFAULT NULL,
 	total_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
 	overtime_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
@@ -37,6 +40,8 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	CONSTRAINT fk_timesheet_week_user
 		FOREIGN KEY (fk_user) REFERENCES llx_user (rowid),
 
+	CONSTRAINT fk_timesheet_week_user_author
+		FOREIGN KEY (fk_user_author) REFERENCES llx_user (rowid),
 	CONSTRAINT fk_timesheet_week_user_valid
 		FOREIGN KEY (fk_user_valid) REFERENCES llx_user (rowid)
 ) ENGINE=innodb;

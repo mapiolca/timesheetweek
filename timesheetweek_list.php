@@ -362,10 +362,10 @@ $arrayfields += array(
 		// EN: Meal counter column for list display.
 		// FR: Colonne du compteur de paniers pour l'affichage de la liste.
 		't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
-		't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
+		't.datec'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
 		// EN: Validation timestamp column to expose approval dates in the list.
 		// FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
-		't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
+		't.datev'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
 		't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
 		't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
@@ -545,7 +545,7 @@ if ($massaction === 'sceller') {
 				$ko[] = $o->ref ?: '#'.$id;
 				continue;
 			}
-			$res = $o->seal($user);
+			$res = $o->seal($user, 'manual');
 			if ($res > 0) {
 				$ok++;
 			} else {
@@ -851,7 +851,7 @@ if ($multicompanyEnabled) {
 // EN: Expose zone and meal counters in the list query.
 // FR: Expose les compteurs de zones et de paniers dans la requête de liste.
 $sqlfields .= " t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count,";
-$sqlfields .= " t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+$sqlfields .= " t.datec, t.tms, t.datev, t.fk_user_valid,";
 $sqlfields .= " u.rowid as uid, u.firstname, u.lastname, u.login, u.photo as user_photo, u.statut as user_status";
 $sql = $sqlfields;
 $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
@@ -1114,10 +1114,10 @@ if (!empty($arrayfields['t.zone5_count']['checked'])) {
 if (!empty($arrayfields['t.meal_count']['checked'])) {
         print '<td class="liste_titre right">&nbsp;</td>';
 }
-if (!empty($arrayfields['t.date_creation']['checked'])) {
+if (!empty($arrayfields['t.datec']['checked'])) {
         print '<td class="liste_titre center">&nbsp;</td>';
 }
-if (!empty($arrayfields['t.date_validation']['checked'])) {
+if (!empty($arrayfields['t.datev']['checked'])) {
         // EN: Validation date has no filter because approvals are historical events.
         // FR: La date de validation n'a pas de filtre car les approbations sont des événements historiques.
         print '<td class="liste_titre center">&nbsp;</td>';
@@ -1195,11 +1195,11 @@ if (!empty($arrayfields['t.zone5_count']['checked'])) {
 if (!empty($arrayfields['t.meal_count']['checked'])) {
         print_liste_field_titre($arrayfields['t.meal_count']['label'], $_SERVER["PHP_SELF"], "t.meal_count", "", $param, '', $sortfield, $sortorder, 'right ');
 }
-if (!empty($arrayfields['t.date_creation']['checked'])) {
-        print_liste_field_titre($arrayfields['t.date_creation']['label'], $_SERVER["PHP_SELF"], "t.date_creation", "", $param, '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.datec']['checked'])) {
+        print_liste_field_titre($arrayfields['t.datec']['label'], $_SERVER["PHP_SELF"], "t.datec", "", $param, '', $sortfield, $sortorder, 'center ');
 }
-if (!empty($arrayfields['t.date_validation']['checked'])) {
-        print_liste_field_titre($arrayfields['t.date_validation']['label'], $_SERVER["PHP_SELF"], "t.date_validation", "", $param, '', $sortfield, $sortorder, 'center ');
+if (!empty($arrayfields['t.datev']['checked'])) {
+        print_liste_field_titre($arrayfields['t.datev']['label'], $_SERVER["PHP_SELF"], "t.datev", "", $param, '', $sortfield, $sortorder, 'center ');
 }
 if (!empty($arrayfields['t.tms']['checked'])) {
         print_liste_field_titre($arrayfields['t.tms']['label'], $_SERVER["PHP_SELF"], "t.tms", "", $param, '', $sortfield, $sortorder, 'center ');
@@ -1333,13 +1333,13 @@ while ($i < $imax) {
                 print '<td class="right">'.(int)$obj->meal_count.'</td>';
         }
         // Creation
-        if (!empty($arrayfields['t.date_creation']['checked'])) {
-                print '<td class="center">'.($obj->date_creation ? dol_print_date($db->jdate($obj->date_creation),'dayhour') : '').'</td>';
+        if (!empty($arrayfields['t.datec']['checked'])) {
+                print '<td class="center">'.($obj->datec ? dol_print_date($db->jdate($obj->datec),'dayhour') : '').'</td>';
         }
         // EN: Display the approval date when the sheet has been validated.
         // FR: Affiche la date d'approbation lorsque la feuille a été validée.
-        if (!empty($arrayfields['t.date_validation']['checked'])) {
-                print '<td class="center">'.($obj->date_validation ? dol_print_date($db->jdate($obj->date_validation),'dayhour') : '').'</td>';
+        if (!empty($arrayfields['t.datev']['checked'])) {
+                print '<td class="center">'.($obj->datev ? dol_print_date($db->jdate($obj->datev),'dayhour') : '').'</td>';
         }
         // Modification
         if (!empty($arrayfields['t.tms']['checked'])) {
@@ -1436,10 +1436,10 @@ if ($imax > 0) {
         if (!empty($arrayfields['t.meal_count']['checked'])) {
                 print '<td class="liste_total right">'.(int) $totalsAccumulator['meal_count'].'</td>';
         }
-        if (!empty($arrayfields['t.date_creation']['checked'])) {
+        if (!empty($arrayfields['t.datec']['checked'])) {
                 print '<td class="liste_total center">&nbsp;</td>';
         }
-        if (!empty($arrayfields['t.date_validation']['checked'])) {
+        if (!empty($arrayfields['t.datev']['checked'])) {
                 print '<td class="liste_total center">&nbsp;</td>';
         }
         if (!empty($arrayfields['t.tms']['checked'])) {
