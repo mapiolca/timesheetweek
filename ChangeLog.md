@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.7.1 (25/01/2026)
+- Corrige un problème pouvant empecher la création des PDF chez certains utilisateurs / Fix an issue that could break the PDF's generation for some users.
+
 ## 1.7.0 (14/01/2026)
 - Ajoute un scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native. / Adds automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
 
