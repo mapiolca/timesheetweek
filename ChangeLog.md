@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.7.2 (05/02/2026)
+- Met à jour les métadonnées de scellement (fk_user_seal, date_seal) lors du scellement manuel. / Updates seal metadata (fk_user_seal, date_seal) during manual sealing.
+
 ## 1.7.1 (04/02/2026)
 - Ajoute les colonnes fk_user_seal et date_seal sur llx_timesheet_week avec les index associés. / Adds fk_user_seal and date_seal columns on llx_timesheet_week with the related indexes.
 
