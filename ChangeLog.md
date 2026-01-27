@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.7.1 (04/02/2026)
+- Ajoute les colonnes fk_user_seal et date_seal sur llx_timesheet_week avec les index associés. / Adds fk_user_seal and date_seal columns on llx_timesheet_week with the related indexes.
+
 ## 1.7.0 (14/01/2026)
 - Ajoute un scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native. / Adds automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
 
