@@ -811,18 +811,6 @@ if ($action === 'seal' && $id > 0) {
 
 		$res = $object->seal($user, 'manual');
 		if ($res > 0) {
-				// EN: Store seal metadata for the manual action.
-				// FR : Stocke les métadonnées de scellement pour l'action manuelle.
-				$sqlSealMetadata = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET";
-				$sqlSealMetadata .= " fk_user_seal=".(int) $user->id;
-				$sqlSealMetadata .= ", date_seal='".$db->idate(dol_now())."'";
-				$sqlSealMetadata .= " WHERE rowid=".(int) $object->id;
-				$sqlSealMetadata .= " AND entity IN (".getEntity('timesheetweek').")";
-				if (!$db->query($sqlSealMetadata)) {
-						// EN: Keep the sheet sealed even if the metadata update fails.
-						// FR : Conserver la feuille scellée même si la mise à jour des métadonnées échoue.
-						dol_syslog('TimesheetWeek seal metadata update failed: '.$db->lasterror(), LOG_WARNING);
-				}
 				setEventMessages($langs->trans('TimesheetSealed'), null, 'mesgs');
 		} else {
 				$errmsg = tw_translate_error($object->error, $langs);
