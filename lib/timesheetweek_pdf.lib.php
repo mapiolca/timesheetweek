@@ -1277,128 +1277,123 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 
 	// EN: Describe the standard hour-based layout used for classic employees.
 	// FR: Décrit la mise en page standard en heures utilisée pour les salariés classiques.
-		$hoursColumnConfig = array(
-			'weights' => array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24),
-			'labels' => array(
-				$langs->trans('TimesheetWeekSummaryColumnWeek'),
-				$langs->trans('TimesheetWeekSummaryColumnStart'),
-				$langs->trans('TimesheetWeekSummaryColumnEnd'),
-				$langs->trans('TimesheetWeekSummaryColumnTotalHours'),
-				$langs->trans('TimesheetWeekSummaryColumnContractHours'),
-				$langs->trans('TimesheetWeekSummaryColumnOvertime'),
-				$langs->trans('TimesheetWeekSummaryColumnMeals'),
-				$langs->trans('TimesheetWeekSummaryColumnZone1'),
-				$langs->trans('TimesheetWeekSummaryColumnZone2'),
-				$langs->trans('TimesheetWeekSummaryColumnZone3'),
-				$langs->trans('TimesheetWeekSummaryColumnZone4'),
-				$langs->trans('TimesheetWeekSummaryColumnZone5'),
-				$langs->trans('TimesheetWeekSummaryColumnStatus')
-			),
-			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
-			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
-			'html_flags' => array(false, false, false, false, false, false, false, false, false, false, false, false, true)
-		);
+	$hoursColumnConfig = array(
+		'weights' => array(14, 20, 20, 16, 18, 18, 14, 11, 11, 11, 11, 11, 24),
+		'labels' => array(
+			$langs->trans('TimesheetWeekSummaryColumnWeek'),
+			$langs->trans('TimesheetWeekSummaryColumnStart'),
+			$langs->trans('TimesheetWeekSummaryColumnEnd'),
+			$langs->trans('TimesheetWeekSummaryColumnTotalHours'),
+			$langs->trans('TimesheetWeekSummaryColumnContractHours'),
+			$langs->trans('TimesheetWeekSummaryColumnOvertime'),
+			$langs->trans('TimesheetWeekSummaryColumnMeals'),
+			$langs->trans('TimesheetWeekSummaryColumnZone1'),
+			$langs->trans('TimesheetWeekSummaryColumnZone2'),
+			$langs->trans('TimesheetWeekSummaryColumnZone3'),
+			$langs->trans('TimesheetWeekSummaryColumnZone4'),
+			$langs->trans('TimesheetWeekSummaryColumnZone5'),
+			$langs->trans('TimesheetWeekSummaryColumnStatus')
+		),
+		'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
+		'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'L'),
+		'html_flags' => array(false, false, false, false, false, false, false, false, false, false, false, false, true)
+	);
 
-		$dailyColumnConfig = array(
-			'weights' => array(16, 20, 20, 18, 18, 28),
-			'labels' => array(
-				$langs->trans('TimesheetWeekSummaryColumnWeek'),
-				$langs->trans('TimesheetWeekSummaryColumnStart'),
-				$langs->trans('TimesheetWeekSummaryColumnEnd'),
-				$langs->trans('TimesheetWeekSummaryColumnTotalDays'),
-				$langs->trans('TimesheetWeekSummaryColumnContractDays'),
-				$langs->trans('TimesheetWeekSummaryColumnStatus')
-			),
-			'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'L'),
-			'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'L'),
-			'html_flags' => array(false, false, false, false, false, true)
-		);
+	$dailyColumnConfig = array(
+		'weights' => array(16, 20, 20, 18, 18, 28),
+		'labels' => array(
+			$langs->trans('TimesheetWeekSummaryColumnWeek'),
+			$langs->trans('TimesheetWeekSummaryColumnStart'),
+			$langs->trans('TimesheetWeekSummaryColumnEnd'),
+			$langs->trans('TimesheetWeekSummaryColumnTotalDays'),
+			$langs->trans('TimesheetWeekSummaryColumnContractDays'),
+			$langs->trans('TimesheetWeekSummaryColumnStatus')
+		),
+		'row_alignments' => array('C', 'C', 'C', 'R', 'R', 'L'),
+		'totals_alignments' => array('L', 'C', 'C', 'R', 'R', 'L'),
+		'html_flags' => array(false, false, false, false, false, true)
+	);
 
-$lineHeight = 6;
+	$lineHeight = 6;
 	$hoursPerDay = 8.0;
 
 	$isFirstUser = true;
 	foreach ($sortedUsers as $userSummary) {
-			$userObject = $userSummary['user'];
-			$records = $userSummary['records'];
-			$totals = $userSummary['totals'];
-			$isDailyRateEmployee = !empty($userSummary['is_daily_rate']);
-			$columnConfig = $isDailyRateEmployee ? $dailyColumnConfig : $hoursColumnConfig;
-			$columnLabels = $columnConfig['labels'];
-			$columnWidths = tw_pdf_compute_column_widths($columnConfig['weights'], $usableWidth);
-			$rowAlignments = $columnConfig['row_alignments'];
-			$totalsAlignments = $columnConfig['totals_alignments'];
+		$userObject = $userSummary['user'];
+		$records = $userSummary['records'];
+		$totals = $userSummary['totals'];
+		$isDailyRateEmployee = !empty($userSummary['is_daily_rate']);
+		$columnConfig = $isDailyRateEmployee ? $dailyColumnConfig : $hoursColumnConfig;
+		$columnLabels = $columnConfig['labels'];
+		$columnWidths = tw_pdf_compute_column_widths($columnConfig['weights'], $usableWidth);
+		$rowAlignments = $columnConfig['row_alignments'];
+		$totalsAlignments = $columnConfig['totals_alignments'];
 
-			$recordRows = array();
-			$recordLineHeights = array();
-			// EN: Keep track of each row height to share the same baseline during layout estimation and rendering.
-			// FR: Suit la hauteur de chaque ligne pour partager la même base lors de l'estimation et du rendu de la mise en page.
-			foreach ($records as $recordIndex => $record) {
-				$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by'], $record['sealed_on']);
-				// EN: Double the base line height when the status is approved or sealed to provide extra vertical space.
-				// FR: Double la hauteur de ligne de base lorsque le statut est approuvé ou scellé pour offrir plus d'espace vertical.
-				$isDoubleHeightStatus = in_array((int) $record['status'], array(TimesheetWeek::STATUS_APPROVED, TimesheetWeek::STATUS_SEALED), true);
-				$recordLineHeights[$recordIndex] = $lineHeight * ($isDoubleHeightStatus ? 2 : 1);
-				if ($isDailyRateEmployee) {
-					$recordRows[] = array(
-						sprintf('%d / %d', $record['week'], $record['year']),
-						dol_print_date($record['week_start']->getTimestamp(), 'day'),
-						dol_print_date($record['week_end']->getTimestamp(), 'day'),
-						tw_format_days_decimal(($record['total_hours'] / $hoursPerDay), $langs),
-						tw_format_days_decimal(($record['contract_hours'] / $hoursPerDay), $langs),
-						$statusCell
-					);
-				} else {
-					$recordRows[] = array(
-						sprintf('%d / %d', $record['week'], $record['year']),
-						dol_print_date($record['week_start']->getTimestamp(), 'day'),
-						dol_print_date($record['week_end']->getTimestamp(), 'day'),
-						tw_format_hours_decimal($record['total_hours']),
-						tw_format_hours_decimal($record['contract_hours']),
-						tw_format_hours_decimal($record['overtime_hours']),
-						(string) $record['meal_count'],
-						(string) $record['zone1_count'],
-						(string) $record['zone2_count'],
-						(string) $record['zone3_count'],
-						(string) $record['zone4_count'],
-						(string) $record['zone5_count'],
-						$statusCell
-					);
-				}
-			}
-
+		$recordRows = array();
+		// EN: Collect row values before computing their height from content.
+		// FR: Collecte les valeurs des lignes avant de calculer leur hauteur selon le contenu.
+		foreach ($records as $recordIndex => $record) {
+			$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by'], $record['sealed_on']);
 			if ($isDailyRateEmployee) {
-				$totalsRow = array(
-					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
-					'',
-					'',
-					tw_format_days_decimal(($totals['total_hours'] / $hoursPerDay), $langs),
-					tw_format_days_decimal(($totals['contract_hours'] / $hoursPerDay), $langs),
-					''
+				$recordRows[] = array(
+					sprintf('%d / %d', $record['week'], $record['year']),
+					dol_print_date($record['week_start']->getTimestamp(), 'day'),
+					dol_print_date($record['week_end']->getTimestamp(), 'day'),
+					tw_format_days_decimal(($record['total_hours'] / $hoursPerDay), $langs),
+					tw_format_days_decimal(($record['contract_hours'] / $hoursPerDay), $langs),
+					$statusCell
 				);
 			} else {
-				$totalsRow = array(
-					$langs->trans('TimesheetWeekSummaryTotalsLabel'),
-					'',
-					'',
-					tw_format_hours_decimal($totals['total_hours']),
-					tw_format_hours_decimal($totals['contract_hours']),
-					tw_format_hours_decimal($totals['overtime_hours']),
-					(string) $totals['meal_count'],
-					(string) $totals['zone1_count'],
-					(string) $totals['zone2_count'],
-					(string) $totals['zone3_count'],
-					(string) $totals['zone4_count'],
-					(string) $totals['zone5_count'],
-					''
+				$recordRows[] = array(
+					sprintf('%d / %d', $record['week'], $record['year']),
+					dol_print_date($record['week_start']->getTimestamp(), 'day'),
+					dol_print_date($record['week_end']->getTimestamp(), 'day'),
+					tw_format_hours_decimal($record['total_hours']),
+					tw_format_hours_decimal($record['contract_hours']),
+					tw_format_hours_decimal($record['overtime_hours']),
+					(string) $record['meal_count'],
+					(string) $record['zone1_count'],
+					(string) $record['zone2_count'],
+					(string) $record['zone3_count'],
+					(string) $record['zone4_count'],
+					(string) $record['zone5_count'],
+					$statusCell
 				);
 			}
+		}
 
-			$htmlFlags = $columnConfig['html_flags'] ?? array();
+		if ($isDailyRateEmployee) {
+			$totalsRow = array(
+				$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+				'',
+				'',
+				tw_format_days_decimal(($totals['total_hours'] / $hoursPerDay), $langs),
+				tw_format_days_decimal(($totals['contract_hours'] / $hoursPerDay), $langs),
+				''
+			);
+		} else {
+			$totalsRow = array(
+				$langs->trans('TimesheetWeekSummaryTotalsLabel'),
+				'',
+				'',
+				tw_format_hours_decimal($totals['total_hours']),
+				tw_format_hours_decimal($totals['contract_hours']),
+				tw_format_hours_decimal($totals['overtime_hours']),
+				(string) $totals['meal_count'],
+				(string) $totals['zone1_count'],
+				(string) $totals['zone2_count'],
+				(string) $totals['zone3_count'],
+				(string) $totals['zone4_count'],
+				(string) $totals['zone5_count'],
+				''
+			);
+		}
 
-			// EN: Anticipate the dynamic line height of each record to size the table and manage page breaks accurately.
-			// FR: Anticipe la hauteur de ligne dynamique de chaque enregistrement pour dimensionner le tableau et gérer précisément les sauts de page.
-			$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth, $htmlFlags, $recordLineHeights);
+		$htmlFlags = $columnConfig['html_flags'] ?? array();
+
+		// EN: Anticipate the dynamic height of each record to size the table and manage page breaks accurately.
+		// FR: Anticipe la hauteur dynamique de chaque enregistrement pour dimensionner le tableau et gérer précisément les sauts de page.
+		$tableHeight = tw_pdf_estimate_user_table_height($pdf, $langs, $userObject, $columnWidths, $columnLabels, $recordRows, $totalsRow, $lineHeight, $usableWidth, $htmlFlags);
 		$spacingBeforeTable = $isFirstUser ? 0 : 4;
 		$availableHeight = ($pageHeight - ($margeBasse + $footerReserve)) - $pdf->GetY();
 		if (($spacingBeforeTable + $tableHeight) > $availableHeight) {
@@ -1411,7 +1406,6 @@ $lineHeight = 6;
 				$warnings[] = $langs->trans('TimesheetWeekSummaryTableTooTall', $userObject->getFullName($langs));
 			}
 		}
-		
 		if ($isFirstUser) {
 			// EN: Skip the initial spacer so the first table begins on the opening page.
 			// FR: Ignore l'espacement initial pour que le premier tableau démarre sur la page d'ouverture.
@@ -1419,7 +1413,7 @@ $lineHeight = 6;
 		} else {
 			$pdf->Ln(4);
 		}
-		
+
 		tw_pdf_print_user_banner($pdf, $langs, $userObject, $defaultFontSize);
 		$headerY = $pdf->GetY() + 2;
 		// EN: Position the table header just after the employee banner.
@@ -1432,22 +1426,19 @@ $lineHeight = 6;
 		$pdf->SetX($margeGauche);
 		// EN: Draw the header row with uniform dimensions for every column.
 		// FR: Dessine la ligne d'entête avec des dimensions uniformes pour chaque colonne.
-			tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
-		'fill' => true,
-		'alignments' => array_fill(0, count($columnLabels), 'C'),
-		'html_flags' => $htmlFlags
-	));
+		tw_pdf_render_row($pdf, $columnWidths, $columnLabels, $lineHeight, array(
+			'fill' => true,
+			'alignments' => array_fill(0, count($columnLabels), 'C'),
+			'html_flags' => $htmlFlags
+		));
 
 		$pdf->SetFont('', '', $defaultFontSize - 1);
 		$alignments = $rowAlignments;
 		// EN: Render each data row while keeping consistent heights across the table.
 		// FR: Affiche chaque ligne de données en conservant des hauteurs cohérentes dans le tableau.
 		foreach ($recordRows as $rowIndex => $rowData) {
-			// EN: Reuse the dynamic line height computed earlier to align rendering with the layout estimation.
-			// FR: Réutilise la hauteur de ligne dynamique calculée précédemment pour aligner le rendu sur l'estimation de mise en page.
-			$currentLineHeight = $recordLineHeights[$rowIndex] ?? $lineHeight;
 			$pdf->SetX($margeGauche);
-			tw_pdf_render_row($pdf, $columnWidths, $rowData, $currentLineHeight, array(
+			tw_pdf_render_row($pdf, $columnWidths, $rowData, $lineHeight, array(
 				'alignments' => $alignments,
 				'html_flags' => $htmlFlags
 			));
@@ -1462,7 +1453,7 @@ $lineHeight = 6;
 			'html_flags' => $htmlFlags
 		));
 
-		}
+	}
 	$pdf->Output($filepath, 'F');
 
 	return array(
