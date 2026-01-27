@@ -526,6 +526,23 @@ if ($massaction === 'sceller') {
 		// FR: Refuse le scellement lorsque l'opérateur ne possède pas le droit dédié.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
+		$hasSealUserColumn = false;
+		$hasSealDateColumn = false;
+		// EN: Detect optional seal metadata columns once for the mass action.
+		// FR: Détecte les colonnes optionnelles de métadonnées de scellement pour l'action de masse.
+		$sqlCheckSealUser = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'fk_user_seal'";
+		$resqlCheckSealUser = $db->query($sqlCheckSealUser);
+		if ($resqlCheckSealUser) {
+			$hasSealUserColumn = ($db->num_rows($resqlCheckSealUser) > 0);
+			$db->free($resqlCheckSealUser);
+		}
+		$sqlCheckSealDate = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'date_seal'";
+		$resqlCheckSealDate = $db->query($sqlCheckSealDate);
+		if ($resqlCheckSealDate) {
+			$hasSealDateColumn = ($db->num_rows($resqlCheckSealDate) > 0);
+			$db->free($resqlCheckSealDate);
+		}
+
 		$db->begin();
 		$ok = 0;
 		$ko = array();
@@ -547,6 +564,27 @@ if ($massaction === 'sceller') {
 			}
 			$res = $o->seal($user, 'manual');
 			if ($res > 0) {
+				if ($hasSealUserColumn || $hasSealDateColumn) {
+					$sealNow = dol_now();
+					// EN: Persist seal metadata for the mass action when columns exist.
+					// FR: Persiste les métadonnées de scellement pour l'action de masse lorsque les colonnes existent.
+					$sqlSealMetadata = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET";
+					$sealUpdates = array();
+					if ($hasSealUserColumn) {
+						$sealUpdates[] = "fk_user_seal=".(int) $user->id;
+					}
+					if ($hasSealDateColumn) {
+						$sealUpdates[] = "date_seal='".$db->idate($sealNow)."'";
+					}
+					$sqlSealMetadata .= " ".implode(', ', $sealUpdates);
+					$sqlSealMetadata .= " WHERE rowid=".(int) $o->id;
+					$sqlSealMetadata .= " AND entity IN (".getEntity('timesheetweek').")";
+					if (!$db->query($sqlSealMetadata)) {
+						// EN: Keep the sheet sealed even if the metadata update fails.
+						// FR: Conserver la feuille scellée même si la mise à jour des métadonnées échoue.
+						dol_syslog('TimesheetWeek mass seal metadata update failed: '.$db->lasterror(), LOG_WARNING);
+					}
+				}
 				$ok++;
 			} else {
 				$ko[] = $o->ref ?: '#'.$id;
