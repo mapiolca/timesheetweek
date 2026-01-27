@@ -201,6 +201,7 @@ TimesheetWeekSummaryColumnStatus = Status
 TimesheetWeekSummaryColumnApprovedBy = Approved by
 TimesheetWeekSummaryStatusApprovedBy = Approved by %s
 TimesheetWeekSummaryStatusSealedBy = Sealed by %s
+TimesheetWeekSummaryStatusSealedOn = Sealed on %s
 TimesheetWeekSummaryUserTitle = %s
 TimesheetWeekSummaryTotalsLabel = Totals
 TimesheetWeekSummaryTableTooTall = The summary for %s contains too many rows to fit on a single page.

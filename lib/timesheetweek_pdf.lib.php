@@ -800,13 +800,15 @@ function tw_pdf_build_status_badge($status, $langs)
  * @param int       $status      Timesheet status code / Code du statut de la feuille
  * @param string    $approvedBy  Approver full name / Nom complet de l'approbateur
  * @param string    $sealedBy    Sealer full name / Nom complet du scelleur
+ * @param string    $sealedOn    Sealing date label / Libellé de date de scellement
  * @return string                HTML snippet for the cell / Fragment HTML pour la cellule
  */
-function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy)
+function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy, $sealedOn)
 {
 	$status = (int) $status;
 	$approvedBy = trim((string) $approvedBy);
 	$sealedBy = trim((string) $sealedBy);
+	$sealedOn = trim((string) $sealedOn);
 
 	$parts = array();
 	$parts[] = tw_pdf_build_status_badge($status, $langs);
@@ -819,6 +821,9 @@ function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy)
 		$sealedLabel = $sealedBy !== '' ? $sealedBy : $langs->trans('Unknown');
 		$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusApprovedBy', $approvedLabel)).'</span>';
 		$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusSealedBy', $sealedLabel)).'</span>';
+		if ($sealedOn !== '') {
+			$parts[] = '<span>'.dol_escape_htmltag($langs->trans('TimesheetWeekSummaryStatusSealedOn', $sealedOn)).'</span>';
+		}
 	}
 
 	return implode('<br />', $parts);
@@ -839,6 +844,23 @@ function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy)
  */
 function tw_collect_summary_data($db, array $timesheetIds, User $user, $permReadOwn, $permReadChild, $permReadAll)
 {
+	$hasSealUserColumn = false;
+	$hasSealDateColumn = false;
+	// EN: Detect optional seal metadata columns before building the summary query.
+	// FR: Détecte les colonnes optionnelles de métadonnées de scellement avant la requête de synthèse.
+	$sqlCheckSealUser = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'fk_user_seal'";
+	$resqlCheckSealUser = $db->query($sqlCheckSealUser);
+	if ($resqlCheckSealUser) {
+		$hasSealUserColumn = ($db->num_rows($resqlCheckSealUser) > 0);
+		$db->free($resqlCheckSealUser);
+	}
+	$sqlCheckSealDate = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'date_seal'";
+	$resqlCheckSealDate = $db->query($sqlCheckSealDate);
+	if ($resqlCheckSealDate) {
+		$hasSealDateColumn = ($db->num_rows($resqlCheckSealDate) > 0);
+		$db->free($resqlCheckSealDate);
+	}
+
 	$ids = array();
 	foreach ($timesheetIds as $candidate) {
 		$candidate = (int) $candidate;
@@ -853,9 +875,18 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 
 	$idList = implode(',', $ids);
 	$sql = "SELECT t.rowid, t.entity, t.year, t.week, t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count, t.fk_user, t.fk_user_valid, t.status, u.lastname, u.firstname, u.weeklyhours, uv.lastname as validator_lastname, uv.firstname as validator_firstname";
+	if ($hasSealUserColumn) {
+		$sql .= ", t.fk_user_seal, us.lastname as sealer_lastname, us.firstname as sealer_firstname";
+	}
+	if ($hasSealDateColumn) {
+		$sql .= ", t.date_seal";
+	}
 	$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week as t";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = t.fk_user";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as uv ON uv.rowid = t.fk_user_valid";
+	if ($hasSealUserColumn) {
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as us ON us.rowid = t.fk_user_seal";
+	}
 	$sql .= " WHERE t.rowid IN (".$idList.")";
 	$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
 
@@ -932,10 +963,20 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 
 		$status = (int) $row->status;
 		$sealedBy = '';
+		$sealedOn = '';
 		if ($status === TimesheetWeek::STATUS_SEALED) {
-			// EN: Resolve the user who sealed the timesheet through agenda history.
-			// FR: Résout l'utilisateur ayant scellé la feuille via l'historique agenda.
-			$sealedBy = tw_pdf_resolve_sealed_by($db, (int) $row->rowid, (int) $row->entity);
+			if ($hasSealUserColumn && (!empty($row->sealer_lastname) || !empty($row->sealer_firstname))) {
+				// EN: Use the sealer name stored on the sheet when available.
+				// FR: Utilise le nom du scelleur stocké sur la feuille lorsqu'il est disponible.
+				$sealedBy = dolGetFirstLastname($row->sealer_firstname, $row->sealer_lastname);
+			} else {
+				// EN: Resolve the user who sealed the timesheet through agenda history.
+				// FR: Résout l'utilisateur ayant scellé la feuille via l'historique agenda.
+				$sealedBy = tw_pdf_resolve_sealed_by($db, (int) $row->rowid, (int) $row->entity);
+			}
+			if ($hasSealDateColumn && !empty($row->date_seal)) {
+				$sealedOn = dol_print_date($db->jdate($row->date_seal), 'day');
+			}
 		}
 
 		$record = array(
@@ -956,6 +997,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 			'zone5_count' => (int) $row->zone5_count,
 			'approved_by' => $approvedBy,
 			'sealed_by' => $sealedBy,
+			'sealed_on' => $sealedOn,
 			'status' => $status
 		);
 
@@ -1292,7 +1334,7 @@ $lineHeight = 6;
 			// EN: Keep track of each row height to share the same baseline during layout estimation and rendering.
 			// FR: Suit la hauteur de chaque ligne pour partager la même base lors de l'estimation et du rendu de la mise en page.
 			foreach ($records as $recordIndex => $record) {
-				$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by']);
+				$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by'], $record['sealed_on']);
 				// EN: Double the base line height when the status is approved or sealed to provide extra vertical space.
 				// FR: Double la hauteur de ligne de base lorsque le statut est approuvé ou scellé pour offrir plus d'espace vertical.
 				$isDoubleHeightStatus = in_array((int) $record['status'], array(TimesheetWeek::STATUS_APPROVED, TimesheetWeek::STATUS_SEALED), true);

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
 	date_validation DATETIME DEFAULT NULL,
 	fk_user_valid INT DEFAULT NULL,
+	fk_user_seal INT DEFAULT NULL,
+	date_seal DATETIME DEFAULT NULL,
 	total_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
 	overtime_hours DOUBLE(24,8) NOT NULL DEFAULT 0,
 	contract DOUBLE(24,8) DEFAULT NULL,
@@ -32,7 +34,9 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	KEY idx_timesheet_week_entity (entity),
 	KEY idx_timesheet_week_user (fk_user),
 	KEY idx_timesheet_week_user_valid (fk_user_valid),
+	KEY idx_timesheet_week_fk_user_seal (fk_user_seal),
 	KEY idx_timesheet_week_yearweek (year, week),
+	KEY idx_timesheet_week_date_seal (date_seal),
 
 	CONSTRAINT fk_timesheet_week_user
 		FOREIGN KEY (fk_user) REFERENCES llx_user (rowid),
