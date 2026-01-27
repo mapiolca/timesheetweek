@@ -184,10 +184,13 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 			return '';
 		}
 
-		// EN: Build preview and download URLs exactly like Dolibarr's invoice dropdown for consistency.
-		// FR: Construit les URLs d'aperçu et de téléchargement comme le menu des factures Dolibarr pour rester cohérent.
+		// EN: Build preview and download URLs while honoring the MAIN_DISABLE_FORCE_SAVEAS setting.
+		// FR: Construit les URLs d'aperçu et de téléchargement en respectant MAIN_DISABLE_FORCE_SAVEAS.
+		$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+		$downloadAttachment = ($forceSaveAs > 0 ? 0 : 1);
+		$downloadTarget = ($forceSaveAs === 2 ? ' target="_blank"' : '');
 		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
-		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment=1&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment='.$downloadAttachment.'&permission=read';
 		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
 		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
 		$titleLabel = dol_escape_htmltag($pdfFilename);
@@ -198,7 +201,7 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 		$html .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
 		$html .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
 		$html .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
-		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
+		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"'.$downloadTarget.'><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
 		$html .= '</ul></div></dd>';
 		$html .= '</dl>';
 
@@ -630,11 +633,20 @@ if ($massaction === 'generate_summary_pdf') {
 					setEventMessages(null, $result['warnings'], 'warnings');
 				}
 				if (!empty($result['relative'])) {
-					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission=read';
-					header('Location: '.$downloadUrl);
-					exit;
+					$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+					$attachment = ($forceSaveAs > 0 ? 0 : 1);
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+					if ($forceSaveAs === 2) {
+						$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+						$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+						setEventMessages($langs->trans('TimesheetWeekSummaryGenerated').' '.$link, null, 'mesgs');
+					} else {
+						header('Location: '.$downloadUrl);
+						exit;
+					}
+				} else {
+					setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
 				}
-				setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
 			}
 		}
 	}
@@ -787,10 +799,18 @@ if ($massaction === 'builddoc_merge_pdf') {
 							if (!empty($errors)) {
 									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
 							}
-							setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
-							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&permission=read';
-							header('Location: '.$downloadUrl);
-							exit;
+							$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+							$attachment = ($forceSaveAs > 0 ? 0 : 1);
+							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+							if ($forceSaveAs === 2) {
+								$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+								$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess').' '.$link, null, 'mesgs');
+							} else {
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
+								header('Location: '.$downloadUrl);
+								exit;
+							}
 					}
 			}
 	}

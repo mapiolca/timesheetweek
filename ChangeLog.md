@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.7.7 (08/02/2026)
+- Respecte MAIN_DISABLE_FORCE_SAVEAS pour les liens PDF (aperçu, téléchargement, redirections). / Honors MAIN_DISABLE_FORCE_SAVEAS for PDF links (preview, download, redirects).
+
 ## 1.7.6 (07/02/2026)
 - Ajuste la hauteur des lignes du tableau de synthèse PDF selon le contenu. / Adjusts summary PDF table row height based on content.
 
