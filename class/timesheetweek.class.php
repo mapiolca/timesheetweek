@@ -295,6 +295,14 @@ class TimesheetWeek extends CommonObject
 			return -1;
 		}
 
+		// EN: Fire business trigger for creation to feed native Notification subscriptions.
+		// FR: Déclenche le trigger métier de création pour alimenter les abonnements Notification natifs.
+		$resultTriggerCreate = $this->fireNotificationTrigger('TIMESHEETWEEK_CREATE', $user);
+		if ($resultTriggerCreate < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 		return $this->id;
 	}
@@ -514,6 +522,13 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
+
+		// EN: Fire the save trigger after successful persistence.
+		// FR: Déclenche le trigger de sauvegarde après une persistance réussie.
+		$resultTriggerSave = $this->fireNotificationTrigger('TIMESHEETWEEK_SAVE', $user);
+		if ($resultTriggerSave < 0) {
+			return -1;
+		}
 		return 1;
 	}
 
@@ -690,6 +705,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		// EN: Fire business trigger for deletion so Notification module listeners are called.
+		// FR: Déclenche le trigger métier de suppression pour notifier les abonnements du module Notification.
+		$resultTriggerDelete = $this->fireNotificationTrigger('TIMESHEETWEEK_DELETE', $user);
+		if ($resultTriggerDelete < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1110,6 +1133,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		// EN: Fire business trigger for sealing so business notifications can subscribe to this lifecycle step.
+		// FR: Déclenche le trigger métier de scellement pour permettre les abonnements de notification sur cette étape.
+		$resultTriggerSeal = $this->fireNotificationTrigger('TIMESHEETWEEK_SEAL', $user);
+		if ($resultTriggerSeal < 0) {
 			$this->db->rollback();
 			return -1;
 		}

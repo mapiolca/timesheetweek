@@ -24,6 +24,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 	 * @var array<string,array{automatic:string,business:string}>
 	 */
 	protected $agendaActionMap = array(
+		'TSWK_CREATE' => array(
+			'automatic' => '',
+			'business' => 'TIMESHEETWEEK_CREATE',
+		),
 		'TSWK_SUBMIT' => array(
 			'automatic' => 'TIMESHEETWEEK_SUBMITTED',
 			'business' => 'TIMESHEETWEEK_SUBMIT',
@@ -31,6 +35,14 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		'TSWK_APPROVE' => array(
 			'automatic' => 'TIMESHEETWEEK_APPROVED',
 			'business' => 'TIMESHEETWEEK_APPROVE',
+		),
+		'TSWK_SEAL' => array(
+			'automatic' => '',
+			'business' => 'TIMESHEETWEEK_SEAL',
+		),
+		'TSWK_DELETE' => array(
+			'automatic' => '',
+			'business' => 'TIMESHEETWEEK_DELETE',
 		),
 		'TSWK_REFUSE' => array(
 			'automatic' => 'TIMESHEETWEEK_REFUSED',
@@ -47,6 +59,18 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		'TIMESHEETWEEK_SUBMIT' => 'TIMESHEETWEEK_SUBMITTED',
 		'TIMESHEETWEEK_APPROVE' => 'TIMESHEETWEEK_APPROVED',
 		'TIMESHEETWEEK_REFUSE' => 'TIMESHEETWEEK_REFUSED',
+	);
+
+	/**
+	 * Business trigger codes without automatic mail counterpart.
+	 *
+	 * @var array<int,string>
+	 */
+	protected $businessOnlyCodes = array(
+		'TIMESHEETWEEK_CREATE',
+		'TIMESHEETWEEK_SAVE',
+		'TIMESHEETWEEK_DELETE',
+		'TIMESHEETWEEK_SEAL',
 	);
 
         /**
@@ -92,6 +116,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		if (isset($this->businessToAutomaticMap[$action])) {
 			$automaticAction = $this->businessToAutomaticMap[$action];
 			return $this->processNotificationDispatch($object, $user, $langs, $conf, $action, $automaticAction);
+		}
+
+		if (in_array($action, $this->businessOnlyCodes, true)) {
+			return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
 		}
 
 		if (in_array($action, $this->businessToAutomaticMap, true)) {

@@ -287,6 +287,10 @@ TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %
 Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
 Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
 Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+Notify_TIMESHEETWEEK_CREATE = Stundenzettel erstellt
+Notify_TIMESHEETWEEK_SAVE = Stundenzettel gespeichert
+Notify_TIMESHEETWEEK_DELETE = Stundenzettel gelöscht
+Notify_TIMESHEETWEEK_SEAL = Stundenzettel versiegelt
 TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 

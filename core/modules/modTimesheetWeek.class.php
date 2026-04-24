@@ -974,6 +974,16 @@ class modTimesheetWeek extends DolibarrModules
 	protected function registerTimesheetWeekActionTriggers()
 	{
 		$triggers = array(
+			'TIMESHEETWEEK_CREATE' => array(
+				'label' => 'Création feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est créée.',
+				'rang' => 2098,
+			),
+			'TIMESHEETWEEK_SAVE' => array(
+				'label' => 'Sauvegarde feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est sauvegardée.',
+				'rang' => 2099,
+			),
 			'TIMESHEETWEEK_SUBMIT' => array(
 				'label' => 'Soumission feuille de temps',
 				'description' => 'Déclenché quand une feuille de temps est soumise.',
@@ -988,6 +998,16 @@ class modTimesheetWeek extends DolibarrModules
 				'label' => 'Refus feuille de temps',
 				'description' => 'Déclenché quand une feuille de temps est refusée.',
 				'rang' => 2102,
+			),
+			'TIMESHEETWEEK_DELETE' => array(
+				'label' => 'Suppression feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est supprimée.',
+				'rang' => 2103,
+			),
+			'TIMESHEETWEEK_SEAL' => array(
+				'label' => 'Scellement feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est scellée.',
+				'rang' => 2104,
 			),
 		);
 

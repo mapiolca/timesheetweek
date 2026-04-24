@@ -4,7 +4,17 @@
 
 UPDATE llx_c_action_trigger
 SET elementtype = 'timesheetweek@timesheetweek'
-WHERE code IN ('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE');
+WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SAVE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_SEAL');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_CREATE', 'Création feuille de temps', 'Déclenché quand une feuille de temps est créée.', 'timesheetweek@timesheetweek', 2098
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_CREATE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_SAVE', 'Sauvegarde feuille de temps', 'Déclenché quand une feuille de temps est sauvegardée.', 'timesheetweek@timesheetweek', 2099
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_SAVE');
 
 INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_SUBMIT', 'Soumission feuille de temps', 'Déclenché quand une feuille de temps est soumise.', 'timesheetweek@timesheetweek', 2100
@@ -20,3 +30,13 @@ INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_REFUSE', 'Refus feuille de temps', 'Déclenché quand une feuille de temps est refusée.', 'timesheetweek@timesheetweek', 2102
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_REFUSE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_DELETE', 'Suppression feuille de temps', 'Déclenché quand une feuille de temps est supprimée.', 'timesheetweek@timesheetweek', 2103
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_DELETE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_SEAL', 'Scellement feuille de temps', 'Déclenché quand une feuille de temps est scellée.', 'timesheetweek@timesheetweek', 2104
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_SEAL');
