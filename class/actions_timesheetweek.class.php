@@ -291,7 +291,6 @@ class ActionsTimesheetweek
             'TIMESHEETWEEK_SUBMIT',
             'TIMESHEETWEEK_APPROVE',
             'TIMESHEETWEEK_REFUSE',
-            'TIMESHEETWEEK_SENTBYMAIL',
             'TIMESHEETWEEK_SEAL',
             'TIMESHEETWEEK_BACKTODRAFT',
             'TIMESHEETWEEK_DELETE',
