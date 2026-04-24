@@ -260,6 +260,7 @@ Overtime = Overtime
 TimesheetWeekMailDefaultSubject = Timesheet %s
 TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
 TimesheetWeekMailSendToHelp = Separate email addresses with commas.
+MailToSendTimesheetWeek = Timesheet settimanale da inviare
 Sendbymail = Send by mail
 TimesheetWeekNotificationSubmitSubject = Timesheet %s submitted
 TimesheetWeekNotificationSubmitBody = Hello %s,\n\nThe employee %s submitted the timesheet %s for week %s/%s.\nYou can review it here: %s\n\n%s

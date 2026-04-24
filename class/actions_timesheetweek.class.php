@@ -304,4 +304,27 @@ class ActionsTimesheetweek
 
         return 0;
     }
+
+	/**
+	 * Add TimesheetWeek entry into email templates element list.
+	 *
+	 * @param array<string,mixed> $parameters Hook parameters
+	 * @param CommonObject        $object Current object
+	 * @param string              $action Current action
+	 * @param HookManager         $hookmanager Hook manager propagated
+	 *
+	 * @return int
+	 */
+	public function emailElementlist($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+
+		$langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+		$this->results = array(
+			'timesheetweek' => img_picto('', 'fa-clock', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendTimesheetWeek')),
+		);
+
+		return 0;
+	}
 }
