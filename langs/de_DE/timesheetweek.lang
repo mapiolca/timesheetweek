@@ -322,6 +322,14 @@ TimesheetWeekRightValidateChild = Validate subordinates' timesheets
 TimesheetWeekRightValidateAll = Validate all timesheets
 TimesheetWeekRightSeal = Seal timesheets
 TimesheetWeekRightUnseal = Unseal timesheets
+TimesheetWeekRightDisableOwnHoliday = Eigene Urlaube im Stundenzettel deaktivieren
+TimesheetWeekRightDisableChildHoliday = Urlaube von Unterstellten im Stundenzettel deaktivieren
+TimesheetWeekRightDisableAllHoliday = Urlaube aller Benutzer im Stundenzettel deaktivieren
+TimesheetWeekHolidayPlaceholderLeave = Urlaub
+TimesheetWeekHolidayPlaceholderRtt = RTT
+TimesheetWeekPdfLeaveRowTitle = Urlaub/RTT
+TimesheetWeekPdfLeaveHalfDayLabel = %s (%s)
+TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
 
 TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
 TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.

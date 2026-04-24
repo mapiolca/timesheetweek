@@ -322,6 +322,14 @@ TimesheetWeekRightValidateChild = Validate subordinates' timesheets
 TimesheetWeekRightValidateAll = Validate all timesheets
 TimesheetWeekRightSeal = Seal timesheets
 TimesheetWeekRightUnseal = Unseal timesheets
+TimesheetWeekRightDisableOwnHoliday = Puede desactivar sus ausencias en la hoja
+TimesheetWeekRightDisableChildHoliday = Puede desactivar las ausencias de subordinados en la hoja
+TimesheetWeekRightDisableAllHoliday = Puede desactivar las ausencias de todos en la hoja
+TimesheetWeekHolidayPlaceholderLeave = Vacaciones
+TimesheetWeekHolidayPlaceholderRtt = RTT
+TimesheetWeekPdfLeaveRowTitle = Ausencias/RTT
+TimesheetWeekPdfLeaveHalfDayLabel = %s (%s)
+TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
 
 TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
 TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.
