@@ -28,6 +28,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+require_once DOL_DOCUMENT_ROOT.'/holiday/class/holiday.class.php';
 
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
@@ -848,6 +849,101 @@ function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy, $se
 }
 
 /**
+ * EN: Count approved leave and RTT days for one user over a given period (supports half-days).
+ * FR: Compte les jours de congés et RTT approuvés pour un utilisateur sur une période donnée (gère les demi-journées).
+ *
+ * @param DoliDB $db         Database handler
+ * @param int    $userId     Target user identifier
+ * @param string $startDate  Period start date (Y-m-d)
+ * @param string $endDate    Period end date (Y-m-d)
+ * @return array{leave_days:float,rtt_days:float}
+ */
+function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate)
+{
+	static $cache = array();
+
+	$userId = (int) $userId;
+	$startDate = (string) $startDate;
+	$endDate = (string) $endDate;
+	if ($userId <= 0 || empty($startDate) || empty($endDate) || !isModEnabled('holiday')) {
+		return array('leave_days' => 0.0, 'rtt_days' => 0.0);
+	}
+
+	$cacheKey = $userId.'|'.$startDate.'|'.$endDate;
+	if (isset($cache[$cacheKey])) {
+		return $cache[$cacheKey];
+	}
+
+	$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+	$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+	$sql .= " AND h.fk_user = ".$userId;
+	$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+	$sql .= " AND h.date_debut <= '".$db->escape($endDate)." 23:59:59'";
+	$sql .= " AND h.date_fin >= '".$db->escape($startDate)." 00:00:00'";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$cache[$cacheKey] = array('leave_days' => 0.0, 'rtt_days' => 0.0);
+		return $cache[$cacheKey];
+	}
+
+	$leaveDays = 0.0;
+	$rttDays = 0.0;
+	while ($obj = $db->fetch_object($resql)) {
+		$startTs = strtotime((string) $obj->date_debut);
+		$endTs = strtotime((string) $obj->date_fin);
+		if ($startTs === false || $endTs === false) {
+			continue;
+		}
+
+		$currentDate = date('Y-m-d', $startTs);
+		$lastDate = date('Y-m-d', $endTs);
+		$halfdayCode = (int) $obj->halfday;
+		$typeCode = strtoupper(trim((string) $obj->type_code));
+		$typeLabel = strtoupper(trim((string) $obj->type_label));
+		$isRtt = (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false);
+		while ($currentDate <= $lastDate) {
+			if ($currentDate >= $startDate && $currentDate <= $endDate) {
+				$dayValue = 1.0;
+				$isStartDay = ($currentDate === date('Y-m-d', $startTs));
+				$isEndDay = ($currentDate === date('Y-m-d', $endTs));
+
+				if ($isStartDay && $isEndDay) {
+					if ($halfdayCode === 1 || $halfdayCode === -1) {
+						$dayValue = 0.5;
+					}
+				} else {
+					if ($isStartDay && ($halfdayCode === -1 || $halfdayCode === 2)) {
+						$dayValue -= 0.5;
+					}
+					if ($isEndDay && ($halfdayCode === 1 || $halfdayCode === 2)) {
+						$dayValue -= 0.5;
+					}
+				}
+
+				if ($dayValue > 0) {
+					if ($isRtt) {
+						$rttDays += $dayValue;
+					} else {
+						$leaveDays += $dayValue;
+					}
+				}
+			}
+			$currentDate = date('Y-m-d', strtotime($currentDate.' +1 day'));
+		}
+	}
+	$db->free($resql);
+
+	$cache[$cacheKey] = array(
+		'leave_days' => (float) price2num((string) $leaveDays, 'MT'),
+		'rtt_days' => (float) price2num((string) $rttDays, 'MT')
+	);
+	return $cache[$cacheKey];
+}
+
+/**
  * EN: Build the dataset required to generate a PDF summary of weekly timesheets.
  * FR: Construit l'ensemble de données nécessaire pour générer un résumé PDF des feuilles hebdomadaires.
  *
@@ -962,6 +1058,8 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 					'total_hours' => 0.0,
 					'contract_hours' => 0.0,
 					'overtime_hours' => 0.0,
+					'leave_days' => 0.0,
+					'rtt_days' => 0.0,
 					'meal_count' => 0,
 					'zone1_count' => 0,
 					'zone2_count' => 0,
@@ -997,17 +1095,19 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 			}
 		}
 
-		$record = array(
+			$record = array(
 			'id' => (int) $row->rowid,
 			'entity' => (int) $row->entity,
 			'week' => $week,
 			'year' => $year,
 			'week_start' => $weekStart,
 			'week_end' => $weekEnd,
-			'total_hours' => (float) $row->total_hours,
-			'contract_hours' => (float) $contractHours,
-			'overtime_hours' => (float) $row->overtime_hours,
-			'meal_count' => (int) $row->meal_count,
+				'total_hours' => (float) $row->total_hours,
+				'contract_hours' => (float) $contractHours,
+				'overtime_hours' => (float) $row->overtime_hours,
+				'leave_days' => 0.0,
+				'rtt_days' => 0.0,
+				'meal_count' => (int) $row->meal_count,
 			'zone1_count' => (int) $row->zone1_count,
 			'zone2_count' => (int) $row->zone2_count,
 			'zone3_count' => (int) $row->zone3_count,
@@ -1017,12 +1117,17 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 			'sealed_by' => $sealedBy,
 			'sealed_on' => $sealedOn,
 			'status' => $status
-		);
+			);
+			$holidayDayCounters = tw_pdf_count_holiday_days_for_period($db, $targetUserId, $weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d'));
+			$record['leave_days'] = isset($holidayDayCounters['leave_days']) ? (float) $holidayDayCounters['leave_days'] : 0.0;
+			$record['rtt_days'] = isset($holidayDayCounters['rtt_days']) ? (float) $holidayDayCounters['rtt_days'] : 0.0;
 
 		$dataset[$targetUserId]['records'][] = $record;
 		$dataset[$targetUserId]['totals']['total_hours'] += $record['total_hours'];
 		$dataset[$targetUserId]['totals']['contract_hours'] += $record['contract_hours'];
 		$dataset[$targetUserId]['totals']['overtime_hours'] += $record['overtime_hours'];
+		$dataset[$targetUserId]['totals']['leave_days'] += $record['leave_days'];
+		$dataset[$targetUserId]['totals']['rtt_days'] += $record['rtt_days'];
 		$dataset[$targetUserId]['totals']['meal_count'] += $record['meal_count'];
 		$dataset[$targetUserId]['totals']['zone1_count'] += $record['zone1_count'];
 		$dataset[$targetUserId]['totals']['zone2_count'] += $record['zone2_count'];
@@ -1342,6 +1447,34 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		$totals = $userSummary['totals'];
 		$isDailyRateEmployee = !empty($userSummary['is_daily_rate']);
 		$columnConfig = $isDailyRateEmployee ? $dailyColumnConfig : $hoursColumnConfig;
+		$showLeaveDaysColumn = false;
+		$showRttDaysColumn = false;
+		foreach ($records as $record) {
+			if (!empty($record['leave_days'])) {
+				$showLeaveDaysColumn = true;
+			}
+			if (!empty($record['rtt_days'])) {
+				$showRttDaysColumn = true;
+			}
+		}
+		if ($showLeaveDaysColumn || $showRttDaysColumn) {
+			$insertIndex = count($columnConfig['labels']) - 1;
+			if ($showLeaveDaysColumn) {
+				array_splice($columnConfig['weights'], $insertIndex, 0, array(12));
+				array_splice($columnConfig['labels'], $insertIndex, 0, array($langs->trans('TimesheetWeekSummaryColumnLeaveDays')));
+				array_splice($columnConfig['row_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['totals_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['html_flags'], $insertIndex, 0, array(false));
+				$insertIndex++;
+			}
+			if ($showRttDaysColumn) {
+				array_splice($columnConfig['weights'], $insertIndex, 0, array(12));
+				array_splice($columnConfig['labels'], $insertIndex, 0, array($langs->trans('TimesheetWeekSummaryColumnRttDays')));
+				array_splice($columnConfig['row_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['totals_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['html_flags'], $insertIndex, 0, array(false));
+			}
+		}
 		$columnLabels = $columnConfig['labels'];
 		$columnWidths = tw_pdf_compute_column_widths($columnConfig['weights'], $usableWidth);
 		$rowAlignments = $columnConfig['row_alignments'];
@@ -1353,7 +1486,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		foreach ($records as $recordIndex => $record) {
 			$statusCell = tw_pdf_compose_status_cell($langs, $record['status'], $record['approved_by'], $record['sealed_by'], $record['sealed_on']);
 			if ($isDailyRateEmployee) {
-				$recordRows[] = array(
+				$rowData = array(
 					sprintf('%d / %d', $record['week'], $record['year']),
 					dol_print_date($record['week_start']->getTimestamp(), 'day'),
 					dol_print_date($record['week_end']->getTimestamp(), 'day'),
@@ -1361,8 +1494,15 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 					tw_format_days_decimal(($record['contract_hours'] / $hoursPerDay), $langs),
 					$statusCell
 				);
+				if ($showLeaveDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['leave_days'], $langs)));
+				}
+				if ($showRttDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['rtt_days'], $langs)));
+				}
+				$recordRows[] = $rowData;
 			} else {
-				$recordRows[] = array(
+				$rowData = array(
 					sprintf('%d / %d', $record['week'], $record['year']),
 					dol_print_date($record['week_start']->getTimestamp(), 'day'),
 					dol_print_date($record['week_end']->getTimestamp(), 'day'),
@@ -1377,6 +1517,13 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 					(string) $record['zone5_count'],
 					$statusCell
 				);
+				if ($showLeaveDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['leave_days'], $langs)));
+				}
+				if ($showRttDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['rtt_days'], $langs)));
+				}
+				$recordRows[] = $rowData;
 			}
 		}
 
@@ -1389,6 +1536,12 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				tw_format_days_decimal(($totals['contract_hours'] / $hoursPerDay), $langs),
 				''
 			);
+			if ($showLeaveDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['leave_days'], $langs)));
+			}
+			if ($showRttDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['rtt_days'], $langs)));
+			}
 		} else {
 			$totalsRow = array(
 				$langs->trans('TimesheetWeekSummaryTotalsLabel'),
@@ -1405,6 +1558,12 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				(string) $totals['zone5_count'],
 				''
 			);
+			if ($showLeaveDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['leave_days'], $langs)));
+			}
+			if ($showRttDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['rtt_days'], $langs)));
+			}
 		}
 
 		$htmlFlags = $columnConfig['html_flags'] ?? array();
