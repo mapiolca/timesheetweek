@@ -290,7 +290,7 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_CREATE', 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -704,7 +704,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_DELETE', 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -902,7 +902,15 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
+		// EN: Fire business trigger so Agenda automatic events can react when enabled on this trigger.
+		// FR: Déclenche le trigger métier pour que les événements automatiques Agenda puissent réagir si activés.
+		$resultTriggerSubmit = $this->fireNotificationTrigger('TIMESHEETWEEK_SUBMIT', $user);
+		if ($resultTriggerSubmit < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_SUBMIT', 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -972,7 +980,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_REOPEN', 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1041,7 +1049,15 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->date_validation = $now;
 		$this->tms = $now;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
+		// EN: Fire business trigger so Agenda automatic events can react when enabled on this trigger.
+		// FR: Déclenche le trigger métier pour que les événements automatiques Agenda puissent réagir si activés.
+		$resultTriggerApprove = $this->fireNotificationTrigger('TIMESHEETWEEK_APPROVE', $user);
+		if ($resultTriggerApprove < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_APPROVE', 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1140,7 +1156,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_SEAL', 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1554,7 +1570,15 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->date_validation = $now;
 		$this->tms = $now;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
+		// EN: Fire business trigger so Agenda automatic events can react when enabled on this trigger.
+		// FR: Déclenche le trigger métier pour que les événements automatiques Agenda puissent réagir si activés.
+		$resultTriggerRefuse = $this->fireNotificationTrigger('TIMESHEETWEEK_REFUSE', $user);
+		if ($resultTriggerRefuse < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_REFUSE', 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -2361,6 +2385,44 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		if ((int) $mode === 2) return $picto.' '.$info['label'];
 		if ((int) $mode === 3) return $info['label'].' '.$picto;
 		return $info['label'];
+	}
+
+	/**
+	* Check if Agenda automatic events are enabled for a business trigger code.
+	*
+	* @param string $triggerCode Business trigger code
+	* @return bool
+	*/
+	protected function isAgendaAutomaticEventEnabledForTrigger($triggerCode)
+	{
+		if (!function_exists('isModEnabled') || !isModEnabled('agenda')) {
+			return false;
+		}
+
+		return ((int) getDolGlobalInt('MAIN_AGENDA_ACTIONAUTO_'.$triggerCode) > 0);
+	}
+
+	/**
+	* Create a manual agenda event only when the matching automatic trigger is not enabled.
+	*
+	* @param User   $user
+	* @param string $triggerCode  Business trigger code
+	* @param string $agendaCode   Agenda event code
+	* @param string $labelKey     Translation key for agenda label
+	* @param array  $labelParams  Parameters used in translation
+	* @param bool   $linkToObject Whether to link agenda event to current object
+	*
+	* @return bool
+	*/
+	protected function createAgendaEventFromTrigger($user, $triggerCode, $agendaCode, $labelKey, array $labelParams = array(), $linkToObject = true)
+	{
+		// EN: Let Agenda module create the event itself when automatic events are enabled for this trigger.
+		// FR: Laisse le module Agenda créer lui-même l'événement quand l'option automatique est active pour ce trigger.
+		if ($this->isAgendaAutomaticEventEnabledForTrigger($triggerCode)) {
+			return true;
+		}
+
+		return $this->createAgendaEvent($user, $agendaCode, $labelKey, $labelParams, $linkToObject);
 	}
 
 	/**
