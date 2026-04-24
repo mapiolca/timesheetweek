@@ -229,21 +229,29 @@ function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 * EN: Check if current user can unlock day columns that are marked as approved leave.
 * FR: Vérifie si l'utilisateur courant peut déverrouiller les colonnes marquées en congé approuvé.
 *
-* @param User $user Current user / Utilisateur courant
-* @return bool      True when leave lock override is allowed / Vrai si le déverrouillage est autorisé
-*/
-function tw_can_override_holiday_lock(User $user)
+ * @param User $user         Current user / Utilisateur courant
+ * @param int  $targetUserId Leave owner user identifier / Identifiant utilisateur propriétaire du congé
+ * @return bool              True when leave lock override is allowed / Vrai si le déverrouillage est autorisé
+ */
+function tw_can_override_holiday_lock(User $user, $targetUserId)
 {
-	if (!method_exists($user, 'hasRight')) {
-		// @BACKPORT v19→v20 : hasRight() is not available before v19.
-		return !empty($user->rights->timesheetweek->disableownholiday)
-			|| !empty($user->rights->timesheetweek->disablechildholiday)
-			|| !empty($user->rights->timesheetweek->disableallholiday);
+	$targetUserId = (int) $targetUserId;
+	if (!isModEnabled('holiday') || $targetUserId <= 0) {
+		return false;
 	}
 
-	return $user->hasRight('timesheetweek', 'disableownholiday')
-		|| $user->hasRight('timesheetweek', 'disablechildholiday')
-		|| $user->hasRight('timesheetweek', 'disableallholiday');
+	if (!method_exists($user, 'hasRight')) {
+		// @BACKPORT v19→v20 : hasRight() is not available before v19.
+		$canOwn = !empty($user->rights->timesheetweek->disableownholiday);
+		$canChild = !empty($user->rights->timesheetweek->disablechildholiday);
+		$canAll = !empty($user->rights->timesheetweek->disableallholiday);
+	} else {
+		$canOwn = $user->hasRight('timesheetweek', 'disableownholiday');
+		$canChild = $user->hasRight('timesheetweek', 'disablechildholiday');
+		$canAll = $user->hasRight('timesheetweek', 'disableallholiday');
+	}
+
+	return tw_can_act_on_user($targetUserId, $canOwn, $canChild, $canAll, $user);
 }
 
 /**
@@ -1666,7 +1674,7 @@ $hasLegacyHalfDayDailyRate = true;
 
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
-		$canOverrideHolidayLock = tw_can_override_holiday_lock($user);
+		$canOverrideHolidayLock = tw_can_override_holiday_lock($user, $object->fk_user);
 		$holidayPlaceholderByDay = tw_get_holiday_placeholders_by_day($db, $object->fk_user, $weekdates, $langs);
 
 			echo '<div class="div-table-responsive">';
