@@ -6,6 +6,7 @@
 
 # Module label 'ModuleTimesheetWeekName'
 ModuleTimesheetWeekName = Weekly timesheets
+Timesheetweek@timesheetweek = Weekly timesheets
 # Module description 'ModuleTimesheetWeekDesc'
 ModuleTimesheetWeekDesc = Module to Manage Timesheets in Dolibarr
 
