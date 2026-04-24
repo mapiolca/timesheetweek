@@ -408,9 +408,10 @@ if ($object->id > 0) {
                         $param .= '&sortorder='.urlencode($sortorder);
                 }
 
-                $sqlWhere = " WHERE a.entity IN (".getEntity('actioncomm', 1).")"
-                        ." AND a.elementtype='".$db->escape($object->element)."'"
-                        ." AND a.fk_element=".(int) $object->id;
+		$sqlWhere = " WHERE a.entity IN (".getEntity('actioncomm', 1).")";
+		$sqlWhere .= " AND a.fk_element=".(int) $object->id;
+		$sqlWhere .= " AND (a.elementtype='".$db->escape($object->element)."'";
+		$sqlWhere .= " OR a.elementtype='".$db->escape($object->element.'@timesheetweek')."')";
 
                 if (!empty($search_rowid)) {
                         $sqlWhere .= " AND a.id=".(int) $search_rowid;

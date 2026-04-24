@@ -18,6 +18,36 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 {
+	/**
+	 * Agenda action code to notification trigger mapping.
+	 *
+	 * @var array<string,array{automatic:string,business:string}>
+	 */
+	protected $agendaActionMap = array(
+		'TSWK_SUBMIT' => array(
+			'automatic' => 'TIMESHEETWEEK_SUBMITTED',
+			'business' => 'TIMESHEETWEEK_SUBMIT',
+		),
+		'TSWK_APPROVE' => array(
+			'automatic' => 'TIMESHEETWEEK_APPROVED',
+			'business' => 'TIMESHEETWEEK_APPROVE',
+		),
+		'TSWK_REFUSE' => array(
+			'automatic' => 'TIMESHEETWEEK_REFUSED',
+			'business' => 'TIMESHEETWEEK_REFUSE',
+		),
+	);
+
+	/**
+	 * Business trigger to automatic e-mail trigger mapping.
+	 *
+	 * @var array<string,string>
+	 */
+	protected $businessToAutomaticMap = array(
+		'TIMESHEETWEEK_SUBMIT' => 'TIMESHEETWEEK_SUBMITTED',
+		'TIMESHEETWEEK_APPROVE' => 'TIMESHEETWEEK_APPROVED',
+		'TIMESHEETWEEK_REFUSE' => 'TIMESHEETWEEK_REFUSED',
+	);
 
         /**
          * Constructor
@@ -51,21 +81,22 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                        return 0;
                }
 
-               if ($action === 'ACTION_CREATE') {
-                       return $this->handleActionCreateNotification($object, $user, $langs, $conf);
-               }
+		if ($action === 'ACTION_CREATE') {
+			return $this->handleActionCreateNotification($object, $user, $langs, $conf);
+		}
 
-               if (!($object instanceof TimesheetWeek)) {
-                       return 0;
-               }
+		if (!($object instanceof TimesheetWeek)) {
+			return 0;
+		}
 
-               if (in_array($action, array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE'), true)) {
-                        return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
-                }
+		if (isset($this->businessToAutomaticMap[$action])) {
+			$automaticAction = $this->businessToAutomaticMap[$action];
+			return $this->processNotificationDispatch($object, $user, $langs, $conf, $action, $automaticAction);
+		}
 
-                if (in_array($action, array('TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED'), true)) {
-                        return $this->sendNotification($action, $object, $user, $langs, $conf);
-                }
+		if (in_array($action, $this->businessToAutomaticMap, true)) {
+			return $this->sendNotification($action, $object, $user, $langs, $conf);
+		}
 
                return 0;
        }
@@ -84,34 +115,23 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
         */
        protected function handleActionCreateNotification($event, User $actionUser, $langs, $conf)
        {
-               if (!is_object($event) || empty($event->elementtype) || $event->elementtype !== 'timesheetweek') {
-                       return 0;
-               }
+		if (!is_object($event) || empty($event->elementtype)) {
+			return 0;
+		}
+		$elementType = (string) $event->elementtype;
+		if (!in_array($elementType, array('timesheetweek', 'timesheetweek@timesheetweek'), true)) {
+			return 0;
+		}
 
                $timesheetId = !empty($event->fk_element) ? (int) $event->fk_element : 0;
                if ($timesheetId <= 0) {
                        return 0;
                }
 
-               $code = !empty($event->code) ? strtoupper($event->code) : '';
-               $mapping = array(
-                       'TSWK_SUBMIT' => array(
-                               'automatic' => 'TIMESHEETWEEK_SUBMITTED',
-                               'business' => 'TIMESHEETWEEK_SUBMIT',
-                       ),
-                       'TSWK_APPROVE' => array(
-                               'automatic' => 'TIMESHEETWEEK_APPROVED',
-                               'business' => 'TIMESHEETWEEK_APPROVE',
-                       ),
-                       'TSWK_REFUSE' => array(
-                               'automatic' => 'TIMESHEETWEEK_REFUSED',
-                               'business' => 'TIMESHEETWEEK_REFUSE',
-                       ),
-               );
-
-               if (empty($mapping[$code])) {
-                       return 0;
-               }
+		$code = !empty($event->code) ? strtoupper((string) $event->code) : '';
+		if (empty($this->agendaActionMap[$code])) {
+			return 0;
+		}
 
                $timesheet = new TimesheetWeek($this->db);
                if ($timesheet->fetch($timesheetId) <= 0) {
@@ -127,7 +147,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
                $timesheet->context['mail_substitutions'] = $baseSubstitutions;
                $timesheet->context['timesheetweek_notification'] = array(
-                       'trigger_code' => $mapping[$code]['automatic'],
+                       'trigger_code' => $this->agendaActionMap[$code]['automatic'],
                        'url' => $meta['url'],
                        'employee_id' => !empty($meta['employee']) ? (int) $meta['employee']->id : 0,
                        'validator_id' => !empty($meta['validator']) ? (int) $meta['validator']->id : 0,
@@ -143,28 +163,49 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                        ),
                );
 
-               $result = 0;
-
-               $automaticCode = $mapping[$code]['automatic'];
-               if (!empty($automaticCode)) {
-                       $autoResult = $this->sendNotification($automaticCode, $timesheet, $actionUser, $langs, $conf);
-                       if ($autoResult < 0) {
-                               return $autoResult;
-                       }
-                       $result += (int) $autoResult;
-               }
-
-               $businessCode = $mapping[$code]['business'];
-               if (!empty($businessCode)) {
-                       $businessResult = $this->dispatchBusinessNotification($businessCode, $timesheet, $actionUser, $langs, $conf);
-                       if ($businessResult < 0) {
-                               return $businessResult;
-                       }
-                       $result += (int) $businessResult;
-               }
-
-               return $result;
+               return $this->processNotificationDispatch(
+			$timesheet,
+			$actionUser,
+			$langs,
+			$conf,
+			$this->agendaActionMap[$code]['business'],
+			$this->agendaActionMap[$code]['automatic']
+		);
        }
+
+	/**
+	 * Dispatch business and automatic notifications in one native flow.
+	 *
+	 * @param TimesheetWeek $timesheet
+	 * @param User          $actionUser
+	 * @param Translate     $langs
+	 * @param Conf          $conf
+	 * @param string        $businessAction
+	 * @param string        $automaticAction
+	 * @return int
+	 */
+	protected function processNotificationDispatch(TimesheetWeek $timesheet, User $actionUser, $langs, $conf, $businessAction, $automaticAction)
+	{
+		$result = 0;
+
+		if (!empty($automaticAction)) {
+			$autoResult = $this->sendNotification($automaticAction, $timesheet, $actionUser, $langs, $conf);
+			if ($autoResult < 0) {
+				return $autoResult;
+			}
+			$result += (int) $autoResult;
+		}
+
+		if (!empty($businessAction)) {
+			$businessResult = $this->dispatchBusinessNotification($businessAction, $timesheet, $actionUser, $langs, $conf);
+			if ($businessResult < 0) {
+				return $businessResult;
+			}
+			$result += (int) $businessResult;
+		}
+
+		return $result;
+	}
 
        /**
         * Send notification email for TimesheetWeek events
@@ -512,11 +553,11 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
          * @param Conf          $conf
          * @return int
          */
-        protected function dispatchBusinessNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
-        {
-                if (empty($conf->notification->enabled)) {
-                        return 0;
-                }
+	protected function dispatchBusinessNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
+	{
+		if (!isModEnabled('notification')) {
+			return 0;
+		}
 
                $meta = $this->buildNotificationData($timesheet, $actionUser, $langs, $conf);
                 $baseSubstitutions = $meta['base_substitutions'];
@@ -529,100 +570,24 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 // EN : Provide shared substitutions for Notification templates.
                 $timesheet->context['mail_substitutions'] = $baseSubstitutions;
 
-                $result = 0;
+		dol_include_once('/core/class/notify.class.php');
+		if (!class_exists('Notify')) {
+			return 0;
+		}
 
-                $notifyLib = DOL_DOCUMENT_ROOT.'/core/lib/notify.lib.php';
-                if (is_readable($notifyLib)) {
-                        require_once $notifyLib;
+		$notify = new Notify($this->db);
+		try {
+			// @BACKPORT v21→v20: fallback to the native send() signature available on older branches.
+			if (method_exists($notify, 'sendObjectNotification')) {
+				return (int) $notify->sendObjectNotification($timesheet, $action, $actionUser, $baseSubstitutions);
+			}
+			return (int) $notify->send($action, $timesheet);
+		} catch (\Throwable $error) {
+			dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+		}
 
-                        if (function_exists('notify_by_object')) {
-                                try {
-                                        $function = new \ReflectionFunction('notify_by_object');
-                                        $argCount = $function->getNumberOfParameters();
-                                        $params = array($this->db, $timesheet, $action, $actionUser);
-
-                                        if ($argCount >= 5) {
-                                                $params[] = $langs;
-                                        }
-                                        if ($argCount >= 6) {
-                                                $params[] = $conf;
-                                        }
-                                        if ($argCount >= 7) {
-                                                $params[] = '';
-                                        }
-                                        if ($argCount >= 8) {
-                                                $params[] = '';
-                                        }
-                                        if ($argCount >= 9) {
-                                                $params[] = $baseSubstitutions;
-                                        }
-
-                                        $result = (int) call_user_func_array('notify_by_object', $params);
-                                } catch (\Throwable $error) {
-                                        dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-                                }
-                        }
-                }
-
-                if ($result !== 0) {
-                        return $result;
-                }
-
-                $notifyClass = DOL_DOCUMENT_ROOT.'/core/class/notify.class.php';
-                if (is_readable($notifyClass)) {
-                        require_once $notifyClass;
-
-                        if (class_exists('Notify')) {
-                                $notify = new Notify($this->db);
-
-                                if (method_exists($notify, 'sendObjectNotification')) {
-                                        try {
-                                                return (int) $notify->sendObjectNotification($timesheet, $action, $actionUser, $baseSubstitutions);
-                                        } catch (\Throwable $error) {
-                                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-                                        }
-                                } elseif (method_exists($notify, 'send')) {
-                                        try {
-                                                $method = new \ReflectionMethod($notify, 'send');
-                                                $argCount = $method->getNumberOfParameters();
-                                                $callArgs = array();
-                                                $thirdparty = property_exists($timesheet, 'thirdparty') ? $timesheet->thirdparty : null;
-
-                                                if ($argCount >= 1) {
-                                                        $callArgs[] = $thirdparty;
-                                                }
-                                                if ($argCount >= 2) {
-                                                        $callArgs[] = $timesheet;
-                                                }
-                                                if ($argCount >= 3) {
-                                                        $callArgs[] = $action;
-                                                }
-                                                if ($argCount >= 4) {
-                                                        $callArgs[] = $actionUser;
-                                                }
-                                                if ($argCount >= 5) {
-                                                        $callArgs[] = $langs;
-                                                }
-                                                if ($argCount >= 6) {
-                                                        $callArgs[] = $conf;
-                                                }
-                                                if ($argCount >= 7) {
-                                                        $callArgs[] = array();
-                                                }
-                                                if ($argCount >= 8) {
-                                                        $callArgs[] = $baseSubstitutions;
-                                                }
-
-                                                return (int) $method->invokeArgs($notify, $callArgs);
-                                        } catch (\Throwable $error) {
-                                                dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-                                        }
-                                }
-                        }
-                }
-
-                return 0;
-        }
+		return 0;
+	}
 
         /**
          * Resolve a translation template without triggering sprintf errors.

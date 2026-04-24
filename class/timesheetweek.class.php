@@ -2381,7 +2381,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if ($linkToObject) {
-			$event->elementtype = $this->element;
+			$event->elementtype = $this->element.'@timesheetweek';
 			$event->fk_element = (int) $this->id;
 		}
 
