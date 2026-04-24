@@ -78,25 +78,25 @@ function tw_translate_error($errorKey, $langs)
 }
 
 // ---- Permissions (nouveau modèle) ----
-$permRead          = $user->hasRight('timesheetweek','timesheetweek','read');
-$permReadChild     = $user->hasRight('timesheetweek','timesheetweek','readChild');
-$permReadAll       = $user->hasRight('timesheetweek','timesheetweek','readAll');
+$permRead          = $user->hasRight('timesheetweek','read');
+$permReadChild     = $user->hasRight('timesheetweek','readChild');
+$permReadAll       = $user->hasRight('timesheetweek','readAll');
 
-$permWrite         = $user->hasRight('timesheetweek','timesheetweek','write');
-$permWriteChild    = $user->hasRight('timesheetweek','timesheetweek','writeChild');
-$permWriteAll      = $user->hasRight('timesheetweek','timesheetweek','writeAll');
+$permWrite         = $user->hasRight('timesheetweek','write');
+$permWriteChild    = $user->hasRight('timesheetweek','writeChild');
+$permWriteAll      = $user->hasRight('timesheetweek','writeAll');
 
-$permValidate      = $user->hasRight('timesheetweek','timesheetweek','validate');
-$permValidateOwn   = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
-$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
-$permValidateAll   = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$permValidate      = $user->hasRight('timesheetweek','validate');
+$permValidateOwn   = $user->hasRight('timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','validateChild');
+$permValidateAll   = $user->hasRight('timesheetweek','validateAll');
 
-$permDelete        = $user->hasRight('timesheetweek','timesheetweek','delete');
-$permDeleteChild   = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
-$permDeleteAll     = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
+$permDelete        = $user->hasRight('timesheetweek','delete');
+$permDeleteChild   = $user->hasRight('timesheetweek','deleteChild');
+$permDeleteAll     = $user->hasRight('timesheetweek','deleteAll');
 
-$permSeal          = $user->hasRight('timesheetweek','timesheetweek','seal');
-$permUnseal        = $user->hasRight('timesheetweek','timesheetweek','unseal');
+$permSeal          = $user->hasRight('timesheetweek','seal');
+$permUnseal        = $user->hasRight('timesheetweek','unseal');
 
 $permReadAny   = ($permRead || $permReadChild || $permReadAll);
 $permWriteAny  = ($permWrite || $permWriteChild || $permWriteAll);
