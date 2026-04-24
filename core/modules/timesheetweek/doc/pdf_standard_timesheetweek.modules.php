@@ -762,7 +762,7 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		}
 		$headerSubtitle = $outputlangs->trans('TimesheetWeekPdfReferenceLabel', $object->ref);
 		if ($timesheetEmployee instanceof User) {
-			$employeeSubtitle = $outputlangs->trans('Employee').': '.$timesheetEmployee->getFullName($outputlangs);
+			$employeeSubtitle = $outputlangs->trans('TimesheetWeekNotificationEmployeeFallback').': '.$timesheetEmployee->getFullName($outputlangs);
 			$headerSubtitle .= "\n".$employeeSubtitle;
 		}
 		if ((int) $object->status === TimesheetWeek::STATUS_APPROVED) {

@@ -1032,6 +1032,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$now = dol_now();
 		$noteUpdate = null;
+		$hasSealUserColumn = false;
+		$hasSealDateColumn = false;
 
 		if ((int) $this->status !== self::STATUS_APPROVED) {
 			$this->error = 'BadStatusForSeal';
@@ -1058,9 +1060,30 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->db->begin();
 
+		// EN: Detect optional seal metadata columns.
+		// FR: Détecte les colonnes optionnelles de métadonnées de scellement.
+		$sqlCheckSealUser = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$this->table_element." LIKE 'fk_user_seal'";
+		$resqlCheckSealUser = $this->db->query($sqlCheckSealUser);
+		if ($resqlCheckSealUser) {
+			$hasSealUserColumn = ($this->db->num_rows($resqlCheckSealUser) > 0);
+			$this->db->free($resqlCheckSealUser);
+		}
+		$sqlCheckSealDate = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$this->table_element." LIKE 'date_seal'";
+		$resqlCheckSealDate = $this->db->query($sqlCheckSealDate);
+		if ($resqlCheckSealDate) {
+			$hasSealDateColumn = ($this->db->num_rows($resqlCheckSealDate) > 0);
+			$this->db->free($resqlCheckSealDate);
+		}
+
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_SEALED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		if ($hasSealUserColumn) {
+			$sql .= ", fk_user_seal=".(int) $user->id;
+		}
+		if ($hasSealDateColumn) {
+			$sql .= ", date_seal='".$this->db->idate($now)."'";
+		}
 		if ($noteUpdate !== null) {
 			$sql .= ", note='".$this->db->escape($noteUpdate)."'";
 		}
@@ -1076,6 +1099,12 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR : Conserve les métadonnées d'approbation tout en verrouillant la feuille.
 		$this->status = self::STATUS_SEALED;
 		$this->tms = $now;
+		if ($hasSealUserColumn) {
+			$this->fk_user_seal = (int) $user->id;
+		}
+		if ($hasSealDateColumn) {
+			$this->date_seal = $now;
+		}
 		if ($noteUpdate !== null) {
 			$this->note = $noteUpdate;
 		}
