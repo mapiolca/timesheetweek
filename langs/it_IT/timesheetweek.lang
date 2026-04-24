@@ -288,6 +288,7 @@ TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %
 Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
 Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
 Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+Notify_TIMESHEETWEEK_SENTBYMAIL = Timesheet inviata via email
 Notify_TIMESHEETWEEK_CREATE = Timesheet creata
 Notify_TIMESHEETWEEK_SAVE = Timesheet salvata
 Notify_TIMESHEETWEEK_DELETE = Timesheet eliminata

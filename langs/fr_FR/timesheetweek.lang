@@ -276,6 +276,7 @@ TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur d
 Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
 Notify_TIMESHEETWEEK_APPROVE = Feuille de temps approuvée
 Notify_TIMESHEETWEEK_REFUSE = Feuille de temps refusée
+Notify_TIMESHEETWEEK_SENTBYMAIL = Feuille de temps envoyée par email
 Notify_TIMESHEETWEEK_CREATE = Feuille de temps créée
 Notify_TIMESHEETWEEK_SAVE = Feuille de temps sauvegardée
 Notify_TIMESHEETWEEK_DELETE = Feuille de temps supprimée

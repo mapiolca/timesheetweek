@@ -1004,6 +1004,11 @@ class modTimesheetWeek extends DolibarrModules
 				'description' => 'Déclenché quand une feuille de temps est refusée.',
 				'rang' => 2102,
 			),
+			'TIMESHEETWEEK_SENTBYMAIL' => array(
+				'label' => 'Envoi feuille de temps par email',
+				'description' => 'Déclenché quand une feuille de temps est envoyée par email.',
+				'rang' => 2106,
+			),
 			'TIMESHEETWEEK_DELETE' => array(
 				'label' => 'Suppression feuille de temps',
 				'description' => 'Déclenché quand une feuille de temps est supprimée.',

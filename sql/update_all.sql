@@ -104,7 +104,7 @@ DEALLOCATE PREPARE tsw_idx_date_seal_stmt;
 -- FR: Garantit la présence des triggers TimesheetWeek dans le dictionnaire des actions.
 UPDATE llx_c_action_trigger
 SET elementtype = 'timesheetweek@timesheetweek'
-WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SAVE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_BACKTODRAFT');
+WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SAVE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SENTBYMAIL', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_BACKTODRAFT');
 
 INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_CREATE', 'Création feuille de temps', 'Déclenché quand une feuille de temps est créée.', 'timesheetweek@timesheetweek', 2098
@@ -130,6 +130,11 @@ INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_REFUSE', 'Refus feuille de temps', 'Déclenché quand une feuille de temps est refusée.', 'timesheetweek@timesheetweek', 2102
 FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_REFUSE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_SENTBYMAIL', 'Envoi feuille de temps par email', 'Déclenché quand une feuille de temps est envoyée par email.', 'timesheetweek@timesheetweek', 2106
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_SENTBYMAIL');
 
 INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_DELETE', 'Suppression feuille de temps', 'Déclenché quand une feuille de temps est supprimée.', 'timesheetweek@timesheetweek', 2103
