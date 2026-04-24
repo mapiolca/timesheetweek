@@ -99,3 +99,24 @@ SET @tsw_add_idx_date_seal := IF(
 PREPARE tsw_idx_date_seal_stmt FROM @tsw_add_idx_date_seal;
 EXECUTE tsw_idx_date_seal_stmt;
 DEALLOCATE PREPARE tsw_idx_date_seal_stmt;
+
+-- EN: Ensure TimesheetWeek trigger definitions exist in the action trigger dictionary.
+-- FR: Garantit la présence des triggers TimesheetWeek dans le dictionnaire des actions.
+UPDATE llx_c_action_trigger
+SET elementtype = 'timesheetweek@timesheetweek'
+WHERE code IN ('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_SUBMIT', 'Soumission feuille de temps', 'Déclenché quand une feuille de temps est soumise.', 'timesheetweek@timesheetweek', 2100
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_SUBMIT');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_APPROVE', 'Approbation feuille de temps', 'Déclenché quand une feuille de temps est approuvée.', 'timesheetweek@timesheetweek', 2101
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_APPROVE');
+
+INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
+SELECT 'TIMESHEETWEEK_REFUSE', 'Refus feuille de temps', 'Déclenché quand une feuille de temps est refusée.', 'timesheetweek@timesheetweek', 2102
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_REFUSE');

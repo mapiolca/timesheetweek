@@ -812,6 +812,13 @@ class modTimesheetWeek extends DolibarrModules
 			return -1; // Do not activate module if error 'not allowed' returned when loading module SQL queries (the _load_table run sql with run_sql with the error allowed parameter set to 'default')
 		}
 
+		// EN: Ensure TimesheetWeek business triggers exist in llx_c_action_trigger after activation.
+		// FR: Garantit la présence des triggers métier TimesheetWeek dans llx_c_action_trigger après activation.
+		$resultRegisterTriggers = $this->registerTimesheetWeekActionTriggers();
+		if ($resultRegisterTriggers < 0) {
+			return -1;
+		}
+
 		// Create extrafields during init
 		dol_include_once('/core/class/extrafields.class.php');
 		$extrafields = new ExtraFields($this->db);
@@ -957,6 +964,53 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		return $resultInit;
+	}
+
+	/**
+	 * Register TimesheetWeek trigger codes into llx_c_action_trigger.
+	 *
+	 * @return int
+	 */
+	protected function registerTimesheetWeekActionTriggers()
+	{
+		$triggers = array(
+			'TIMESHEETWEEK_SUBMIT' => array(
+				'label' => 'Soumission feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est soumise.',
+				'rang' => 2100,
+			),
+			'TIMESHEETWEEK_APPROVE' => array(
+				'label' => 'Approbation feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est approuvée.',
+				'rang' => 2101,
+			),
+			'TIMESHEETWEEK_REFUSE' => array(
+				'label' => 'Refus feuille de temps',
+				'description' => 'Déclenché quand une feuille de temps est refusée.',
+				'rang' => 2102,
+			),
+		);
+
+		foreach ($triggers as $code => $definition) {
+			$sqlUpdate = "UPDATE ".MAIN_DB_PREFIX."c_action_trigger";
+			$sqlUpdate .= " SET elementtype = 'timesheetweek@timesheetweek'";
+			$sqlUpdate .= " WHERE code = '".$this->db->escape($code)."'";
+			if (!$this->db->query($sqlUpdate)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+
+			$sqlInsert = "INSERT INTO ".MAIN_DB_PREFIX."c_action_trigger (code, label, description, elementtype, rang)";
+			$sqlInsert .= " SELECT '".$this->db->escape($code)."', '".$this->db->escape($definition['label'])."', '".$this->db->escape($definition['description'])."', 'timesheetweek@timesheetweek', ".((int) $definition['rang']);
+			$sqlInsert .= " FROM DUAL";
+			$sqlInsert .= " WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code = '".$this->db->escape($code)."')";
+			if (!$this->db->query($sqlInsert)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+		}
+
+		return 1;
 	}
 
 	/**
