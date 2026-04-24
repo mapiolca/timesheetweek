@@ -529,6 +529,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		if ($resultTriggerSave < 0) {
 			return -1;
 		}
+
+		if (!$this->createAgendaEventFromTrigger($user, 'TIMESHEETWEEK_SAVE', 'TSWK_SAVE', 'TimesheetWeekAgendaSaved', array($this->ref))) {
+			return -1;
+		}
 		return 1;
 	}
 

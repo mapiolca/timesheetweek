@@ -221,6 +221,7 @@ TimesheetWeekStatusRefused = Refused
 BadStatusForSeal = Only approved timesheets can be sealed.
 BadStatusForUnseal = Only sealed timesheets can be unsealed.
 TimesheetWeekAgendaCreated = Timesheet %s created.
+TimesheetWeekAgendaSaved = Timesheet %s saved.
 TimesheetWeekAgendaSubmitted = Timesheet %s submitted.
 TimesheetWeekDailyRateLabel = Daily rate contract
 TimesheetWeekDailyRateFullDay = Full day

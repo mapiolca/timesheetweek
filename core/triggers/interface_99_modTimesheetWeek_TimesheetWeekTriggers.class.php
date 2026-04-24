@@ -28,6 +28,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_CREATE',
 		),
+		'TSWK_SAVE' => array(
+			'automatic' => '',
+			'business' => 'TIMESHEETWEEK_SAVE',
+		),
 		'TSWK_SUBMIT' => array(
 			'automatic' => 'TIMESHEETWEEK_SUBMITTED',
 			'business' => 'TIMESHEETWEEK_SUBMIT',

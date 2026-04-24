@@ -220,6 +220,7 @@ TimesheetWeekStatusRefused = Refusée
 BadStatusForSeal = Seules les feuilles approuvées peuvent être scellées.
 BadStatusForUnseal = Seules les feuilles scellées peuvent être descellées.
 TimesheetWeekAgendaCreated = Feuille de temps %s créée.
+TimesheetWeekAgendaSaved = Feuille de temps %s sauvegardée.
 TimesheetWeekAgendaSubmitted = Feuille de temps %s soumise.
 TimesheetWeekAgendaApproved = Feuille de temps %s approuvée.
 TimesheetWeekAgendaRefused = Feuille de temps %s refusée.
