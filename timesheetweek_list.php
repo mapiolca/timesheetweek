@@ -23,20 +23,20 @@ if (!$res) die("Include of main fails");
 
 // EN: Check permissions before loading any additional resources to abort early.
 // FR: Vérifie les permissions avant de charger d'autres ressources pour interrompre immédiatement.
-$permRead = $user->hasRight('timesheetweek','timesheetweek','read');
-$permReadChild = $user->hasRight('timesheetweek','timesheetweek','readChild');
-$permReadAll = $user->hasRight('timesheetweek','timesheetweek','readAll');
-$permWrite = $user->hasRight('timesheetweek','timesheetweek','write');
-$permWriteChild = $user->hasRight('timesheetweek','timesheetweek','writeChild');
-$permWriteAll = $user->hasRight('timesheetweek','timesheetweek','writeAll');
-$permDelete = $user->hasRight('timesheetweek','timesheetweek','delete');
-$permDeleteChild = $user->hasRight('timesheetweek','timesheetweek','deleteChild');
-$permDeleteAll = $user->hasRight('timesheetweek','timesheetweek','deleteAll');
-$permSeal = $user->hasRight('timesheetweek','timesheetweek','seal');
-$permValidate = $user->hasRight('timesheetweek','timesheetweek','validate');
-$permValidateOwn = $user->hasRight('timesheetweek','timesheetweek','validateOwn');
-$permValidateChild = $user->hasRight('timesheetweek','timesheetweek','validateChild');
-$permValidateAll = $user->hasRight('timesheetweek','timesheetweek','validateAll');
+$permRead = $user->hasRight('timesheetweek', 'read');
+$permReadChild = $user->hasRight('timesheetweek','readChild');
+$permReadAll = $user->hasRight('timesheetweek','readAll');
+$permWrite = $user->hasRight('timesheetweek','write');
+$permWriteChild = $user->hasRight('timesheetweek','writeChild');
+$permWriteAll = $user->hasRight('timesheetweek','writeAll');
+$permDelete = $user->hasRight('timesheetweek','delete');
+$permDeleteChild = $user->hasRight('timesheetweek','deleteChild');
+$permDeleteAll = $user->hasRight('timesheetweek','deleteAll');
+$permSeal = $user->hasRight('timesheetweek','seal');
+$permValidate = $user->hasRight('timesheetweek','validate');
+$permValidateOwn = $user->hasRight('timesheetweek','validateOwn');
+$permValidateChild = $user->hasRight('timesheetweek','validateChild');
+$permValidateAll = $user->hasRight('timesheetweek','validateAll');
 // EN: Prepare Dolibarr's generic permission flags for mass-action helpers.
 // FR: Prépare les indicateurs de permission Dolibarr pour les helpers d'actions de masse.
 $permissiontoread = ($permRead || $permReadChild || $permReadAll);
@@ -50,6 +50,7 @@ if (!$permViewAny) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
@@ -147,6 +148,67 @@ if (!function_exists('tw_can_validate_timesheet_masslist')) {
 		return false;
 	}
 }
+
+if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
+	/**
+	 * EN: Render the dropdown to preview or download the sheet PDF directly from the list.
+	 * FR: Affiche le menu déroulant pour prévisualiser ou télécharger le PDF de la feuille depuis la liste.
+	 *
+	 * @param stdClass   $rowData Data row containing reference and entity information
+	 * @param Conf       $conf    Dolibarr global configuration
+	 * @param Translate  $langs   Translation handler
+	 * @return string HTML markup of the dropdown or an empty string when the PDF is unavailable
+	 */
+	function tw_render_timesheet_pdf_dropdown($rowData, Conf $conf, Translate $langs)
+	{
+		// EN: Secure the reference before building file paths.
+		// FR: Sécurise la référence avant de construire les chemins de fichiers.
+		$docRef = dol_sanitizeFileName($rowData->ref ?? '');
+		if ($docRef === '') {
+			return '';
+		}
+
+		// EN: Determine the entity and base output directory, compatible with Multicompany.
+		// FR: Détermine l'entité et le répertoire de sortie, compatible avec Multicompany.
+		$docEntityId = property_exists($rowData, 'entity') ? (int) $rowData->entity : (int) $conf->entity;
+		$entityOutputs = $conf->timesheetweek->multidir_output[$docEntityId] ?? null;
+		$baseOutput = $entityOutputs ? $entityOutputs : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+
+		// EN: Compose the expected PDF path and ensure the file exists before rendering actions.
+		// FR: Compose le chemin attendu du PDF et vérifie l'existence du fichier avant d'afficher les actions.
+		$relativeDir = 'timesheetweek/'.$docRef;
+		$pdfFilename = $docRef.'.pdf';
+		$relativeFile = $relativeDir.'/'.$pdfFilename;
+		$absoluteFile = rtrim($baseOutput, '/').'/'.$relativeFile;
+		if (!dol_is_file($absoluteFile)) {
+			return '';
+		}
+
+		// EN: Build preview and download URLs while honoring the MAIN_DISABLE_FORCE_SAVEAS setting.
+		// FR: Construit les URLs d'aperçu et de téléchargement en respectant MAIN_DISABLE_FORCE_SAVEAS.
+		$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+		$downloadAttachment = ($forceSaveAs > 0 ? 0 : 1);
+		$downloadTarget = ($forceSaveAs === 2 ? ' target="_blank"' : '');
+		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment='.$downloadAttachment.'&permission=read';
+		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
+		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+		$titleLabel = dol_escape_htmltag($pdfFilename);
+
+		// EN: Return the dropdown markup prefixed with a non-breaking space to separate it from the reference.
+		// FR: Retourne le menu déroulant précédé d'une espace insécable pour le séparer de la référence.
+		$html = '&nbsp;<dl class="dropdown inline-block">';
+		$html .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
+		$html .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
+		$html .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
+		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"'.$downloadTarget.'><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
+		$html .= '</ul></div></dd>';
+		$html .= '</dl>';
+
+		return $html;
+	}
+}
+
 /**
  * Params
  */
@@ -309,26 +371,26 @@ if ($multicompanyEnabled) {
 }
 
 $arrayfields += array(
-        't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
-        't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
-        't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
-        't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
-        // EN: Zone counters columns for list display.
-        // FR: Colonnes des compteurs de zones pour l'affichage de la liste.
-        't.zone1_count'  => array('label' => $langs->trans("Zone1Count"),   'checked' => 0),
-        't.zone2_count'  => array('label' => $langs->trans("Zone2Count"),   'checked' => 0),
-        't.zone3_count'  => array('label' => $langs->trans("Zone3Count"),   'checked' => 0),
-        't.zone4_count'  => array('label' => $langs->trans("Zone4Count"),   'checked' => 0),
-        't.zone5_count'  => array('label' => $langs->trans("Zone5Count"),   'checked' => 0),
-        // EN: Meal counter column for list display.
-        // FR: Colonne du compteur de paniers pour l'affichage de la liste.
-        't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
-        't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
-        // EN: Validation timestamp column to expose approval dates in the list.
-        // FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
-        't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
-        't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
-        't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
+		't.year'         => array('label' => $langs->trans("Year"),         'checked' => 1),
+		't.week'         => array('label' => $langs->trans("Week"),         'checked' => 1),
+		't.total_hours'  => array('label' => $langs->trans("TotalHours"),   'checked' => 1),
+		't.overtime_hours'=>array('label' => $langs->trans("Overtime"),     'checked' => 0),
+		// EN: Zone counters columns for list display.
+		// FR: Colonnes des compteurs de zones pour l'affichage de la liste.
+		't.zone1_count'  => array('label' => $langs->trans("Zone1Count"),   'checked' => 0),
+		't.zone2_count'  => array('label' => $langs->trans("Zone2Count"),   'checked' => 0),
+		't.zone3_count'  => array('label' => $langs->trans("Zone3Count"),   'checked' => 0),
+		't.zone4_count'  => array('label' => $langs->trans("Zone4Count"),   'checked' => 0),
+		't.zone5_count'  => array('label' => $langs->trans("Zone5Count"),   'checked' => 0),
+		// EN: Meal counter column for list display.
+		// FR: Colonne du compteur de paniers pour l'affichage de la liste.
+		't.meal_count'   => array('label' => $langs->trans("MealCount"),    'checked' => 0),
+		't.date_creation'=> array('label' => $langs->trans("DateCreation"), 'checked' => 0),
+		// EN: Validation timestamp column to expose approval dates in the list.
+		// FR: Colonne de validation pour afficher les dates d'approbation dans la liste.
+		't.date_validation'=> array('label' => $langs->trans("DateValidation"), 'checked' => 0),
+		't.tms'          => array('label' => $langs->trans("DateModificationShort"), 'checked' => 0),
+		't.status'       => array('label' => $langs->trans("Status"),       'checked' => 1),
 );
 
 // Update arrayfields from request (column selector)
@@ -352,6 +414,12 @@ if ($canDisplayValidationActions) {
 // FR: Affiche le contrôle de scellement uniquement pour les utilisateurs disposant du droit dédié.
 if ($permSeal) {
 	$arrayofmassactions['sceller'] = img_picto('', 'lock', 'class="pictofixedwidth"').$langs->trans('SealSelection');
+}
+// EN: Allow PDF summary generation to any user allowed to read the listed sheets.
+// FR: Autorise la génération d'un PDF de synthèse à tout utilisateur habilité à lire les feuilles listées.
+if ($permissiontoread) {
+	$arrayofmassactions['generate_summary_pdf'] = img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans('GenerateSummaryPdf');
+	$arrayofmassactions['builddoc_merge_pdf'] = img_picto('', 'pdf', 'class="pictofixedwidth"').$langs->trans('TimesheetWeekMassMergePdf');
 }
 // EN: Expose the draft-only bulk deletion with Dolibarr's confirmation flow when the operator may delete sheets.
 // FR: Expose la suppression massive limitée aux brouillons avec la confirmation Dolibarr lorsque l'opérateur peut supprimer des feuilles.
@@ -481,6 +549,23 @@ if ($massaction === 'sceller') {
 		// FR: Refuse le scellement lorsque l'opérateur ne possède pas le droit dédié.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
+		$hasSealUserColumn = false;
+		$hasSealDateColumn = false;
+		// EN: Detect optional seal metadata columns once for the mass action.
+		// FR: Détecte les colonnes optionnelles de métadonnées de scellement pour l'action de masse.
+		$sqlCheckSealUser = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'fk_user_seal'";
+		$resqlCheckSealUser = $db->query($sqlCheckSealUser);
+		if ($resqlCheckSealUser) {
+			$hasSealUserColumn = ($db->num_rows($resqlCheckSealUser) > 0);
+			$db->free($resqlCheckSealUser);
+		}
+		$sqlCheckSealDate = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'date_seal'";
+		$resqlCheckSealDate = $db->query($sqlCheckSealDate);
+		if ($resqlCheckSealDate) {
+			$hasSealDateColumn = ($db->num_rows($resqlCheckSealDate) > 0);
+			$db->free($resqlCheckSealDate);
+		}
+
 		$db->begin();
 		$ok = 0;
 		$ko = array();
@@ -500,8 +585,29 @@ if ($massaction === 'sceller') {
 				$ko[] = $o->ref ?: '#'.$id;
 				continue;
 			}
-			$res = $o->seal($user);
+			$res = $o->seal($user, 'manual');
 			if ($res > 0) {
+				if ($hasSealUserColumn || $hasSealDateColumn) {
+					$sealNow = dol_now();
+					// EN: Persist seal metadata for the mass action when columns exist.
+					// FR: Persiste les métadonnées de scellement pour l'action de masse lorsque les colonnes existent.
+					$sqlSealMetadata = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET";
+					$sealUpdates = array();
+					if ($hasSealUserColumn) {
+						$sealUpdates[] = "fk_user_seal=".(int) $user->id;
+					}
+					if ($hasSealDateColumn) {
+						$sealUpdates[] = "date_seal='".$db->idate($sealNow)."'";
+					}
+					$sqlSealMetadata .= " ".implode(', ', $sealUpdates);
+					$sqlSealMetadata .= " WHERE rowid=".(int) $o->id;
+					$sqlSealMetadata .= " AND entity IN (".getEntity('timesheetweek').")";
+					if (!$db->query($sqlSealMetadata)) {
+						// EN: Keep the sheet sealed even if the metadata update fails.
+						// FR: Conserver la feuille scellée même si la mise à jour des métadonnées échoue.
+						dol_syslog('TimesheetWeek mass seal metadata update failed: '.$db->lasterror(), LOG_WARNING);
+					}
+				}
 				$ok++;
 			} else {
 				$ko[] = $o->ref ?: '#'.$id;
@@ -518,6 +624,215 @@ if ($massaction === 'sceller') {
 		if ($ko) {
 			setEventMessages($langs->trans('TimesheetWeekMassActionErrors', implode(', ', $ko)), null, 'errors');
 		}
+	}
+}
+if ($massaction === 'generate_summary_pdf') {
+	$massActionProcessed = true;
+	if (!$permissiontoread) {
+		// EN: Block summary export when the user has no read permission.
+		// FR: Bloque l'export de synthèse lorsque l'utilisateur n'a pas le droit de lecture.
+		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} else {
+		if (empty($arrayofselected)) {
+			// EN: Notify operators that a selection is required before generating the summary.
+			// FR: Informe les opérateurs qu'une sélection est nécessaire avant de générer la synthèse.
+			setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
+		} else {
+			dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
+			$result = tw_generate_summary_pdf($db, $conf, $langs, $user, $arrayofselected, $permRead, $permReadChild, $permReadAll);
+			if (empty($result['success'])) {
+				// EN: Report generation issues to the operator.
+				// FR: Signale les problèmes de génération à l'opérateur.
+				if (!empty($result['errors'])) {
+					setEventMessages(null, $result['errors'], 'errors');
+				} else {
+					setEventMessages($langs->trans('ErrorUnknown'), null, 'errors');
+				}
+			} else {
+				if (!empty($result['warnings'])) {
+					setEventMessages(null, $result['warnings'], 'warnings');
+				}
+				if (!empty($result['relative'])) {
+					$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+					$attachment = ($forceSaveAs > 0 ? 0 : 1);
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+					if ($forceSaveAs === 2) {
+						$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+						$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+						setEventMessages($langs->trans('TimesheetWeekSummaryGenerated').' '.$link, null, 'mesgs');
+					} else {
+						header('Location: '.$downloadUrl);
+						exit;
+					}
+				} else {
+					setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
+				}
+			}
+		}
+	}
+}
+if ($massaction === 'builddoc_merge_pdf') {
+	$massActionProcessed = true;
+	if (!$permissiontoread) {
+			// EN: Block the merge when the operator cannot read the selected sheets.
+			// FR: Bloque la fusion lorsque l'opérateur ne peut pas lire les feuilles sélectionnées.
+			setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
+	} elseif (empty($arrayofselected)) {
+			// EN: Inform the user that a selection is required before launching the merge.
+			// FR: Informe l'utilisateur qu'une sélection est nécessaire avant de lancer la fusion.
+			setEventMessages($langs->trans('TimesheetWeekErrorNoSelection'), null, 'errors');
+	} else {
+			dol_include_once('/timesheetweek/lib/timesheetweek_pdf.lib.php');
+			$defaultModel = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+			$tempDir = !empty($conf->timesheetweek->dir_temp) ? $conf->timesheetweek->dir_temp : (rtrim($uploaddir, '/').'/temp');
+			$generatedFiles = array();
+			$errors = array();
+			$warnings = array();
+
+			foreach ((array) $arrayofselected as $id) {
+					$id = (int) $id;
+					if ($id <= 0) {
+							continue;
+					}
+
+					$sheet = new TimesheetWeek($db);
+					if ($sheet->fetch($id) <= 0) {
+							$errors[] = $langs->trans('ErrorRecordNotFound').' (#'.$id.')';
+							continue;
+					}
+
+					if (!tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
+							// EN: Skip the timesheet when the user cannot access the employee scope.
+							// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
+							$warnings[] = $langs->trans('TimesheetWeekMassMergeForbidden', ($sheet->ref ?: '#'.$id));
+							continue;
+					}
+
+					$tempResult = tw_generate_timesheet_pdf_to_temp($sheet, $conf, $langs, $defaultModel, $tempDir);
+					if (empty($tempResult['success'])) {
+							// EN: Propagate detailed generation issues for transparency.
+							// FR: Propage les problèmes de génération pour plus de transparence.
+							if (!empty($tempResult['errors'])) {
+									$errors = array_merge($errors, (array) $tempResult['errors']);
+							} else {
+									$errors[] = $langs->trans('TimesheetWeekMassMergeGenerationFailed', ($sheet->ref ?: '#'.$id));
+							}
+							continue;
+					}
+
+					$generatedFiles[] = $tempResult['path'];
+			}
+
+			if (empty($generatedFiles)) {
+					// EN: Stop early when no PDF could be prepared.
+					// FR: Arrête immédiatement lorsqu'aucun PDF n'a pu être préparé.
+					if (!empty($errors)) {
+							setEventMessages(null, array_values(array_unique($errors)), 'errors');
+					}
+					if (!empty($warnings)) {
+							setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+					}
+					setEventMessages($langs->trans('TimesheetWeekMassMergeNoEligible'), null, 'errors');
+			} else {
+					require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
+
+					$mergedDir = rtrim($uploaddir, '/').'/'.TIMESHEETWEEK_PDF_MERGED_SUBDIR;
+					$mergedFilename = dol_sanitizeFileName('timesheetweek_merged_'.dol_print_date(dol_now(), 'dayhourlog').'.pdf');
+					if ($mergedFilename === '') {
+							$mergedFilename = dol_sanitizeFileName('timesheetweek_merged.pdf');
+					}
+					$mergedFullPath = $mergedDir.'/'.$mergedFilename;
+					$mergeSucceeded = false;
+
+					if (dol_mkdir($mergedDir) < 0) {
+							setEventMessages($langs->trans('ErrorCanNotCreateDir', $mergedDir), null, 'errors');
+					} elseif (getDolGlobalString('USE_PDFTK_FOR_PDF_CONCAT')) {
+							$inputFiles = '';
+							foreach ($generatedFiles as $f) {
+									$inputFiles .= ' '.escapeshellarg($f);
+							}
+
+							exec('pdftk'.$inputFiles.' cat output '.escapeshellarg($mergedFullPath));
+							if (dol_is_file($mergedFullPath)) {
+									dolChmod($mergedFullPath);
+									$mergeSucceeded = true;
+							} else {
+									$errors[] = $langs->trans('ErrorPDFTkOutputFileNotFound');
+							}
+					} else {
+							$formatarray = pdf_getFormat();
+							$pageLargeur = $formatarray['width'];
+							$pageHauteur = $formatarray['height'];
+							$format = array($pageLargeur, $pageHauteur);
+
+							$pdf = pdf_getInstance($format);
+							if (class_exists('TCPDF')) {
+									$pdf->setPrintHeader(false);
+									$pdf->setPrintFooter(false);
+							}
+							$pdf->SetFont(pdf_getPDFFont($langs));
+							if (getDolGlobalString('MAIN_DISABLE_PDF_COMPRESSION')) {
+									$pdf->SetCompression(false);
+							}
+
+							$pagecount = 0;
+							foreach ($generatedFiles as $filePath) {
+									$pagecount = $pdf->setSourceFile($filePath);
+									for ($i = 1; $i <= $pagecount; $i++) {
+											$tplidx = $pdf->importPage($i);
+											$templatesize = $pdf->getTemplatesize($tplidx);
+											$pdf->AddPage($templatesize['h'] > $templatesize['w'] ? 'P' : 'L');
+											$pdf->useTemplate($tplidx);
+									}
+							}
+
+							if ($pagecount > 0) {
+									$pdf->Output($mergedFullPath, 'F');
+									dolChmod($mergedFullPath);
+									$mergeSucceeded = true;
+							} else {
+									$errors[] = $langs->trans('NoPDFAvailableForDocGenAmongChecked');
+							}
+					}
+
+					foreach ($generatedFiles as $tempFilePath) {
+							if (dol_is_file($tempFilePath)) {
+									dol_delete_file($tempFilePath, 0, 0, 0, null, false);
+							}
+					}
+
+					if (!$mergeSucceeded) {
+							// EN: Inform the operator that merging failed.
+							// FR: Informe l'opérateur que la fusion a échoué.
+							if (!empty($warnings)) {
+									setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+							}
+							if (!empty($errors)) {
+									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
+							}
+							setEventMessages($langs->trans('TimesheetWeekMassMergeError'), null, 'errors');
+					} else {
+							$relativeMerged = TIMESHEETWEEK_PDF_MERGED_SUBDIR.'/'.$mergedFilename;
+							if (!empty($warnings)) {
+									setEventMessages(null, array_values(array_unique($warnings)), 'warnings');
+							}
+							if (!empty($errors)) {
+									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
+							}
+							$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+							$attachment = ($forceSaveAs > 0 ? 0 : 1);
+							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+							if ($forceSaveAs === 2) {
+								$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+								$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess').' '.$link, null, 'mesgs');
+							} else {
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
+								header('Location: '.$downloadUrl);
+								exit;
+							}
+					}
+			}
 	}
 }
 if ($massaction === 'delete') {
@@ -749,7 +1064,7 @@ if (!empty($search_status)) {
 // FR: Conserve la limite sélectionnée dans les liens de pagination pour respecter le choix de l'utilisateur.
 $param .= '&limit='.(int) $limit;
 
-$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','timesheetweek','write'));
+$newcardbutton = dolGetButtonTitle($langs->trans('New'), '', 'fa fa-plus-circle', dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?action=create', '', $user->hasRight('timesheetweek','write'));
 
 /**
  * Column selector on left of titles
@@ -889,20 +1204,20 @@ if (!empty($arrayfields['t.tms']['checked'])) {
         print '<td class="liste_titre center">&nbsp;</td>';
 }
 if (!empty($arrayfields['t.status']['checked'])) {
-        $statusOptions = array(
-                TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
-                TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
-                TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
-                TimesheetWeek::STATUS_SEALED    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SEALED, 0),
-                TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
-        );
+		$statusOptions = array(
+			TimesheetWeek::STATUS_DRAFT     => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_DRAFT, 0),
+			TimesheetWeek::STATUS_SUBMITTED => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SUBMITTED, 0),
+			TimesheetWeek::STATUS_APPROVED  => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_APPROVED, 0),
+			TimesheetWeek::STATUS_SEALED    => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_SEALED, 0),
+			TimesheetWeek::STATUS_REFUSED   => TimesheetWeek::LibStatut(TimesheetWeek::STATUS_REFUSED, 0),
+		);
 
-        print '<td class="liste_titre center">';
-        print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
-        print '</td>';
+		print '<td class="liste_titre center">';
+		print $form->multiselectarray('search_status', $statusOptions, $search_status, 0, 0, 'minwidth150 maxwidth200', 0, 0, '', '', '', '', '', 1);
+		print '</td>';
 }
 if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-        print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
+	print '<td class="liste_titre center maxwidthsearch">'.$form->showFilterButtons('right').'</td>';
 }
 print '</tr>'."\n";
 
@@ -1013,7 +1328,11 @@ while ($i < $imax) {
 		$tswstatic->id = $obj->rowid;
 		$tswstatic->ref = $obj->ref;
 		$tswstatic->status = $obj->status;
-		print '<td>'.$tswstatic->getNomUrl(1, 'ref').'</td>';
+		$refLink = $tswstatic->getNomUrl(1, 'ref');
+		// EN: Append the PDF dropdown inside the reference column to mirror the invoice behaviour.
+		// FR: Ajoute le menu PDF dans la colonne de référence pour reproduire le comportement des factures.
+		$refLink .= tw_render_timesheet_pdf_dropdown($obj, $conf, $langs);
+		print '<td>'.$refLink.'</td>';
 	}
 
 	// Employee
@@ -1104,14 +1423,14 @@ while ($i < $imax) {
         if (!empty($arrayfields['t.tms']['checked'])) {
                 print '<td class="center">'.($obj->tms ? dol_print_date($db->jdate($obj->tms),'dayhour') : '').'</td>';
         }
-	// Status (badge)
-        if (!empty($arrayfields['t.status']['checked'])) {
-                $tswstatic->status = $obj->status;
-                print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
-        }
-        // EN: Accumulate values to expose totals at the bottom of the table.
-        // FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
-        $totalsAccumulator['total_hours'] += (float) $obj->total_hours;
+		// Status (badge)
+		if (!empty($arrayfields['t.status']['checked'])) {
+			$tswstatic->status = $obj->status;
+			print '<td class="center">'.$tswstatic->getLibStatut(5).'</td>';
+		}
+// EN: Accumulate values to expose totals at the bottom of the table.
+// FR: Cumule les valeurs pour afficher les totaux en bas du tableau.
+$totalsAccumulator['total_hours'] += (float) $obj->total_hours;
         $totalsAccumulator['overtime_hours'] += (float) $obj->overtime_hours;
         $totalsAccumulator['zone1_count'] += (int) $obj->zone1_count;
         $totalsAccumulator['zone2_count'] += (int) $obj->zone2_count;
@@ -1204,12 +1523,12 @@ if ($imax > 0) {
         if (!empty($arrayfields['t.tms']['checked'])) {
                 print '<td class="liste_total center">&nbsp;</td>';
         }
-        if (!empty($arrayfields['t.status']['checked'])) {
-                print '<td class="liste_total center">&nbsp;</td>';
-        }
-        if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
-                print '<td class="liste_total">&nbsp;</td>';
-        }
+		if (!empty($arrayfields['t.status']['checked'])) {
+			print '<td class="liste_total center">&nbsp;</td>';
+		}
+		if (!getDolGlobalString('MAIN_CHECKBOX_LEFT_COLUMN')) {
+			print '<td class="liste_total">&nbsp;</td>';
+		}
         print '</tr>';
 } else {
         $colspan = 1;

@@ -93,13 +93,8 @@ class mod_timesheetweek_standard extends ModeleNumRefTimesheetWeek
 
 		$posindice = strlen($this->prefix) + 6;
 		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
-		$sql .= " FROM ".$db->prefix()."timesheetweek_timesheetweek";
+		$sql .= " FROM ".$db->prefix()."timesheet_week";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefix)."____-%'";
-		if ($object->ismultientitymanaged == 1) {
-			$sql .= " AND entity = ".$conf->entity;
-		} elseif (!is_numeric($object->ismultientitymanaged)) { // @phan-suppress-current-line PhanPluginEmptyStatementIf
-			// TODO
-		}
 
 		$resql = $db->query($sql);
 		if ($resql) {
@@ -131,13 +126,8 @@ class mod_timesheetweek_standard extends ModeleNumRefTimesheetWeek
 		// first we get the max value
 		$posindice = strlen($this->prefix) + 6;
 		$sql = "SELECT MAX(CAST(SUBSTRING(ref FROM ".$posindice.") AS SIGNED)) as max";
-		$sql .= " FROM ".$db->prefix()."timesheetweek_timesheetweek";
+		$sql .= " FROM ".$db->prefix()."timesheet_week";
 		$sql .= " WHERE ref LIKE '".$db->escape($this->prefix)."____-%'";
-		if ($object->ismultientitymanaged == 1) {
-			$sql .= " AND entity = ".$conf->entity;
-		} elseif (!is_numeric($object->ismultientitymanaged)) {
-			// TODO
-		}
 
 		$resql = $db->query($sql);
 		if ($resql) {

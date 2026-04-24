@@ -120,9 +120,9 @@ if ($id > 0 || !empty($ref)) {
 // Set $enablepermissioncheck to 1 to enable a minimum low level of checks
 $enablepermissioncheck = getDolGlobalInt('TIMESHEETWEEK_ENABLE_PERMISSION_CHECK');
 if ($enablepermissioncheck) {
-	$permissiontoread = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
-	$permissiontoadd = $user->hasRight('timesheetweek', 'timesheetweek', 'write');
-	$permissionnote = $user->hasRight('timesheetweek', 'timesheetweek', 'write'); // Used by the include of actions_setnotes.inc.php
+	$permissiontoread = $user->hasRight('timesheetweek', 'read');
+	$permissiontoadd = $user->hasRight('timesheetweek', 'write');
+	$permissionnote = $user->hasRight('timesheetweek', 'write'); // Used by the include of actions_setnotes.inc.php
 } else {
 	$permissiontoread = 1;
 	$permissiontoadd = 1;

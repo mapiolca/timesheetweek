@@ -76,9 +76,9 @@ $object = new TimesheetWeek($db);
 
 // EN: Evaluate write permissions, including subordinate scope, before processing the request.
 // FR: Évalue les permissions d'écriture, y compris sur les subordonnés, avant de traiter la requête.
-$permWrite = $user->hasRight('timesheetweek', 'timesheetweek', 'write');
-$permWriteChild = $user->hasRight('timesheetweek', 'timesheetweek', 'writeChild');
-$permWriteAll = $user->hasRight('timesheetweek', 'timesheetweek', 'writeAll');
+$permWrite = $user->hasRight('timesheetweek', 'write');
+$permWriteChild = $user->hasRight('timesheetweek', 'writeChild');
+$permWriteAll = $user->hasRight('timesheetweek', 'writeAll');
 $canWriteAll = (!empty($user->admin) || $permWriteAll);
 if (!($permWrite || $permWriteChild || $canWriteAll)) {
 	// EN: Return a JSON 403 response when the user cannot edit any timesheet.

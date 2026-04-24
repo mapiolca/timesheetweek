@@ -213,8 +213,8 @@ if ($id > 0 || !empty($ref)) {
 // Set $enablepermissioncheck to 1 to enable a minimum low level of checks
 $enablepermissioncheck = getDolGlobalInt('TIMESHEETWEEK_ENABLE_PERMISSION_CHECK');
 if ($enablepermissioncheck) {
-	$permissiontoread = $user->hasRight('timesheetweek', 'timesheetweek', 'read');
-	$permissiontoadd = $user->hasRight('timesheetweek', 'timesheetweek', 'write');
+	$permissiontoread = $user->hasRight('timesheetweek', 'read');
+	$permissiontoadd = $user->hasRight('timesheetweek', 'write');
 } else {
 	$permissiontoread = 1;
 	$permissiontoadd = 1;
@@ -469,7 +469,7 @@ if ($object->id > 0) {
                                 }
                         }
 
-                        $titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
+                        $titlelist = $langs->trans("Actions");
                         print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
 
                         print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';

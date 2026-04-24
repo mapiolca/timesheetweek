@@ -69,7 +69,7 @@ class ActionsTimesheetweek
         // EN: Evaluate user permissions to control quick creation visibility.
         // FR: Évaluer les droits de l'utilisateur pour contrôler la visibilité de la création rapide.
 
-        $hasWriteRight = $user->hasRight('timesheetweek', 'timesheetweek', 'write') || $user->hasRight('timesheetweek', 'timesheetweek', 'writeChild') || $user->hasRight('timesheetweek', 'timesheetweek', 'writeAll');
+        $hasWriteRight = $user->hasRight('timesheetweek', 'write') || $user->hasRight('timesheetweek', 'writeChild') || $user->hasRight('timesheetweek', 'writeAll');
 
         // EN: Inject the quick creation entry with translated metadata.
         // FR: Injecter l'entrée de création rapide avec des métadonnées traduites.
