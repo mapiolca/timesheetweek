@@ -977,6 +977,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		// EN: Fire business trigger for reopening to notify subscribers about rollback to draft.
+		// FR: Déclenche le trigger métier de réouverture pour notifier le retour en brouillon.
+		$resultTriggerReopen = $this->fireNotificationTrigger('TIMESHEETWEEK_REOPEN', $user);
+		if ($resultTriggerReopen < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 
 		return 1;

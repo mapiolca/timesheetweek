@@ -40,6 +40,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_SEAL',
 		),
+		'TSWK_REOPEN' => array(
+			'automatic' => '',
+			'business' => 'TIMESHEETWEEK_REOPEN',
+		),
 		'TSWK_DELETE' => array(
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_DELETE',
@@ -71,6 +75,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		'TIMESHEETWEEK_SAVE',
 		'TIMESHEETWEEK_DELETE',
 		'TIMESHEETWEEK_SEAL',
+		'TIMESHEETWEEK_REOPEN',
 	);
 
         /**

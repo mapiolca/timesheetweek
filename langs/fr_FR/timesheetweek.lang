@@ -279,6 +279,7 @@ Notify_TIMESHEETWEEK_CREATE = Feuille de temps créée
 Notify_TIMESHEETWEEK_SAVE = Feuille de temps sauvegardée
 Notify_TIMESHEETWEEK_DELETE = Feuille de temps supprimée
 Notify_TIMESHEETWEEK_SEAL = Feuille de temps scellée
+Notify_TIMESHEETWEEK_REOPEN = Feuille de temps rouverte
 TimesheetWeekElementTimeNote = Feuille de temps %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
 
