@@ -41,7 +41,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 
 ### Traductions
 
-Les fichiers de traduction sont disponibles dans `langs/en_US` et `langs/fr_FR`. Toute nouvelle chaîne doit être renseignée simultanément dans les deux langues conformément aux pratiques Dolibarr.
+Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `langs/de_DE`, `langs/es_ES` et `langs/it_IT`. Toute nouvelle chaîne doit être renseignée simultanément dans ces langues conformément aux pratiques Dolibarr.
 
 ## 🇬🇧 Overview
 
@@ -84,7 +84,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 
 ### Translations
 
-Translation sources are stored under `langs/en_US` and `langs/fr_FR`. Please keep both locales aligned for every new string to stay compatible with Dolibarr's translation workflow.
+Translation sources are stored under `langs/en_US`, `langs/fr_FR`, `langs/de_DE`, `langs/es_ES` and `langs/it_IT`. Please keep these locales aligned for every new string to stay compatible with Dolibarr's translation workflow.
 
 Other external modules are available on [Dolistore.com](https://www.dolistore.com).
 
