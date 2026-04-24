@@ -1815,9 +1815,25 @@ $rateName = 'daily_'.$task['task_id'].'_'.$d;
 $val = '';
 $rateVal = 0;
 $dayPlaceholder = '00:00';
+$hasHolidayDayMarker = !empty($holidayPlaceholderByDay[$d]);
+$daySelectEmptyLabel = '';
+$daySelectEmptySelected = ' selected';
+$daySelectEmptyValue = '';
+$daySelectEmptyDisabled = '';
+$daySelectEmptyHidden = '';
+$daySelectEmptyTitle = '';
+$daySelectTitleAttr = '';
 $isHolidayLockedDay = ($object->status == tw_status('draft') && !empty($holidayPlaceholderByDay[$d]) && !$canOverrideHolidayLock);
-if ($isHolidayLockedDay) {
+if ($hasHolidayDayMarker) {
 	$dayPlaceholder = $holidayPlaceholderByDay[$d];
+	$daySelectEmptyLabel = $dayPlaceholder;
+	$daySelectTitleAttr = ' title="'.dol_escape_htmltag($dayPlaceholder).'"';
+}
+if ($isHolidayLockedDay) {
+	$daySelectEmptyValue = '__holiday__';
+	$daySelectEmptyDisabled = ' disabled';
+	$daySelectEmptyHidden = ' hidden';
+	$daySelectEmptyTitle = ' data-dayplaceholder="'.dol_escape_htmltag($dayPlaceholder).'"';
 }
 $keydate = $weekdates[$d];
 if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
@@ -1830,15 +1846,14 @@ $rateVal = (int)$dailyRateBy[(int)$task['task_id']][$keydate];
 if ($isDailyRateEmployee) {
 $disabledSelect = ($object->status != tw_status('draft')) ? ' disabled' : '';
 $disabledSelect = $isHolidayLockedDay ? ' disabled' : $disabledSelect;
-$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.'>';
-if ($isHolidayLockedDay) {
-	$selectHtml .= '<option value="" selected>'.dol_escape_htmltag($dayPlaceholder).'</option>';
-} else {
-	$selectHtml .= '<option value=""></option>';
-	foreach ($dailyRateOptions as $code => $label) {
-	$selected = ($rateVal === (int) $code) ? ' selected' : '';
-	$selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
-	}
+$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.$daySelectTitleAttr.'>';
+if ($rateVal > 0) {
+	$daySelectEmptySelected = '';
+}
+$selectHtml .= '<option value="'.$daySelectEmptyValue.'"'.$daySelectEmptySelected.$daySelectEmptyDisabled.$daySelectEmptyHidden.$daySelectEmptyTitle.'>'.dol_escape_htmltag($daySelectEmptyLabel).'</option>';
+foreach ($dailyRateOptions as $code => $label) {
+$selected = ($rateVal === (int) $code) ? ' selected' : '';
+$selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
 }
 $selectHtml .= '</select>';
 echo '<td class="center cellule-temps">'.$selectHtml.'</td>';
