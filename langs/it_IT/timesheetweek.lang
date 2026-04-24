@@ -292,7 +292,7 @@ Notify_TIMESHEETWEEK_CREATE = Timesheet creata
 Notify_TIMESHEETWEEK_SAVE = Timesheet salvata
 Notify_TIMESHEETWEEK_DELETE = Timesheet eliminata
 Notify_TIMESHEETWEEK_SEAL = Timesheet sigillata
-Notify_TIMESHEETWEEK_REOPEN = Timesheet riaperta
+Notify_TIMESHEETWEEK_BACKTODRAFT = Timesheet riaperta
 TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 

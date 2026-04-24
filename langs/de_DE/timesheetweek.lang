@@ -292,7 +292,7 @@ Notify_TIMESHEETWEEK_CREATE = Stundenzettel erstellt
 Notify_TIMESHEETWEEK_SAVE = Stundenzettel gespeichert
 Notify_TIMESHEETWEEK_DELETE = Stundenzettel gelöscht
 Notify_TIMESHEETWEEK_SEAL = Stundenzettel versiegelt
-Notify_TIMESHEETWEEK_REOPEN = Stundenzettel wieder geöffnet
+Notify_TIMESHEETWEEK_BACKTODRAFT = Stundenzettel wieder geöffnet
 TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 

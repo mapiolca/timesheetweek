@@ -4,7 +4,7 @@
 
 UPDATE llx_c_action_trigger
 SET elementtype = 'timesheetweek@timesheetweek'
-WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SAVE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_REOPEN');
+WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SAVE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_BACKTODRAFT');
 
 INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
 SELECT 'TIMESHEETWEEK_CREATE', 'Création feuille de temps', 'Déclenché quand une feuille de temps est créée.', 'timesheetweek@timesheetweek', 2098
@@ -42,6 +42,6 @@ FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_SEAL');
 
 INSERT INTO llx_c_action_trigger (code, label, description, elementtype, rang)
-SELECT 'TIMESHEETWEEK_REOPEN', 'Réouverture feuille de temps', 'Déclenché quand une feuille de temps repasse en brouillon.', 'timesheetweek@timesheetweek', 2105
+SELECT 'TIMESHEETWEEK_BACKTODRAFT', 'Réouverture feuille de temps', 'Déclenché quand une feuille de temps repasse en brouillon.', 'timesheetweek@timesheetweek', 2105
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_REOPEN');
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_action_trigger WHERE code = 'TIMESHEETWEEK_BACKTODRAFT');

@@ -290,7 +290,7 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -530,7 +530,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SAVE', 'TimesheetWeekAgendaSaved', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_SAVE', 'TimesheetWeekAgendaSaved', array($this->ref))) {
 			return -1;
 		}
 		return 1;
@@ -708,7 +708,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -914,7 +914,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -984,14 +984,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_BACKTODRAFT', 'TimesheetWeekAgendaReopened', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
 
 		// EN: Fire business trigger for reopening to notify subscribers about rollback to draft.
 		// FR: Déclenche le trigger métier de réouverture pour notifier le retour en brouillon.
-		$resultTriggerReopen = $this->fireNotificationTrigger('TIMESHEETWEEK_REOPEN', $user);
+		$resultTriggerReopen = $this->fireNotificationTrigger('TIMESHEETWEEK_BACKTODRAFT', $user);
 		if ($resultTriggerReopen < 0) {
 			$this->db->rollback();
 			return -1;
@@ -1061,7 +1061,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1160,7 +1160,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1212,7 +1212,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_APPROVED;
 		$this->tms = $now;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_UNSEAL', 'TimesheetWeekAgendaUnsealed', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_UNSEAL', 'TimesheetWeekAgendaUnsealed', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1582,7 +1582,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -2395,7 +2395,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* Create an agenda event for this timesheet action
 	*
 	* @param User   $user
-	* @param string $code       Internal agenda code (ex: TSWK_SUBMIT)
+	* @param string $code       Internal agenda code (ex: TIMESHEETWEEK_SUBMIT)
 	* @param string $labelKey   Translation key for event label
 	* @param array  $labelParams Parameters passed to translation
 	* @param bool   $linkToObject Whether to create an object link

@@ -1009,7 +1009,7 @@ class modTimesheetWeek extends DolibarrModules
 				'description' => 'Déclenché quand une feuille de temps est scellée.',
 				'rang' => 2104,
 			),
-			'TIMESHEETWEEK_REOPEN' => array(
+			'TIMESHEETWEEK_BACKTODRAFT' => array(
 				'label' => 'Réouverture feuille de temps',
 				'description' => 'Déclenché quand une feuille de temps repasse en brouillon.',
 				'rang' => 2105,

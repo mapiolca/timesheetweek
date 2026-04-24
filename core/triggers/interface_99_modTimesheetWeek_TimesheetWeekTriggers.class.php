@@ -24,35 +24,35 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 	 * @var array<string,array{automatic:string,business:string}>
 	 */
 	protected $agendaActionMap = array(
-		'TSWK_CREATE' => array(
+		'TIMESHEETWEEK_CREATE' => array(
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_CREATE',
 		),
-		'TSWK_SAVE' => array(
+		'TIMESHEETWEEK_SAVE' => array(
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_SAVE',
 		),
-		'TSWK_SUBMIT' => array(
+		'TIMESHEETWEEK_SUBMIT' => array(
 			'automatic' => 'TIMESHEETWEEK_SUBMITTED',
 			'business' => 'TIMESHEETWEEK_SUBMIT',
 		),
-		'TSWK_APPROVE' => array(
+		'TIMESHEETWEEK_APPROVE' => array(
 			'automatic' => 'TIMESHEETWEEK_APPROVED',
 			'business' => 'TIMESHEETWEEK_APPROVE',
 		),
-		'TSWK_SEAL' => array(
+		'TIMESHEETWEEK_SEAL' => array(
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_SEAL',
 		),
-		'TSWK_REOPEN' => array(
+		'TIMESHEETWEEK_BACKTODRAFT' => array(
 			'automatic' => '',
-			'business' => 'TIMESHEETWEEK_REOPEN',
+			'business' => 'TIMESHEETWEEK_BACKTODRAFT',
 		),
-		'TSWK_DELETE' => array(
+		'TIMESHEETWEEK_DELETE' => array(
 			'automatic' => '',
 			'business' => 'TIMESHEETWEEK_DELETE',
 		),
-		'TSWK_REFUSE' => array(
+		'TIMESHEETWEEK_REFUSE' => array(
 			'automatic' => 'TIMESHEETWEEK_REFUSED',
 			'business' => 'TIMESHEETWEEK_REFUSE',
 		),
@@ -79,7 +79,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		'TIMESHEETWEEK_SAVE',
 		'TIMESHEETWEEK_DELETE',
 		'TIMESHEETWEEK_SEAL',
-		'TIMESHEETWEEK_REOPEN',
+		'TIMESHEETWEEK_BACKTODRAFT',
 	);
 
         /**
