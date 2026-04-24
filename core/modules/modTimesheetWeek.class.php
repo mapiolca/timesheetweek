@@ -1028,7 +1028,7 @@ class modTimesheetWeek extends DolibarrModules
 
 		foreach ($triggers as $code => $definition) {
 			$sqlUpdate = "UPDATE ".MAIN_DB_PREFIX."c_action_trigger";
-			$sqlUpdate .= " SET elementtype = 'timesheetweek@timesheetweek'";
+			$sqlUpdate .= " SET elementtype = 'timesheetweek'";
 			$sqlUpdate .= " WHERE code = '".$this->db->escape($code)."'";
 			if (!$this->db->query($sqlUpdate)) {
 				$this->error = $this->db->lasterror();
@@ -1036,7 +1036,7 @@ class modTimesheetWeek extends DolibarrModules
 			}
 
 			$sqlInsert = "INSERT INTO ".MAIN_DB_PREFIX."c_action_trigger (code, label, description, elementtype, rang)";
-			$sqlInsert .= " SELECT '".$this->db->escape($code)."', '".$this->db->escape($definition['label'])."', '".$this->db->escape($definition['description'])."', 'timesheetweek@timesheetweek', ".((int) $definition['rang']);
+			$sqlInsert .= " SELECT '".$this->db->escape($code)."', '".$this->db->escape($definition['label'])."', '".$this->db->escape($definition['description'])."', 'timesheetweek', ".((int) $definition['rang']);
 			$sqlInsert .= " FROM DUAL";
 			$sqlInsert .= " WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code = '".$this->db->escape($code)."')";
 			if (!$this->db->query($sqlInsert)) {
