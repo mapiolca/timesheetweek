@@ -1,5 +1,12 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.8 (24/04/2026)
+- Ajoute le support des congés et RTT approuvés dans la fiche hebdomadaire avec placeholders dédiés et verrouillage conditionnel des champs. / Adds support for approved leave and RTT in the weekly card with dedicated placeholders and conditional field locking.
+- Ajoute trois permissions de déverrouillage des congés (`disableownholiday`, `disablechildholiday`, `disableallholiday`). / Adds three leave unlock permissions (`disableownholiday`, `disablechildholiday`, `disableallholiday`).
+- Affiche les congés/RTT (y compris demi-journées) dans le PDF standard de feuille hebdomadaire. / Displays leave/RTT (including half-days) in the standard weekly timesheet PDF.
+- Ajoute des colonnes dédiées « jours de congés » et « jours RTT » dans la synthèse PDF massaction lorsque des valeurs existent. / Adds dedicated "leave days" and "RTT days" columns in the mass-action summary PDF when values exist.
+- Raccourcit les libellés FR de la synthèse PDF pour optimiser la largeur des colonnes (`Heures supp.`, `Dépl. Zone X`). / Shortens FR summary PDF labels to optimize column width (`Heures supp.`, `Dépl. Zone X`).
+
 ## 1.7.2 (27/01/2026)
 - Respecte MAIN_DISABLE_FORCE_SAVEAS pour les liens PDF (aperçu, téléchargement, redirections). / Honors MAIN_DISABLE_FORCE_SAVEAS for PDF links (preview, download, redirects).
 - Ajuste la hauteur des lignes du tableau de synthèse PDF selon le contenu. / Adjusts summary PDF table row height based on content.
