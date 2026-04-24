@@ -830,6 +830,7 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		
 		$contentTop = tw_pdf_add_landscape_page($pdf, $outputlangs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, $headerState, $autoPageBreakMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 		$pdf->SetXY($margeGauche, $contentTop + 2.0);
+		$pdf->SetFont(pdf_getPDFFont($outputlangs), '', '7');
 		$pdf->writeHTMLCell(0, 0, '', '', $htmlGrid, 0, 1, 0, true, '', true);
 		$pdf->lastPage();
 		

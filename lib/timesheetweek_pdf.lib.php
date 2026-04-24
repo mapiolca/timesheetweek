@@ -471,48 +471,66 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
  * EN: Create a new landscape page and ensure header/footer are drawn.
  * FR: Crée une nouvelle page paysage et dessine l'entête/pied de page.
  *
- * @param TCPDF $pdf
- * @param Translate $langs
- * @param Conf $conf
- * @param float $leftMargin
- * @param float $topMargin
- * @param float $rightMargin
- * @param float $bottomMargin
- * @param float|null $autoPageBreakMargin
- * @param string $headerTitle
- * @param string|array $headerStatus
- * @param string $headerWeekRange
- * @param string $headerSubtitle
- * @return float
+ /**
+ * Add a landscape page and return the Y position where content can start.
+ * Safe for TCPDF "Empty font family" cases (Dolibarr v21).
+ *
+ * @param	TCPDF		$pdf
+ * @param	Translate	$outputlangs
+ * @param	Conf		$conf
+ * @param	int|float	$margeGauche
+ * @param	int|float	$margeHaute
+ * @param	int|float	$margeDroite
+ * @param	int|float	$margeBasse
+ * @param	array		$headerState		Passed by reference (value/automatic)
+ * @param	int|float	$autoPageBreakMargin
+ * @param	string		$headerTitle
+ * @param	string		$headerStatus
+ * @param	string		$headerWeekRange
+ * @param	string		$headerSubtitle
+ * @return	float
  */
-function tw_pdf_add_landscape_page($pdf, $langs, $conf, $leftMargin, $topMargin, $rightMargin, $bottomMargin, &$headerState = null, $autoPageBreakMargin = null, $headerTitle = '', $headerStatus = '', $headerWeekRange = '', $headerSubtitle = '')
+function tw_pdf_add_landscape_page($pdf, $outputlangs, $conf, $margeGauche, $margeHaute, $margeDroite, $margeBasse, &$headerState, $autoPageBreakMargin, $headerTitle = '', $headerStatus = '', $headerWeekRange = '', $headerSubtitle = '')
 {
-	$pdf->AddPage('L');
-	// EN: Detect if TCPDF automatic callbacks manage header/footer rendering.
-	// FR: Détecte si les callbacks automatiques de TCPDF gèrent le rendu entête/pied.
-	$callbacksOn = is_array($headerState) && !empty($headerState['automatic']);
+	// Always use Dolibarr helpers for font (never rely on TCPDF internal current font).
+	$font = pdf_getPDFFont($outputlangs);
+	if (empty($font)) $font = 'helvetica'; // hard fallback (prevents TCPDF "Empty font family")
+	$fontsize = pdf_getPDFFontSize($outputlangs);
 
-	if ($callbacksOn) {
-		// EN: Recompute the header height when missing to avoid duplicated footer calls.
-		// FR: Recalcule la hauteur d'entête lorsqu'elle manque pour éviter les appels de pied dupliqués.
-		$headerBottom = !empty($headerState['value'])
-				? (float) $headerState['value']
-				: tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
+	// Some TCPDF paths (header/footer context) use these font arrays.
+	if (method_exists($pdf, 'setHeaderFont')) $pdf->setHeaderFont(array($font, '', $fontsize));
+	if (method_exists($pdf, 'setFooterFont')) $pdf->setFooterFont(array($font, '', $fontsize));
+
+	// Reset header state before adding the page (header callback may fill it).
+	if (is_array($headerState)) {
+		$headerState['value'] = 0.0;
+		$headerState['automatic'] = false;
+	}
+
+	// Add page in landscape. This may trigger header/footer callbacks.
+	$pdf->AddPage('L');
+
+	// Re-apply margins / auto page break (keeps behavior consistent across instances).
+	$pdf->SetAutoPageBreak(true, $autoPageBreakMargin);
+	$pdf->SetMargins($margeGauche, $margeHaute, $margeDroite);
+
+	// Force font again AFTER AddPage (some environments lose font context at page creation).
+	$pdf->SetFont($font, '', $fontsize);
+
+	// Compute content top
+	$contentTop = (float) $margeHaute;
+
+	// If header callback ran, it should have updated headerState.
+	if (is_array($headerState) && !empty($headerState['automatic']) && !empty($headerState['value'])) {
+		$contentTop = (float) $headerState['value'];
 	} else {
-		$headerBottom = tw_pdf_draw_header($pdf, $langs, $conf, $leftMargin, $topMargin, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
-		tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bottomMargin, null, 0, $autoPageBreakMargin);
-		if (is_array($headerState)) {
-			// EN: Store the header height for further pages when callbacks remain disabled.
-			// FR: Mémorise la hauteur d'entête pour les prochaines pages lorsque les callbacks restent inactifs.
-			$headerState['value'] = $headerBottom;
+		// No callback: draw header manually if your helper exists.
+		if (function_exists('tw_pdf_draw_header')) {
+			$contentTop = (float) tw_pdf_draw_header($pdf, $outputlangs, $conf, $margeGauche, $margeHaute, $headerTitle, $headerStatus, $headerWeekRange, $headerSubtitle);
 		}
 	}
-	$contentStart = $headerBottom + 4.0;
-	// EN: Force the top margin below the header so every page keeps data between header and footer.
-	// FR: Force la marge haute sous l'entête pour que chaque page maintienne les données entre entête et pied.
-	$pdf->SetTopMargin($contentStart);
-	$pdf->SetXY($leftMargin, $contentStart);
-	return $contentStart;
+
+	return $contentTop;
 }
 
 /**
