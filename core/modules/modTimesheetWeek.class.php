@@ -157,14 +157,19 @@ class modTimesheetWeek extends DolibarrModules
                         // EN: Register the top right menu hook to inject quick creation entry.
                         // FR: Enregistrer le hook du menu supérieur droit pour injecter l'entrée de création rapide.
                         'hooks' => array(
-                                'data' => array(
-                                        'toprightmenu',
-                                        // EN: Register multicompany sharing contexts to expose sharing options.
-                                        // FR: Enregistrer les contextes multicompany pour exposer les options de partage.
-                                        'multicompanyexternalmodulesharing',
-                                        'multicompanyexternalmodules',
-                                        'multicompanysharingoptions',
-                                ),
+					'data' => array(
+						'toprightmenu',
+						// EN: Register multicompany sharing contexts to expose sharing options.
+						// FR: Enregistrer les contextes multicompany pour exposer les options de partage.
+						'multicompanyexternalmodulesharing',
+						'multicompanyexternalmodules',
+						'multicompanysharingoptions',
+						// EN: Register notification contexts so TimesheetWeek hooks can enrich Notification module screens.
+						// FR: Enregistrer les contextes notifications pour enrichir les écrans du module Notifications.
+						'notificationcard',
+						'notificationtemplatescard',
+						'emailtemplatescard',
+					),
                                 'entity' => '0',
                         ),
 			/* END MODULEBUILDER HOOKSCONTEXTS */

@@ -205,4 +205,59 @@ class ActionsTimesheetweek
 
         return 0;
     }
+
+    /**
+     * Expose TimesheetWeek translations and trigger metadata on Notification pages.
+     * Exposer les traductions TimesheetWeek et les métadonnées de triggers dans les pages Notifications.
+     *
+     * @param array       $parameters Hook parameters / Paramètres du hook
+     * @param CommonObject $object Current object / Objet courant
+     * @param string      $action Current action / Action courante
+     * @param HookManager $hookmanager Hook manager / Gestionnaire de hooks
+     *
+     * @return int
+     */
+    public function doActions($parameters, &$object, &$action, $hookmanager)
+    {
+        global $langs;
+
+        $context = '';
+        if (!empty($parameters['currentcontext'])) {
+            $context = (string) $parameters['currentcontext'];
+        }
+
+        $contexts = array_filter(explode(':', $context));
+        $notificationContexts = array(
+            'notificationcard',
+            'notificationtemplatescard',
+            'emailtemplatescard',
+        );
+
+        if (empty(array_intersect($contexts, $notificationContexts))) {
+            return 0;
+        }
+
+        // EN: Ensure module labels are available when configuring notification events/templates.
+        // FR: Assurer la disponibilité des libellés du module lors de la configuration des événements/modèles.
+        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+        if (!is_array($this->results)) {
+            $this->results = array();
+        }
+
+        // EN: Provide TimesheetWeek business trigger list to notification hooks when they consume hook results.
+        // FR: Fournir la liste des triggers métier TimesheetWeek aux hooks notifications qui lisent $this->results.
+        $this->results['timesheetweek_notification_events'] = array(
+            'TIMESHEETWEEK_CREATE',
+            'TIMESHEETWEEK_SAVE',
+            'TIMESHEETWEEK_SUBMIT',
+            'TIMESHEETWEEK_APPROVE',
+            'TIMESHEETWEEK_REFUSE',
+            'TIMESHEETWEEK_SEAL',
+            'TIMESHEETWEEK_BACKTODRAFT',
+            'TIMESHEETWEEK_DELETE',
+        );
+
+        return 0;
+    }
 }
