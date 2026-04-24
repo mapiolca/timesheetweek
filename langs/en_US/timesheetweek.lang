@@ -191,6 +191,7 @@ TimesheetWeekSummaryColumnTotalDays = Declared days
 TimesheetWeekSummaryColumnContractHours = Contract hours
 TimesheetWeekSummaryColumnContractDays = Contract days
 TimesheetWeekSummaryColumnLeaveDays = Leave days
+TimesheetWeekSummaryColumnRttDays = RTT days
 TimesheetWeekSummaryColumnOvertime = Overtime
 TimesheetWeekSummaryColumnMeals = Meal allowances
 TimesheetWeekSummaryColumnZone1 = Zone 1 trips

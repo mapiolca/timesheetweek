@@ -190,6 +190,7 @@ TimesheetWeekSummaryColumnTotalDays = Jours déclarés
 TimesheetWeekSummaryColumnContractHours = Heures au contrat
 TimesheetWeekSummaryColumnContractDays = Jours contractuels
 TimesheetWeekSummaryColumnLeaveDays = Jours de congés
+TimesheetWeekSummaryColumnRttDays = Jours RTT
 TimesheetWeekSummaryColumnOvertime = Heures supplémentaires
 TimesheetWeekSummaryColumnMeals = Paniers repas
 TimesheetWeekSummaryColumnZone1 = Déplacements Zone 1
