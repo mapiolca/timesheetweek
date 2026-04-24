@@ -35,6 +35,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+require_once DOL_DOCUMENT_ROOT.'/holiday/class/holiday.class.php';
 
 class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 {
@@ -527,6 +528,18 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$dayTotalsHours[$dayName] = 0.0;
 		}
 		$grandHours = 0.0;
+		$holidayCoverageByDay = $this->getHolidayCoverageByDay((int) $object->fk_user, $weekdates, $outputlangs);
+		$holidayDisplayByDay = array();
+		$hasHolidayDisplay = false;
+		foreach ($days as $dayName) {
+			$holidayDisplayByDay[$dayName] = $this->formatHolidayCoverageCell(
+				isset($holidayCoverageByDay[$dayName]) ? $holidayCoverageByDay[$dayName] : array('am' => '', 'pm' => ''),
+				$outputlangs
+			);
+			if ($holidayDisplayByDay[$dayName] !== '') {
+				$hasHolidayDisplay = true;
+			}
+		}
 
 		// EN: Prepare the legend describing available daily-rate durations when quarter-day support is active.
 		// FR: Prépare la légende décrivant les durées forfait jour disponibles lorsque le quart de jour est actif.
@@ -593,6 +606,16 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 					$zoneLabel = tw_pdf_format_cell_html($outputlangs->trans('Zone').' '.$zoneValue);
 					$mealLabel = tw_pdf_format_cell_html($outputlangs->trans('Meal').': '.$mealValue);
 					$htmlGrid .= '<td align="center">'.$zoneLabel.'<br>'.$mealLabel.'</td>';
+				}
+				$htmlGrid .= '<td></td>';
+				$htmlGrid .= '</tr>';
+			}
+			if ($hasHolidayDisplay) {
+				$htmlGrid .= '<tr style="background-color:#f7f7f7;">';
+				$htmlGrid .= '<td>'.tw_pdf_format_cell_html($outputlangs->trans('TimesheetWeekPdfLeaveRowTitle')).'</td>';
+				foreach ($days as $dayName) {
+					$dayLeaveLabel = isset($holidayDisplayByDay[$dayName]) ? $holidayDisplayByDay[$dayName] : '';
+					$htmlGrid .= '<td align="center">'.($dayLeaveLabel !== '' ? tw_pdf_format_cell_html($dayLeaveLabel) : '-').'</td>';
 				}
 				$htmlGrid .= '<td></td>';
 				$htmlGrid .= '</tr>';
@@ -853,6 +876,162 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		);
 	
 		return 1;
+	}
+
+	/**
+	 * EN: Build leave coverage (morning/afternoon) for each weekday of the displayed timesheet.
+	 * FR: Construit la couverture des congés (matin/après-midi) pour chaque jour de la feuille affichée.
+	 *
+	 * @param int       $userId    Target user identifier / Identifiant de l'utilisateur ciblé
+	 * @param array     $weekdates Week dates indexed by weekday / Dates de semaine indexées par jour
+	 * @param Translate $langs     Language handler / Gestionnaire de langues
+	 * @return array<string,array{am:string,pm:string}>
+	 */
+	protected function getHolidayCoverageByDay($userId, array $weekdates, Translate $langs)
+	{
+		$coverageByDay = array();
+		foreach ($weekdates as $dayKey => $isoDate) {
+			$coverageByDay[$dayKey] = array('am' => '', 'pm' => '');
+		}
+
+		$userId = (int) $userId;
+		if ($userId <= 0 || empty($weekdates) || !isModEnabled('holiday')) {
+			return $coverageByDay;
+		}
+
+		$weekStartDate = min(array_values($weekdates));
+		$weekEndDate = max(array_values($weekdates));
+		if (empty($weekStartDate) || empty($weekEndDate)) {
+			return $coverageByDay;
+		}
+
+		$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+		$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+		$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+		$sql .= " AND h.fk_user = ".$userId;
+		$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+		$sql .= " AND h.date_debut <= '".$this->db->escape($weekEndDate)." 23:59:59'";
+		$sql .= " AND h.date_fin >= '".$this->db->escape($weekStartDate)." 00:00:00'";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			return $coverageByDay;
+		}
+
+		$rttLabel = $langs->trans('TimesheetWeekHolidayPlaceholderRtt');
+		while ($obj = $this->db->fetch_object($resql)) {
+			$startTs = strtotime((string) $obj->date_debut);
+			$endTs = strtotime((string) $obj->date_fin);
+			if ($startTs === false || $endTs === false) {
+				continue;
+			}
+
+			$startDate = date('Y-m-d', $startTs);
+			$endDate = date('Y-m-d', $endTs);
+			$halfdayCode = (int) $obj->halfday;
+			$typeCode = strtoupper(trim((string) $obj->type_code));
+			$typeLabel = strtoupper(trim((string) $obj->type_label));
+			$isRtt = (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false);
+			$baseLabel = $isRtt ? $rttLabel : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
+
+			foreach ($weekdates as $dayKey => $dayDate) {
+				if (empty($dayDate) || $dayDate < $startDate || $dayDate > $endDate) {
+					continue;
+				}
+
+				$hasMorning = true;
+				$hasAfternoon = true;
+				$isStartDay = ($dayDate === $startDate);
+				$isEndDay = ($dayDate === $endDate);
+
+				if ($isStartDay && $isEndDay) {
+					if ($halfdayCode === 1) {
+						$hasAfternoon = false;
+					} elseif ($halfdayCode === -1) {
+						$hasMorning = false;
+					}
+				} else {
+					if ($isStartDay && ($halfdayCode === -1 || $halfdayCode === 2)) {
+						$hasMorning = false;
+					}
+					if ($isEndDay && ($halfdayCode === 1 || $halfdayCode === 2)) {
+						$hasAfternoon = false;
+					}
+				}
+
+				if ($hasMorning) {
+					$coverageByDay[$dayKey]['am'] = $this->mergeHolidayLabels($coverageByDay[$dayKey]['am'], $baseLabel, $rttLabel);
+				}
+				if ($hasAfternoon) {
+					$coverageByDay[$dayKey]['pm'] = $this->mergeHolidayLabels($coverageByDay[$dayKey]['pm'], $baseLabel, $rttLabel);
+				}
+			}
+		}
+		$this->db->free($resql);
+
+		return $coverageByDay;
+	}
+
+	/**
+	 * EN: Merge two leave labels while prioritising RTT wording over generic leave.
+	 * FR: Fusionne deux libellés de congés en priorisant RTT par rapport au libellé congé générique.
+	 *
+	 * @param string $currentLabel Existing label / Libellé existant
+	 * @param string $newLabel     Label to merge / Libellé à fusionner
+	 * @param string $rttLabel     Reference RTT label / Libellé RTT de référence
+	 * @return string
+	 */
+	protected function mergeHolidayLabels($currentLabel, $newLabel, $rttLabel)
+	{
+		if ($currentLabel === '' || $currentLabel === $newLabel) {
+			return $newLabel;
+		}
+		if ($newLabel === $rttLabel) {
+			return $newLabel;
+		}
+		return $currentLabel;
+	}
+
+	/**
+	 * EN: Convert per-half-day leave coverage into a printable daily label for the PDF grid.
+	 * FR: Convertit la couverture de congés par demi-journée en libellé journalier imprimable dans la grille PDF.
+	 *
+	 * @param array{am:string,pm:string} $dayCoverage Coverage for one day / Couverture d'une journée
+	 * @param Translate                  $langs       Language handler / Gestionnaire de langues
+	 * @return string
+	 */
+	protected function formatHolidayCoverageCell(array $dayCoverage, Translate $langs)
+	{
+		$morningLabel = !empty($dayCoverage['am']) ? (string) $dayCoverage['am'] : '';
+		$afternoonLabel = !empty($dayCoverage['pm']) ? (string) $dayCoverage['pm'] : '';
+		if ($morningLabel === '' && $afternoonLabel === '') {
+			return '';
+		}
+		if ($morningLabel !== '' && $afternoonLabel !== '' && $morningLabel === $afternoonLabel) {
+			return $morningLabel;
+		}
+		if ($morningLabel !== '' && $afternoonLabel !== '') {
+			return $langs->trans(
+				'TimesheetWeekPdfLeaveSplitLabel',
+				$morningLabel,
+				$langs->trans('TimesheetWeekDailyRateMorning'),
+				$afternoonLabel,
+				$langs->trans('TimesheetWeekDailyRateAfternoon')
+			);
+		}
+		if ($morningLabel !== '') {
+			return $langs->trans(
+				'TimesheetWeekPdfLeaveHalfDayLabel',
+				$morningLabel,
+				$langs->trans('TimesheetWeekDailyRateMorning')
+			);
+		}
+		return $langs->trans(
+			'TimesheetWeekPdfLeaveHalfDayLabel',
+			$afternoonLabel,
+			$langs->trans('TimesheetWeekDailyRateAfternoon')
+		);
 	}
 	
 	/**
