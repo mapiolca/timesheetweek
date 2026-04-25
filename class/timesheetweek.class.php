@@ -1870,52 +1870,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	protected function fireNotificationTrigger($triggerCode, User $actionUser)
 	{
-		global $langs, $conf, $hookmanager;
-
-		if (is_object($langs)) {
-			$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda', 'mails'));
-		}
-
-		$payload = $this->buildTriggerParameters($triggerCode, $actionUser);
-
-		if (method_exists($this, 'call_trigger')) {
-			try {
-				return (int) $this->call_trigger($triggerCode, $actionUser);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-			}
-		}
-
-		// FR: Compatibilité avec les anciennes versions qui exposent runTrigger directement sur l'objet.
-		// EN: Backward compatibility for legacy releases exposing runTrigger on the object.
-		if (method_exists($this, 'runTrigger')) {
-			try {
-				$method = new \ReflectionMethod($this, 'runTrigger');
-				$arguments = $this->mapTriggerArguments($method->getParameters(), $payload, true);
-
-				return $method->invokeArgs($this, $arguments);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-			}
-		}
-
-		// FR: Fallback ultime sur la fonction globale runTrigger si elle est disponible.
-		// EN: Ultimate fallback using the global runTrigger helper when available.
-		if (!function_exists('runTrigger')) {
-			dol_include_once('/core/triggers/functions_triggers.inc.php');
-		}
-
-		if (function_exists('runTrigger')) {
-			try {
-				$function = new \ReflectionFunction('runTrigger');
-				$arguments = $this->mapTriggerArguments($function->getParameters(), $payload, true);
-
-				return $function->invokeArgs($arguments);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-			}
-		}
-
 		return 0;
 	}
 
