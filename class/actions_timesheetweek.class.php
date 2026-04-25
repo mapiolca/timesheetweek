@@ -307,6 +307,10 @@ class ActionsTimesheetweek
 		if (is_object($user) && is_object($langs)) {
 			$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
 			foreach ($events as $eventCode) {
+				if (!is_string($eventCode) || strpos($eventCode, 'TIMESHEETWEEK_') !== 0) {
+					continue;
+				}
+
 				$template = $this->fetchTemplateForTrigger($eventCode, $user, $langs);
 				if (is_object($template) && !empty($template->id)) {
 					$templateByTrigger[$eventCode] = (int) $template->id;
@@ -333,12 +337,21 @@ class ActionsTimesheetweek
 	 */
 	protected function fetchTemplateForTrigger($action, $actionUser, $langs)
 	{
+		global $conf;
+
 		if (empty($action)) {
 			return null;
 		}
 
-		$label = getDolGlobalString($action.'_TEMPLATE');
+		$actionCode = strtoupper(trim((string) $action));
+		$constantName = $actionCode.'_TEMPLATE';
+		$label = getDolGlobalString($constantName);
+		if (empty($label) && !empty($conf->global->{$constantName})) {
+			$label = (string) $conf->global->{$constantName};
+		}
+
 		if (empty($label)) {
+			dol_syslog(__METHOD__.': no template constant found for '.$constantName, LOG_DEBUG);
 			return null;
 		}
 
@@ -353,8 +366,11 @@ class ActionsTimesheetweek
 		}
 
 		if (is_object($template) && !empty($template->id)) {
+			dol_syslog(__METHOD__.': loaded template "'.$label.'" from '.$constantName.' for trigger '.$actionCode, LOG_DEBUG);
 			return $template;
 		}
+
+		dol_syslog(__METHOD__.': template "'.$label.'" configured in '.$constantName.' was not found', LOG_DEBUG);
 
 		return null;
 	}
