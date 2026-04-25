@@ -277,7 +277,7 @@ class ActionsTimesheetweek
      */
     public function notifsupported($parameters, &$object, &$action, $hookmanager)
     {
-        global $conf;
+        global $conf, $langs, $user;
 
         $notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek');
         foreach ($notificationElementAliases as $alias) {
@@ -303,7 +303,25 @@ class ActionsTimesheetweek
             $events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
         }
 
-        $this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
+		$templateByTrigger = array();
+		if (is_object($user) && is_object($langs)) {
+			dol_include_once('/timesheetweek/core/triggers/interface_99_modTimesheetWeek_TimesheetWeekTriggers.class.php');
+			if (class_exists('InterfaceTimesheetWeekTriggers')) {
+				$triggerHandler = new InterfaceTimesheetWeekTriggers($this->db);
+				$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+				foreach ($events as $eventCode) {
+					$template = $triggerHandler->fetchTemplateForTrigger($eventCode, $user, $langs);
+					if (is_object($template) && !empty($template->id)) {
+						$templateByTrigger[$eventCode] = (int) $template->id;
+					}
+				}
+			}
+		}
+
+		$this->results = array(
+			'arrayofnotifsupported' => array_values(array_unique($events)),
+			'timesheetweek_templates_by_trigger' => $templateByTrigger,
+		);
 
         return 0;
     }

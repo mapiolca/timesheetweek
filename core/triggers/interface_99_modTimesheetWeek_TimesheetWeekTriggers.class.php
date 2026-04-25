@@ -625,7 +625,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
          *
          * @return object|null
          */
-        protected function fetchTemplateForTrigger($action, User $actionUser, $langs)
+        public function fetchTemplateForTrigger($action, User $actionUser, $langs)
         {
                 if (empty($action)) {
                         return null;
