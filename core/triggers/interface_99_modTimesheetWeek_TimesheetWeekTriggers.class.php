@@ -53,7 +53,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		if (!($object instanceof TimesheetWeek)) {
 			return 0;
 		}
-
+		/*
 		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
 			// FR : on conserve notre envoi custom : le template <TRIGGER>_TEMPLATE est chargé via
 			//      FormMail::getEMailTemplate() et les destinataires viennent du module Notification
@@ -64,7 +64,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			//      NOTIFICATION_FIXEDEMAIL_* addresses, resolving __SUPERVISOREMAIL__ / __AUTHOREMAIL__).
 			return $this->sendNotification($action, $object, $user, $langs, $conf);
 		}
-
+		*/
                return 0;
        }
 
@@ -98,7 +98,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $mailSignature = $meta['mail_signature'];
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
-				/*
+				
                 if ($action === 'TIMESHEETWEEK_SUBMIT') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
@@ -134,7 +134,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         dol_syslog(__METHOD__.': no recipient configured in Notification module for trigger '.$action, LOG_WARNING);
                         return 0;
                 }
-				*/
+				
 			
 			//dol_include_once('/core/lib/functions2.lib.php');
 			//if (floatval(DOL_VERSION) < 23) {
