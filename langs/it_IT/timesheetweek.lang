@@ -111,7 +111,7 @@ TimesheetWeekDescription = TimesheetWeek module to manage entry, approval and re
 #
 TimesheetWeekArea = Home TimesheetWeek
 Timesheet = Timesheet
-TimesheetWeek = Timesheet week
+TimesheetWeek = Feuille de temps hebdomadaire
 TimesheetWeek_List = List of timesheet weeks
 TimesheetWeekList = Timesheet weeks
 ListTimesheetWeek = Timesheet weeks
