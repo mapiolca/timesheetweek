@@ -167,7 +167,10 @@ class modTimesheetWeek extends DolibarrModules
 						// EN: Register notification contexts so TimesheetWeek hooks can enrich Notification module screens.
 						// FR: Enregistrer les contextes notifications pour enrichir les écrans du module Notifications.
 						'notification',
+						'notificationcard',
+						'notificationtemplatescard',
 						'emailtemplates',
+						'emailtemplatescard',
 					),
                                 'entity' => '0',
                         ),
