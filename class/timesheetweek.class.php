@@ -919,11 +919,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user)) {
-			$this->db->rollback();
-			return -1;
-		}
-
 		$this->db->commit();
 		return 1;
 	}
@@ -1067,11 +1062,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
-			$this->db->rollback();
-			return -1;
-		}
-
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1597,11 +1587,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user)) {
-			$this->db->rollback();
-			return -1;
-		}
-
 		$this->db->commit();
 		return 1;
 	}
@@ -1889,14 +1874,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$payload = $this->buildTriggerParameters($triggerCode, $actionUser);
 
-		// FR: Priorité à call_trigger lorsqu'il est disponible sur l'objet.
-		// EN: Give priority to call_trigger whenever it exists on the object.
 		if (method_exists($this, 'call_trigger')) {
 			try {
-				$method = new \ReflectionMethod($this, 'call_trigger');
-				$arguments = $this->mapTriggerArguments($method->getParameters(), $payload);
-
-				return $method->invokeArgs($this, $arguments);
+				return (int) $this->call_trigger($triggerCode, $actionUser);
 			} catch (\Throwable $error) {
 				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
 			}

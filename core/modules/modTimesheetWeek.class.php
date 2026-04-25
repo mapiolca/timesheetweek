@@ -149,9 +149,7 @@ class modTimesheetWeek extends DolibarrModules
 			// Set this to relative path of css file if module has its own css file
 			'css' => array(),
 			// Set this to relative path of js file if module must load a js on all pages
-			'js' => array(
-				//   '/timesheetweek/js/timesheetweek.js.php',
-			),
+			'js' => array(),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
                         // EN: Register the top right menu hook to inject quick creation entry.
@@ -166,8 +164,10 @@ class modTimesheetWeek extends DolibarrModules
 						'multicompanysharingoptions',
 						// EN: Register notification contexts so TimesheetWeek hooks can enrich Notification module screens.
 						// FR: Enregistrer les contextes notifications pour enrichir les écrans du module Notifications.
+						'notification',
 						'notificationcard',
 						'notificationtemplatescard',
+						'emailtemplates',
 						'emailtemplatescard',
 					),
                                 'entity' => '0',
@@ -219,7 +219,11 @@ class modTimesheetWeek extends DolibarrModules
 		// Example: $this->const=array(1 => array('TIMESHEETWEEK_MYNEWCONST1', 'chaine', 'myvalue', 'This is a constant to add', 1),
 		//                             2 => array('TIMESHEETWEEK_MYNEWCONST2', 'chaine', 'myvalue', 'This is another constant to add', 0, 'current', 1)
 		// );
-		$this->const = array();
+		$this->const = array(
+			1 => array('TIMESHEETWEEK_SUBMIT_TEMPLATE', 'chaine', '0', '', 0, 'current', 1),
+			2 => array('TIMESHEETWEEK_APPROVE_TEMPLATE', 'chaine', '0', '', 0, 'current', 1),
+			3 => array('TIMESHEETWEEK_REFUSE_TEMPLATE', 'chaine', '0', '', 0, 'current', 1),
+		);
 
 		// Some keys to add into the overwriting translation tables
 		/*$this->overwrite_translation = array(

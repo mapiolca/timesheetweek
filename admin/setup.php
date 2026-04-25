@@ -72,17 +72,32 @@ $scanDir = GETPOST('scan_dir', 'alpha');
 $form = new Form($db);
 
 $sql = "SELECT rowid, label ";
-$sql.= "FROM ".MAIN_DB_PREFIX."c_email_templates ";
-$sql.= "WHERE active='1' ";
-//$sql.= "AND enabled='1' ";
-$sql.= "AND type_template = 'actioncomm_send' ";
-//$sql.= "AND entity='".getEntity('timesheetweek')."' ";
-//$sql.= "GROUP BY label";
+$sql .= "FROM ".MAIN_DB_PREFIX."c_email_templates ";
+$sql .= "WHERE active='1' ";
+$sql .= "AND type_template = 'actioncomm_send' ";
 $result = $db->query($sql);
 $templateOptions = array();
 if ($result) {
 	while ($obj = $db->fetch_object($result)) {
 		$templateOptions[(int) $obj->rowid] = $obj->label;
+	}
+}
+
+$sqlNative = "SELECT rowid, label, type_template ";
+$sqlNative .= "FROM ".MAIN_DB_PREFIX."c_email_templates ";
+$sqlNative .= "WHERE active='1' ";
+$sqlNative .= "AND entity IN (".getEntity('c_email_templates').")";
+$sqlNative .= " ORDER BY label ASC";
+$resultNative = $db->query($sqlNative);
+$nativeTemplateOptions = array(0 => '');
+if ($resultNative) {
+	while ($objNative = $db->fetch_object($resultNative)) {
+		$label = (string) $objNative->label;
+		$typeTemplate = (string) $objNative->type_template;
+		if ($typeTemplate !== '') {
+			$label .= ' ('.$typeTemplate.')';
+		}
+		$nativeTemplateOptions[(int) $objNative->rowid] = $label;
 	}
 }
 
@@ -428,6 +443,31 @@ if ($action === 'savereminder') {
 	}
 }
 
+if ($action === 'savenotificationtemplates') {
+	$submitTemplateId = GETPOSTINT('TIMESHEETWEEK_SUBMIT_TEMPLATE');
+	$approveTemplateId = GETPOSTINT('TIMESHEETWEEK_APPROVE_TEMPLATE');
+	$refuseTemplateId = GETPOSTINT('TIMESHEETWEEK_REFUSE_TEMPLATE');
+
+	$results = array();
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_SUBMIT_TEMPLATE', $submitTemplateId, 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_APPROVE_TEMPLATE', $approveTemplateId, 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_REFUSE_TEMPLATE', $refuseTemplateId, 'chaine', 0, '', $conf->entity);
+
+	$hasError = false;
+	foreach ($results as $resultValue) {
+		if ($resultValue <= 0) {
+			$hasError = true;
+			break;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 if ($action === 'testreminder') {
 		$reminder = new TimesheetweekReminder($db);
 		$resultTest = $reminder->sendTest($user);
@@ -512,6 +552,9 @@ if ($reminderExcludedUsersString !== '') {
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
+$submitTemplateId = getDolGlobalInt('TIMESHEETWEEK_SUBMIT_TEMPLATE', 0);
+$approveTemplateId = getDolGlobalInt('TIMESHEETWEEK_APPROVE_TEMPLATE', 0);
+$refuseTemplateId = getDolGlobalInt('TIMESHEETWEEK_REFUSE_TEMPLATE', 0);
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -728,6 +771,48 @@ print '<div class="center">';
 print '<button type="submit" class="butAction" name="action" value="savereminder">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '&nbsp;';
 print '<button type="submit" class="butAction" name="action" value="testreminder">'.($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test').'</button>';
+print '</div>';
+print '</form>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekNotificationTemplateSectionTitle'), '', 'email');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekNotificationTemplateSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekSubmitTemplate').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekSubmitTemplateHelp').'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_SUBMIT_TEMPLATE', $nativeTemplateOptions, $submitTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekApproveTemplate').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekApproveTemplateHelp').'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_APPROVE_TEMPLATE', $nativeTemplateOptions, $approveTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekRefuseTemplate').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekRefuseTemplateHelp').'</td>';
+print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REFUSE_TEMPLATE', $nativeTemplateOptions, $refuseTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+
+print '<div class="center">';
+print '<button type="submit" class="button button-save" name="action" value="savenotificationtemplates">'.$langs->trans("Save").'</button>';
 print '</div>';
 print '</form>';
 

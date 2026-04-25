@@ -228,6 +228,8 @@ class ActionsTimesheetweek
 
         $contexts = array_filter(explode(':', $context));
         $notificationContexts = array(
+            'notification',
+            'emailtemplates',
             'notificationcard',
             'notificationtemplatescard',
             'emailtemplatescard',
@@ -291,6 +293,7 @@ class ActionsTimesheetweek
             'TIMESHEETWEEK_SUBMIT',
             'TIMESHEETWEEK_APPROVE',
             'TIMESHEETWEEK_REFUSE',
+            'TIMESHEETWEEK_SENTBYMAIL',
             'TIMESHEETWEEK_SEAL',
             'TIMESHEETWEEK_BACKTODRAFT',
             'TIMESHEETWEEK_DELETE',
@@ -304,4 +307,5 @@ class ActionsTimesheetweek
 
         return 0;
     }
+
 }
