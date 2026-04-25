@@ -330,4 +330,68 @@ class ActionsTimesheetweek
 
 		return 0;
 	}
+
+	/**
+	 * Inject TimesheetWeek-specific placeholders into the global substitution array.
+	 *
+	 * FR : Ajoute les variables __TIMESHEETWEEK_*__ au tableau de substitution global afin qu'elles
+	 *      soient résolues dans les templates de mail rendus par Notify::send() ou par tout autre
+	 *      mécanisme natif Dolibarr appelant complete_substitutions_array().
+	 * EN : Push the __TIMESHEETWEEK_*__ placeholders into the global substitution array so they get
+	 *      resolved inside email templates rendered by Notify::send() or any other native Dolibarr
+	 *      caller of complete_substitutions_array().
+	 *
+	 * @param array<string,mixed> $parameters
+	 * @param CommonObject|null   $object
+	 * @param string              $action
+	 * @param HookManager         $hookmanager
+	 *
+	 * @return int
+	 */
+	public function completesubstitutionarray($parameters, &$object, &$action, $hookmanager)
+	{
+		global $langs;
+
+		if (!is_object($object) || !($object instanceof TimesheetWeek)) {
+			return 0;
+		}
+
+		if (!isset($parameters['substitutionarray']) || !is_array($parameters['substitutionarray'])) {
+			return 0;
+		}
+
+		dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+		require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
+
+		if (is_object($langs)) {
+			$langs->loadLangs(array('timesheetweek@timesheetweek', 'users'));
+		}
+
+		$employee = null;
+		if (!empty($object->fk_user)) {
+			$employee = new User($this->db);
+			if ($employee->fetch((int) $object->fk_user) <= 0) {
+				$employee = null;
+			}
+		}
+
+		$validator = null;
+		if (!empty($object->fk_user_valid)) {
+			$validator = new User($this->db);
+			if ($validator->fetch((int) $object->fk_user_valid) <= 0) {
+				$validator = null;
+			}
+		}
+
+		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
+
+		$parameters['substitutionarray']['__TIMESHEETWEEK_REF__']                 = (string) $object->ref;
+		$parameters['substitutionarray']['__TIMESHEETWEEK_WEEK__']                = (string) $object->week;
+		$parameters['substitutionarray']['__TIMESHEETWEEK_YEAR__']                = (string) $object->year;
+		$parameters['substitutionarray']['__TIMESHEETWEEK_URL__']                 = $url;
+		$parameters['substitutionarray']['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__']   = $employee ? $employee->getFullName($langs) : '';
+		$parameters['substitutionarray']['__TIMESHEETWEEK_VALIDATOR_FULLNAME__']  = $validator ? $validator->getFullName($langs) : '';
+
+		return 0;
+	}
 }
