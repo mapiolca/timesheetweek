@@ -228,6 +228,8 @@ class ActionsTimesheetweek
 
         $contexts = array_filter(explode(':', $context));
         $notificationContexts = array(
+            'notification',
+            'emailtemplates',
             'notificationcard',
             'notificationtemplatescard',
             'emailtemplatescard',
