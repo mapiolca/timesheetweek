@@ -318,8 +318,13 @@ class ActionsTimesheetweek
 					continue;
 				}
 
+				$templateLabel = $this->getTemplateLabelForTrigger($actionCode);
+				if ($templateLabel === '') {
+					continue;
+				}
+
 				dol_syslog(__METHOD__.': resolve template for action '.$actionCode, LOG_DEBUG);
-				$template = $this->fetchTemplateForTrigger($actionCode, $user, $langs);
+				$template = $this->fetchTemplateForTrigger($actionCode, $user, $langs, $templateLabel);
 				if (is_object($template) && !empty($template->id)) {
 					$templateByTrigger[$actionCode] = (int) $template->id;
 				}
@@ -343,19 +348,17 @@ class ActionsTimesheetweek
 	 *
 	 * @return object|null
 	 */
-	protected function fetchTemplateForTrigger($action, $actionUser, $langs)
+	protected function fetchTemplateForTrigger($action, $actionUser, $langs, $templateLabel = '')
 	{
-		global $conf;
-
 		if (empty($action)) {
 			return null;
 		}
 
 		$actionCode = strtoupper(trim((string) $action));
 		$constantName = $actionCode.'_TEMPLATE';
-		$label = getDolGlobalString($constantName);
-		if (empty($label) && !empty($conf->global->{$constantName})) {
-			$label = (string) $conf->global->{$constantName};
+		$label = is_string($templateLabel) ? trim($templateLabel) : '';
+		if ($label === '') {
+			$label = $this->getTemplateLabelForTrigger($actionCode);
 		}
 
 		if (empty($label)) {
@@ -381,6 +384,31 @@ class ActionsTimesheetweek
 		dol_syslog(__METHOD__.': template "'.$label.'" configured in '.$constantName.' was not found', LOG_DEBUG);
 
 		return null;
+	}
+
+	/**
+	 * Resolve configured template label for a trigger constant.
+	 *
+	 * @param string $action Trigger code
+	 *
+	 * @return string
+	 */
+	protected function getTemplateLabelForTrigger($action)
+	{
+		global $conf;
+
+		$actionCode = strtoupper(trim((string) $action));
+		if ($actionCode === '') {
+			return '';
+		}
+
+		$constantName = $actionCode.'_TEMPLATE';
+		$label = getDolGlobalString($constantName);
+		if ($label === '' && !empty($conf->global->{$constantName})) {
+			$label = (string) $conf->global->{$constantName};
+		}
+
+		return is_string($label) ? trim($label) : '';
 	}
 
 	/**
