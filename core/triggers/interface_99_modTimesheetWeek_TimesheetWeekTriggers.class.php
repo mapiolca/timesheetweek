@@ -55,9 +55,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		}
 
 		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
-			if (isModEnabled('notification')) {
-				return 0;
-			}
+			// FR : on exécute toujours notre envoi custom afin de charger le modèle de mail dédié au trigger
+			//      (sinon la classe Notify native retombe sur un modèle générique de type AGENDA).
+			// EN : always run our custom dispatch so the trigger-specific email template is loaded
+			//      (otherwise Dolibarr's native Notify class falls back to a generic AGENDA template).
 			return $this->sendNotification($action, $object, $user, $langs, $conf);
 		}
 
@@ -172,9 +173,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         $template = null;
                         $tplResult = 0;
                         if (!empty($templateClass)) {
-                                $template = new $templateClass($this->db);
-                                $tplResult = $template->fetchByTrigger($action, $actionUser, $conf->entity);
-                                if ($tplResult <= 0 && !empty($templateKeys)) {
+                                $template = $this->fetchTemplateForTrigger($templateClass, $action, $templateKeys, $langs);
+                                if ($template) {
+                                        $tplResult = 1;
+                                } elseif (!empty($templateKeys)) {
                                         $template = $this->createDefaultTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
                                         if ($template) {
                                                 $tplResult = 1;
@@ -538,6 +540,61 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 }
 
                 return $cache[$userId];
+        }
+
+        /**
+         * Try to load the email template configured for a given trigger.
+         *
+         * FR : Tente de charger le modèle de mail rattaché à un trigger en testant plusieurs conventions
+         *      (label = TIMESHEETWEEK_SUBMIT_TEMPLATE, label = TIMESHEETWEEK_SUBMIT, libellé traduit).
+         * EN : Try several naming conventions to load the email template tied to a trigger.
+         *
+         * @param string    $templateClass
+         * @param string    $action
+         * @param array     $templateKeys
+         * @param Translate $langs
+         *
+         * @return object|null
+         */
+        protected function fetchTemplateForTrigger($templateClass, $action, array $templateKeys, $langs)
+        {
+                if (empty($templateClass) || empty($action)) {
+                        return null;
+                }
+
+                $candidateLabels = array(
+                        $action.'_TEMPLATE',
+                        $action,
+                );
+                if (!empty($templateKeys['label'])) {
+                        $translated = $langs->transnoentities($templateKeys['label']);
+                        if (!empty($translated) && $translated !== $templateKeys['label']) {
+                                $candidateLabels[] = $translated;
+                        }
+                }
+
+                $candidateLabels = array_values(array_unique(array_filter($candidateLabels)));
+
+                foreach ($candidateLabels as $candidateLabel) {
+                        $candidate = new $templateClass($this->db);
+                        if (!method_exists($candidate, 'fetch')) {
+                                continue;
+                        }
+
+                        try {
+                                $res = $candidate->fetch(0, $candidateLabel);
+                        } catch (\Throwable $error) {
+                                $res = 0;
+                                dol_syslog(__METHOD__.': fetch failed for label '.$candidateLabel.' - '.$error->getMessage(), LOG_DEBUG);
+                        }
+
+                        if ($res > 0) {
+                                dol_syslog(__METHOD__.': loaded template "'.$candidateLabel.'" for trigger '.$action, LOG_DEBUG);
+                                return $candidate;
+                        }
+                }
+
+                return null;
         }
 
         /**
