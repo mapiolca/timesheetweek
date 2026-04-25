@@ -305,15 +305,11 @@ class ActionsTimesheetweek
 
 		$templateByTrigger = array();
 		if (is_object($user) && is_object($langs)) {
-			dol_include_once('/timesheetweek/core/triggers/interface_99_modTimesheetWeek_TimesheetWeekTriggers.class.php');
-			if (class_exists('InterfaceTimesheetWeekTriggers')) {
-				$triggerHandler = new InterfaceTimesheetWeekTriggers($this->db);
-				$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
-				foreach ($events as $eventCode) {
-					$template = $triggerHandler->fetchTemplateForTrigger($eventCode, $user, $langs);
-					if (is_object($template) && !empty($template->id)) {
-						$templateByTrigger[$eventCode] = (int) $template->id;
-					}
+			$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+			foreach ($events as $eventCode) {
+				$template = $this->fetchTemplateForTrigger($eventCode, $user, $langs);
+				if (is_object($template) && !empty($template->id)) {
+					$templateByTrigger[$eventCode] = (int) $template->id;
 				}
 			}
 		}
@@ -325,6 +321,43 @@ class ActionsTimesheetweek
 
         return 0;
     }
+
+	/**
+	 * Load the email template configured for a trigger.
+	 *
+	 * @param string    $action Trigger code
+	 * @param User      $actionUser Current user
+	 * @param Translate $langs Translations handler
+	 *
+	 * @return object|null
+	 */
+	protected function fetchTemplateForTrigger($action, $actionUser, $langs)
+	{
+		if (empty($action)) {
+			return null;
+		}
+
+		$label = getDolGlobalString($action.'_TEMPLATE');
+		if (empty($label)) {
+			return null;
+		}
+
+		require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
+		$formmail = new FormMail($this->db);
+
+		try {
+			$template = $formmail->getEMailTemplate($this->db, 'timesheetweek', $actionUser, $langs, 0, 1, $label);
+		} catch (\Throwable $error) {
+			dol_syslog(__METHOD__.': getEMailTemplate failed for label '.$label.' - '.$error->getMessage(), LOG_WARNING);
+			return null;
+		}
+
+		if (is_object($template) && !empty($template->id)) {
+			return $template;
+		}
+
+		return null;
+	}
 
 	/**
 	 * Add TimesheetWeek entry into email templates element list.
