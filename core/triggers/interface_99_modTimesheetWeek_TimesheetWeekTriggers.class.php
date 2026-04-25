@@ -54,7 +54,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			return 0;
 		}
 
-		if ($action === 'TIMESHEETWEEK_SUBMITTED' || $action === 'TIMESHEETWEEK_APPROVED' || $action === 'TIMESHEETWEEK_REFUSED') {
+		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
 			return $this->sendNotification($action, $object, $user, $langs, $conf);
 		}
 
@@ -92,21 +92,12 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
 
-		$notificationAction = $action;
-		if ($action === 'TIMESHEETWEEK_SUBMITTED') {
-			$notificationAction = 'TIMESHEETWEEK_SUBMIT';
-		} elseif ($action === 'TIMESHEETWEEK_APPROVED') {
-			$notificationAction = 'TIMESHEETWEEK_APPROVE';
-		} elseif ($action === 'TIMESHEETWEEK_REFUSED') {
-			$notificationAction = 'TIMESHEETWEEK_REFUSE';
-		}
-
-		$nativeDispatchResult = $this->dispatchBusinessNotification($notificationAction, $timesheet, $actionUser, $langs, $conf);
+		$nativeDispatchResult = $this->dispatchBusinessNotification($action, $timesheet, $actionUser, $langs, $conf);
 		if (isModEnabled('notification')) {
 			return $nativeDispatchResult;
 		}
 
-                if ($action === 'TIMESHEETWEEK_SUBMITTED') {
+                if ($action === 'TIMESHEETWEEK_SUBMIT') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
                         $missingKey = 'TimesheetWeekNotificationValidatorFallback';
@@ -119,7 +110,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         if ($target) {
                                 $recipients[] = $target;
                         }
-                } elseif ($action === 'TIMESHEETWEEK_APPROVED') {
+                } elseif ($action === 'TIMESHEETWEEK_APPROVE') {
                         $subjectKey = 'TimesheetWeekNotificationApproveSubject';
                         $bodyKey = 'TimesheetWeekNotificationApproveBody';
                         $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
@@ -132,7 +123,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         if ($target) {
                                 $recipients[] = $target;
                         }
-                } elseif ($action === 'TIMESHEETWEEK_REFUSED') {
+                } elseif ($action === 'TIMESHEETWEEK_REFUSE') {
                         $subjectKey = 'TimesheetWeekNotificationRefuseSubject';
                         $bodyKey = 'TimesheetWeekNotificationRefuseBody';
                         $missingKey = 'TimesheetWeekNotificationEmployeeFallback';
@@ -270,7 +261,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 						$subject = $langs->trans($subjectKey, $timesheet->ref);
 						$subject = dol_html_entity_decode($subject, ENT_QUOTES);
 
-                                if ($action === 'TIMESHEETWEEK_SUBMITTED') {
+                                if ($action === 'TIMESHEETWEEK_SUBMIT') {
                                         $messageArgs = array(
                                                 $recipientName,
                                                 $employeeName,
