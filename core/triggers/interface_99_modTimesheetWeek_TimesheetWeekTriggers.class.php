@@ -102,7 +102,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		}
 
 		$nativeDispatchResult = $this->dispatchBusinessNotification($notificationAction, $timesheet, $actionUser, $langs, $conf);
-		if ($nativeDispatchResult > 0) {
+		if (isModEnabled('notification')) {
 			return $nativeDispatchResult;
 		}
 
