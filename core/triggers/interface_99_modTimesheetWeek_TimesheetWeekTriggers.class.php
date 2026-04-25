@@ -55,6 +55,9 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		}
 
 		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
+			if (isModEnabled('notification')) {
+				return 0;
+			}
 			return $this->sendNotification($action, $object, $user, $langs, $conf);
 		}
 
@@ -91,11 +94,6 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $mailSignature = $meta['mail_signature'];
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
-
-		$nativeDispatchResult = $this->dispatchBusinessNotification($action, $timesheet, $actionUser, $langs, $conf);
-		if (isModEnabled('notification')) {
-			return $nativeDispatchResult;
-		}
 
                 if ($action === 'TIMESHEETWEEK_SUBMIT') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
