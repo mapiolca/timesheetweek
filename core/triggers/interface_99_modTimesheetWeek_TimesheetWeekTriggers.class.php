@@ -54,16 +54,6 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			return 0;
 		}
 
-		$actionsWithNotification = array(
-			'TIMESHEETWEEK_SUBMIT',
-			'TIMESHEETWEEK_APPROVE',
-			'TIMESHEETWEEK_REFUSE',
-		);
-		if (in_array((string) $action, $actionsWithNotification, true)) {
-			dol_syslog(__METHOD__.': dispatch notification for action '.$action, LOG_DEBUG);
-			$this->sendNotification((string) $action, $object, $user, $langs, $conf);
-		}
-
                return 0;
        }
 
