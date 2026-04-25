@@ -2405,6 +2405,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return true;
 		}
 
+		if (function_exists('isModEnabled') && isModEnabled('notification')) {
+			return true;
+		}
+
 		$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
 
 		dol_include_once('/comm/action/class/actioncomm.class.php');
