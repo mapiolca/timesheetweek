@@ -171,6 +171,11 @@ class modTimesheetWeek extends DolibarrModules
 						'notificationtemplatescard',
 						'emailtemplates',
 						'emailtemplatescard',
+						// EN: Register the mail context so our completesubstitutionarray hook
+						//     resolves __TIMESHEETWEEK_*__ placeholders inside Notify-rendered templates.
+						// FR: Enregistre le contexte mail afin que notre hook completesubstitutionarray
+						//     remplace les variables __TIMESHEETWEEK_*__ dans les templates rendus par Notify.
+						'mail',
 					),
                                 'entity' => '0',
                         ),

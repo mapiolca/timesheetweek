@@ -55,10 +55,17 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		}
 
 		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
-			// FR : on exécute toujours notre envoi custom afin de charger le modèle de mail dédié au trigger
-			//      (sinon la classe Notify native retombe sur un modèle générique de type AGENDA).
-			// EN : always run our custom dispatch so the trigger-specific email template is loaded
-			//      (otherwise Dolibarr's native Notify class falls back to a generic AGENDA template).
+			// FR : Si le module Notification est actif, on délègue à Notify::send() afin que les destinataires
+			//      configurés (utilisateurs fixes, __SUPERVISOREMAIL__, __AUTHOREMAIL__, adresses libres) soient
+			//      résolus comme pour les autres modules Dolibarr (ex. Propal). Le template <TRIGGER>_TEMPLATE
+			//      est chargé nativement par Notify.
+			// EN : When the Notification module is active, delegate to Notify::send() so the configured
+			//      recipients (fixed users, __SUPERVISOREMAIL__, __AUTHOREMAIL__, free addresses) are resolved
+			//      as for any other Dolibarr module (e.g. Propal). The <TRIGGER>_TEMPLATE template is loaded
+			//      natively by Notify.
+			if (isModEnabled('notification')) {
+				return $this->dispatchBusinessNotification($action, $object, $user, $langs, $conf);
+			}
 			return $this->sendNotification($action, $object, $user, $langs, $conf);
 		}
 
