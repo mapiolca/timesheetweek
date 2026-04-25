@@ -1872,6 +1872,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	{
 		global $langs, $conf, $hookmanager;
 
+		if (is_object($langs)) {
+			$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda', 'mails'));
+		}
+
 		$payload = $this->buildTriggerParameters($triggerCode, $actionUser);
 
 		if (method_exists($this, 'call_trigger')) {
