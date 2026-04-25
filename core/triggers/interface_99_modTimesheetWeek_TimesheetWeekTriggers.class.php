@@ -54,17 +54,6 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			return 0;
 		}
 
-		if ($action === 'TIMESHEETWEEK_SUBMIT' || $action === 'TIMESHEETWEEK_APPROVE' || $action === 'TIMESHEETWEEK_REFUSE') {
-			// FR : on conserve notre envoi custom : le template <TRIGGER>_TEMPLATE est chargé via
-			//      FormMail::getEMailTemplate() et les destinataires viennent du module Notification
-			//      (subscriptions notify_def + adresses fixes NOTIFICATION_FIXEDEMAIL_*, avec résolution
-			//      des tokens __SUPERVISOREMAIL__ et __AUTHOREMAIL__).
-			// EN : keep our custom dispatch: <TRIGGER>_TEMPLATE is loaded through FormMail::getEMailTemplate()
-			//      and recipients come from the Notification module (notify_def subscriptions + fixed
-			//      NOTIFICATION_FIXEDEMAIL_* addresses, resolving __SUPERVISOREMAIL__ / __AUTHOREMAIL__).
-			return $this->sendNotification($action, $object, $user, $langs, $conf);
-		}
-
                return 0;
        }
 
