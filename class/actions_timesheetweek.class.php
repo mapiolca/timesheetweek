@@ -287,34 +287,43 @@ class ActionsTimesheetweek
             $conf->{$alias}->enabled = !empty($conf->timesheetweek->enabled) ? 1 : 0;
         }
 
-        $events = array(
-            'TIMESHEETWEEK_CREATE',
-            'TIMESHEETWEEK_SAVE',
-            'TIMESHEETWEEK_SUBMIT',
-            'TIMESHEETWEEK_APPROVE',
-            'TIMESHEETWEEK_REFUSE',
-            'TIMESHEETWEEK_SENTBYMAIL',
-            'TIMESHEETWEEK_SEAL',
-            'TIMESHEETWEEK_BACKTODRAFT',
-            'TIMESHEETWEEK_DELETE',
-        );
+		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
-        if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
-            $events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
-        }
+		$timesheetweekCodes = array(
+			'TIMESHEETWEEK_CREATE',
+			'TIMESHEETWEEK_SAVE',
+			'TIMESHEETWEEK_SUBMIT',
+			'TIMESHEETWEEK_APPROVE',
+			'TIMESHEETWEEK_REFUSE',
+			'TIMESHEETWEEK_SENTBYMAIL',
+			'TIMESHEETWEEK_SEAL',
+			'TIMESHEETWEEK_BACKTODRAFT',
+			'TIMESHEETWEEK_DELETE',
+		);
+		$timesheetweekEvents = array();
+		foreach ($timesheetweekCodes as $eventCode) {
+			$translatedLabel = $langs->trans('Notify_'.$eventCode);
+			$timesheetweekEvents[$eventCode] = ($translatedLabel !== 'Notify_'.$eventCode) ? $translatedLabel : $eventCode;
+		}
+
+		$existingEvents = array();
+		if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
+			foreach ($hookmanager->resArray['arrayofnotifsupported'] as $eventKey => $eventValue) {
+				if (is_string($eventKey) && $eventKey !== '') {
+					$existingEvents[$eventKey] = is_string($eventValue) && $eventValue !== '' ? $eventValue : $eventKey;
+				} elseif (is_string($eventValue) && $eventValue !== '') {
+					$existingEvents[$eventValue] = $eventValue;
+				}
+			}
+		}
+
+		$events = array_replace($existingEvents, $timesheetweekEvents);
 
 		$templateByTrigger = array();
 		if (is_object($user) && is_object($langs)) {
 			$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
-			foreach ($events as $eventKey => $eventValue) {
-				$actionCode = '';
-				if (is_string($eventKey) && strpos($eventKey, 'TIMESHEETWEEK_') === 0) {
-					$actionCode = $eventKey;
-				} elseif (is_string($eventValue) && strpos($eventValue, 'TIMESHEETWEEK_') === 0) {
-					$actionCode = $eventValue;
-				}
-
-				if (empty($actionCode)) {
+			foreach (array_keys($events) as $actionCode) {
+				if (!is_string($actionCode) || strpos($actionCode, 'TIMESHEETWEEK_') !== 0) {
 					continue;
 				}
 
@@ -332,7 +341,7 @@ class ActionsTimesheetweek
 		}
 
 		$this->results = array(
-			'arrayofnotifsupported' => array_values(array_unique($events)),
+			'arrayofnotifsupported' => $events,
 			'timesheetweek_templates_by_trigger' => $templateByTrigger,
 		);
 
