@@ -172,15 +172,13 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
                         $template = null;
                         $tplResult = 0;
-                        if (!empty($templateClass)) {
-                                $template = $this->fetchTemplateForTrigger($templateClass, $action, $templateKeys, $langs);
+                        $template = $this->fetchTemplateForTrigger($action, $actionUser, $langs);
+                        if ($template) {
+                                $tplResult = 1;
+                        } elseif (!empty($templateClass) && !empty($templateKeys)) {
+                                $template = $this->createDefaultTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
                                 if ($template) {
                                         $tplResult = 1;
-                                } elseif (!empty($templateKeys)) {
-                                        $template = $this->createDefaultTemplate($templateClass, $templateKeys, $action, $actionUser, $langs, $conf);
-                                        if ($template) {
-                                                $tplResult = 1;
-                                        }
                                 }
                         }
 
@@ -543,55 +541,44 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
         }
 
         /**
-         * Try to load the email template configured for a given trigger.
+         * Load the email template configured for a given trigger, mirroring Dolibarr's Notify class.
          *
-         * FR : Tente de charger le modèle de mail rattaché à un trigger en testant plusieurs conventions
-         *      (label = TIMESHEETWEEK_SUBMIT_TEMPLATE, label = TIMESHEETWEEK_SUBMIT, libellé traduit).
-         * EN : Try several naming conventions to load the email template tied to a trigger.
+         * FR : Reproduit le mécanisme de Notify::send() : on lit la constante <TRIGGER>_TEMPLATE
+         *      (renseignée via la page de paramétrage du module Notification) puis on charge le
+         *      modèle correspondant via FormMail::getEMailTemplate().
+         * EN : Mirror Notify::send() behaviour: read the <TRIGGER>_TEMPLATE constant set from the
+         *      Notification module setup page, then load it through FormMail::getEMailTemplate().
          *
-         * @param string    $templateClass
          * @param string    $action
-         * @param array     $templateKeys
+         * @param User      $actionUser
          * @param Translate $langs
          *
          * @return object|null
          */
-        protected function fetchTemplateForTrigger($templateClass, $action, array $templateKeys, $langs)
+        protected function fetchTemplateForTrigger($action, User $actionUser, $langs)
         {
-                if (empty($templateClass) || empty($action)) {
+                if (empty($action)) {
                         return null;
                 }
 
-                $candidateLabels = array(
-                        $action.'_TEMPLATE',
-                        $action,
-                );
-                if (!empty($templateKeys['label'])) {
-                        $translated = $langs->transnoentities($templateKeys['label']);
-                        if (!empty($translated) && $translated !== $templateKeys['label']) {
-                                $candidateLabels[] = $translated;
-                        }
+                $label = getDolGlobalString($action.'_TEMPLATE');
+                if (empty($label)) {
+                        return null;
                 }
 
-                $candidateLabels = array_values(array_unique(array_filter($candidateLabels)));
+                require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
+                $formmail = new FormMail($this->db);
 
-                foreach ($candidateLabels as $candidateLabel) {
-                        $candidate = new $templateClass($this->db);
-                        if (!method_exists($candidate, 'fetch')) {
-                                continue;
-                        }
+                try {
+                        $template = $formmail->getEMailTemplate($this->db, 'timesheetweek', $actionUser, $langs, 0, 1, $label);
+                } catch (\Throwable $error) {
+                        dol_syslog(__METHOD__.': getEMailTemplate failed for label '.$label.' - '.$error->getMessage(), LOG_WARNING);
+                        return null;
+                }
 
-                        try {
-                                $res = $candidate->fetch(0, $candidateLabel);
-                        } catch (\Throwable $error) {
-                                $res = 0;
-                                dol_syslog(__METHOD__.': fetch failed for label '.$candidateLabel.' - '.$error->getMessage(), LOG_DEBUG);
-                        }
-
-                        if ($res > 0) {
-                                dol_syslog(__METHOD__.': loaded template "'.$candidateLabel.'" for trigger '.$action, LOG_DEBUG);
-                                return $candidate;
-                        }
+                if (is_object($template) && !empty($template->id)) {
+                        dol_syslog(__METHOD__.': loaded template "'.$label.'" for trigger '.$action, LOG_DEBUG);
+                        return $template;
                 }
 
                 return null;
