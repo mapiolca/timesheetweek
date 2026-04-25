@@ -92,6 +92,20 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                 $baseSubstitutions = $meta['base_substitutions'];
                 $url = $meta['url'];
 
+		$notificationAction = $action;
+		if ($action === 'TIMESHEETWEEK_SUBMITTED') {
+			$notificationAction = 'TIMESHEETWEEK_SUBMIT';
+		} elseif ($action === 'TIMESHEETWEEK_APPROVED') {
+			$notificationAction = 'TIMESHEETWEEK_APPROVE';
+		} elseif ($action === 'TIMESHEETWEEK_REFUSED') {
+			$notificationAction = 'TIMESHEETWEEK_REFUSE';
+		}
+
+		$nativeDispatchResult = $this->dispatchBusinessNotification($notificationAction, $timesheet, $actionUser, $langs, $conf);
+		if ($nativeDispatchResult > 0) {
+			return $nativeDispatchResult;
+		}
+
                 if ($action === 'TIMESHEETWEEK_SUBMITTED') {
                         $subjectKey = 'TimesheetWeekNotificationSubmitSubject';
                         $bodyKey = 'TimesheetWeekNotificationSubmitBody';
