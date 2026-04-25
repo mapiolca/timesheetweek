@@ -390,7 +390,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
 		return $sent;
 	}
-	*/
+	
         /**
          * Resolve the recipient list from the Notification module configuration.
          *
