@@ -919,11 +919,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_SUBMITTED', $user)) {
-			$this->db->rollback();
-			return -1;
-		}
-
 		$this->db->commit();
 		return 1;
 	}
@@ -1067,11 +1062,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
-			$this->db->rollback();
-			return -1;
-		}
-
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_APPROVED', $user)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1593,11 +1583,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if (!$this->createAgendaEvent($user, 'TIMESHEETWEEK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
-			$this->db->rollback();
-			return -1;
-		}
-
-		if (!$this->sendAutomaticNotification('TIMESHEETWEEK_REFUSED', $user)) {
 			$this->db->rollback();
 			return -1;
 		}
