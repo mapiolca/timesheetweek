@@ -79,6 +79,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
         *
         * @return int
         */
+	/**
         protected function sendNotification($action, TimesheetWeek $timesheet, User $actionUser, $langs, $conf)
         {
                 $langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
@@ -134,14 +135,15 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
                         dol_syslog(__METHOD__.': no recipient configured in Notification module for trigger '.$action, LOG_WARNING);
                         return 0;
                 }
-			/*
-			dol_include_once('/core/lib/functions2.lib.php');
-			if (floatval(DOL_VERSION) < 23) {
-					dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
-			} else {
-				require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
-			}
-			*/
+		
+			
+			//dol_include_once('/core/lib/functions2.lib.php');
+			//if (floatval(DOL_VERSION) < 23) {
+			//		dol_include_once('/timesheetweek/core/class/cemailtemplate.class.php');
+			//} else {
+			//	require_once DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php';
+			//}
+			
 			dol_include_once('/core/class/CMailFile.class.php');
 
                 $templateClass = '';
@@ -389,7 +391,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 
 		return $sent;
 	}
-
+	*/
         /**
          * Resolve the recipient list from the Notification module configuration.
          *
