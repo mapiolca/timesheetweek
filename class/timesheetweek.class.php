@@ -1873,7 +1873,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		global $langs, $conf, $hookmanager;
 
 		$payload = $this->buildTriggerParameters($triggerCode, $actionUser);
-		$this->ensureNotificationTemplateCompatibility($triggerCode);
 
 		if (method_exists($this, 'call_trigger')) {
 			try {
@@ -1914,80 +1913,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		return 0;
-	}
-
-	/**
-	 * Ensure notification template configured by label can be resolved with timesheetweek_send type.
-	 *
-	 * @param string $triggerCode
-	 * @return void
-	 */
-	protected function ensureNotificationTemplateCompatibility($triggerCode)
-	{
-		$templateLabel = trim((string) getDolGlobalString($triggerCode.'_TEMPLATE'));
-		if ($templateLabel === '') {
-			return;
-		}
-
-		$entity = !empty($this->entity) ? (int) $this->entity : 1;
-
-		$sqlCheck = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates";
-		$sqlCheck .= " WHERE label = '".$this->db->escape($templateLabel)."'";
-		$sqlCheck .= " AND type_template = 'timesheetweek_send'";
-		$sqlCheck .= " AND entity IN (0, ".$entity.")";
-		$sqlCheck .= " ORDER BY entity DESC, rowid DESC";
-		$sqlCheck .= $this->db->plimit(1);
-		$resCheck = $this->db->query($sqlCheck);
-		if ($resCheck && $this->db->fetch_object($resCheck)) {
-			return;
-		}
-
-		$sqlSource = "SELECT rowid, entity, module, lang, private, fk_user, label, position, defaultfortype, enabled, active,";
-		$sqlSource .= " email_from, email_to, email_tocc, email_tobcc, topic, joinfiles, content, content_lines";
-		$sqlSource .= " FROM ".MAIN_DB_PREFIX."c_email_templates";
-		$sqlSource .= " WHERE label = '".$this->db->escape($templateLabel)."'";
-		$sqlSource .= " AND type_template = 'timesheetweek'";
-		$sqlSource .= " AND entity IN (0, ".$entity.")";
-		$sqlSource .= " ORDER BY entity DESC, rowid DESC";
-		$sqlSource .= $this->db->plimit(1);
-		$resSource = $this->db->query($sqlSource);
-		if (!$resSource) {
-			return;
-		}
-
-		$source = $this->db->fetch_object($resSource);
-		if (!$source) {
-			return;
-		}
-
-		$now = $this->db->idate(dol_now());
-		$sqlInsert = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (";
-		$sqlInsert .= "entity, module, type_template, lang, private, fk_user, datec, label,";
-		$sqlInsert .= "position, defaultfortype, enabled, active, email_from, email_to, email_tocc, email_tobcc,";
-		$sqlInsert .= "topic, joinfiles, content, content_lines)";
-		$sqlInsert .= " VALUES (";
-		$sqlInsert .= (int) $source->entity.",";
-		$sqlInsert .= (is_null($source->module) ? "NULL" : "'".$this->db->escape((string) $source->module)."'").",";
-		$sqlInsert .= "'timesheetweek_send',";
-		$sqlInsert .= (is_null($source->lang) ? "NULL" : "'".$this->db->escape((string) $source->lang)."'").",";
-		$sqlInsert .= (int) $source->private.",";
-		$sqlInsert .= (is_null($source->fk_user) ? "NULL" : (int) $source->fk_user).",";
-		$sqlInsert .= (is_null($now) ? "NULL" : "'".$this->db->escape((string) $now)."'").",";
-		$sqlInsert .= "'".$this->db->escape((string) $source->label)."',";
-		$sqlInsert .= (is_null($source->position) ? "NULL" : (int) $source->position).",";
-		$sqlInsert .= (is_null($source->defaultfortype) ? "NULL" : (int) $source->defaultfortype).",";
-		$sqlInsert .= (is_null($source->enabled) ? "NULL" : "'".$this->db->escape((string) $source->enabled)."'").",";
-		$sqlInsert .= (int) $source->active.",";
-		$sqlInsert .= (is_null($source->email_from) ? "NULL" : "'".$this->db->escape((string) $source->email_from)."'").",";
-		$sqlInsert .= (is_null($source->email_to) ? "NULL" : "'".$this->db->escape((string) $source->email_to)."'").",";
-		$sqlInsert .= (is_null($source->email_tocc) ? "NULL" : "'".$this->db->escape((string) $source->email_tocc)."'").",";
-		$sqlInsert .= (is_null($source->email_tobcc) ? "NULL" : "'".$this->db->escape((string) $source->email_tobcc)."'").",";
-		$sqlInsert .= (is_null($source->topic) ? "NULL" : "'".$this->db->escape((string) $source->topic)."'").",";
-		$sqlInsert .= (is_null($source->joinfiles) ? "NULL" : (int) $source->joinfiles).",";
-		$sqlInsert .= (is_null($source->content) ? "NULL" : "'".$this->db->escape((string) $source->content)."'").",";
-		$sqlInsert .= (is_null($source->content_lines) ? "NULL" : "'".$this->db->escape((string) $source->content_lines)."'");
-		$sqlInsert .= ")";
-		$this->db->query($sqlInsert);
 	}
 
 	/**
