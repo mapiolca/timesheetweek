@@ -306,14 +306,22 @@ class ActionsTimesheetweek
 		$templateByTrigger = array();
 		if (is_object($user) && is_object($langs)) {
 			$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
-			foreach ($events as $eventCode) {
-				if (!is_string($eventCode) || strpos($eventCode, 'TIMESHEETWEEK_') !== 0) {
+			foreach ($events as $eventKey => $eventValue) {
+				$actionCode = '';
+				if (is_string($eventKey) && strpos($eventKey, 'TIMESHEETWEEK_') === 0) {
+					$actionCode = $eventKey;
+				} elseif (is_string($eventValue) && strpos($eventValue, 'TIMESHEETWEEK_') === 0) {
+					$actionCode = $eventValue;
+				}
+
+				if (empty($actionCode)) {
 					continue;
 				}
 
-				$template = $this->fetchTemplateForTrigger($eventCode, $user, $langs);
+				dol_syslog(__METHOD__.': resolve template for action '.$actionCode, LOG_DEBUG);
+				$template = $this->fetchTemplateForTrigger($actionCode, $user, $langs);
 				if (is_object($template) && !empty($template->id)) {
-					$templateByTrigger[$eventCode] = (int) $template->id;
+					$templateByTrigger[$actionCode] = (int) $template->id;
 				}
 			}
 		}
