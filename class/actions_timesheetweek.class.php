@@ -324,7 +324,7 @@ class ActionsTimesheetweek
 				}
 
 				dol_syslog(__METHOD__.': resolve template for action '.$actionCode, LOG_DEBUG);
-				$template = $this->fetchTemplateForTrigger($actionCode, $user, $langs, $templateLabel);
+				$template = $this->fetchTemplate($actionCode, $user, $langs, $templateLabel);
 				if (is_object($template) && !empty($template->id)) {
 					$templateByTrigger[$actionCode] = (int) $template->id;
 				}
@@ -348,7 +348,7 @@ class ActionsTimesheetweek
 	 *
 	 * @return object|null
 	 */
-	protected function fetchTemplateForTrigger($action, $actionUser, $langs, $templateLabel = '')
+	protected function fetchTemplate($action, $actionUser, $langs, $templateLabel = '')
 	{
 		if (empty($action)) {
 			return null;
