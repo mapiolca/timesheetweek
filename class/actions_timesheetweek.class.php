@@ -275,21 +275,19 @@ class ActionsTimesheetweek
      *
      * @return int
      */
-    public function notifsupported($parameters, &$object, &$action, $hookmanager)
-    {
-        global $conf, $langs, $user;
+	public function notifsupported($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf;
 
-        $notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek');
-        foreach ($notificationElementAliases as $alias) {
-            if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
-                $conf->{$alias} = new stdClass();
-            }
-            $conf->{$alias}->enabled = !empty($conf->timesheetweek->enabled) ? 1 : 0;
-        }
+		$notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek', 'timesheetweek');
+		foreach ($notificationElementAliases as $alias) {
+			if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
+				$conf->{$alias} = new stdClass();
+			}
+			$conf->{$alias}->enabled = !empty($conf->timesheetweek->enabled) ? 1 : 0;
+		}
 
-		$langs->loadLangs(array('timesheetweek@timesheetweek'));
-
-		$timesheetweekCodes = array(
+		$events = array(
 			'TIMESHEETWEEK_CREATE',
 			'TIMESHEETWEEK_SAVE',
 			'TIMESHEETWEEK_SUBMIT',
@@ -300,124 +298,13 @@ class ActionsTimesheetweek
 			'TIMESHEETWEEK_BACKTODRAFT',
 			'TIMESHEETWEEK_DELETE',
 		);
-		$timesheetweekEvents = array();
-		foreach ($timesheetweekCodes as $eventCode) {
-			$translatedLabel = $langs->trans('Notify_'.$eventCode);
-			$timesheetweekEvents[$eventCode] = ($translatedLabel !== 'Notify_'.$eventCode) ? $translatedLabel : $eventCode;
-		}
-
-		$existingEvents = array();
 		if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
-			foreach ($hookmanager->resArray['arrayofnotifsupported'] as $eventKey => $eventValue) {
-				if (is_string($eventKey) && $eventKey !== '') {
-					$existingEvents[$eventKey] = is_string($eventValue) && $eventValue !== '' ? $eventValue : $eventKey;
-				} elseif (is_string($eventValue) && $eventValue !== '') {
-					$existingEvents[$eventValue] = $eventValue;
-				}
-			}
+			$events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
 		}
 
-		$events = array_replace($existingEvents, $timesheetweekEvents);
+		$this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
 
-		$templateByTrigger = array();
-		if (is_object($user) && is_object($langs)) {
-			$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
-			foreach (array_keys($events) as $actionCode) {
-				if (!is_string($actionCode) || strpos($actionCode, 'TIMESHEETWEEK_') !== 0) {
-					continue;
-				}
-
-				$templateLabel = $this->getTemplateLabelForTrigger($actionCode);
-				if ($templateLabel === '') {
-					continue;
-				}
-
-				dol_syslog(__METHOD__.': resolve template for action '.$actionCode, LOG_DEBUG);
-				$template = $this->fetchTemplate($actionCode, $user, $langs, $templateLabel);
-				if (is_object($template) && !empty($template->id)) {
-					$templateByTrigger[$actionCode] = (int) $template->id;
-				}
-			}
-		}
-
-		$this->results = array(
-			'arrayofnotifsupported' => $events,
-			'timesheetweek_templates_by_trigger' => $templateByTrigger,
-		);
-
-        return 0;
-    }
-
-	/**
-	 * Load the email template configured for a trigger.
-	 *
-	 * @param string    $action Trigger code
-	 * @param User      $actionUser Current user
-	 * @param Translate $langs Translations handler
-	 *
-	 * @return object|null
-	 */
-	protected function fetchTemplate($action, $actionUser, $langs, $templateLabel = '')
-	{
-		if (empty($action)) {
-			return null;
-		}
-
-		$actionCode = strtoupper(trim((string) $action));
-		$constantName = $actionCode.'_TEMPLATE';
-		$label = is_string($templateLabel) ? trim($templateLabel) : '';
-		if ($label === '') {
-			$label = $this->getTemplateLabelForTrigger($actionCode);
-		}
-
-		if (empty($label)) {
-			dol_syslog(__METHOD__.': no template constant found for '.$constantName, LOG_DEBUG);
-			return null;
-		}
-
-		require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
-		$formmail = new FormMail($this->db);
-
-		try {
-			$template = $formmail->getEMailTemplate($this->db, 'timesheetweek', $actionUser, $langs, 0, 1, $label);
-		} catch (\Throwable $error) {
-			dol_syslog(__METHOD__.': getEMailTemplate failed for label '.$label.' - '.$error->getMessage(), LOG_WARNING);
-			return null;
-		}
-
-		if (is_object($template) && !empty($template->id)) {
-			dol_syslog(__METHOD__.': loaded template "'.$label.'" from '.$constantName.' for trigger '.$actionCode, LOG_DEBUG);
-			return $template;
-		}
-
-		dol_syslog(__METHOD__.': template "'.$label.'" configured in '.$constantName.' was not found', LOG_DEBUG);
-
-		return null;
-	}
-
-	/**
-	 * Resolve configured template label for a trigger constant.
-	 *
-	 * @param string $action Trigger code
-	 *
-	 * @return string
-	 */
-	protected function getTemplateLabelForTrigger($action)
-	{
-		global $conf;
-
-		$actionCode = strtoupper(trim((string) $action));
-		if ($actionCode === '') {
-			return '';
-		}
-
-		$constantName = $actionCode.'_TEMPLATE';
-		$label = getDolGlobalString($constantName);
-		if ($label === '' && !empty($conf->global->{$constantName})) {
-			$label = (string) $conf->global->{$constantName};
-		}
-
-		return is_string($label) ? trim($label) : '';
+		return 0;
 	}
 
 	/**
