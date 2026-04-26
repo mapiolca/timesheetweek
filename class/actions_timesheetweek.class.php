@@ -275,38 +275,42 @@ class ActionsTimesheetweek
      *
      * @return int
      */
-    public function notifsupported($parameters, &$object, &$action, $hookmanager)
-    {
-        global $conf;
+	public function notifsupported($parameters, &$object, &$action, $hookmanager)
+	{
+		global $conf;
 
-        $notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek');
-        foreach ($notificationElementAliases as $alias) {
-            if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
-                $conf->{$alias} = new stdClass();
-            }
-            $conf->{$alias}->enabled = !empty($conf->timesheetweek->enabled) ? 1 : 0;
-        }
+		$notificationElementAliases = array(
+			'timesheetweek_send',
+			'timesheetweek_send@timesheetweek',
+			'timesheetweek',
+			'timesheetweek@timesheetweek',
+		);
+		foreach ($notificationElementAliases as $alias) {
+			if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
+				$conf->{$alias} = new stdClass();
+			}
+			$conf->{$alias}->enabled = !empty($conf->timesheetweek->enabled) ? 1 : 0;
+		}
 
-        $events = array(
-            'TIMESHEETWEEK_CREATE',
-            'TIMESHEETWEEK_SAVE',
-            'TIMESHEETWEEK_SUBMIT',
-            'TIMESHEETWEEK_APPROVE',
-            'TIMESHEETWEEK_REFUSE',
-            'TIMESHEETWEEK_SENTBYMAIL',
-            'TIMESHEETWEEK_SEAL',
-            'TIMESHEETWEEK_BACKTODRAFT',
-            'TIMESHEETWEEK_DELETE',
-        );
+		$events = array(
+			'TIMESHEETWEEK_CREATE',
+			'TIMESHEETWEEK_SAVE',
+			'TIMESHEETWEEK_SUBMIT',
+			'TIMESHEETWEEK_APPROVE',
+			'TIMESHEETWEEK_REFUSE',
+			'TIMESHEETWEEK_SENTBYMAIL',
+			'TIMESHEETWEEK_SEAL',
+			'TIMESHEETWEEK_BACKTODRAFT',
+			'TIMESHEETWEEK_DELETE',
+		);
+		if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
+			$events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
+		}
 
-        if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
-            $events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
-        }
+		$this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
 
-        $this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
-
-        return 0;
-    }
+		return 0;
+	}
 
 	/**
 	 * Add TimesheetWeek entry into email templates element list.

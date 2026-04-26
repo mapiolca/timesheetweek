@@ -1870,137 +1870,38 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	protected function fireNotificationTrigger($triggerCode, User $actionUser)
 	{
-		global $langs, $conf, $hookmanager;
+		global $langs;
 
-		$payload = $this->buildTriggerParameters($triggerCode, $actionUser);
+		if (!function_exists('isModEnabled') || !isModEnabled('notification')) {
+			return 0;
+		}
 
-		if (method_exists($this, 'call_trigger')) {
-			try {
-				return (int) $this->call_trigger($triggerCode, $actionUser);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
+		if (is_object($langs)) {
+			$langs->loadLangs(array('timesheetweek@timesheetweek', 'mails'));
+		}
+
+		dol_include_once('/core/class/notify.class.php');
+		if (!class_exists('Notify')) {
+			return -1;
+		}
+
+		$notifcode = strtoupper(trim((string) $triggerCode));
+		if ($notifcode === '') {
+			return 0;
+		}
+
+		$notify = new Notify($this->db);
+		$result = (int) $notify->send($notifcode, $this);
+		if ($result < 0) {
+			$this->error = !empty($notify->error) ? $notify->error : 'ErrorFailedToSendMail';
+			if (!empty($notify->errors) && is_array($notify->errors)) {
+				$this->errors = array_merge($this->errors, $notify->errors);
 			}
 		}
 
-		// FR: Compatibilité avec les anciennes versions qui exposent runTrigger directement sur l'objet.
-		// EN: Backward compatibility for legacy releases exposing runTrigger on the object.
-		if (method_exists($this, 'runTrigger')) {
-			try {
-				$method = new \ReflectionMethod($this, 'runTrigger');
-				$arguments = $this->mapTriggerArguments($method->getParameters(), $payload, true);
+		unset($actionUser);
 
-				return $method->invokeArgs($this, $arguments);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-			}
-		}
-
-		// FR: Fallback ultime sur la fonction globale runTrigger si elle est disponible.
-		// EN: Ultimate fallback using the global runTrigger helper when available.
-		if (!function_exists('runTrigger')) {
-			dol_include_once('/core/triggers/functions_triggers.inc.php');
-		}
-
-		if (function_exists('runTrigger')) {
-			try {
-				$function = new \ReflectionFunction('runTrigger');
-				$arguments = $this->mapTriggerArguments($function->getParameters(), $payload, true);
-
-				return $function->invokeArgs($arguments);
-			} catch (\Throwable $error) {
-				dol_syslog(__METHOD__.': '.$error->getMessage(), LOG_WARNING);
-			}
-		}
-
-		return 0;
-	}
-
-	/**
-	* Prépare le jeu de paramètres partagé entre toutes les signatures de triggers.
-	* Prepare the shared payload used by every trigger signature.
-	*
-	* @param string $triggerCode
-	* @param User   $actionUser
-	* @return array
-	*/
-	protected function buildTriggerParameters($triggerCode, User $actionUser)
-	{
-		global $langs, $conf, $hookmanager;
-
-		return array(
-		'action' => $triggerCode,
-		'trigger' => $triggerCode,
-		'event' => $triggerCode,
-		'actioncode' => $triggerCode,
-		'user' => $actionUser,
-		'actor' => $actionUser,
-		'currentuser' => $actionUser,
-		'langs' => $langs,
-		'language' => $langs,
-		'conf' => $conf,
-		'config' => $conf,
-		'hookmanager' => isset($hookmanager) ? $hookmanager : null,
-		'hook' => isset($hookmanager) ? $hookmanager : null,
-		'object' => $this,
-		'obj' => $this,
-		'objectsrc' => $this,
-		'context' => $this->context,
-		'parameters' => array('context' => $this->context, 'timesheetweek' => $this),
-		'params' => array('context' => $this->context, 'timesheetweek' => $this),
-		'moreparam' => array('context' => $this->context, 'timesheetweek' => $this),
-		'extrafields' => property_exists($this, 'extrafields') ? $this->extrafields : null,
-		'extrafield' => property_exists($this, 'extrafields') ? $this->extrafields : null,
-		'extraparams' => property_exists($this, 'extrafields') ? $this->extrafields : null,
-		'parametersarray' => array('context' => $this->context, 'timesheetweek' => $this),
-		'actiontype' => $triggerCode,
-		);
-	}
-
-	/**
-	* Mappe la liste des paramètres attendus par une signature de trigger vers les valeurs connues.
-	* Map the expected parameter list of a trigger signature to the known values.
-	*
-	* @param \ReflectionParameter[] $signature
-	* @param array                  $payload
-	* @param bool                   $injectObjectWhenMissing
-	* @return array
-	*/
-	protected function mapTriggerArguments(array $signature, array $payload, $injectObjectWhenMissing = false)
-	{
-		$arguments = array();
-
-		foreach ($signature as $parameter) {
-			$name = $parameter->getName();
-
-			if (isset($payload[$name])) {
-				$arguments[] = $payload[$name];
-				continue;
-			}
-
-			// FR: Quelques alias fréquents ne respectent pas la casse ou ajoutent un suffixe.
-			// EN: Handle common aliases that differ by casing or suffixes.
-			$lower = strtolower($name);
-			if (isset($payload[$lower])) {
-				$arguments[] = $payload[$lower];
-				continue;
-			}
-
-			if ($lower === 'object' && $injectObjectWhenMissing) {
-				$arguments[] = $this;
-				continue;
-			}
-
-			if (strpos($lower, 'context') !== false) {
-				$arguments[] = $payload['context'];
-				continue;
-			}
-
-			// FR: Valeur neutre par défaut pour ne pas interrompre le déclenchement.
-			// EN: Default neutral value so the trigger keeps running.
-			$arguments[] = null;
-		}
-
-		return $arguments;
+		return $result;
 	}
 
 	/**
@@ -2405,6 +2306,17 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return true;
 		}
 
+		$actionCode = strtoupper(trim((string) $code));
+		if ($actionCode === '') {
+			return true;
+		}
+
+		$autoAgendaConst = 'MAIN_AGENDA_ACTIONAUTO_'.$actionCode;
+		$isAutoAgendaEnabled = getDolGlobalInt($autoAgendaConst, 0);
+		if (!$isAutoAgendaEnabled) {
+			return true;
+		}
+
 		$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
 
 		dol_include_once('/comm/action/class/actioncomm.class.php');
@@ -2416,10 +2328,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		$now = dol_now();
-
 		$event = new ActionComm($this->db);
 		$event->type_code = 'AC_OTH_AUTO';
-		$event->code = $code;
+		$event->code = $actionCode;
 		$event->label = $label;
 		$event->note_private = $label;
 		$event->fk_user_author = (int) $user->id;
@@ -2438,7 +2349,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		if (!empty($this->fk_user)) {
 			$event->userassigned = array(
-			(int) $this->fk_user => array('id' => (int) $this->fk_user),
+				(int) $this->fk_user => array('id' => (int) $this->fk_user),
 			);
 		}
 
