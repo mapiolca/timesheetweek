@@ -7,7 +7,7 @@
  * resolved by complete_substitutions_array() / make_substitutions().
  */
 
-if (!defined('SYSPATH')) {
+if (!defined('DOL_VERSION')) {
 	exit('No direct access');
 }
 
