@@ -279,7 +279,12 @@ class ActionsTimesheetweek
 	{
 		global $conf;
 
-		$notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek', 'timesheetweek');
+		$notificationElementAliases = array(
+			'timesheetweek_send',
+			'timesheetweek_send@timesheetweek',
+			'timesheetweek',
+			'timesheetweek@timesheetweek',
+		);
 		foreach ($notificationElementAliases as $alias) {
 			if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
 				$conf->{$alias} = new stdClass();
@@ -324,7 +329,7 @@ class ActionsTimesheetweek
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
 		$this->results = array(
-			'timesheetweek' => img_picto('', 'bookcal', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendTimesheetWeek')),
+			'timesheetweek_send' => img_picto('', 'bookcal', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendTimesheetWeek')),
 		);
 
 		return 0;
