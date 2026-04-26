@@ -1885,8 +1885,13 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		$notifcode = strtoupper(trim((string) $triggerCode));
+		if ($notifcode === '') {
+			return 0;
+		}
+
 		$notify = new Notify($this->db);
-		$result = (int) $notify->send((string) $triggerCode, $this);
+		$result = (int) $notify->send($notifcode, $this);
 		if ($result < 0) {
 			$this->error = !empty($notify->error) ? $notify->error : 'ErrorFailedToSendMail';
 			if (!empty($notify->errors) && is_array($notify->errors)) {
