@@ -329,7 +329,7 @@ class ActionsTimesheetweek
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
 
 		$this->results = array(
-			'timesheetweek_send' => img_picto('', 'bookcal', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendTimesheetWeek')),
+			'timesheetweek' => img_picto('', 'bookcal', 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('MailToSendTimesheetWeek')),
 		);
 
 		return 0;
