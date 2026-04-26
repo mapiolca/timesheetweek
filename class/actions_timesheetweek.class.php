@@ -257,6 +257,7 @@ class ActionsTimesheetweek
             'TIMESHEETWEEK_REFUSE',
             'TIMESHEETWEEK_SENTBYMAIL',
             'TIMESHEETWEEK_SEAL',
+			'TIMESHEETWEEK_UNSEAL',
             'TIMESHEETWEEK_BACKTODRAFT',
             'TIMESHEETWEEK_DELETE',
         );
