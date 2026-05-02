@@ -1291,7 +1291,9 @@ JS;
 		}
 		if ($action === 'ask_validate') {
 			$formquestion = array();
+			$confirmMessage = $langs->trans('ConfirmValidate');
 			if ((float) $object->overtime_hours > 0) {
+				$confirmMessage = $langs->trans('TimesheetWeekMotifOvertimePrompt');
 				$formquestion[] = array(
 					'label' => $langs->trans('TimesheetWeekMotif'),
 					'type' => 'textarea',
@@ -1303,7 +1305,7 @@ JS;
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-				$langs->trans('ConfirmValidate'),
+				$confirmMessage,
 				'confirm_validate',
 				$formquestion,
 				'yes',
@@ -1324,7 +1326,7 @@ JS;
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
-				$langs->trans('ConfirmRefuse'),
+				$langs->trans('TimesheetWeekMotifRefusePrompt'),
 				'confirm_refuse',
 				$formquestion,
 				'yes',
