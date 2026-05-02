@@ -1340,6 +1340,13 @@ JS;
 			print $formconfirm;
 		}
 
+
+		if ($action === 'ask_validate' || $action === 'ask_refuse') {
+			print '<script>';
+			print 'jQuery(function($){$(".ui-dialog:visible .ui-dialog-content").css("min-height", "420px");});';
+			print '</script>';
+		}
+
 	echo '<div class="fichecenter">';
 
 	$canEditInline = ($object->status == tw_status('draft') && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user));
