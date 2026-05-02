@@ -1293,13 +1293,23 @@ JS;
 			$formquestion = array();
 			$confirmMessage = $langs->trans('ConfirmValidate');
 			if ((float) $object->overtime_hours > 0) {
-				$confirmMessage = $langs->trans('TimesheetWeekMotifOvertimePrompt');
+				$confirmMessage = '';
+				$formquestion[] = array(
+					'label' => '',
+					'type' => 'other',
+					'value' => $langs->trans('TimesheetWeekMotifOvertimePrompt'),
+				);
 				$formquestion[] = array(
 					'label' => $langs->trans('TimesheetWeekMotif'),
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required',
+					'moreattr' => 'required rows="4" style="width: 100%;"',
+				);
+				$formquestion[] = array(
+					'label' => '',
+					'type' => 'other',
+					'value' => $langs->trans('ConfirmValidate'),
 				);
 			}
 			$formconfirm = $form->formconfirm(
@@ -1320,7 +1330,7 @@ JS;
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required',
+					'moreattr' => 'required rows="4" style="width: 100%;"',
 				)
 			);
 			$formconfirm = $form->formconfirm(
