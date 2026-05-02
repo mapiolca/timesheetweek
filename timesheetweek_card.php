@@ -1319,19 +1319,23 @@ JS;
 			print $formconfirm;
 		}
 		if ($action === 'ask_refuse') {
-			$formquestion = array(
-				array(
-					'label' => $langs->trans('TimesheetWeekMotif'),
-					'type' => 'textarea',
-					'name' => 'motif',
-					'value' => $motif,
-					'moreattr' => 'required rows="2" style="width: 90%;"',
-				)
+			$formquestion = array();
+			$formquestion[] = array(
+				'label' => '',
+				'type' => 'other',
+				'value' => $langs->trans('TimesheetWeekMotifRefusePrompt'),
+			);
+			$formquestion[] = array(
+				'label' => $langs->trans('TimesheetWeekMotif'),
+				'type' => 'textarea',
+				'name' => 'motif',
+				'value' => $motif,
+				'moreattr' => 'required rows="2" style="width: 90%;"',
 			);
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
-				$langs->trans('TimesheetWeekMotifRefusePrompt'),
+				$langs->trans('ConfirmRefuse'),
 				'confirm_refuse',
 				$formquestion,
 				'yes',
