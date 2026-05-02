@@ -1294,7 +1294,7 @@ JS;
 			if ((float) $object->overtime_hours > 0) {
 				$formquestion[] = array(
 					'label' => $langs->trans('TimesheetWeekMotif'),
-					'type' => 'text',
+					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
 					'moreattr' => 'required',
@@ -1315,7 +1315,7 @@ JS;
 			$formquestion = array(
 				array(
 					'label' => $langs->trans('TimesheetWeekMotif'),
-					'type' => 'text',
+					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
 					'moreattr' => 'required',
