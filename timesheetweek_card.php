@@ -1299,7 +1299,7 @@ JS;
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required rows="5" style="width: 100%;"',
+					'moreattr' => 'required rows="2" style="width: 100%;"',
 				);
 				$formquestion[] = array(
 					'label' => '',
@@ -1325,7 +1325,7 @@ JS;
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required rows="5" style="width: 100%;"',
+					'moreattr' => 'required rows="2" style="width: 100%;"',
 				)
 			);
 			$formconfirm = $form->formconfirm(
@@ -1338,13 +1338,6 @@ JS;
 				1
 			);
 			print $formconfirm;
-		}
-
-
-		if ($action === 'ask_validate' || $action === 'ask_refuse') {
-			print '<script>';
-			print 'jQuery(function($){$(".ui-dialog:visible .ui-dialog-content").css("min-height", "420px");});';
-			print '</script>';
 		}
 
 	echo '<div class="fichecenter">';
