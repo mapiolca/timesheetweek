@@ -1314,7 +1314,8 @@ JS;
 				'confirm_validate',
 				$formquestion,
 				'yes',
-				1
+				1,
+				400
 			);
 			print $formconfirm;
 		}
@@ -1335,7 +1336,8 @@ JS;
 				'confirm_refuse',
 				$formquestion,
 				'yes',
-				1
+				1,
+				400
 			);
 			print $formconfirm;
 		}
