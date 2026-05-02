@@ -1,6 +1,6 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.8 (24/04/2026)
+## 1.8 (02/05/2026)
 - Ajoute la saisie et la persistance du motif sur validation/refus, avec affichage contextuel sur la fiche. / Adds motif capture and persistence on approve/refuse with contextual display on the card.
 - Ajoute les réglages de justification des heures supplémentaires (interrupteur + seuil HH:mm) dans la configuration module. / Adds overtime justification settings (switch + HH:mm threshold) in module setup.
 - Ajoute le support des congés et RTT approuvés dans la fiche hebdomadaire avec placeholders dédiés et verrouillage conditionnel des champs. / Adds support for approved leave and RTT in the weekly card with dedicated placeholders and conditional field locking.
