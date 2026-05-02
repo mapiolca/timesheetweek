@@ -158,6 +158,11 @@ SealTimesheet = Seal
 UnsealTimesheet = Unseal
 ConfirmValidate = Do you confirm the approval of this timesheet?
 ConfirmRefuse = Do you confirm the refusal of this timesheet?
+TimesheetWeekMotif = Reason
+TimesheetWeekMotifRefuseRequired = A refusal reason is required.
+TimesheetWeekMotifOvertimeRequired = An overtime reason is required to approve this timesheet.
+TimesheetWeekMotifRefusePrompt = Please specify the reason for this refusal.
+TimesheetWeekMotifOvertimePrompt = This timesheet contains overtime hours, please justify them.
 Refuse = Refuse
 ApproveSelection = Approve selection
 RefuseSelection = Refuse selection
@@ -335,3 +340,13 @@ TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
 
 TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
 TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.
+
+TimesheetWeekOvertimeSectionTitle = Overtime
+TimesheetWeekOvertimeSectionHelp = Overtime justification settings.
+TimesheetWeekOvertimeRequireMotif = Justify overtime
+TimesheetWeekOvertimeRequireMotifHelp = Ask for a reason when approving a timesheet containing overtime hours.
+TimesheetWeekOvertimeThreshold = Justification threshold
+TimesheetWeekOvertimeThresholdHelp = From how many overtime hours is justification required?
+
+TimesheetWeekRefuseMotifLabel = Refusal reason
+TimesheetWeekOvertimeJustificationLabel = Overtime justification

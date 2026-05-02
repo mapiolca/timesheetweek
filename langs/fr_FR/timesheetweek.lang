@@ -157,6 +157,11 @@ SealTimesheet = Sceller
 UnsealTimesheet = Desceller
 ConfirmValidate = Confirmez-vous l'approbation de cette feuille de temps ?
 ConfirmRefuse = Confirmez-vous le refus de cette feuille de temps ?
+TimesheetWeekMotif = Motif
+TimesheetWeekMotifRefuseRequired = Un motif de refus est obligatoire.
+TimesheetWeekMotifOvertimeRequired = Un motif est obligatoire pour valider une feuille avec des heures supplémentaires.
+TimesheetWeekMotifRefusePrompt = Merci de préciser le motif de ce refus.
+TimesheetWeekMotifOvertimePrompt = Cette feuille contient des heures supplémentaires, merci de les justifier.
 Refuse = Refuser
 ApproveSelection = Approuver la sélection
 RefuseSelection = Refuser la sélection
@@ -335,3 +340,13 @@ TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
 
 TimesheetWeekMailSignatureWithAppTitle = Cordialement,\n%s
 TimesheetWeekMailSignatureWithoutAppTitle = Cordialement,\nVotre Dolibarr %s.
+
+TimesheetWeekOvertimeSectionTitle = Heures supplémentaires
+TimesheetWeekOvertimeSectionHelp = Paramètres de justification des heures supplémentaires.
+TimesheetWeekOvertimeRequireMotif = Justifier les heures supp.
+TimesheetWeekOvertimeRequireMotifHelp = Demander une justification lors de l'approbation d'une feuilles d'heures contenant des heures supplémentaires.
+TimesheetWeekOvertimeThreshold = Seuil de justification
+TimesheetWeekOvertimeThresholdHelp = A partir de combien d'heures supplémentaires la justification est nécessaire ?
+
+TimesheetWeekRefuseMotifLabel = Motif du refus
+TimesheetWeekOvertimeJustificationLabel = Justification des heures supplémentaires

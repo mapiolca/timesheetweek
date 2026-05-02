@@ -370,6 +370,33 @@ if ($action === 'setquarterday') {
 	}
 }
 
+
+if ($action === 'saveovertimeoptions') {
+	$overtimeRequireMotif = (int) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 'int');
+	$overtimeThreshold = trim((string) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', 'alphanohtml'));
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $overtimeThreshold)) {
+		$overtimeThreshold = '00:00';
+	}
+
+	$results = array();
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', ($overtimeRequireMotif ? 1 : 0), 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', $overtimeThreshold, 'chaine', 0, '', $conf->entity);
+
+	$hasError = false;
+	foreach ($results as $resultValue) {
+		if ($resultValue <= 0) {
+			$hasError = true;
+			break;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 if ($action === 'savereminder') {
 	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
 	$reminderStartYear = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEyear', 'int');
@@ -512,6 +539,8 @@ if ($reminderExcludedUsersString !== '') {
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
+$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+$overtimeMotifThreshold = getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00');
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -656,6 +685,42 @@ print '</tr>';
 
 print '</table>';
 print '</div>';
+
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekOvertimeSectionTitle'), '', 'clock');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekOvertimeSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekOvertimeRequireMotif').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekOvertimeRequireMotifHelp').'</td>';
+print '<td class="center"><input type="checkbox" name="TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED" value="1"'.(!empty($overtimeRequireMotif) ? ' checked' : '').'></td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekOvertimeThreshold').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekOvertimeThresholdHelp').'</td>';
+print '<td class="center"><input type="text" name="TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD" value="'.dol_escape_htmltag($overtimeMotifThreshold).'" placeholder="HH:mm" class="width100"></td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+print '<div class="center"><button type="submit" class="butAction" name="action" value="saveovertimeoptions">'.$langs->trans('Save').'</button></div>';
+print '</form>';
+
+print '<br>';
 
 print '<br>';
 

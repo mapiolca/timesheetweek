@@ -43,6 +43,7 @@ class TimesheetWeek extends CommonObject
 	public $week;
 	public $status;
 	public $note;
+	public $motif;
 	public $fk_user_valid;    // validator (user id)
 	public $date_creation;
 	public $tms;
@@ -216,6 +217,7 @@ class TimesheetWeek extends CommonObject
 		'week',
 		'status',
 		'note',
+		'motif',
 		'date_creation',
 		'fk_user_valid',
 		'total_hours',
@@ -236,6 +238,7 @@ class TimesheetWeek extends CommonObject
 		(int) $this->week,
 		(int) $this->status,
 		($this->note !== null ? "'".$this->db->escape($this->note)."'" : 'NULL'),
+		($this->motif !== null ? "'".$this->db->escape($this->motif)."'" : 'NULL'),
 		"'".$this->db->idate($now)."'",
 		(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : 'NULL'),
 		(float) ($this->total_hours ?: 0),
@@ -359,7 +362,7 @@ class TimesheetWeek extends CommonObject
 
 		$includeModelPdf = $this->checkModelPdfColumnAvailability();
 
-		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
+		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.motif, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		if ($includeModelPdf) {
 			$sql .= ", t.model_pdf";
@@ -395,6 +398,7 @@ $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_co
 		$this->week = (int) $obj->week;
 		$this->status = (int) $obj->status;
 		$this->note = $obj->note;
+		$this->motif = $obj->motif;
 		$this->date_creation = $this->db->jdate($obj->date_creation);
 		$this->tms = $this->db->jdate($obj->tms);
 		$this->date_validation = $this->db->jdate($obj->date_validation);
@@ -487,6 +491,7 @@ $this->zone1_count = (int) $obj->zone1_count;
 		if ($this->week) $sets[] = "week=".(int) $this->week;
 		if ($this->status !== null) $sets[] = "status=".(int) $this->status;
 $sets[] = "note=".($this->note !== null ? "'".$this->db->escape($this->note)."'" : "NULL");
+$sets[] = "motif=".($this->motif !== null ? "'".$this->db->escape($this->motif)."'" : "NULL");
 $sets[] = "fk_user_valid=".(!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : "NULL");
 $sets[] = "total_hours=".(float) ($this->total_hours ?: 0);
 $sets[] = "overtime_hours=".(float) ($this->overtime_hours ?: 0);
@@ -965,9 +970,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* @param User $user
 	* @return int
 	*/
-	public function approve($user)
+	public function approve($user, $motif = '')
 	{
 		$now = dol_now();
+		$motif = trim((string) $motif);
 
 		if ((int) $this->status !== self::STATUS_SUBMITTED) {
 			$this->error = 'BadStatusForApprove';
@@ -988,6 +994,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= ", date_validation='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
 		$sql .= $setvalid;
+		$sql .= ", motif=".($motif !== '' ? "'".$this->db->escape($motif)."'" : 'NULL');
 		$sql .= " WHERE rowid=".(int) $this->id;
 		// EN: Restrict the approval to timesheets inside permitted entities.
 		// FR: Restreint l'approbation aux feuilles situées dans les entités autorisées.
@@ -1009,8 +1016,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_APPROVED;
 		$this->date_validation = $now;
 		$this->tms = $now;
+		$this->motif = ($motif !== '' ? $motif : null);
 
-		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref), true, $motif)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1481,9 +1489,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* @param User $user
 	* @return int
 	*/
-	public function refuse($user)
+	public function refuse($user, $motif = '')
 	{
 		$now = dol_now();
+		$motif = trim((string) $motif);
 
 		if ((int) $this->status !== self::STATUS_SUBMITTED) {
 			$this->error = 'BadStatusForRefuse';
@@ -1503,6 +1512,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= ", date_validation='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
 		$sql .= $setvalid;
+		$sql .= ", motif=".($motif !== '' ? "'".$this->db->escape($motif)."'" : 'NULL');
 		$sql .= " WHERE rowid=".(int) $this->id;
 
 		if (!$this->db->query($sql)) {
@@ -1514,8 +1524,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_REFUSED;
 		$this->date_validation = $now;
 		$this->tms = $now;
+		$this->motif = ($motif !== '' ? $motif : null);
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref))) {
+		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref), true, $motif)) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1750,6 +1761,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
 		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
 		'__ACTION_USER_FULLNAME__' => $actionUserName,
+		'__TIMESHEETWEEK_MOTIF__' => (!empty($this->motif) ? $this->motif : ''),
 		'__RECIPIENT_FULLNAME__' => '',
 		);
 
@@ -2335,7 +2347,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*
 	* @return bool
 	*/
-	protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true)
+	protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true, $motif = '')
 	{
 		global $conf, $langs;
 
@@ -2359,7 +2371,12 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$event->type_code = 'AC_OTH_AUTO';
 		$event->code = $code;
 		$event->label = $label;
-		$event->note_private = $label;
+		$motif = trim((string) $motif);
+		$eventNote = $label;
+		if ($motif !== '') {
+			$eventNote .= "\n".$langs->trans('TimesheetWeekMotif').': '.$motif;
+		}
+		$event->note_private = $eventNote;
 		$event->fk_user_author = (int) $user->id;
 		$event->fk_user_mod = (int) $user->id;
 		$ownerId = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));

@@ -53,6 +53,7 @@ $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+$motif = trim((string) GETPOST('motif', 'restricthtml'));
 // EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
 // FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
 $hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
@@ -107,6 +108,18 @@ function tw_translate_error($errorKey, $langs)
 		$msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
 	}
 	return $msg;
+}
+
+
+function tw_hhmm_to_hours($value)
+{
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+		return 0.0;
+	}
+
+	$hours = (int) $matches[1];
+	$minutes = (int) $matches[2];
+	return $hours + ($minutes / 60);
 }
 
 /**
@@ -855,7 +868,16 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$res = $object->approve($user);
+		$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+		$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+		$requiresMotif = (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours));
+		if ($requiresMotif && $motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
+			exit;
+		}
+
+		$res = $object->approve($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
 		} else {
@@ -884,7 +906,13 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
-		$res = $object->refuse($user);
+		if ($motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifRefuseRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_refuse");
+			exit;
+		}
+
+		$res = $object->refuse($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
 		} else {
@@ -1276,26 +1304,59 @@ JS;
 			print $formconfirm;
 		}
 		if ($action === 'ask_validate') {
+			$formquestion = array();
+			$confirmMessage = $langs->trans('ConfirmValidate');
+			$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+			$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+			if (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours)) {
+				$formquestion[] = array(
+					'label' => '',
+					'type' => 'other',
+					'value' => $langs->trans('TimesheetWeekMotifOvertimePrompt'),
+				);
+				$formquestion[] = array(
+					'label' => $langs->trans('TimesheetWeekMotif'),
+					'type' => 'textarea',
+					'name' => 'motif',
+					'value' => $motif,
+					'moreattr' => 'required rows="2" style="width: 90%;"',
+				);
+			}
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-				$langs->trans('ConfirmValidate'),
+				$confirmMessage,
 				'confirm_validate',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
 		if ($action === 'ask_refuse') {
+			$formquestion = array();
+			$formquestion[] = array(
+				'label' => '',
+				'type' => 'other',
+				'value' => $langs->trans('TimesheetWeekMotifRefusePrompt'),
+			);
+			$formquestion[] = array(
+				'label' => $langs->trans('TimesheetWeekMotif'),
+				'type' => 'textarea',
+				'name' => 'motif',
+				'value' => $motif,
+				'moreattr' => 'required rows="2" style="width: 90%;"',
+			);
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
 				$langs->trans('ConfirmRefuse'),
 				'confirm_refuse',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
@@ -1445,6 +1506,10 @@ JS;
 		} else {
 			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 			echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+			if (!empty($object->motif)) {
+				$motifLabelKey = ((int) $object->status === (int) tw_status('refused')) ? 'TimesheetWeekRefuseMotifLabel' : 'TimesheetWeekOvertimeJustificationLabel';
+				echo '<tr><td>'.$langs->trans($motifLabelKey).'</td><td>'.nl2br(dol_escape_htmltag($object->motif)).'</td></tr>';
+			}
 		}
 		echo '</table>';
 		echo '</div>';
