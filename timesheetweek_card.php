@@ -1507,7 +1507,8 @@ JS;
 			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 			echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
 			if (!empty($object->motif)) {
-				echo '<tr><td>'.$langs->trans("TimesheetWeekMotif").'</td><td>'.nl2br(dol_escape_htmltag($object->motif)).'</td></tr>';
+				$motifLabelKey = ((int) $object->status === (int) tw_status('refused')) ? 'TimesheetWeekRefuseMotifLabel' : 'TimesheetWeekOvertimeJustificationLabel';
+				echo '<tr><td>'.$langs->trans($motifLabelKey).'</td><td>'.nl2br(dol_escape_htmltag($object->motif)).'</td></tr>';
 			}
 		}
 		echo '</table>';

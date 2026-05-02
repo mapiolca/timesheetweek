@@ -347,3 +347,6 @@ TimesheetWeekOvertimeRequireMotif = Justify overtime
 TimesheetWeekOvertimeRequireMotifHelp = Ask for a reason when approving a timesheet containing overtime hours.
 TimesheetWeekOvertimeThreshold = Justification threshold
 TimesheetWeekOvertimeThresholdHelp = From how many overtime hours is justification required?
+
+TimesheetWeekRefuseMotifLabel = Refusal reason
+TimesheetWeekOvertimeJustificationLabel = Overtime justification

@@ -347,3 +347,6 @@ TimesheetWeekOvertimeRequireMotif = Justifier les heures supp.
 TimesheetWeekOvertimeRequireMotifHelp = Demander une justification lors de l'approbation d'une feuilles d'heures contenant des heures supplémentaires.
 TimesheetWeekOvertimeThreshold = Seuil de justification
 TimesheetWeekOvertimeThresholdHelp = A partir de combien d'heures supplémentaires la justification est nécessaire ?
+
+TimesheetWeekRefuseMotifLabel = Motif du refus
+TimesheetWeekOvertimeJustificationLabel = Justification des heures supplémentaires
