@@ -53,6 +53,7 @@ $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+$motif = trim((string) GETPOST('motif', 'restricthtml'));
 // EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
 // FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
 $hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
@@ -855,7 +856,14 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$res = $object->approve($user);
+		$requiresMotif = ((float) $object->overtime_hours > 0);
+		if ($requiresMotif && $motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
+			exit;
+		}
+
+		$res = $object->approve($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
 		} else {
@@ -884,7 +892,13 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
-		$res = $object->refuse($user);
+		if ($motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifRefuseRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_refuse");
+			exit;
+		}
+
+		$res = $object->refuse($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
 		} else {
@@ -1276,24 +1290,43 @@ JS;
 			print $formconfirm;
 		}
 		if ($action === 'ask_validate') {
+			$formquestion = array();
+			if ((float) $object->overtime_hours > 0) {
+				$formquestion[] = array(
+					'label' => $langs->trans('TimesheetWeekMotif'),
+					'type' => 'textarea:4:80',
+					'name' => 'motif',
+					'value' => $motif,
+					'moreattr' => 'required',
+				);
+			}
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
 				$langs->trans('ConfirmValidate'),
 				'confirm_validate',
-				array(),
+				$formquestion,
 				'yes',
 				1
 			);
 			print $formconfirm;
 		}
 		if ($action === 'ask_refuse') {
+			$formquestion = array(
+				array(
+					'label' => $langs->trans('TimesheetWeekMotif'),
+					'type' => 'textarea:4:80',
+					'name' => 'motif',
+					'value' => $motif,
+					'moreattr' => 'required',
+				)
+			);
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
 				$langs->trans('ConfirmRefuse'),
 				'confirm_refuse',
-				array(),
+				$formquestion,
 				'yes',
 				1
 			);
