@@ -110,6 +110,18 @@ function tw_translate_error($errorKey, $langs)
 	return $msg;
 }
 
+
+function tw_hhmm_to_hours($value)
+{
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+		return 0.0;
+	}
+
+	$hours = (int) $matches[1];
+	$minutes = (int) $matches[2];
+	return $hours + ($minutes / 60);
+}
+
 /**
 * EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
 * FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
@@ -856,7 +868,9 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$requiresMotif = ((float) $object->overtime_hours > 0);
+		$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+		$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+		$requiresMotif = (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours));
 		if ($requiresMotif && $motif === '') {
 			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
 			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
@@ -1292,7 +1306,9 @@ JS;
 		if ($action === 'ask_validate') {
 			$formquestion = array();
 			$confirmMessage = $langs->trans('ConfirmValidate');
-			if ((float) $object->overtime_hours > 0) {
+			$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+			$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+			if (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours)) {
 				$formquestion[] = array(
 					'label' => '',
 					'type' => 'other',

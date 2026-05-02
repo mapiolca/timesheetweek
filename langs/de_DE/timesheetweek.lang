@@ -340,3 +340,10 @@ TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
 
 TimesheetWeekMailSignatureWithAppTitle = Best regards,\n%s
 TimesheetWeekMailSignatureWithoutAppTitle = Best regards,\nYour Dolibarr %s.
+
+TimesheetWeekOvertimeSectionTitle = Overtime
+TimesheetWeekOvertimeSectionHelp = Overtime justification settings.
+TimesheetWeekOvertimeRequireMotif = Justify overtime
+TimesheetWeekOvertimeRequireMotifHelp = Ask for a reason when approving a timesheet containing overtime hours.
+TimesheetWeekOvertimeThreshold = Justification threshold
+TimesheetWeekOvertimeThresholdHelp = From how many overtime hours is justification required?
