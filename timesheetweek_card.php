@@ -1299,7 +1299,7 @@ JS;
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required rows="2" style="width: 100%;"',
+					'moreattr' => 'required rows="2" style="width: 90%;"',
 				);
 				$formquestion[] = array(
 					'label' => '',
@@ -1315,7 +1315,7 @@ JS;
 				$formquestion,
 				'yes',
 				1,
-				400
+				310
 			);
 			print $formconfirm;
 		}
@@ -1326,7 +1326,7 @@ JS;
 					'type' => 'textarea',
 					'name' => 'motif',
 					'value' => $motif,
-					'moreattr' => 'required rows="2" style="width: 100%;"',
+					'moreattr' => 'required rows="2" style="width: 90%;"',
 				)
 			);
 			$formconfirm = $form->formconfirm(
@@ -1337,7 +1337,7 @@ JS;
 				$formquestion,
 				'yes',
 				1,
-				400
+				310
 			);
 			print $formconfirm;
 		}
