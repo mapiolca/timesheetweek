@@ -43,6 +43,7 @@ require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/cron/class/cronjob.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 
 /**
@@ -198,16 +199,8 @@ class TimesheetweekReminder extends CommonObject
 
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
-		if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
-			$sql .= " INNER JOIN ".MAIN_DB_PREFIX."usergroup_user as ug";
-			$sql .= " ON ((ug.fk_user = u.rowid";
-			$sql .= " AND ug.entity IN (".getEntity('usergroup')."))";
-			$sql .= " OR u.entity = 0)";
-		}
-		$sql .= " WHERE u.statut = 1 AND u.email IS NOT NULL AND u.email <> ''";
-		if (isModEnabled('multicompany') && !getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
-			$sql .= ' AND u.entity IN ('.getEntity("user").')';
-		}
+		$sql .= " WHERE u.statut = 1 AND u.employee = 1 AND u.email IS NOT NULL AND u.email <> ''";
+		$sql .= " AND ".tw_sql_timesheet_read_user_entity_access('u', (int) $conf->entity);
 		if (!empty($excludedUsers)) {
 			$sql .= ' AND u.rowid NOT IN ('.implode(',', $excludedUsers).')';
 		}
