@@ -104,6 +104,12 @@ if (!function_exists('tw_can_validate_timesheet_masslist')) {
 		$permWriteChild,
 		$permWriteAll
 	) {
+		global $db, $conf;
+
+		if (!tw_user_has_access_to_entity($db, $sheet->fk_user, !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity)) {
+			return false;
+		}
+
 		// EN: Check explicit validation rights first to keep the behaviour consistent with the card view.
 		// FR: Vérifie d'abord les droits explicites de validation pour rester cohérent avec la fiche détaillée.
 		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
@@ -701,7 +707,8 @@ if ($massaction === 'builddoc_merge_pdf') {
 							continue;
 					}
 
-					if (!tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
+					if (!tw_user_has_access_to_entity($db, $sheet->fk_user, !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity)
+						|| !tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
 							// EN: Skip the timesheet when the user cannot access the employee scope.
 							// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
 							$warnings[] = $langs->trans('TimesheetWeekMassMergeForbidden', ($sheet->ref ?: '#'.$id));
@@ -856,7 +863,8 @@ if ($massaction === 'delete') {
 				$ko[] = '#'.$id;
 				continue;
 			}
-			if (!tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
+			if (!tw_user_has_access_to_entity($db, $o->fk_user, !empty($o->entity) ? (int) $o->entity : (int) $conf->entity)
+				|| !tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
 				// EN: Prevent deletion outside the managerial scope defined by Dolibarr rights.
 				// FR: Empêche la suppression en dehors du périmètre managérial défini par les droits Dolibarr.
 				$ko[] = $o->ref ?: '#'.$id;
@@ -943,6 +951,7 @@ $sql .= " WHERE 1=1";
 // EN: Restrict the listing to the entities allowed for the timesheet module.
 // FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
 $sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
+$sql .= " AND ".tw_sql_user_has_entity_access('u', 't.entity');
 if (!$canSeeAllEmployees) {
 	if (!empty($allowedUserIds)) {
 		// EN: Restrict the SQL query to employees that belong to the manager's scope.
@@ -1119,13 +1128,20 @@ if (!empty($arrayfields['user']['checked'])) {
 	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
 	// EN: Default the employee selector to an empty value when no filter is applied.
 	// FR: Définit une valeur vide par défaut pour le sélecteur salarié lorsqu'aucun filtre n'est appliqué.
-	$employeeSelectSelected = $search_user > 0 ? $search_user : '';
+	$employeeFilterEntityIds = !empty($search_entities) ? $search_entities : ($multicompanyEnabled && !empty($allowedEntityIds) ? $allowedEntityIds : tw_parse_entity_ids(getEntity('timesheetweek')));
+	$employeeVisibleUserIds = tw_get_timesheet_visible_user_ids(
+		$db,
+		$employeeFilterEntityIds,
+		$user,
+		($permRead || $permWrite || $permDelete || $permValidate || $permValidateOwn),
+		($permReadChild || $permWriteChild || $permDeleteChild || $permValidateChild),
+		$canSeeAllEmployees
+	);
+	$employeeSelectSelected = ($search_user > 0 && in_array((int) $search_user, $employeeVisibleUserIds, true)) ? (int) $search_user : '';
 	$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
-	if (!$canSeeAllEmployees) {
-		// EN: Remove any option outside the authorised employees while preserving placeholders.
-		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
-		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $allowedUserIds, $search_user);
-	}
+	// EN: Remove employees outside both the rights perimeter and the selected entities.
+	// FR: Supprime les salariés hors du périmètre de droits et des entités sélectionnées.
+	$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $employeeVisibleUserIds, $employeeSelectSelected);
 	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
 	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.
 	print tw_strip_user_id_from_select($employeeSelectHtml);

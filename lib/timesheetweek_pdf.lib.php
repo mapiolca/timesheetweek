@@ -849,27 +849,29 @@ function tw_pdf_compose_status_cell($langs, $status, $approvedBy, $sealedBy, $se
 }
 
 /**
- * EN: Count approved leave and RTT days for one user over a given period (supports half-days).
- * FR: Compte les jours de congés et RTT approuvés pour un utilisateur sur une période donnée (gère les demi-journées).
+ * EN: Count approved leave, RTT and overlapping public-holiday days for one user over a period.
+ * FR: Compte les jours de congés, RTT et jours fériés recouvrants pour un utilisateur sur une période.
  *
  * @param DoliDB $db         Database handler
  * @param int    $userId     Target user identifier
  * @param string $startDate  Period start date (Y-m-d)
  * @param string $endDate    Period end date (Y-m-d)
- * @return array{leave_days:float,rtt_days:float}
+ * @param int    $entityId   Timesheet entity identifier
+ * @return array{leave_days:float,rtt_days:float,public_holiday_days:float}
  */
-function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate)
+function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate, $entityId = 0)
 {
 	static $cache = array();
 
 	$userId = (int) $userId;
 	$startDate = (string) $startDate;
 	$endDate = (string) $endDate;
+	$entityId = (int) $entityId;
 	if ($userId <= 0 || empty($startDate) || empty($endDate) || !isModEnabled('holiday')) {
-		return array('leave_days' => 0.0, 'rtt_days' => 0.0);
+		return array('leave_days' => 0.0, 'rtt_days' => 0.0, 'public_holiday_days' => 0.0);
 	}
 
-	$cacheKey = $userId.'|'.$startDate.'|'.$endDate;
+	$cacheKey = $userId.'|'.$startDate.'|'.$endDate.'|'.$entityId;
 	if (isset($cache[$cacheKey])) {
 		return $cache[$cacheKey];
 	}
@@ -885,12 +887,13 @@ function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate
 
 	$resql = $db->query($sql);
 	if (!$resql) {
-		$cache[$cacheKey] = array('leave_days' => 0.0, 'rtt_days' => 0.0);
+		$cache[$cacheKey] = array('leave_days' => 0.0, 'rtt_days' => 0.0, 'public_holiday_days' => 0.0);
 		return $cache[$cacheKey];
 	}
 
 	$leaveDays = 0.0;
 	$rttDays = 0.0;
+	$publicHolidayDays = 0.0;
 	while ($obj = $db->fetch_object($resql)) {
 		$startTs = strtotime((string) $obj->date_debut);
 		$endTs = strtotime((string) $obj->date_fin);
@@ -924,11 +927,11 @@ function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate
 				}
 
 				if ($dayValue > 0) {
-					if ($isRtt) {
-						$rttDays += $dayValue;
-					} else {
-						$leaveDays += $dayValue;
-					}
+					$isPublicHoliday = ($entityId > 0 && tw_is_public_holiday_for_entity($db, $currentDate, $entityId));
+					$splitDays = tw_split_leave_day_value($dayValue, $isRtt, $isPublicHoliday);
+					$leaveDays += (float) $splitDays['leave_days'];
+					$rttDays += (float) $splitDays['rtt_days'];
+					$publicHolidayDays += (float) $splitDays['public_holiday_days'];
 				}
 			}
 			$currentDate = date('Y-m-d', strtotime($currentDate.' +1 day'));
@@ -938,7 +941,8 @@ function tw_pdf_count_holiday_days_for_period($db, $userId, $startDate, $endDate
 
 	$cache[$cacheKey] = array(
 		'leave_days' => (float) price2num((string) $leaveDays, 'MT'),
-		'rtt_days' => (float) price2num((string) $rttDays, 'MT')
+		'rtt_days' => (float) price2num((string) $rttDays, 'MT'),
+		'public_holiday_days' => (float) price2num((string) $publicHolidayDays, 'MT')
 	);
 	return $cache[$cacheKey];
 }
@@ -1003,6 +1007,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	}
 	$sql .= " WHERE t.rowid IN (".$idList.")";
 	$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
+	$sql .= " AND ".tw_sql_user_has_entity_access('u', 't.entity');
 
 	$resql = $db->query($sql);
 	if (!$resql) {
@@ -1014,7 +1019,9 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 
 	while ($row = $db->fetch_object($resql)) {
 		$targetUserId = (int) $row->fk_user;
-		$canRead = tw_can_act_on_user($targetUserId, $permReadOwn, $permReadChild, ($permReadAll || !empty($user->admin)), $user);
+		$rowEntityId = !empty($row->entity) ? (int) $row->entity : 0;
+		$canRead = tw_user_has_access_to_entity($db, $targetUserId, $rowEntityId)
+			&& tw_can_act_on_user($targetUserId, $permReadOwn, $permReadChild, ($permReadAll || !empty($user->admin)), $user);
 		if (!$canRead) {
 			$errors[] = 'TimesheetWeekSummaryUnauthorizedSheet';
 			continue;
@@ -1060,6 +1067,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 					'overtime_hours' => 0.0,
 					'leave_days' => 0.0,
 					'rtt_days' => 0.0,
+					'public_holiday_days' => 0.0,
 					'meal_count' => 0,
 					'zone1_count' => 0,
 					'zone2_count' => 0,
@@ -1107,6 +1115,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 				'overtime_hours' => (float) $row->overtime_hours,
 				'leave_days' => 0.0,
 				'rtt_days' => 0.0,
+				'public_holiday_days' => 0.0,
 				'meal_count' => (int) $row->meal_count,
 			'zone1_count' => (int) $row->zone1_count,
 			'zone2_count' => (int) $row->zone2_count,
@@ -1118,9 +1127,10 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 			'sealed_on' => $sealedOn,
 			'status' => $status
 			);
-			$holidayDayCounters = tw_pdf_count_holiday_days_for_period($db, $targetUserId, $weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d'));
+			$holidayDayCounters = tw_pdf_count_holiday_days_for_period($db, $targetUserId, $weekStart->format('Y-m-d'), $weekEnd->format('Y-m-d'), $rowEntityId);
 			$record['leave_days'] = isset($holidayDayCounters['leave_days']) ? (float) $holidayDayCounters['leave_days'] : 0.0;
 			$record['rtt_days'] = isset($holidayDayCounters['rtt_days']) ? (float) $holidayDayCounters['rtt_days'] : 0.0;
+			$record['public_holiday_days'] = isset($holidayDayCounters['public_holiday_days']) ? (float) $holidayDayCounters['public_holiday_days'] : 0.0;
 
 		$dataset[$targetUserId]['records'][] = $record;
 		$dataset[$targetUserId]['totals']['total_hours'] += $record['total_hours'];
@@ -1128,6 +1138,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 		$dataset[$targetUserId]['totals']['overtime_hours'] += $record['overtime_hours'];
 		$dataset[$targetUserId]['totals']['leave_days'] += $record['leave_days'];
 		$dataset[$targetUserId]['totals']['rtt_days'] += $record['rtt_days'];
+		$dataset[$targetUserId]['totals']['public_holiday_days'] += $record['public_holiday_days'];
 		$dataset[$targetUserId]['totals']['meal_count'] += $record['meal_count'];
 		$dataset[$targetUserId]['totals']['zone1_count'] += $record['zone1_count'];
 		$dataset[$targetUserId]['totals']['zone2_count'] += $record['zone2_count'];
@@ -1449,6 +1460,7 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 		$columnConfig = $isDailyRateEmployee ? $dailyColumnConfig : $hoursColumnConfig;
 		$showLeaveDaysColumn = false;
 		$showRttDaysColumn = false;
+		$showPublicHolidayDaysColumn = false;
 		foreach ($records as $record) {
 			if (!empty($record['leave_days'])) {
 				$showLeaveDaysColumn = true;
@@ -1456,8 +1468,11 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			if (!empty($record['rtt_days'])) {
 				$showRttDaysColumn = true;
 			}
+			if (!empty($record['public_holiday_days'])) {
+				$showPublicHolidayDaysColumn = true;
+			}
 		}
-		if ($showLeaveDaysColumn || $showRttDaysColumn) {
+		if ($showLeaveDaysColumn || $showRttDaysColumn || $showPublicHolidayDaysColumn) {
 			$insertIndex = count($columnConfig['labels']) - 1;
 			if ($showLeaveDaysColumn) {
 				array_splice($columnConfig['weights'], $insertIndex, 0, array(12));
@@ -1470,6 +1485,14 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			if ($showRttDaysColumn) {
 				array_splice($columnConfig['weights'], $insertIndex, 0, array(12));
 				array_splice($columnConfig['labels'], $insertIndex, 0, array($langs->trans('TimesheetWeekSummaryColumnRttDays')));
+				array_splice($columnConfig['row_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['totals_alignments'], $insertIndex, 0, array('R'));
+				array_splice($columnConfig['html_flags'], $insertIndex, 0, array(false));
+				$insertIndex++;
+			}
+			if ($showPublicHolidayDaysColumn) {
+				array_splice($columnConfig['weights'], $insertIndex, 0, array(12));
+				array_splice($columnConfig['labels'], $insertIndex, 0, array($langs->trans('TimesheetWeekSummaryColumnPublicHolidayDays')));
 				array_splice($columnConfig['row_alignments'], $insertIndex, 0, array('R'));
 				array_splice($columnConfig['totals_alignments'], $insertIndex, 0, array('R'));
 				array_splice($columnConfig['html_flags'], $insertIndex, 0, array(false));
@@ -1500,6 +1523,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				if ($showRttDaysColumn) {
 					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['rtt_days'], $langs)));
 				}
+				if ($showPublicHolidayDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['public_holiday_days'], $langs)));
+				}
 				$recordRows[] = $rowData;
 			} else {
 				$rowData = array(
@@ -1523,6 +1549,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 				if ($showRttDaysColumn) {
 					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['rtt_days'], $langs)));
 				}
+				if ($showPublicHolidayDaysColumn) {
+					array_splice($rowData, count($rowData) - 1, 0, array(tw_format_days_decimal((float) $record['public_holiday_days'], $langs)));
+				}
 				$recordRows[] = $rowData;
 			}
 		}
@@ -1541,6 +1570,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			}
 			if ($showRttDaysColumn) {
 				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['rtt_days'], $langs)));
+			}
+			if ($showPublicHolidayDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['public_holiday_days'], $langs)));
 			}
 		} else {
 			$totalsRow = array(
@@ -1563,6 +1595,9 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 			}
 			if ($showRttDaysColumn) {
 				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['rtt_days'], $langs)));
+			}
+			if ($showPublicHolidayDaysColumn) {
+				array_splice($totalsRow, count($totalsRow) - 1, 0, array(tw_format_days_decimal((float) $totals['public_holiday_days'], $langs)));
 			}
 		}
 

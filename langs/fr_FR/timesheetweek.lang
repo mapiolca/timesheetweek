@@ -78,6 +78,8 @@ TIMESHEETWEEK_MYPARAM2Tooltip=Info-bulle de mon paramètre 2
 #
 TIMESHEETWEEKSharing = Partage TimesheetWeek
 TIMESHEETWEEKSharingDescription = Configurer le partage Multicompany des feuilles de temps hebdomadaires.
+TIMESHEETWEEKNUMBERINGSharing = Partage de la numérotation TimesheetWeek
+TIMESHEETWEEKNUMBERINGSharingDescription = Configurer le partage Multicompany de la numérotation des feuilles de temps hebdomadaires.
 ShareTimesheetWeek = Partager les feuilles de temps hebdomadaires
 ShareTimesheetweek = Partager les feuilles de temps hebdomadaires
 ShareTimesheetWeekTooltip = Autoriser les entités à accéder aux mêmes feuilles de temps hebdomadaires dans le groupe.
@@ -334,6 +336,8 @@ TimesheetWeekRightDisableChildHoliday = Peut désactiver les congés de ses subo
 TimesheetWeekRightDisableAllHoliday = Peut désactiver les congés de tout le monde dans la feuille
 TimesheetWeekHolidayPlaceholderLeave = Congé
 TimesheetWeekHolidayPlaceholderRtt = RTT
+TimesheetWeekHolidayPlaceholderPublicHoliday = Férié
+TimesheetWeekSummaryColumnPublicHolidayDays = Jours fériés
 TimesheetWeekPdfLeaveRowTitle = Congés/RTT
 TimesheetWeekPdfLeaveHalfDayLabel = %s (%s)
 TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)

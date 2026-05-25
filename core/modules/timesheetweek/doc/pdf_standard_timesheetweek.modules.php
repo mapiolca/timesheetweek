@@ -254,6 +254,11 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		// EN: Resolve the destination directory while respecting Multicompany rules.
 		// FR: Résout le répertoire de destination en respectant les règles Multicompany.
 		$entityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		if (!tw_user_has_access_to_entity($this->db, (int) $object->fk_user, $entityId)) {
+			$this->error = $outputlangs->trans('TimesheetWeekSummaryUnauthorizedSheet');
+			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_WARNING);
+			return -1;
+		}
 		$baseOutput = '';
 		if (!empty($conf->timesheetweek->multidir_output[$entityId] ?? null)) {
 			$baseOutput = $conf->timesheetweek->multidir_output[$entityId];
@@ -528,7 +533,7 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$dayTotalsHours[$dayName] = 0.0;
 		}
 		$grandHours = 0.0;
-		$holidayCoverageByDay = $this->getHolidayCoverageByDay((int) $object->fk_user, $weekdates, $outputlangs);
+		$holidayCoverageByDay = $this->getHolidayCoverageByDay((int) $object->fk_user, $weekdates, $outputlangs, $entityId);
 		$holidayDisplayByDay = array();
 		$hasHolidayDisplay = false;
 		foreach ($days as $dayName) {
@@ -885,9 +890,10 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 	 * @param int       $userId    Target user identifier / Identifiant de l'utilisateur ciblé
 	 * @param array     $weekdates Week dates indexed by weekday / Dates de semaine indexées par jour
 	 * @param Translate $langs     Language handler / Gestionnaire de langues
+	 * @param int       $entityId  Timesheet entity / Entité de la feuille
 	 * @return array<string,array{am:string,pm:string}>
 	 */
-	protected function getHolidayCoverageByDay($userId, array $weekdates, Translate $langs)
+	protected function getHolidayCoverageByDay($userId, array $weekdates, Translate $langs, $entityId = 0)
 	{
 		$coverageByDay = array();
 		foreach ($weekdates as $dayKey => $isoDate) {
@@ -899,6 +905,9 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			return $coverageByDay;
 		}
 
+		$entityId = (int) $entityId;
+		$publicHolidayByDay = $entityId > 0 ? tw_get_public_holiday_map_by_day($this->db, $weekdates, $entityId) : array();
+		$publicHolidayLabel = $langs->trans('TimesheetWeekHolidayPlaceholderPublicHoliday');
 		$weekStartDate = min(array_values($weekdates));
 		$weekEndDate = max(array_values($weekdates));
 		if (empty($weekStartDate) || empty($weekEndDate)) {
@@ -933,13 +942,15 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 			$typeCode = strtoupper(trim((string) $obj->type_code));
 			$typeLabel = strtoupper(trim((string) $obj->type_label));
 			$isRtt = (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false);
-			$baseLabel = $isRtt ? $rttLabel : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
 
 			foreach ($weekdates as $dayKey => $dayDate) {
 				if (empty($dayDate) || $dayDate < $startDate || $dayDate > $endDate) {
 					continue;
 				}
 
+				$baseLabel = !empty($publicHolidayByDay[$dayKey])
+					? $publicHolidayLabel
+					: ($isRtt ? $rttLabel : $langs->trans('TimesheetWeekHolidayPlaceholderLeave'));
 				$hasMorning = true;
 				$hasAfternoon = true;
 				$isStartDay = ($dayDate === $startDate);

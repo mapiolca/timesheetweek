@@ -77,6 +77,8 @@ TIMESHEETWEEK_MYPARAM2Tooltip=My param 2 tooltip
 #
 TIMESHEETWEEKSharing = TimesheetWeek sharing
 TIMESHEETWEEKSharingDescription = Configure Multicompany sharing for weekly timesheets.
+TIMESHEETWEEKNUMBERINGSharing = TimesheetWeek numbering sharing
+TIMESHEETWEEKNUMBERINGSharingDescription = Configure Multicompany sharing for weekly timesheet numbering.
 ShareTimesheetWeek = Share weekly timesheets
 ShareTimesheetweek = Share weekly timesheets
 ShareTimesheetWeekTooltip = Allow entities to access the same weekly timesheets across the group.
@@ -334,6 +336,8 @@ TimesheetWeekRightDisableChildHoliday = Urlaube von Unterstellten im Stundenzett
 TimesheetWeekRightDisableAllHoliday = Urlaube aller Benutzer im Stundenzettel deaktivieren
 TimesheetWeekHolidayPlaceholderLeave = Urlaub
 TimesheetWeekHolidayPlaceholderRtt = RTT
+TimesheetWeekHolidayPlaceholderPublicHoliday = Feiertag
+TimesheetWeekSummaryColumnPublicHolidayDays = Feiertage
 TimesheetWeekPdfLeaveRowTitle = Urlaub/RTT
 TimesheetWeekPdfLeaveHalfDayLabel = %s (%s)
 TimesheetWeekPdfLeaveSplitLabel = %s (%s) / %s (%s)
