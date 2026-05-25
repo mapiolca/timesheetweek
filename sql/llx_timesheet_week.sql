@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	model_pdf VARCHAR(255) DEFAULT NULL,
 	-- EN: Stores the preferred PDF model per sheet / FR: Stocke le modèle PDF préféré par feuille
 	note TEXT,
+	motif TEXT,
 	date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
 	date_validation DATETIME DEFAULT NULL,
 	fk_user_valid INT DEFAULT NULL,

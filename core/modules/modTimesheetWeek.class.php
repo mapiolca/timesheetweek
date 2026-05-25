@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.7.2';
+		$this->version = '1.8';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -451,6 +451,33 @@ class modTimesheetWeek extends DolibarrModules
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'unseal';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow users to unlock their own leave days directly in timesheets.
+		// FR : Autorise le déverrouillage de ses propres jours de congé dans la feuille.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 15 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableOwnHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disableownholiday';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow managers to unlock leave days for subordinate employees.
+		// FR : Autorise les responsables à déverrouiller les jours de congé des subordonnés.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 16 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableChildHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disablechildholiday';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow global unlocking of leave days in any employee timesheet.
+		// FR : Autorise le déverrouillage global des jours de congé sur toutes les feuilles.
+		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 17 + 1);
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableAllHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disableallholiday';
 		$this->rights[$r][5] = '';
 		$r++;
 

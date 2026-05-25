@@ -39,6 +39,7 @@ dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetwee
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+require_once DOL_DOCUMENT_ROOT.'/holiday/class/holiday.class.php';
 // EN: Load price helpers to display day totals with Dolibarr formatting rules.
 // FR: Charge les aides de prix pour afficher les totaux en jours avec les règles de formatage Dolibarr.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
@@ -52,6 +53,7 @@ $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+$motif = trim((string) GETPOST('motif', 'restricthtml'));
 // EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
 // FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
 $hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
@@ -106,6 +108,18 @@ function tw_translate_error($errorKey, $langs)
 		$msg = $langs->trans("Error").' ('.dol_escape_htmltag($errorKey).')';
 	}
 	return $msg;
+}
+
+
+function tw_hhmm_to_hours($value)
+{
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+		return 0.0;
+	}
+
+	$hours = (int) $matches[1];
+	$minutes = (int) $matches[2];
+	return $hours + ($minutes / 60);
 }
 
 /**
@@ -222,6 +236,103 @@ function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 		$map[4] = 2.0;
 	}
 	return $map;
+}
+
+/**
+* EN: Check if current user can unlock day columns that are marked as approved leave.
+* FR: Vérifie si l'utilisateur courant peut déverrouiller les colonnes marquées en congé approuvé.
+*
+* @param User $user Current user / Utilisateur courant
+* @return bool      True when leave lock override is allowed / Vrai si le déverrouillage est autorisé
+*/
+function tw_can_override_holiday_lock(User $user)
+{
+	if (!method_exists($user, 'hasRight')) {
+		// @BACKPORT v19→v20 : hasRight() is not available before v19.
+		return !empty($user->rights->timesheetweek->disableownholiday)
+			|| !empty($user->rights->timesheetweek->disablechildholiday)
+			|| !empty($user->rights->timesheetweek->disableallholiday);
+	}
+
+	return $user->hasRight('timesheetweek', 'disableownholiday')
+		|| $user->hasRight('timesheetweek', 'disablechildholiday')
+		|| $user->hasRight('timesheetweek', 'disableallholiday');
+}
+
+/**
+* EN: Build per-day leave placeholders for the selected user and week.
+* FR: Construit les placeholders de congés par jour pour l'utilisateur et la semaine sélectionnés.
+*
+* @param DoliDB     $db        Database handler / Gestionnaire de base de données
+* @param int        $userId    Target user identifier / Identifiant utilisateur ciblé
+* @param array      $weekdates ISO dates by day name / Dates ISO indexées par nom de jour
+* @param Translate  $langs     Translator instance / Instance de traduction
+* @return array<string,string> Placeholder by day key / Placeholder par clé de jour
+*/
+function tw_get_holiday_placeholders_by_day(DoliDB $db, $userId, array $weekdates, Translate $langs)
+{
+	$placeholders = array();
+	foreach ($weekdates as $dayKey => $isoDate) {
+		$placeholders[$dayKey] = '';
+	}
+
+	$userId = (int) $userId;
+	if ($userId <= 0 || empty($weekdates) || !isModEnabled('holiday')) {
+		return $placeholders;
+	}
+
+	$weekStart = min(array_values($weekdates));
+	$weekEnd = max(array_values($weekdates));
+	if (empty($weekStart) || empty($weekEnd)) {
+		return $placeholders;
+	}
+
+	$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+	$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+	$sql .= " AND h.fk_user = ".$userId;
+	$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+	$sql .= " AND h.date_debut <= '".$db->escape($weekEnd)." 23:59:59'";
+	$sql .= " AND h.date_fin >= '".$db->escape($weekStart)." 00:00:00'";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return $placeholders;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$startTs = strtotime((string) $obj->date_debut);
+		$endTs = strtotime((string) $obj->date_fin);
+		if ($startTs === false || $endTs === false) {
+			continue;
+		}
+
+		$isRtt = false;
+		$typeCode = strtoupper(trim((string) $obj->type_code));
+		$typeLabel = strtoupper(trim((string) $obj->type_label));
+		if (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false) {
+			$isRtt = true;
+		}
+		$placeholderValue = $isRtt ? $langs->trans('TimesheetWeekHolidayPlaceholderRtt') : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
+
+		foreach ($weekdates as $dayKey => $isoDate) {
+			if (empty($isoDate)) {
+				continue;
+			}
+			$dayStartTs = strtotime($isoDate.' 00:00:00');
+			$dayEndTs = strtotime($isoDate.' 23:59:59');
+			if ($dayStartTs === false || $dayEndTs === false) {
+				continue;
+			}
+			if ($startTs <= $dayEndTs && $endTs >= $dayStartTs) {
+				$placeholders[$dayKey] = $placeholderValue;
+			}
+		}
+	}
+	$db->free($resql);
+
+	return $placeholders;
 }
 
 // ---- Permissions (nouveau modèle) ----
@@ -757,7 +868,16 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$res = $object->approve($user);
+		$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+		$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+		$requiresMotif = (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours));
+		if ($requiresMotif && $motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
+			exit;
+		}
+
+		$res = $object->approve($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
 		} else {
@@ -786,7 +906,13 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
-		$res = $object->refuse($user);
+		if ($motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifRefuseRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_refuse");
+			exit;
+		}
+
+		$res = $object->refuse($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
 		} else {
@@ -1178,26 +1304,59 @@ JS;
 			print $formconfirm;
 		}
 		if ($action === 'ask_validate') {
+			$formquestion = array();
+			$confirmMessage = $langs->trans('ConfirmValidate');
+			$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+			$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+			if (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours)) {
+				$formquestion[] = array(
+					'label' => '',
+					'type' => 'other',
+					'value' => $langs->trans('TimesheetWeekMotifOvertimePrompt'),
+				);
+				$formquestion[] = array(
+					'label' => $langs->trans('TimesheetWeekMotif'),
+					'type' => 'textarea',
+					'name' => 'motif',
+					'value' => $motif,
+					'moreattr' => 'required rows="2" style="width: 90%;"',
+				);
+			}
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-				$langs->trans('ConfirmValidate'),
+				$confirmMessage,
 				'confirm_validate',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
 		if ($action === 'ask_refuse') {
+			$formquestion = array();
+			$formquestion[] = array(
+				'label' => '',
+				'type' => 'other',
+				'value' => $langs->trans('TimesheetWeekMotifRefusePrompt'),
+			);
+			$formquestion[] = array(
+				'label' => $langs->trans('TimesheetWeekMotif'),
+				'type' => 'textarea',
+				'name' => 'motif',
+				'value' => $motif,
+				'moreattr' => 'required rows="2" style="width: 90%;"',
+			);
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
 				$langs->trans('ConfirmRefuse'),
 				'confirm_refuse',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
@@ -1347,6 +1506,10 @@ JS;
 		} else {
 			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 			echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+			if (!empty($object->motif)) {
+				$motifLabelKey = ((int) $object->status === (int) tw_status('refused')) ? 'TimesheetWeekRefuseMotifLabel' : 'TimesheetWeekOvertimeJustificationLabel';
+				echo '<tr><td>'.$langs->trans($motifLabelKey).'</td><td>'.nl2br(dol_escape_htmltag($object->motif)).'</td></tr>';
+			}
 		}
 		echo '</table>';
 		echo '</div>';
@@ -1568,6 +1731,8 @@ $hasLegacyHalfDayDailyRate = true;
 
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
+		$canOverrideHolidayLock = tw_can_override_holiday_lock($user);
+		$holidayPlaceholderByDay = tw_get_holiday_placeholders_by_day($db, $object->fk_user, $weekdates, $langs);
 
 			echo '<div class="div-table-responsive">';
 				// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
@@ -1615,13 +1780,17 @@ if (!$isDailyRateEmployee) {
 echo '<tr class="liste_titre">';
 echo '<td></td>';
 foreach ($days as $d) {
+	$dayDisabledAttr = $disabledAttr;
+	if ($object->status == tw_status('draft') && !empty($holidayPlaceholderByDay[$d]) && !$canOverrideHolidayLock) {
+		$dayDisabledAttr = ' disabled';
+	}
 // EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
 // FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
 echo '<td class="center cellule-zone-panier">';
 // EN: Prefix zone selector with its label to improve understanding.
 // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
 echo '<span class="zone-select">'.$langs->trans("Zone").' ';
-echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+echo '<select name="zone_'.$d.'" class="flat"'.$dayDisabledAttr.'>';
 // EN: Provide an empty choice so the default zone selector starts blank.
 // FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
 $selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
@@ -1632,7 +1801,7 @@ echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 }
 echo '</select></span><br>';
 $checked = $dayMeal[$d] ? ' checked' : '';
-echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
+echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$dayDisabledAttr.'> '.$langs->trans("Meal").'</label>';
 echo '</td>';
 }
 echo '<td></td>';
@@ -1710,6 +1879,27 @@ $iname = 'hours_'.$task['task_id'].'_'.$d;
 $rateName = 'daily_'.$task['task_id'].'_'.$d;
 $val = '';
 $rateVal = 0;
+$dayPlaceholder = '00:00';
+$hasHolidayDayMarker = !empty($holidayPlaceholderByDay[$d]);
+$daySelectEmptyLabel = '';
+$daySelectEmptySelected = ' selected';
+$daySelectEmptyValue = '';
+$daySelectEmptyDisabled = '';
+$daySelectEmptyHidden = '';
+$daySelectEmptyTitle = '';
+$daySelectTitleAttr = '';
+$isHolidayLockedDay = ($object->status == tw_status('draft') && !empty($holidayPlaceholderByDay[$d]) && !$canOverrideHolidayLock);
+if ($hasHolidayDayMarker) {
+	$dayPlaceholder = $holidayPlaceholderByDay[$d];
+	$daySelectEmptyLabel = $dayPlaceholder;
+	$daySelectTitleAttr = ' title="'.dol_escape_htmltag($dayPlaceholder).'"';
+}
+if ($isHolidayLockedDay) {
+	$daySelectEmptyValue = '__holiday__';
+	$daySelectEmptyDisabled = ' disabled';
+	$daySelectEmptyHidden = ' hidden';
+	$daySelectEmptyTitle = ' data-dayplaceholder="'.dol_escape_htmltag($dayPlaceholder).'"';
+}
 $keydate = $weekdates[$d];
 if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
 $val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
@@ -1720,8 +1910,12 @@ $rateVal = (int)$dailyRateBy[(int)$task['task_id']][$keydate];
 }
 if ($isDailyRateEmployee) {
 $disabledSelect = ($object->status != tw_status('draft')) ? ' disabled' : '';
-$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.'>';
-$selectHtml .= '<option value=""></option>';
+$disabledSelect = $isHolidayLockedDay ? ' disabled' : $disabledSelect;
+$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.$daySelectTitleAttr.'>';
+if ($rateVal > 0) {
+	$daySelectEmptySelected = '';
+}
+$selectHtml .= '<option value="'.$daySelectEmptyValue.'"'.$daySelectEmptySelected.$daySelectEmptyDisabled.$daySelectEmptyHidden.$daySelectEmptyTitle.'>'.dol_escape_htmltag($daySelectEmptyLabel).'</option>';
 foreach ($dailyRateOptions as $code => $label) {
 $selected = ($rateVal === (int) $code) ? ' selected' : '';
 $selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
@@ -1730,7 +1924,9 @@ $selectHtml .= '</select>';
 echo '<td class="center cellule-temps">'.$selectHtml.'</td>';
 		} else {
 $readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
-echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
+$readonly = $isHolidayLockedDay ? '' : $readonly;
+$inputDisabled = $isHolidayLockedDay ? ' disabled' : '';
+echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="'.dol_escape_htmltag($dayPlaceholder).'"'.$readonly.$inputDisabled.'></td>';
 }
 }
 $grandInit += $rowTotal;

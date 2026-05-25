@@ -32,6 +32,24 @@ PREPARE tsw_contract_stmt FROM @tsw_add_contract;
 EXECUTE tsw_contract_stmt;
 DEALLOCATE PREPARE tsw_contract_stmt;
 
+
+-- EN: Add the justification column to existing tables when missing.
+SET @tsw_has_motif := (
+	SELECT COUNT(*)
+	FROM information_schema.COLUMNS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'llx_timesheet_week'
+		AND COLUMN_NAME = 'motif'
+);
+SET @tsw_add_motif := IF(
+	@tsw_has_motif = 0,
+	'ALTER TABLE llx_timesheet_week ADD COLUMN motif TEXT AFTER note',
+	'SELECT 1'
+);
+PREPARE tsw_motif_stmt FROM @tsw_add_motif;
+EXECUTE tsw_motif_stmt;
+DEALLOCATE PREPARE tsw_motif_stmt;
+
 -- EN: Add the seal user column to existing tables when missing.
 SET @tsw_has_fk_user_seal := (
 	SELECT COUNT(*)
