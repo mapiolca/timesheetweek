@@ -1007,7 +1007,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	}
 	$sql .= " WHERE t.rowid IN (".$idList.")";
 	$sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
-	$sql .= " AND ".tw_sql_user_has_entity_access('u', 't.entity');
+	$sql .= " AND ".tw_sql_timesheet_read_user_entity_access('u');
 
 	$resql = $db->query($sql);
 	if (!$resql) {
@@ -1020,7 +1020,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	while ($row = $db->fetch_object($resql)) {
 		$targetUserId = (int) $row->fk_user;
 		$rowEntityId = !empty($row->entity) ? (int) $row->entity : 0;
-		$canRead = tw_user_has_access_to_entity($db, $targetUserId, $rowEntityId)
+		$canRead = tw_user_has_timesheet_read_entity_access($db, $targetUserId)
 			&& tw_can_act_on_user($targetUserId, $permReadOwn, $permReadChild, ($permReadAll || !empty($user->admin)), $user);
 		if (!$canRead) {
 			$errors[] = 'TimesheetWeekSummaryUnauthorizedSheet';

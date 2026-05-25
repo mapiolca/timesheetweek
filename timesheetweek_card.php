@@ -507,7 +507,7 @@ function tw_can_validate_timesheet(
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
-if ($object->id > 0 && !tw_user_has_access_to_entity($db, $object->fk_user, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) {
+if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, (int) $conf->entity)) {
 	accessforbidden();
 }
 

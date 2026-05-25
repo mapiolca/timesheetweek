@@ -76,6 +76,7 @@ if (!$canSeeAllEmployees) {
 // EN: Detect if the Multicompany module is enabled to expose entity-specific data.
 // FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
 $multicompanyEnabled = !empty($conf->multicompany->enabled);
+$showAllMulticompanyUsersTimesheet = tw_show_all_multicompany_users_timesheets();
 
 if (!function_exists('tw_can_validate_timesheet_masslist')) {
 	/**
@@ -707,7 +708,7 @@ if ($massaction === 'builddoc_merge_pdf') {
 							continue;
 					}
 
-					if (!tw_user_has_access_to_entity($db, $sheet->fk_user, !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity)
+					if (!tw_user_has_timesheet_read_entity_access($db, $sheet->fk_user, (int) $conf->entity)
 						|| !tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
 							// EN: Skip the timesheet when the user cannot access the employee scope.
 							// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
@@ -951,7 +952,7 @@ $sql .= " WHERE 1=1";
 // EN: Restrict the listing to the entities allowed for the timesheet module.
 // FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
 $sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
-$sql .= " AND ".tw_sql_user_has_entity_access('u', 't.entity');
+$sql .= " AND ".tw_sql_timesheet_read_user_entity_access('u', (int) $conf->entity);
 if (!$canSeeAllEmployees) {
 	if (!empty($allowedUserIds)) {
 		// EN: Restrict the SQL query to employees that belong to the manager's scope.
@@ -1129,19 +1130,24 @@ if (!empty($arrayfields['user']['checked'])) {
 	// EN: Default the employee selector to an empty value when no filter is applied.
 	// FR: Définit une valeur vide par défaut pour le sélecteur salarié lorsqu'aucun filtre n'est appliqué.
 	$employeeFilterEntityIds = !empty($search_entities) ? $search_entities : ($multicompanyEnabled && !empty($allowedEntityIds) ? $allowedEntityIds : tw_parse_entity_ids(getEntity('timesheetweek')));
-	$employeeVisibleUserIds = tw_get_timesheet_visible_user_ids(
+	$employeeVisibleUserIds = tw_get_timesheet_read_visible_user_ids(
 		$db,
 		$employeeFilterEntityIds,
 		$user,
 		($permRead || $permWrite || $permDelete || $permValidate || $permValidateOwn),
 		($permReadChild || $permWriteChild || $permDeleteChild || $permValidateChild),
-		$canSeeAllEmployees
+		$canSeeAllEmployees,
+		(int) $conf->entity
 	);
 	$employeeSelectSelected = ($search_user > 0 && in_array((int) $search_user, $employeeVisibleUserIds, true)) ? (int) $search_user : '';
-	$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
-	// EN: Remove employees outside both the rights perimeter and the selected entities.
-	// FR: Supprime les salariés hors du périmètre de droits et des entités sélectionnées.
-	$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $employeeVisibleUserIds, $employeeSelectSelected);
+	if ($showAllMulticompanyUsersTimesheet) {
+		$employeeSelectHtml = tw_render_user_select_from_ids($db, $employeeVisibleUserIds, 'search_user', $employeeSelectSelected, $langs, 'maxwidth200');
+	} else {
+		$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+		// EN: Remove employees outside both the rights perimeter and the selected entities.
+		// FR: Supprime les salariés hors du périmètre de droits et des entités sélectionnées.
+		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $employeeVisibleUserIds, $employeeSelectSelected);
+	}
 	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
 	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.
 	print tw_strip_user_id_from_select($employeeSelectHtml);

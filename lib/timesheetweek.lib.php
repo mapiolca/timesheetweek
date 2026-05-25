@@ -248,6 +248,65 @@ function tw_filter_select_by_user_ids($html, array $allowedUserIds, $selectedUse
 		return $matches[0];
 	}, $html);
 }
+
+/**
+ * EN: Render a simple user selector from explicit ids, without applying Dolibarr entity filtering.
+ * FR: Affiche un sélecteur utilisateur depuis des identifiants explicites, sans filtre d'entité Dolibarr.
+ *
+ * @param DoliDB    $db             Database handler / Gestionnaire de base de données
+ * @param int[]     $userIds        User identifiers / Identifiants utilisateur
+ * @param string    $htmlname       Select field name / Nom du champ select
+ * @param int       $selectedUserId Selected user / Utilisateur sélectionné
+ * @param Translate $langs          Translator / Traducteur
+ * @param string    $css            Additional CSS classes / Classes CSS supplémentaires
+ * @return string HTML select / Select HTML
+ */
+function tw_render_user_select_from_ids($db, array $userIds, $htmlname, $selectedUserId, Translate $langs, $css = 'maxwidth200')
+{
+	$userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	$selectedUserId = (int) $selectedUserId;
+	$htmlname = preg_replace('/[^a-z0-9_\\-\\[\\]]/i', '', (string) $htmlname);
+	if ($htmlname === '') {
+		$htmlname = 'fk_user';
+	}
+
+	$out = '<select class="flat '.dol_escape_htmltag($css).'" name="'.dol_escape_htmltag($htmlname).'" id="'.dol_escape_htmltag($htmlname).'">';
+	$out .= '<option value="">&nbsp;</option>';
+	if (empty($userIds)) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	$sql = "SELECT rowid, lastname, firstname, login";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user";
+	$sql .= " WHERE rowid IN (".implode(',', $userIds).")";
+	$sql .= " ORDER BY lastname ASC, firstname ASC, login ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$userId = (int) $obj->rowid;
+		$label = trim(dolGetFirstLastname($obj->firstname, $obj->lastname));
+		if ($label === '') {
+			$label = (string) $obj->login;
+		}
+		if ($label === '') {
+			$label = $langs->trans('User').' #'.$userId;
+		}
+		$out .= '<option value="'.$userId.'"'.($selectedUserId === $userId ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+	}
+	$db->free($resql);
+
+	$out .= '</select>';
+	return $out;
+}
 /**
  * Return the project link formatted as "Ref - Label"
  *
@@ -452,6 +511,142 @@ function tw_user_has_access_to_entity($db, $userId, $entityId)
 }
 
 /**
+ * EN: Tell if list-style reads must ignore employee access to the current entity.
+ * FR: Indique si les lectures de type liste ignorent l'accès salarié à l'entité courante.
+ *
+ * @return bool True when all shared-entity timesheets are visible / Vrai si toutes les feuilles partagées sont visibles
+ */
+function tw_show_all_multicompany_users_timesheets()
+{
+	return function_exists('getDolGlobalInt') && (bool) getDolGlobalInt('TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', 0);
+}
+
+/**
+ * EN: Build the SQL predicate used by read views for employee access to the current entity.
+ * FR: Construit le prédicat SQL utilisé en lecture pour l'accès salarié à l'entité courante.
+ *
+ * @param string $userAlias       SQL alias of llx_user / Alias SQL de llx_user
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return string SQL predicate / Prédicat SQL
+ */
+function tw_sql_timesheet_read_user_entity_access($userAlias, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		return '1=1';
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_sql_user_has_entity_access($userAlias, (string) $currentEntityId);
+}
+
+/**
+ * EN: Check if a user is visible in read views according to the current entity option.
+ * FR: Vérifie si un utilisateur est visible en lecture selon l'option d'entité courante.
+ *
+ * @param DoliDB $db              Database handler / Gestionnaire de base de données
+ * @param int    $userId          User identifier / Identifiant utilisateur
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return bool True when visible in read views / Vrai si visible en lecture
+ */
+function tw_user_has_timesheet_read_entity_access($db, $userId, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		return true;
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_user_has_access_to_entity($db, $userId, $currentEntityId);
+}
+
+/**
+ * EN: Return users having at least one timesheet in the requested entities.
+ * FR: Renvoie les utilisateurs ayant au moins une feuille dans les entités demandées.
+ *
+ * @param DoliDB $db        Database handler / Gestionnaire de base de données
+ * @param int[]  $entityIds Entity identifiers / Identifiants d'entité
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_user_ids_for_entities($db, array $entityIds)
+{
+	$entityIds = tw_parse_entity_ids($entityIds);
+	if (empty($entityIds) && function_exists('getEntity')) {
+		$entityIds = tw_parse_entity_ids(getEntity('timesheetweek'));
+	}
+	if (empty($entityIds)) {
+		return array();
+	}
+
+	$sql = "SELECT DISTINCT t.fk_user";
+	$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week AS t";
+	$sql .= " WHERE t.entity IN (".implode(',', array_map('intval', $entityIds)).")";
+	$sql .= " AND t.fk_user > 0";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return array();
+	}
+
+	$userIds = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$userIds[] = (int) $obj->fk_user;
+	}
+	$db->free($resql);
+
+	return $userIds;
+}
+
+/**
+ * EN: Filter user ids according to own/child/all timesheet rights.
+ * FR: Filtre des utilisateurs selon les droits feuilles propre/enfant/toutes.
+ *
+ * @param int[] $candidateUserIds Candidate users / Utilisateurs candidats
+ * @param User  $user             Current user / Utilisateur courant
+ * @param bool  $own              Own scope / Périmètre propre
+ * @param bool  $child            Child scope / Périmètre subordonné
+ * @param bool  $all              Global scope / Périmètre global
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_filter_user_ids_by_timesheet_scope(array $candidateUserIds, User $user, $own, $child, $all)
+{
+	$candidateUserIds = array_values(array_unique(array_filter(array_map('intval', $candidateUserIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	if ($all || !empty($user->admin)) {
+		return $candidateUserIds;
+	}
+
+	$scopeIds = array();
+	if ($own) {
+		$scopeIds[] = (int) $user->id;
+	}
+	if ($child) {
+		$scopeIds = array_merge($scopeIds, tw_get_user_child_ids($user));
+	}
+	$scopeIds = array_values(array_unique(array_filter($scopeIds, function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	if (empty($scopeIds)) {
+		return array();
+	}
+
+	return array_values(array_intersect($candidateUserIds, $scopeIds));
+}
+
+/**
  * EN: Return users attached to at least one requested entity.
  * FR: Renvoie les utilisateurs rattachés à au moins une des entités demandées.
  *
@@ -535,6 +730,39 @@ function tw_get_timesheet_visible_user_ids($db, $entityIds, User $user, $own, $c
 	}
 
 	return array_values(array_intersect($entityUserIds, $scopeIds));
+}
+
+/**
+ * EN: Return user ids visible in list read filters according to the multicompany option.
+ * FR: Renvoie les utilisateurs visibles dans les filtres de lecture selon l'option multicompany.
+ *
+ * @param DoliDB       $db              Database handler / Gestionnaire de base de données
+ * @param int|int[]    $entityIds       Shared timesheet entities / Entités de feuilles partagées
+ * @param User         $user            Current user / Utilisateur courant
+ * @param bool         $own             Own scope / Périmètre propre
+ * @param bool         $child           Child scope / Périmètre subordonné
+ * @param bool         $all             Global scope / Périmètre global
+ * @param int          $currentEntityId Current entity / Entité courante
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_read_visible_user_ids($db, $entityIds, User $user, $own, $child, $all, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		$entityIds = tw_parse_entity_ids($entityIds);
+		if (empty($entityIds) && function_exists('getEntity')) {
+			$entityIds = tw_parse_entity_ids(getEntity('timesheetweek'));
+		}
+		return tw_filter_user_ids_by_timesheet_scope(tw_get_timesheet_user_ids_for_entities($db, $entityIds), $user, $own, $child, $all);
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_get_timesheet_visible_user_ids($db, array($currentEntityId), $user, $own, $child, $all);
 }
 
 /**

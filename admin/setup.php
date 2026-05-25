@@ -65,6 +65,7 @@ if (empty($user->admin)) {
 $action = GETPOST('action', 'aZ09');
 $value = GETPOST('value', 'alphanohtml');
 $token = GETPOST('token', 'alphanohtml');
+$backtopage = GETPOST('backtopage', 'alpha');
 // EN: Capture additional parameters used to reproduce Dolibarr's document model toggles.
 $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
@@ -370,6 +371,21 @@ if ($action === 'setquarterday') {
 	}
 }
 
+// EN: Enable or disable showing all shared-entity timesheets regardless of employee access to the current entity.
+// FR: Active ou désactive l'affichage des feuilles partagées sans accès salarié à l'entité courante.
+if ($action === 'setshowallmulticompanyuserstimesheet') {
+	$targetValue = (int) GETPOST('value', 'int');
+	if ($targetValue !== 0) {
+		$targetValue = 1;
+	}
+	$res = dolibarr_set_const($db, 'TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', $targetValue, 'chaine', 0, '', $conf->entity);
+	if ($res > 0) {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+}
+
 
 if ($action === 'saveovertimeoptions') {
 	$overtimeRequireMotif = (int) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 'int');
@@ -498,6 +514,7 @@ if ($action === 'saveautoseal') {
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
+$showAllMulticompanyUsersTimesheet = getDolGlobalInt('TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', 0);
 $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 $reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '');
 $reminderStartTimestamp = '';
@@ -588,7 +605,8 @@ $helpurl = '';
 llxHeader('', $title, $helpurl, '', 0, 0, '', '', '', 'mod-timesheetweek page-admin');
 
 // Subheader
-$linkback = '<a href="'.($backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1').'">'.$langs->trans("BackToModuleList").'</a>';
+$linkbackUrl = $backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1';
+$linkback = '<a href="'.dol_escape_htmltag($linkbackUrl).'">'.$langs->trans("BackToModuleList").'</a>';
 print load_fiche_titre($langs->trans($title), $linkback, 'title_setup');
 
 // Configuration header
@@ -652,6 +670,38 @@ foreach ($numberingModules as $moduleInfo) {
 print '</table>';
 print '</div>';
 
+print '</div>';
+
+print '<br>';
+
+// EN: Display Multicompany visibility options for the weekly list.
+// FR: Affiche les options de visibilité Multicompany pour la liste hebdomadaire.
+print load_fiche_titre($langs->trans('TimesheetWeekMulticompanyOptions'), '', 'globe');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekMulticompanyOptionsHelp').'</div>';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Status').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekShowAllMulticompanyUsersTimesheet').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekShowAllMulticompanyUsersTimesheetHelp').'</td>';
+print '<td class="center">';
+if (!empty($showAllMulticompanyUsersTimesheet)) {
+	$url = $_SERVER['PHP_SELF'].'?action=setshowallmulticompanyuserstimesheet&value=0&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disable'), 'switch_on').'</a>';
+} else {
+	$url = $_SERVER['PHP_SELF'].'?action=setshowallmulticompanyuserstimesheet&value=1&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Activate'), 'switch_off').'</a>';
+}
+print '</td>';
+print '</tr>';
+
+print '</table>';
 print '</div>';
 
 print '<br>';
