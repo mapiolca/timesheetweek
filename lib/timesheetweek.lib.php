@@ -307,6 +307,72 @@ function tw_render_user_select_from_ids($db, array $userIds, $htmlname, $selecte
 	$out .= '</select>';
 	return $out;
 }
+
+/**
+ * EN: Render a multiple user selector from explicit ids, without applying Dolibarr entity filtering.
+ * FR: Affiche un sélecteur utilisateur multiple depuis des identifiants explicites, sans filtre d'entité Dolibarr.
+ *
+ * @param DoliDB    $db              Database handler / Gestionnaire de base de données
+ * @param int[]     $userIds         User identifiers / Identifiants utilisateur
+ * @param string    $htmlname        Select field name / Nom du champ select
+ * @param int[]     $selectedUserIds Selected users / Utilisateurs sélectionnés
+ * @param Translate $langs           Translator / Traducteur
+ * @param string    $css             Additional CSS classes / Classes CSS supplémentaires
+ * @return string HTML select / Select HTML
+ */
+function tw_render_user_multiselect_from_ids($db, array $userIds, $htmlname, array $selectedUserIds, Translate $langs, $css = 'minwidth300')
+{
+	$userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	$selectedMap = array();
+	foreach ($selectedUserIds as $selectedUserId) {
+		$selectedUserId = (int) $selectedUserId;
+		if ($selectedUserId > 0) {
+			$selectedMap[$selectedUserId] = true;
+		}
+	}
+
+	$fieldname = preg_replace('/[^a-z0-9_\\-]/i', '', (string) $htmlname);
+	if ($fieldname === '') {
+		$fieldname = 'fk_user';
+	}
+	$htmlid = $fieldname;
+
+	$out = '<select class="flat '.dol_escape_htmltag($css).'" name="'.dol_escape_htmltag($fieldname).'[]" id="'.dol_escape_htmltag($htmlid).'" multiple>';
+	if (empty($userIds)) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	$sql = "SELECT rowid, lastname, firstname, login";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user";
+	$sql .= " WHERE rowid IN (".implode(',', $userIds).")";
+	$sql .= " ORDER BY lastname ASC, firstname ASC, login ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$userId = (int) $obj->rowid;
+		$label = trim(dolGetFirstLastname($obj->firstname, $obj->lastname));
+		if ($label === '') {
+			$label = (string) $obj->login;
+		}
+		if ($label === '') {
+			$label = $langs->trans('User').' #'.$userId;
+		}
+		$out .= '<option value="'.$userId.'"'.(isset($selectedMap[$userId]) ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+	}
+	$db->free($resql);
+
+	$out .= '</select>';
+	return $out;
+}
 /**
  * Return the project link formatted as "Ref - Label"
  *
@@ -543,6 +609,67 @@ function tw_sql_timesheet_read_user_entity_access($userAlias, $currentEntityId =
 	}
 
 	return tw_sql_user_has_entity_access($userAlias, (string) $currentEntityId);
+}
+
+/**
+ * EN: Build the SQL predicate used to select reminder recipients.
+ * FR: Construit le prédicat SQL utilisé pour sélectionner les destinataires du rappel.
+ *
+ * @param string $userAlias       SQL alias of llx_user / Alias SQL de llx_user
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return string SQL predicate / Prédicat SQL
+ */
+function tw_sql_timesheet_reminder_eligible_user($userAlias, $currentEntityId = 0)
+{
+	global $conf;
+
+	$userAlias = preg_replace('/[^a-z0-9_]/i', '', (string) $userAlias);
+	if ($userAlias === '') {
+		$userAlias = 'u';
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	$sql = "(".$userAlias.".statut = 1";
+	$sql .= " AND ".$userAlias.".employee = 1";
+	$sql .= " AND ".$userAlias.".email IS NOT NULL";
+	$sql .= " AND ".$userAlias.".email <> ''";
+	$sql .= " AND ".tw_sql_timesheet_read_user_entity_access($userAlias, $currentEntityId);
+	$sql .= ")";
+
+	return $sql;
+}
+
+/**
+ * EN: Return users eligible to receive the weekly reminder.
+ * FR: Renvoie les utilisateurs pouvant recevoir le rappel hebdomadaire.
+ *
+ * @param DoliDB $db              Database handler / Gestionnaire de base de données
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_reminder_eligible_user_ids($db, $currentEntityId = 0)
+{
+	$sql = "SELECT DISTINCT u.rowid";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user AS u";
+	$sql .= " WHERE ".tw_sql_timesheet_reminder_eligible_user('u', (int) $currentEntityId);
+	$sql .= " ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC, u.rowid ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return array();
+	}
+
+	$userIds = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$userIds[] = (int) $obj->rowid;
+	}
+	$db->free($resql);
+
+	return $userIds;
 }
 
 /**

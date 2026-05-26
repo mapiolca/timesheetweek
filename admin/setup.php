@@ -21,6 +21,10 @@
  *  \brief      Setup page for TimesheetWeek module (numbering, options...)
  */
 
+if (!defined('REQUIRE_JQUERY_MULTISELECT')) {
+	define('REQUIRE_JQUERY_MULTISELECT', 1);
+}
+
 // EN: Load Dolibarr environment with fallback paths.
 $res = 0;
 if (!$res && file_exists(__DIR__.'/../main.inc.php')) {
@@ -36,6 +40,7 @@ if (!$res) {
 die('Include of main fails');
 }
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/ajax.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
@@ -422,17 +427,18 @@ if ($action === 'savereminder') {
 	$reminderStartMinute = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEmin', 'int');
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 	$reminderExcludedUsersValue = GETPOST('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 'array');
+	$reminderEligibleUsersForSave = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
+	$reminderEligibleUsersForSaveMap = array_flip($reminderEligibleUsersForSave);
 	$reminderExcludedUsersList = array();
 	if (is_array($reminderExcludedUsersValue)) {
 		foreach ($reminderExcludedUsersValue as $reminderExcludedUserId) {
 			$reminderExcludedUserId = (int) $reminderExcludedUserId;
-			if ($reminderExcludedUserId > 0) {
+			if ($reminderExcludedUserId > 0 && isset($reminderEligibleUsersForSaveMap[$reminderExcludedUserId])) {
 				$reminderExcludedUsersList[] = $reminderExcludedUserId;
 			}
 		}
 	}
-	
-	
+	$reminderExcludedUsersList = array_values(array_unique($reminderExcludedUsersList));
 	
 	$error = 0;
 	
@@ -553,6 +559,8 @@ $reminderExcludedUsers = array();
 if ($reminderExcludedUsersString !== '') {
 	$reminderExcludedUsers = array_filter(array_map('intval', explode(',', $reminderExcludedUsersString)));
 }
+$reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
+$reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
@@ -810,25 +818,8 @@ print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp
 print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
 print '</tr>';
 
-$selectExcludedUsers = $form->select_dolusers(
-$reminderExcludedUsers,
-'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS',
-0,
-'',
-0,
-'',
-'',
-0,
-0,
-0,
-'',
-0,
-'',
-'minwidth300',
-0,
-0,
-1
-);
+$selectExcludedUsers = tw_render_user_multiselect_from_ids($db, $reminderEligibleUserIds, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', $reminderExcludedUsers, $langs, 'minwidth300');
+$selectExcludedUsers .= ajax_combobox('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS');
 
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderExcludedUsers').'</td>';

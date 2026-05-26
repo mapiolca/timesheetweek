@@ -199,8 +199,7 @@ class TimesheetweekReminder extends CommonObject
 
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
-		$sql .= " WHERE u.statut = 1 AND u.employee = 1 AND u.email IS NOT NULL AND u.email <> ''";
-		$sql .= " AND ".tw_sql_timesheet_read_user_entity_access('u', (int) $conf->entity);
+		$sql .= " WHERE ".tw_sql_timesheet_reminder_eligible_user('u', (int) $conf->entity);
 		if (!empty($excludedUsers)) {
 			$sql .= ' AND u.rowid NOT IN ('.implode(',', $excludedUsers).')';
 		}
