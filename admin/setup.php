@@ -684,7 +684,7 @@ print '<br>';
 
 // EN: Display Multicompany visibility options for the weekly list.
 // FR: Affiche les options de visibilité Multicompany pour la liste hebdomadaire.
-print load_fiche_titre($langs->trans('TimesheetWeekMulticompanyOptions'), '', 'globe');
+print load_fiche_titre($langs->trans('TimesheetWeekMulticompanyOptions'), '', 'entity');
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekMulticompanyOptionsHelp').'</div>';
 
 print '<div class="div-table-responsive-no-min">';
