@@ -1006,6 +1006,8 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	protected function setReminderCronStatus($status)
 	{
+		global $conf;
+
 		if (empty($this->db)) {
 			return -1;
 		}
@@ -1013,6 +1015,7 @@ class modTimesheetWeek extends DolibarrModules
 		$statusValue = ((int) $status === 1) ? 1 : 0;
 		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
 		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
+		$sql .= ' AND entity = '.((int) $conf->entity);
 
 		$resql = $this->db->query($sql);
 		if (!$resql) {

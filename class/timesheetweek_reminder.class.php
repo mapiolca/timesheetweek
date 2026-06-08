@@ -133,6 +133,12 @@ class TimesheetweekReminder extends CommonObject
 			return 0;
 		}
 
+		if (empty($forceExecution) && $this->isReminderStartAlreadySent($reminderStartTimestamp)) {
+			$this->output = $langs->trans('TimesheetWeekReminderAlreadySent');
+			dol_syslog(__METHOD__.' '.$this->output.' entity='.(int) $conf->entity.' start='.(int) $reminderStartTimestamp, LOG_INFO);
+			return 0;
+		}
+
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
 		if (empty($templateId)) {
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
@@ -196,6 +202,26 @@ class TimesheetweekReminder extends CommonObject
 			$excludedUsers = array_filter(array_map('intval', explode(',', $excludedUsersString)));
 		}
 
+		$reminderPeriodKey = $this->getReminderPeriodKey($reminderStartTimestamp);
+		$lockName = '';
+		$lockAcquired = false;
+		if (empty($forceExecution)) {
+			$lockName = $this->getReminderLockName($reminderPeriodKey);
+			$lockAcquired = $this->acquireMysqlLock($lockName);
+			if (!$lockAcquired) {
+				$this->output = $langs->trans('TimesheetWeekReminderAlreadyRunning');
+				dol_syslog(__METHOD__.' '.$this->output.' lock='.$lockName, LOG_INFO);
+				return 0;
+			}
+
+			if ($this->isReminderStartAlreadySent($reminderStartTimestamp)) {
+				$this->releaseMysqlLock($lockName);
+				$this->output = $langs->trans('TimesheetWeekReminderAlreadySent');
+				dol_syslog(__METHOD__.' '.$this->output.' entity='.(int) $conf->entity.' start='.(int) $reminderStartTimestamp, LOG_INFO);
+				return 0;
+			}
+		}
+
 		$sql = 'SELECT DISTINCT u.rowid, u.lastname, u.firstname, u.email';
 		$sql .= ' FROM '.MAIN_DB_PREFIX."user AS u";
 		if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE')) {
@@ -224,15 +250,31 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $db->lasterror();
 			$this->output = $langs->trans('TimesheetWeekReminderSendFailed', $this->error);
 			dol_syslog($this->error, LOG_ERR);
+			if ($lockAcquired) {
+				$this->releaseMysqlLock($lockName);
+			}
 			return 0;
 		}
 
 		$emailsSent = 0;
 		$errors = 0;
+		$recipientKeys = array();
 
 		while ($obj = $db->fetch_object($resql)) {
 			$recipient = trim($obj->email);
 			if (empty($recipient)) {
+				continue;
+			}
+
+			$recipientKey = $this->normalizeRecipientEmail($recipient);
+			if (isset($recipientKeys[$recipientKey])) {
+				dol_syslog(__METHOD__.' skip duplicate recipient in current run recipient_hash='.$this->getRecipientLogHash($recipientKey), LOG_INFO);
+				continue;
+			}
+			$recipientKeys[$recipientKey] = true;
+
+			if (empty($forceExecution) && $this->wasReminderRecipientSent($recipientKey, $reminderPeriodKey)) {
+				dol_syslog($langs->trans('TimesheetWeekReminderRecipientAlreadySent').' recipient_hash='.$this->getRecipientLogHash($recipientKey), LOG_INFO);
 				continue;
 			}
 
@@ -264,6 +306,9 @@ class TimesheetweekReminder extends CommonObject
 			if ($resultSend) {
 				$emailsSent++;
 				dol_syslog($langs->trans('TimesheetWeekReminderSendSuccess', $recipient), LOG_INFO);
+				if (empty($forceExecution) && !$this->markReminderRecipientSent($recipientKey, $reminderPeriodKey)) {
+					dol_syslog(__METHOD__.' failed to mark reminder recipient recipient_hash='.$this->getRecipientLogHash($recipientKey).' period='.$reminderPeriodKey, LOG_WARNING);
+				}
 			} else {
 				dol_syslog($langs->trans('TimesheetWeekReminderSendFailed', $recipient), LOG_ERR);
 				$errors++;
@@ -276,11 +321,23 @@ class TimesheetweekReminder extends CommonObject
 			$this->error = $langs->trans('TimesheetWeekReminderSendFailed', $errors);
 			$this->output = $this->error;
 			dol_syslog(__METHOD__.' errors='.$errors, LOG_ERR);
+			if ($lockAcquired) {
+				$this->releaseMysqlLock($lockName);
+			}
 			return -$errors;
+		}
+
+		if (empty($forceExecution)) {
+			$this->markReminderStartSent($reminderStartTimestamp);
+			$this->scheduleNextStart($reminderStartTimestamp);
 		}
 
 		$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
 		dol_syslog(__METHOD__.' sent='.$emailsSent, LOG_DEBUG);
+
+		if ($lockAcquired) {
+			$this->releaseMysqlLock($lockName);
+		}
 
 		return 0;
 	}
@@ -305,23 +362,43 @@ class TimesheetweekReminder extends CommonObject
 		*/
 		public static function updateCronStartTime(DoliDB $db, int $startTimestamp, $currentUser = null)
 		{
-			global $user;
+			global $conf, $user;
 			
-			$cronJob = new Cronjob($db);
-			$fetchResult = $cronJob->fetch(0, 'TimesheetweekReminder', 'run');
-			if ($fetchResult <= 0 || empty($cronJob->id)) {
+			$sql = 'SELECT COUNT(rowid) as nb';
+			$sql .= ' FROM '.MAIN_DB_PREFIX.'cronjob';
+			$sql .= " WHERE jobtype = 'method'";
+			$sql .= " AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php'";
+			$sql .= " AND objectname = 'TimesheetweekReminder'";
+			$sql .= " AND methodename = 'run'";
+			$sql .= ' AND entity = '.((int) $conf->entity);
+			$resql = $db->query($sql);
+			if (!$resql) {
+				return -1;
+			}
+			$obj = $db->fetch_object($resql);
+			$db->free($resql);
+			if (empty($obj) || (int) $obj->nb <= 0) {
 				return 0;
 			}
-			
-			$cronJob->datestart = $startTimestamp;
-			$cronJob->datenextrun = $startTimestamp;
 			
 			$userForUpdate = $currentUser;
 			if (empty($userForUpdate) && !empty($user) && $user instanceof User) {
 				$userForUpdate = $user;
 			}
 			
-			return $cronJob->update($userForUpdate);
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'cronjob SET';
+			$sql .= " datestart = '".$db->idate($startTimestamp)."'";
+			$sql .= ", datenextrun = '".$db->idate($startTimestamp)."'";
+			if (!empty($userForUpdate) && $userForUpdate instanceof User) {
+				$sql .= ', fk_user_mod = '.((int) $userForUpdate->id);
+			}
+			$sql .= " WHERE jobtype = 'method'";
+			$sql .= " AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php'";
+			$sql .= " AND objectname = 'TimesheetweekReminder'";
+			$sql .= " AND methodename = 'run'";
+			$sql .= ' AND entity = '.((int) $conf->entity);
+
+			return $db->query($sql) ? 1 : -1;
 		}
 		
 		/**
@@ -339,5 +416,173 @@ class TimesheetweekReminder extends CommonObject
 			self::updateCronStartTime($db, $nextStartTimestamp);
 			
 			return $nextStartTimestamp;
+		}
+
+		/**
+		 * Build a weekly reminder period key shared by all entities.
+		 *
+		 * @param int $startTimestamp Current reminder start timestamp
+		 * @return string             Period key
+		 */
+		private function getReminderPeriodKey($startTimestamp)
+		{
+			return date('o-\WW', (int) $startTimestamp);
+		}
+
+		/**
+		 * Build the MySQL advisory lock name for the reminder period.
+		 *
+		 * @param string $periodKey Reminder period key
+		 * @return string           Lock name
+		 */
+		private function getReminderLockName($periodKey)
+		{
+			return 'timesheetweek_reminder_'.$periodKey;
+		}
+
+		/**
+		 * Acquire a MySQL advisory lock without waiting.
+		 *
+		 * @param string $lockName Lock name
+		 * @return bool            True when acquired
+		 */
+		private function acquireMysqlLock($lockName)
+		{
+			$sql = "SELECT GET_LOCK('".$this->db->escape($lockName)."', 0) as lockstatus";
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				dol_syslog(__METHOD__.' '.$this->db->lasterror(), LOG_WARNING);
+				return false;
+			}
+			$obj = $this->db->fetch_object($resql);
+			$this->db->free($resql);
+
+			return (!empty($obj) && (int) $obj->lockstatus === 1);
+		}
+
+		/**
+		 * Release a MySQL advisory lock.
+		 *
+		 * @param string $lockName Lock name
+		 * @return void
+		 */
+		private function releaseMysqlLock($lockName)
+		{
+			if ($lockName === '') {
+				return;
+			}
+
+			$sql = "SELECT RELEASE_LOCK('".$this->db->escape($lockName)."')";
+			$this->db->query($sql);
+		}
+
+		/**
+		 * Normalize recipient email for deduplication.
+		 *
+		 * @param string $email Email address
+		 * @return string       Normalized email
+		 */
+		private function normalizeRecipientEmail($email)
+		{
+			return strtolower(trim((string) $email));
+		}
+
+		/**
+		 * Build the global marker constant for a recipient.
+		 *
+		 * @param string $recipientKey Normalized recipient email
+		 * @return string              Constant name
+		 */
+		private function getRecipientMarkerConstName($recipientKey)
+		{
+			return 'TIMESHEETWEEK_REMINDER_SENT_'.strtoupper(hash('sha256', $recipientKey));
+		}
+
+		/**
+		 * Build a short non-reversible recipient hash for logs.
+		 *
+		 * @param string $recipientKey Normalized recipient email
+		 * @return string              Short hash
+		 */
+		private function getRecipientLogHash($recipientKey)
+		{
+			return substr(hash('sha256', $recipientKey), 0, 12);
+		}
+
+		/**
+		 * Read a global module constant stored on entity 0.
+		 *
+		 * @param string $name Constant name
+		 * @return string      Constant value
+		 */
+		private function getGlobalConstValue($name)
+		{
+			$sql = 'SELECT value';
+			$sql .= ' FROM '.MAIN_DB_PREFIX.'const';
+			$sql .= " WHERE name = '".$this->db->escape($name)."'";
+			$sql .= ' AND entity = 0';
+			$sql .= ' ORDER BY rowid DESC';
+			$sql .= $this->db->plimit(1);
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				dol_syslog(__METHOD__.' '.$this->db->lasterror(), LOG_WARNING);
+				return '';
+			}
+
+			$value = '';
+			if ($obj = $this->db->fetch_object($resql)) {
+				$value = (string) $obj->value;
+			}
+			$this->db->free($resql);
+
+			return $value;
+		}
+
+		/**
+		 * Check if the current entity already completed this reminder start.
+		 *
+		 * @param int $startTimestamp Reminder start timestamp
+		 * @return bool               True when already completed
+		 */
+		private function isReminderStartAlreadySent($startTimestamp)
+		{
+			return ((int) getDolGlobalString('TIMESHEETWEEK_REMINDER_LAST_SENT_STARTTIME', '') === (int) $startTimestamp);
+		}
+
+		/**
+		 * Mark the current entity reminder start as completed.
+		 *
+		 * @param int $startTimestamp Reminder start timestamp
+		 * @return bool               True when stored
+		 */
+		private function markReminderStartSent($startTimestamp)
+		{
+			global $conf;
+
+			return dolibarr_set_const($this->db, 'TIMESHEETWEEK_REMINDER_LAST_SENT_STARTTIME', (string) $startTimestamp, 'chaine', 0, '', $conf->entity) > 0;
+		}
+
+		/**
+		 * Check if a recipient already received the weekly reminder in any entity.
+		 *
+		 * @param string $recipientKey Normalized recipient email
+		 * @param string $periodKey    Weekly period key
+		 * @return bool                True when already sent
+		 */
+		private function wasReminderRecipientSent($recipientKey, $periodKey)
+		{
+			return ($this->getGlobalConstValue($this->getRecipientMarkerConstName($recipientKey)) === $periodKey);
+		}
+
+		/**
+		 * Mark a recipient as having received the weekly reminder globally.
+		 *
+		 * @param string $recipientKey Normalized recipient email
+		 * @param string $periodKey    Weekly period key
+		 * @return bool                True when stored
+		 */
+		private function markReminderRecipientSent($recipientKey, $periodKey)
+		{
+			return dolibarr_set_const($this->db, $this->getRecipientMarkerConstName($recipientKey), $periodKey, 'chaine', 0, '', 0) > 0;
 		}
 	}
