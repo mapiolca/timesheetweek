@@ -920,32 +920,6 @@ class modTimesheetWeek extends DolibarrModules
 				dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
 			}
 
-		// Register Multicompany sharing metadata when the module is enabled.
-		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
-
-		// Start from the current external module sharing configuration or an empty set.
-		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-		if (!is_array($externalmodule)) {
-			// Guarantee an array structure even when the constant is missing or invalid.
-			$externalmodule = array();
-		}
-
-		// Initialize the parameters container before filling it with sharing data.
-		$params = array();
-		if (class_exists('ActionsTimesheetweek')) {
-			// Reuse the hook helper to expose the sharing parameters to Multicompany.
-			$params = ActionsTimesheetweek::getMulticompanySharingDefinition();
-		}
-
-		if (!empty($params)) {
-			// Merge TimesheetWeek definitions with any existing external module configuration.
-			$externalmodule = array_merge($externalmodule, $params);
-
-			// Persist the refreshed configuration in the Dolibarr constants table.
-			$jsonformat = json_encode($externalmodule);
-			dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
-		}
-
 		$resultInit = $this->_init($sql, $options);
 		if ($resultInit <= 0) {
 			return $resultInit;
@@ -969,29 +943,6 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		// Access the global configuration to manipulate stored constants.
-		global $conf;
-
-		// Load the hook helper to clean the sharing definition on deactivation.
-		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
-
-		// Decode the current external module sharing configuration safely.
-		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-		if (!is_array($externalmodule)) {
-			// Fallback to an empty array when the stored value is not valid JSON.
-			$externalmodule = array();
-		}
-
-		// Determine the key used to store TimesheetWeek sharing data.
-		$sharingKey = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::MULTICOMPANY_SHARING_ROOT_KEY : 'timesheetweek';
-
-		// Remove the module definition so Multicompany forgets our sharing options.
-		unset($externalmodule[$sharingKey]);
-
-		// Persist the cleaned configuration back into Dolibarr constants.
-		$jsonformat = json_encode($externalmodule);
-		dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
-
 		$this->setReminderCronStatus(0);
 
 		$sql = array();

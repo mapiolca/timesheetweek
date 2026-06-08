@@ -113,17 +113,21 @@ if ($objectId && $field && isset($value)) {
 		$db->close();
 		exit;
 	}
-		if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $canWriteAll, $user)) {
-			// EN: Deny updates outside the manager scope with a structured JSON reply.
-			// FR: Refuse les mises à jour hors périmètre manager via une réponse JSON structurée.
-			http_response_code(403);
-			print json_encode(array(
-				'status' => 'error',
-				'message' => $langs->transnoentities('TimesheetWeekAjaxForbidden')
-			));
-			$db->close();
-			exit;
-		}
+	$objectEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+	if (
+		!tw_user_has_access_to_entity($db, $object->fk_user, $objectEntityId)
+		|| !tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $canWriteAll, $user)
+	) {
+		// EN: Deny updates outside the entity and manager scope with a structured JSON reply.
+		// FR: Refuse les mises à jour hors périmètre entité/manager via une réponse JSON structurée.
+		http_response_code(403);
+		print json_encode(array(
+			'status' => 'error',
+			'message' => $langs->transnoentities('TimesheetWeekAjaxForbidden')
+		));
+		$db->close();
+		exit;
+	}
 	$object->$field = $value;
 	$result = $object->update($user);
 	if ($result < 0) {
