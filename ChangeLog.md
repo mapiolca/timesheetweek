@@ -1,5 +1,12 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.8.1 (25/05/2026)
+- Préserve les réglages de partage Multicompany lors de l'activation et de la désactivation du module. / Preserves Multicompany sharing settings when enabling or disabling the module.
+- Ajoute les traductions manquantes du partage de numérotation et les libellés de jours fériés. / Adds missing numbering-sharing translations and public-holiday labels.
+- Filtre les feuilles, sélecteurs, actions AJAX et PDF selon l'accès du salarié à l'entité courante. / Filters sheets, selectors, AJAX actions and PDFs according to the employee's access to the current entity.
+- Ajoute le paramètre `TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET` pour afficher toutes les feuilles des entités partagées lorsque le partage Multicompany est actif. / Adds the `TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET` setting to show all timesheets from shared entities when Multicompany sharing is enabled.
+- Traite un jour férié recouvrant un congé comme un jour férié saisissable, non compté en congé, avec affichage dédié dans l'interface et les PDF. / Treats a public holiday overlapping leave as editable public-holiday time, excluded from leave totals and displayed accordingly in the UI and PDFs.
+
 ## 1.8 (02/05/2026)
 - Ajoute la saisie et la persistance du motif sur validation/refus, avec affichage contextuel sur la fiche. / Adds motif capture and persistence on approve/refuse with contextual display on the card.
 - Ajoute les réglages de justification des heures supplémentaires (interrupteur + seuil HH:mm) dans la configuration module. / Adds overtime justification settings (switch + HH:mm threshold) in module setup.

@@ -335,6 +335,92 @@ function tw_get_holiday_placeholders_by_day(DoliDB $db, $userId, array $weekdate
 	return $placeholders;
 }
 
+/**
+* EN: Build per-day leave/public-holiday markers for the selected user and week.
+* FR: Construit les marqueurs congés/jours fériés par jour pour l'utilisateur et la semaine sélectionnés.
+*
+* @param DoliDB     $db        Database handler / Gestionnaire de base de données
+* @param int        $userId    Target user identifier / Identifiant utilisateur ciblé
+* @param array      $weekdates ISO dates by day name / Dates ISO indexées par nom de jour
+* @param Translate  $langs     Translator instance / Instance de traduction
+* @param int        $entityId  Timesheet entity / Entité de la feuille
+* @return array<string,array{label:string,has_leave:bool,is_public_holiday:bool}>
+*/
+function tw_get_holiday_markers_by_day(DoliDB $db, $userId, array $weekdates, Translate $langs, $entityId)
+{
+	$markers = array();
+	foreach ($weekdates as $dayKey => $isoDate) {
+		$markers[$dayKey] = array('label' => '', 'has_leave' => false, 'is_public_holiday' => false);
+	}
+
+	$userId = (int) $userId;
+	if ($userId <= 0 || empty($weekdates) || !isModEnabled('holiday')) {
+		return $markers;
+	}
+
+	$publicHolidayByDay = tw_get_public_holiday_map_by_day($db, $weekdates, $entityId);
+	$weekStart = min(array_values($weekdates));
+	$weekEnd = max(array_values($weekdates));
+	if (empty($weekStart) || empty($weekEnd)) {
+		return $markers;
+	}
+
+	$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+	$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+	$sql .= " AND h.fk_user = ".$userId;
+	$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+	$sql .= " AND h.date_debut <= '".$db->escape($weekEnd)." 23:59:59'";
+	$sql .= " AND h.date_fin >= '".$db->escape($weekStart)." 00:00:00'";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return $markers;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$startTs = strtotime((string) $obj->date_debut);
+		$endTs = strtotime((string) $obj->date_fin);
+		if ($startTs === false || $endTs === false) {
+			continue;
+		}
+
+		$isRtt = false;
+		$typeCode = strtoupper(trim((string) $obj->type_code));
+		$typeLabel = strtoupper(trim((string) $obj->type_label));
+		if (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false) {
+			$isRtt = true;
+		}
+		$placeholderValue = $isRtt ? $langs->trans('TimesheetWeekHolidayPlaceholderRtt') : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
+
+		foreach ($weekdates as $dayKey => $isoDate) {
+			if (empty($isoDate)) {
+				continue;
+			}
+			$dayStartTs = strtotime($isoDate.' 00:00:00');
+			$dayEndTs = strtotime($isoDate.' 23:59:59');
+			if ($dayStartTs === false || $dayEndTs === false) {
+				continue;
+			}
+			if ($startTs <= $dayEndTs && $endTs >= $dayStartTs) {
+				$markers[$dayKey]['label'] = $placeholderValue;
+				$markers[$dayKey]['has_leave'] = true;
+			}
+		}
+	}
+	$db->free($resql);
+
+	foreach ($markers as $dayKey => $marker) {
+		if (!empty($marker['has_leave']) && !empty($publicHolidayByDay[$dayKey])) {
+			$markers[$dayKey]['label'] = $langs->trans('TimesheetWeekHolidayPlaceholderPublicHoliday');
+			$markers[$dayKey]['is_public_holiday'] = true;
+		}
+	}
+
+	return $markers;
+}
+
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','readChild');
@@ -376,6 +462,12 @@ function tw_can_validate_timesheet(
 		$permWriteChild = false,
 		$permWriteAll = false
 ) {
+		global $db, $conf;
+
+		if (!tw_user_has_access_to_entity($db, $o->fk_user, !empty($o->entity) ? (int) $o->entity : (int) $conf->entity)) {
+				return false;
+		}
+
 		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
 
 		if (!empty($user->admin)) {
@@ -415,6 +507,9 @@ function tw_can_validate_timesheet(
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
+if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, (int) $conf->entity)) {
+	accessforbidden();
+}
 
 $canSendMail = false;
 if ($object->id > 0) {
@@ -427,6 +522,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status(
 	$newval = GETPOSTINT('fk_user');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	if ($newval > 0) {
+		if (!tw_user_has_access_to_entity($db, $newval, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) accessforbidden();
 		$object->fk_user = $newval;
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -438,6 +534,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status(
 if ($action === 'setvalidator' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$newval = GETPOSTINT('fk_user_valid');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	if ($newval > 0 && !tw_user_has_access_to_entity($db, $newval, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) accessforbidden();
 	$object->fk_user_valid = ($newval > 0 ? $newval : null);
 	$res = $object->update($user);
 	if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -549,6 +646,9 @@ if ($action === 'add') {
 
 	$targetUserId = $fk_user > 0 ? $fk_user : $user->id;
 	if (!tw_can_act_on_user($targetUserId, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+		accessforbidden();
+	}
+	if (!tw_user_has_access_to_entity($db, $targetUserId, (int) $conf->entity)) {
 		accessforbidden();
 	}
 
@@ -707,7 +807,6 @@ $h = (float) str_replace(',', '.', $hoursStr);
 												(int) $dailyRateValue.", ".
 												(int) $zone.", ".
 												(int) $meal.")";
-										")";
 					if (!$db->query($sqlIns)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
@@ -1153,7 +1252,11 @@ if ($action === 'create') {
 	echo '<td class="titlefield">'.$langs->trans("Employee").'</td>';
 	// EN: Display the employee selector with avatars to align with Dolibarr UX.
 	// FR: Affiche le sélecteur salarié avec avatars pour rester cohérent avec l'UX Dolibarr.
-	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+	$createEmployeeIds = tw_get_timesheet_visible_user_ids($db, array((int) $conf->entity), $user, $permWrite, $permWriteChild, $permWriteAll);
+	$defaultEmployeeId = in_array((int) $user->id, $createEmployeeIds, true) ? (int) $user->id : -1;
+	$employeeSelectHtml = $form->select_dolusers($defaultEmployeeId > 0 ? $defaultEmployeeId : '', 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $createEmployeeIds, $defaultEmployeeId > 0 ? $defaultEmployeeId : 0);
+	echo '<td>'.$employeeSelectHtml.'</td>';
 
 	echo '</tr>';
 
@@ -1165,11 +1268,17 @@ if ($action === 'create') {
 
 	// Validateur (défaut = manager)
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
+	$validatorIds = tw_get_user_ids_for_entities($db, array((int) $conf->entity));
+	if ($defaultValidatorId > 0 && !in_array($defaultValidatorId, $validatorIds, true)) {
+		$defaultValidatorId = 0;
+	}
 	echo '<tr>';
 	echo '<td>'.$langs->trans("Validator").'</td>';
 	// EN: Pre-select the default validator with picture support for clarity.
 	// FR: Pré-sélectionne le validateur par défaut avec prise en charge de la photo pour plus de clarté.
-	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+	$validatorSelectHtml = $form->select_dolusers($defaultValidatorId > 0 ? $defaultValidatorId : '', 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	$validatorSelectHtml = tw_filter_select_by_user_ids($validatorSelectHtml, $validatorIds, $defaultValidatorId);
+	echo '<td>'.$validatorSelectHtml.'</td>';
 
 	echo '</tr>';
 
@@ -1377,7 +1486,10 @@ JS;
 			echo '<input type="hidden" name="action" value="setfk_user">';
 			// EN: Keep avatar rendering when editing the employee inline.
 			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
-			echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableEmployeeIds = tw_get_timesheet_visible_user_ids($db, array(!empty($object->entity) ? (int) $object->entity : (int) $conf->entity), $user, $permWrite, $permWriteChild, $permWriteAll);
+			$editableEmployeeSelectHtml = $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableEmployeeSelectHtml = tw_filter_select_by_user_ids($editableEmployeeSelectHtml, $editableEmployeeIds, (int) $object->fk_user);
+			echo $editableEmployeeSelectHtml;
 			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			echo '</form>';
@@ -1440,7 +1552,10 @@ JS;
 			echo '<input type="hidden" name="action" value="setvalidator">';
 			// EN: Preserve photo display while updating the validator inline.
 			// FR: Préserve l'affichage de la photo lors de la mise à jour du validateur en ligne.
-			echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableValidatorIds = tw_get_user_ids_for_entities($db, array(!empty($object->entity) ? (int) $object->entity : (int) $conf->entity));
+			$editableValidatorSelectHtml = $form->select_dolusers($object->fk_user_valid > 0 ? $object->fk_user_valid : '', 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableValidatorSelectHtml = tw_filter_select_by_user_ids($editableValidatorSelectHtml, $editableValidatorIds, (int) $object->fk_user_valid);
+			echo $editableValidatorSelectHtml;
 			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			echo '</form>';
@@ -1732,7 +1847,7 @@ $hasLegacyHalfDayDailyRate = true;
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
 		$canOverrideHolidayLock = tw_can_override_holiday_lock($user);
-		$holidayPlaceholderByDay = tw_get_holiday_placeholders_by_day($db, $object->fk_user, $weekdates, $langs);
+		$holidayMarkerByDay = tw_get_holiday_markers_by_day($db, $object->fk_user, $weekdates, $langs, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity);
 
 			echo '<div class="div-table-responsive">';
 				// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
@@ -1781,7 +1896,8 @@ echo '<tr class="liste_titre">';
 echo '<td></td>';
 foreach ($days as $d) {
 	$dayDisabledAttr = $disabledAttr;
-	if ($object->status == tw_status('draft') && !empty($holidayPlaceholderByDay[$d]) && !$canOverrideHolidayLock) {
+	$hasLockedLeaveDay = !empty($holidayMarkerByDay[$d]['has_leave']) && empty($holidayMarkerByDay[$d]['is_public_holiday']);
+	if ($object->status == tw_status('draft') && $hasLockedLeaveDay && !$canOverrideHolidayLock) {
 		$dayDisabledAttr = ' disabled';
 	}
 // EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
@@ -1880,7 +1996,8 @@ $rateName = 'daily_'.$task['task_id'].'_'.$d;
 $val = '';
 $rateVal = 0;
 $dayPlaceholder = '00:00';
-$hasHolidayDayMarker = !empty($holidayPlaceholderByDay[$d]);
+$hasHolidayDayMarker = !empty($holidayMarkerByDay[$d]['label']);
+$isPublicHolidayLeaveDay = !empty($holidayMarkerByDay[$d]['is_public_holiday']);
 $daySelectEmptyLabel = '';
 $daySelectEmptySelected = ' selected';
 $daySelectEmptyValue = '';
@@ -1888,9 +2005,9 @@ $daySelectEmptyDisabled = '';
 $daySelectEmptyHidden = '';
 $daySelectEmptyTitle = '';
 $daySelectTitleAttr = '';
-$isHolidayLockedDay = ($object->status == tw_status('draft') && !empty($holidayPlaceholderByDay[$d]) && !$canOverrideHolidayLock);
+$isHolidayLockedDay = ($object->status == tw_status('draft') && $hasHolidayDayMarker && !$isPublicHolidayLeaveDay && !$canOverrideHolidayLock);
 if ($hasHolidayDayMarker) {
-	$dayPlaceholder = $holidayPlaceholderByDay[$d];
+	$dayPlaceholder = $holidayMarkerByDay[$d]['label'];
 	$daySelectEmptyLabel = $dayPlaceholder;
 	$daySelectTitleAttr = ' title="'.dol_escape_htmltag($dayPlaceholder).'"';
 }
