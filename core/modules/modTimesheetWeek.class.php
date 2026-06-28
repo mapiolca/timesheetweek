@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.8.1';
+		$this->version = '1.8.2';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -957,6 +957,8 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	protected function setReminderCronStatus($status)
 	{
+		global $conf;
+
 		if (empty($this->db)) {
 			return -1;
 		}
@@ -964,6 +966,7 @@ class modTimesheetWeek extends DolibarrModules
 		$statusValue = ((int) $status === 1) ? 1 : 0;
 		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
 		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
+		$sql .= ' AND entity = '.((int) $conf->entity);
 
 		$resql = $this->db->query($sql);
 		if (!$resql) {

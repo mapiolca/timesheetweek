@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.8.2 (08/06/2026)
+- Sécurise le rappel hebdomadaire contre les doubles envois en environnement Multicompany avec verrou MySQL, déduplication globale par email et replanification après traitement. / Secures the weekly reminder against duplicate sends in Multicompany environments with a MySQL lock, global email deduplication and rescheduling after processing.
+
 ## 1.8.1 (25/05/2026)
 - Préserve les réglages de partage Multicompany lors de l'activation et de la désactivation du module. / Preserves Multicompany sharing settings when enabling or disabling the module.
 - Ajoute les traductions manquantes du partage de numérotation et les libellés de jours fériés. / Adds missing numbering-sharing translations and public-holiday labels.
