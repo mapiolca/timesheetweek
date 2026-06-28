@@ -1,5 +1,8 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.8.3 (29/06/2026)
+- Exclut les feuilles des salariés au forfait jour de la demande de justification des heures supplémentaires lors de l'approbation, tout en conservant le contrôle pour les salariés horaires. / Excludes daily-rate employees' timesheets from overtime justification during approval while keeping the check for hourly employees.
+
 ## 1.8.2 (08/06/2026)
 - Sécurise le rappel hebdomadaire contre les doubles envois en environnement Multicompany avec verrou MySQL, déduplication globale par email et replanification après traitement. / Secures the weekly reminder against duplicate sends in Multicompany environments with a MySQL lock, global email deduplication and rescheduling after processing.
 

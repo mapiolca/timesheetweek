@@ -171,6 +171,27 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 }
 
 /**
+* EN: Tell if overtime approval requires a justification for this timesheet.
+* FR: Indique si l'approbation des heures supplémentaires nécessite une justification pour cette feuille.
+*
+* @param DoliDB         $db     Database handler / Gestionnaire de base de données
+* @param TimesheetWeek  $object Timesheet object / Objet feuille d'heures
+* @return bool                  True when a justification is required / Vrai si une justification est requise
+*/
+function tw_requires_overtime_motif(DoliDB $db, TimesheetWeek $object)
+{
+	$employeeInfoDaily = tw_get_employee_with_daily_rate($db, $object->fk_user);
+	if ($employeeInfoDaily['user'] instanceof User && !empty($employeeInfoDaily['is_daily_rate'])) {
+		return false;
+	}
+
+	$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+	$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+
+	return !empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours);
+}
+
+/**
 * EN: Retrieve the list of activated PDF models for the module with entity scoping.
 * FR: Récupère la liste des modèles PDF activés pour le module en respectant l'entité.
 *
@@ -967,10 +988,7 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
-		$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
-		$requiresMotif = (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours));
-		if ($requiresMotif && $motif === '') {
+		if (tw_requires_overtime_motif($db, $object) && $motif === '') {
 			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
 			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
 			exit;
@@ -1415,9 +1433,7 @@ JS;
 		if ($action === 'ask_validate') {
 			$formquestion = array();
 			$confirmMessage = $langs->trans('ConfirmValidate');
-			$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
-			$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
-			if (!empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours)) {
+			if (tw_requires_overtime_motif($db, $object)) {
 				$formquestion[] = array(
 					'label' => '',
 					'type' => 'other',
