@@ -106,7 +106,7 @@ function timesheetweekGetElementType()
  */
 function timesheetweekGetDocumentModulePart()
 {
-	return 'timesheetweek:TimesheetWeek';
+	return 'timesheetweek';
 }
 
 /**

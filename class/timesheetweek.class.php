@@ -395,6 +395,11 @@ class TimesheetWeek extends CommonObject
 			return -1;
 		}
 
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 		return $this->id;
 	}
@@ -635,6 +640,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		if (empty($notrigger) && $this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'update', array('ref', 'fk_user', 'week', 'year', 'status', 'note', 'motif', 'model_pdf', 'last_main_doc'), $oldStatus, (int) $this->status) < 0) {
 			return -1;
 		}
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+			return -1;
+		}
 		return 1;
 	}
 
@@ -795,6 +803,41 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		return 1;
+	}
+
+	/**
+	 * EN: Regenerate the PDF when Dolibarr native auto-update is enabled.
+	 * FR: Régénère le PDF lorsque la mise à jour automatique native Dolibarr est activée.
+	 *
+	 * @return int 1 if no generation is needed or generation succeeds, <0 on error
+	 */
+	protected function generateDocumentIfAutoUpdateEnabled()
+	{
+		global $conf, $langs;
+
+		if (getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
+			return 1;
+		}
+		if (empty($this->id)) {
+			return 1;
+		}
+
+		$model = $this->model_pdf !== '' ? $this->model_pdf : getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
+		if ($model === '') {
+			return 1;
+		}
+
+		$outputlangs = $langs;
+		if (getDolGlobalInt('MAIN_MULTILANGS') && $langs instanceof Translate) {
+			$outputlangs = new Translate('', $conf);
+			$outputlangs->setDefaultLang($langs->defaultlang);
+		}
+
+		$hidedetails = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0;
+		$hidedesc = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_DESC') ? 1 : 0;
+		$hideref = getDolGlobalString('MAIN_GENERATE_DOCUMENTS_HIDE_REF') ? 1 : 0;
+
+		return $this->generateDocument($model, $outputlangs, $hidedetails, $hidedesc, $hideref);
 	}
 
 	public function delete($user)
@@ -1019,6 +1062,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 		return 1;
 	}
@@ -1090,6 +1138,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 
 		return 1;
@@ -1152,6 +1205,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->motif = ($motif !== '' ? $motif : null);
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'approve', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1257,6 +1315,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
 		$this->db->commit();
 
 		return 1;
@@ -1299,6 +1362,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'unseal', array('status'), $oldStatus, (int) $this->status) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1666,6 +1734,11 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->motif = ($motif !== '' ? $motif : null);
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'refuse', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+
+		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
 			$this->db->rollback();
 			return -1;
 		}
