@@ -159,6 +159,9 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        'timesheetweekcard',
+                                        'globalcard',
+                                        'document',
                                         'notification',
                                         'elementproperties',
                                         // EN: Register multicompany sharing contexts to expose sharing options.
