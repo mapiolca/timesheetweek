@@ -31,6 +31,7 @@ if (!$res) die("Include of main fails");
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formactions.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 // EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
@@ -1233,6 +1234,7 @@ if ($object->id > 0) {
 // ----------------- View -----------------
 $form = new Form($db);
 $formfile = new FormFile($db);
+$formactions = new FormActions($db);
 $title = $langs->trans("TimesheetWeek");
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
@@ -2420,6 +2422,10 @@ JS;
 				print $documentHtml;
 				}
 
+				print '</div><div class="fichehalfright">';
+				$MAXEVENT = getDolUserInt('MAIN_SIZE_SHORTLIST_LIMIT', getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5));
+				$morehtmlcenter = dolGetButtonTitle($langs->trans('SeeAll'), '', 'fa fa-bars imgforviewmode', dol_buildpath('/timesheetweek/timesheetweek_agenda.php', 1).'?id='.(int) $object->id);
+				$formactions->showactions($object, 'timesheetweek@timesheetweek', 0, 1, '', $MAXEVENT, '', $morehtmlcenter);
 				print '</div></div>';
 			}
 
