@@ -18,6 +18,7 @@ dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
 class TimesheetWeek extends CommonObject
 {
 	// Dolibarr meta
+	public $module = 'timesheetweek';
 	public $element = 'timesheetweek';
 	public $table_element = 'timesheet_week';
 	public $picto = 'bookcal';
@@ -33,6 +34,10 @@ class TimesheetWeek extends CommonObject
 	const STATUS_APPROVED  = 4; // "approuvée"
 	const STATUS_SEALED    = 8; // EN: "sealed" status / FR : statut "scellée"
 	const STATUS_REFUSED   = 6;
+
+	const TRIGGER_CREATE = 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE';
+	const TRIGGER_UPDATE = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE';
+	const TRIGGER_DELETE = 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE';
 
 	// Properties
 	public $id;
@@ -59,6 +64,8 @@ class TimesheetWeek extends CommonObject
 	public $zone5_count = 0;         // zone 5 days count / nombre de jours en zone 5
 	public $meal_count = 0;          // meal days count / nombre de jours avec panier
 	public $model_pdf = '';          // EN: Selected PDF model / FR: Modèle PDF sélectionné
+	public $last_main_doc = '';
+	public $oldcopy = null;
 
 	/**
 	* EN: Cache flag telling if the table includes the model_pdf column.
@@ -67,6 +74,9 @@ class TimesheetWeek extends CommonObject
 	* @var bool|null
 	*/
 	protected $hasModelPdfColumn = null;
+
+	/** @var bool|null */
+	protected $hasLastMainDocColumn = null;
 
 	/** @var TimesheetWeekLine[] */
 	public $lines = array();
@@ -195,6 +205,93 @@ class TimesheetWeek extends CommonObject
 	}
 
 	/**
+	* Detect lazily if the database schema stores the last generated document path.
+	*
+	* @return bool
+	*/
+	protected function checkLastMainDocColumnAvailability()
+	{
+		if ($this->hasLastMainDocColumn !== null) {
+			return $this->hasLastMainDocColumn;
+		}
+
+		$sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$this->table_element." LIKE 'last_main_doc'";
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			$this->hasLastMainDocColumn = ($this->db->num_rows($resql) > 0);
+			$this->db->free($resql);
+		} else {
+			$this->hasLastMainDocColumn = false;
+		}
+
+		return $this->hasLastMainDocColumn;
+	}
+
+	/**
+	* Keep a controlled old copy before a business transition.
+	*
+	* @return void
+	*/
+	protected function prepareOldCopy()
+	{
+		$this->oldcopy = clone $this;
+		$this->oldcopy->oldcopy = null;
+	}
+
+	/**
+	* Call a TimesheetWeek CRUD trigger with a stable business context.
+	*
+	* @param string $triggerCode CRUD trigger code
+	* @param User   $user User triggering the action
+	* @param string $reason Business reason
+	* @param array  $changedFields Changed fields
+	* @param int|null $oldStatus Previous status
+	* @param int|null $newStatus New status
+	* @param string $motif Optional reason text
+	* @return int
+	*/
+	protected function callTimesheetWeekTrigger($triggerCode, User $user, $reason, array $changedFields = array(), $oldStatus = null, $newStatus = null, $motif = '')
+	{
+		global $langs;
+
+		if (!is_array($this->context)) {
+			$this->context = array();
+		}
+
+		$langs->loadLangs(array('timesheetweek@timesheetweek'));
+
+		$this->module = 'timesheetweek';
+		$this->context['trigger_reason'] = $reason;
+		$this->context['changed_fields'] = array_values($changedFields);
+		$this->context['old_status'] = $oldStatus;
+		$this->context['new_status'] = $newStatus;
+		$this->context['elementtype'] = 'timesheetweek@timesheetweek';
+		$this->context['timesheetweek_id'] = (int) $this->id;
+		$this->context['timesheetweek_ref'] = (string) $this->ref;
+		$this->context['timesheetweek_week'] = (int) $this->week;
+		$this->context['timesheetweek_year'] = (int) $this->year;
+		$this->context['timesheetweek_motif'] = trim((string) $motif);
+
+		$labelKey = 'TimesheetWeekTrigger'.ucfirst($reason);
+		$label = $langs->transnoentities($labelKey, $this->ref);
+		if ($label === $labelKey) {
+			$label = $langs->transnoentities('TimesheetWeekTriggerGeneric', $this->ref);
+		}
+
+		$this->actiontypecode = 'AC_OTH_AUTO';
+		$this->actionmsg2 = $label;
+		$this->actionmsg = $label;
+		if ($motif !== '') {
+			$this->actionmsg = dol_concatdesc($this->actionmsg, $langs->transnoentities('TimesheetWeekMotif').': '.$motif);
+		}
+		$this->context['actionmsg2'] = $this->actionmsg2;
+		$this->context['actionmsg'] = $this->actionmsg;
+
+		$result = $this->call_trigger($triggerCode, $user);
+		return ($result < 0) ? -1 : 1;
+	}
+
+	/**
 	* Create
 	* @param User $user
 	* @return int    >0 new id, <0 error
@@ -293,7 +390,7 @@ class TimesheetWeek extends CommonObject
 			}
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_CREATE', 'TimesheetWeekAgendaCreated', array($this->ref))) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_CREATE, $user, 'create', array('ref', 'status'), null, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -361,11 +458,15 @@ class TimesheetWeek extends CommonObject
 		$this->errors = array();
 
 		$includeModelPdf = $this->checkModelPdfColumnAvailability();
+		$includeLastMainDoc = $this->checkLastMainDocColumnAvailability();
 
 		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.motif, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
 		if ($includeModelPdf) {
 			$sql .= ", t.model_pdf";
+		}
+		if ($includeLastMainDoc) {
+			$sql .= ", t.last_main_doc";
 		}
 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element." as t";
 		$sql .= " WHERE 1=1";
@@ -419,6 +520,7 @@ $this->zone1_count = (int) $obj->zone1_count;
 		} else {
 			$this->model_pdf = '';
 		}
+		$this->last_main_doc = ($includeLastMainDoc && isset($obj->last_main_doc) && $obj->last_main_doc !== null) ? (string) $obj->last_main_doc : '';
 
 		if ($this->model_pdf === '') {
 			// EN: Default back to the configured PDF model to keep generation functional.
@@ -479,9 +581,17 @@ $this->zone1_count = (int) $obj->zone1_count;
 	* @param User $user
 	* @return int
 	*/
-	public function update($user)
+	public function update($user, $notrigger = 0)
 	{
 		$now = dol_now();
+		$oldStatus = null;
+		if (empty($notrigger) && !empty($this->id)) {
+			$oldcopy = new self($this->db);
+			if ($oldcopy->fetch((int) $this->id) > 0) {
+				$this->oldcopy = $oldcopy;
+				$oldStatus = (int) $oldcopy->status;
+			}
+		}
 
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sets = array();
@@ -507,6 +617,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			// FR: Synchronise le modèle PDF stocké lorsque le schéma expose la colonne.
 			$sets[] = "model_pdf=".($this->model_pdf !== '' ? "'".$this->db->escape($this->model_pdf)."'" : 'NULL');
 		}
+		if ($this->checkLastMainDocColumnAvailability()) {
+			$sets[] = "last_main_doc=".($this->last_main_doc !== '' ? "'".$this->db->escape($this->last_main_doc)."'" : 'NULL');
+		}
 		$sets[] = "tms='".$this->db->idate($now)."'";
 
 		$sql .= " ".implode(', ', $sets);
@@ -517,6 +630,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		if (!$this->db->query($sql)) {
 			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		if (empty($notrigger) && $this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'update', array('ref', 'fk_user', 'week', 'year', 'status', 'note', 'motif', 'model_pdf', 'last_main_doc'), $oldStatus, (int) $this->status) < 0) {
 			return -1;
 		}
 		return 1;
@@ -655,6 +771,17 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->last_main_doc = basename($generator->result['fullpath']);
 		}
 
+		if ($this->last_main_doc !== '' && $this->checkLastMainDocColumnAvailability()) {
+			$sqlLastDoc = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
+			$sqlLastDoc .= " SET last_main_doc='".$this->db->escape($this->last_main_doc)."'";
+			$sqlLastDoc .= " WHERE rowid=".(int) $this->id;
+			$sqlLastDoc .= " AND entity IN (".getEntity('timesheetweek').")";
+			if (!$this->db->query($sqlLastDoc)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+		}
+
 		// EN: Store potential warnings from the generator for later display.
 		// FR: Stocke les avertissements potentiels du générateur pour un affichage ultérieur.
 		if (!empty($generator->result['warnings'])) {
@@ -673,6 +800,12 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	public function delete($user)
 	{
 		$this->db->begin();
+		$this->prepareOldCopy();
+
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_DELETE, $user, 'delete', array('status'), (int) $this->status, null) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 
 		$dl = "DELETE FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int) $this->id;
 		// EN: Secure the cascade deletion to the permitted entities only.
@@ -691,11 +824,6 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		if (!$this->db->query($sql)) {
 			$this->db->rollback();
 			$this->error = $this->db->lasterror();
-			return -1;
-		}
-
-		if (!$this->createAgendaEvent($user, 'TSWK_DELETE', 'TimesheetWeekAgendaDeleted', array($this->ref), false)) {
-			$this->db->rollback();
 			return -1;
 		}
 
@@ -825,6 +953,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	public function submit($user)
 	{
 		$now = dol_now();
+		$oldStatus = (int) $this->status;
+		$this->prepareOldCopy();
 
 		if (!in_array((int) $this->status, array(self::STATUS_DRAFT, self::STATUS_REFUSED), true)) {
 			$this->error = 'BadStatusForSubmit';
@@ -884,7 +1014,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SUBMIT', 'TimesheetWeekAgendaSubmitted', array($this->ref))) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'submit', array('status', 'ref', 'date_validation', 'total_hours', 'overtime_hours', 'contract'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -901,6 +1031,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	{
 		$now = dol_now();
 		$previousStatus = (int) $this->status;
+		$this->prepareOldCopy();
 
 		if ((int) $this->status === self::STATUS_DRAFT) {
 			$this->error = 'AlreadyDraft';
@@ -954,7 +1085,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REOPEN', 'TimesheetWeekAgendaReopened', array($this->ref))) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'setdraft', array('status', 'date_validation', 'total_hours', 'overtime_hours'), $previousStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -973,6 +1104,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	public function approve($user, $motif = '')
 	{
 		$now = dol_now();
+		$oldStatus = (int) $this->status;
+		$this->prepareOldCopy();
 		$motif = trim((string) $motif);
 
 		if ((int) $this->status !== self::STATUS_SUBMITTED) {
@@ -1018,7 +1151,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->motif = ($motif !== '' ? $motif : null);
 
-		if (!$this->createAgendaEvent($user, 'TSWK_APPROVE', 'TimesheetWeekAgendaApproved', array($this->ref), true, $motif)) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'approve', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1039,6 +1172,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		global $langs;
 
 		$now = dol_now();
+		$oldStatus = (int) $this->status;
+		$this->prepareOldCopy();
 		$noteUpdate = null;
 		$hasSealUserColumn = false;
 		$hasSealDateColumn = false;
@@ -1117,7 +1252,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
-		if (!$this->createAgendaEvent($user, 'TSWK_SEAL', 'TimesheetWeekAgendaSealed', array($this->ref))) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'seal', array('status', 'fk_user_seal', 'date_seal'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1137,6 +1272,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	public function unseal($user)
 	{
 		$now = dol_now();
+		$oldStatus = (int) $this->status;
+		$this->prepareOldCopy();
 
 		if ((int) $this->status !== self::STATUS_SEALED) {
 			$this->error = 'BadStatusForUnseal';
@@ -1161,7 +1298,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_APPROVED;
 		$this->tms = $now;
 
-		if (!$this->createAgendaEvent($user, 'TSWK_UNSEAL', 'TimesheetWeekAgendaUnsealed', array($this->ref))) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'unseal', array('status'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1492,6 +1629,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	public function refuse($user, $motif = '')
 	{
 		$now = dol_now();
+		$oldStatus = (int) $this->status;
+		$this->prepareOldCopy();
 		$motif = trim((string) $motif);
 
 		if ((int) $this->status !== self::STATUS_SUBMITTED) {
@@ -1526,7 +1665,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->motif = ($motif !== '' ? $motif : null);
 
-		if (!$this->createAgendaEvent($user, 'TSWK_REFUSE', 'TimesheetWeekAgendaRefused', array($this->ref), true, $motif)) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'refuse', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
 			$this->db->rollback();
 			return -1;
 		}

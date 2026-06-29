@@ -178,12 +178,11 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 		// EN: Determine the entity and base output directory, compatible with Multicompany.
 		// FR: Détermine l'entité et le répertoire de sortie, compatible avec Multicompany.
 		$docEntityId = property_exists($rowData, 'entity') ? (int) $rowData->entity : (int) $conf->entity;
-		$entityOutputs = $conf->timesheetweek->multidir_output[$docEntityId] ?? null;
-		$baseOutput = $entityOutputs ? $entityOutputs : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+		$baseOutput = timesheetweekGetDocumentBaseDir($rowData);
 
 		// EN: Compose the expected PDF path and ensure the file exists before rendering actions.
 		// FR: Compose le chemin attendu du PDF et vérifie l'existence du fichier avant d'afficher les actions.
-		$relativeDir = 'timesheetweek/'.$docRef;
+		$relativeDir = timesheetweekGetDocumentRelativeDir($rowData);
 		$pdfFilename = $docRef.'.pdf';
 		$relativeFile = $relativeDir.'/'.$pdfFilename;
 		$absoluteFile = rtrim($baseOutput, '/').'/'.$relativeFile;
@@ -196,8 +195,9 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 		$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
 		$downloadAttachment = ($forceSaveAs > 0 ? 0 : 1);
 		$downloadTarget = ($forceSaveAs === 2 ? ' target="_blank"' : '');
-		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
-		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment='.$downloadAttachment.'&permission=read';
+		$modulepart = timesheetweekGetDocumentModulePart();
+		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment='.$downloadAttachment.'&permission=read';
 		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
 		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
 		$titleLabel = dol_escape_htmltag($pdfFilename);

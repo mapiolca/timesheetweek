@@ -44,6 +44,11 @@ function timesheetweekAdminPrepareHead()
 	$head[$h][2] = 'settings';
 	$h++;
 
+	$head[$h][0] = dol_buildpath("/timesheetweek/admin/compatibility.php", 1);
+	$head[$h][1] = $langs->trans("Compatibility");
+	$head[$h][2] = 'compatibility';
+	$h++;
+
 	/*
 	$head[$h][0] = dol_buildpath("/timesheetweek/admin/myobject_extrafields.php", 1);
 	$head[$h][1] = $langs->trans("ExtraFields");
@@ -82,6 +87,88 @@ function timesheetweekAdminPrepareHead()
 	complete_head_from_modules($conf, $langs, null, $head, $h, 'timesheetweek@timesheetweek', 'remove');
 
 	return $head;
+}
+
+/**
+ * Return the stable external element type used by Dolibarr cross-object helpers.
+ *
+ * @return string
+ */
+function timesheetweekGetElementType()
+{
+	return 'timesheetweek@timesheetweek';
+}
+
+/**
+ * Return the modulepart used by document generation helpers.
+ *
+ * @return string
+ */
+function timesheetweekGetDocumentModulePart()
+{
+	return 'timesheetweek:TimesheetWeek';
+}
+
+/**
+ * Return the document relative directory for a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentRelativeDir($object)
+{
+	$ref = '';
+	if (is_object($object) && !empty($object->ref)) {
+		$ref = (string) $object->ref;
+	} elseif (is_object($object) && !empty($object->id)) {
+		$ref = 'timesheetweek-'.((int) $object->id);
+	}
+
+	$ref = dol_sanitizeFileName($ref !== '' ? $ref : 'timesheetweek');
+	return 'timesheetweek/'.$ref;
+}
+
+/**
+ * Return the base document directory for the owner entity of a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentBaseDir($object)
+{
+	global $conf;
+
+	$baseDir = '';
+	if (function_exists('getMultidirOutput')) {
+		$baseDir = (string) getMultidirOutput($object, 'timesheetweek', 0);
+		if (strpos($baseDir, 'error-diroutput-') === 0) {
+			$baseDir = '';
+		}
+	}
+
+	if ($baseDir === '') {
+		$objectEntity = (is_object($object) && !empty($object->entity)) ? (int) $object->entity : (!empty($conf->entity) ? (int) $conf->entity : 1);
+		if (!empty($conf->timesheetweek->multidir_output[$objectEntity])) {
+			$baseDir = $conf->timesheetweek->multidir_output[$objectEntity];
+		} elseif (!empty($conf->timesheetweek->dir_output)) {
+			$baseDir = $conf->timesheetweek->dir_output;
+		} elseif (defined('DOL_DATA_ROOT')) {
+			$baseDir = DOL_DATA_ROOT.'/timesheetweek';
+		}
+	}
+
+	return rtrim($baseDir, '/');
+}
+
+/**
+ * Return the full document directory for a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentDir($object)
+{
+	return timesheetweekGetDocumentBaseDir($object).'/'.timesheetweekGetDocumentRelativeDir($object);
 }
 
 /**
@@ -131,7 +218,7 @@ function timesheetweekPrepareHead($object)
 	if ($showtabofpagedocument) {
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 		require_once DOL_DOCUMENT_ROOT.'/core/class/link.class.php';
-		$upload_dir = $conf->timesheetweek->dir_output."/timesheetweek/".dol_sanitizeFileName($object->ref);
+		$upload_dir = timesheetweekGetDocumentDir($object);
 		$nbFiles = count(dol_dir_list($upload_dir, 'files', 0, '', '(\.meta|_preview.*\.png)$'));
 		$nbLinks = Link::count($db, $object->element, $object->id);
 		$head[$h][0] = dol_buildpath("/timesheetweek/timesheetweek_document.php", 1).'?id='.$object->id;
@@ -145,7 +232,7 @@ function timesheetweekPrepareHead($object)
 
 	if ($showtabofpageagenda) {
 		$head[$h][0] = dol_buildpath("/timesheetweek/timesheetweek_agenda.php", 1).'?id='.$object->id;
-		$head[$h][1] = $langs->trans("Events");
+		$head[$h][1] = $langs->trans("EventsAgenda");
 		$head[$h][2] = 'agenda';
 		$h++;
 	}

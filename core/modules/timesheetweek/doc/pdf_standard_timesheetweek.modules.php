@@ -253,28 +253,17 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		
 		// EN: Resolve the destination directory while respecting Multicompany rules.
 		// FR: Résout le répertoire de destination en respectant les règles Multicompany.
-		$entityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 		if (!tw_user_has_timesheet_read_entity_access($this->db, (int) $object->fk_user, (int) $conf->entity)) {
 			$this->error = $outputlangs->trans('TimesheetWeekSummaryUnauthorizedSheet');
 			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_WARNING);
 			return -1;
 		}
-		$baseOutput = '';
-		if (!empty($conf->timesheetweek->multidir_output[$entityId] ?? null)) {
-			$baseOutput = $conf->timesheetweek->multidir_output[$entityId];
-		} elseif (!empty($conf->timesheetweek->dir_output)) {
-			$baseOutput = $conf->timesheetweek->dir_output;
-		} else {
-			$baseOutput = DOL_DATA_ROOT.'/timesheetweek';
-		}
+		$baseOutput = timesheetweekGetDocumentBaseDir($object);
+		$cleanRef = dol_sanitizeFileName($object->ref ?: 'timesheetweek-'.$object->id);
 		
 		// EN: Build the sanitized document directory for the current timesheet.
 		// FR: Construit le répertoire de documents assaini pour la feuille courante.
-		$cleanRef = dol_sanitizeFileName($object->ref);
-		if ($cleanRef === '') {
-			$cleanRef = dol_sanitizeFileName('timesheetweek-'.$object->id);
-		}
-		$relativePath = $object->element.'/'.$cleanRef;
+		$relativePath = timesheetweekGetDocumentRelativeDir($object);
 		$targetDir = rtrim($baseOutput, '/').'/'.$relativePath;
 		if (dol_mkdir($targetDir) < 0) {
 			$this->error = $outputlangs->trans('ErrorCanNotCreateDir', $targetDir);

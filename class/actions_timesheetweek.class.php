@@ -90,6 +90,82 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Expose TimesheetWeek CRUD triggers to the native Notification module.
+     *
+     * @param array        $parameters  Hook parameters
+     * @param object       $object      Current object
+     * @param string       $action      Current action
+     * @param HookManager  $hookmanager Hook manager
+     * @return int
+     */
+    public function notifsupported($parameters, &$object, &$action, $hookmanager)
+    {
+        if (!is_array($this->results)) {
+            $this->results = array();
+        }
+
+        $current = array();
+        if (!empty($this->results['arrayofnotifsupported']) && is_array($this->results['arrayofnotifsupported'])) {
+            $current = $this->results['arrayofnotifsupported'];
+        }
+
+        $this->results['arrayofnotifsupported'] = array_values(array_unique(array_merge($current, array(
+            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
+            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
+            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
+        ))));
+
+        return 0;
+    }
+
+    /**
+     * Make the custom object resolvable by Dolibarr generic object helpers.
+     *
+     * @param array        $parameters  Hook parameters
+     * @param object       $object      Current object
+     * @param string       $action      Current action
+     * @param HookManager  $hookmanager Hook manager
+     * @return int
+     */
+    public function getElementProperties($parameters, &$object = null, &$action = '', $hookmanager = null)
+    {
+        global $conf;
+
+        $elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
+        if (!in_array($elementType, array('timesheetweek', 'timesheetweek@timesheetweek'), true)) {
+            return 0;
+        }
+
+        $dirOutput = '';
+        $dirTemp = '';
+        if (!empty($conf->timesheetweek->multidir_output[$conf->entity])) {
+            $dirOutput = $conf->timesheetweek->multidir_output[$conf->entity];
+        } elseif (!empty($conf->timesheetweek->dir_output)) {
+            $dirOutput = $conf->timesheetweek->dir_output;
+        }
+        if (!empty($conf->timesheetweek->multidir_temp[$conf->entity])) {
+            $dirTemp = $conf->timesheetweek->multidir_temp[$conf->entity];
+        } elseif (!empty($conf->timesheetweek->dir_temp)) {
+            $dirTemp = $conf->timesheetweek->dir_temp;
+        }
+
+        $this->results = array_replace(is_array($this->results) ? $this->results : array(), array(
+            'module' => 'timesheetweek',
+            'element' => 'timesheetweek',
+            'table_element' => 'timesheet_week',
+            'subelement' => 'timesheetweek',
+            'classpath' => 'timesheetweek/class',
+            'classfile' => 'timesheetweek',
+            'classname' => 'TimesheetWeek',
+            'dir_output' => $dirOutput,
+            'dir_temp' => $dirTemp,
+            'parent_element' => '',
+        ));
+
+        return 0;
+    }
+
+    /**
      * Build the Multicompany sharing payload for the module.
      * Construire la charge utile de partage Multicompany pour le module.
      *
@@ -110,6 +186,13 @@ class ActionsTimesheetweek
                         'lang' => 'timesheetweek@timesheetweek',
                         'tooltip' => 'ShareTimesheetWeekTooltip',
                         'enable' => '!empty($conf->timesheetweek->enabled)',
+                        'input' => array(
+                            'global' => array(
+                                'showhide' => true,
+                                'hide' => true,
+                                'del' => true,
+                            ),
+                        ),
                     ),
                 // EN: Expose the numbering share inside the dedicated document numbering section.
                 // FR: Exposer le partage de numérotation dans la section dédiée aux numérotations de documents.
@@ -123,6 +206,7 @@ class ActionsTimesheetweek
                         //'display' => '!empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
                         'input' => array(
                             'global' => array(
+                                'showhide' => true,
                                 'hide' => true,
                                 'del' => true,
                             ),

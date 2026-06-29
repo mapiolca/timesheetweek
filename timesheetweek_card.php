@@ -906,7 +906,7 @@ if ($action === 'submit' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_SUBMIT';
+		$object->context['trigger_reason'] = 'submit';
 		$object->context['timesheetweek_card_action'] = 'submit';
 
 		$res = $object->submit($user);
@@ -985,7 +985,7 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
+		$object->context['trigger_reason'] = 'approve';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
 		if (tw_requires_overtime_motif($db, $object) && $motif === '') {
@@ -1020,7 +1020,7 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
+		$object->context['trigger_reason'] = 'refuse';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
 		if ($motif === '') {
@@ -1150,16 +1150,7 @@ if ($object->id > 0) {
 
 		// EN: Prepare PDF generation permissions once the object is fully loaded.
 		// FR: Prépare les permissions de génération PDF une fois l'objet complètement chargé.
-		$entityIdForDocs = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-		$baseTimesheetDir = '';
-		if (!empty($conf->timesheetweek->multidir_output[$entityIdForDocs])) {
-			$baseTimesheetDir = $conf->timesheetweek->multidir_output[$entityIdForDocs];
-		} elseif (!empty($conf->timesheetweek->dir_output)) {
-			$baseTimesheetDir = $conf->timesheetweek->dir_output;
-		} else {
-			$baseTimesheetDir = DOL_DATA_ROOT.'/timesheetweek';
-		}
-		$upload_dir = $baseTimesheetDir.'/timesheetweek/'.dol_sanitizeFileName($object->ref);
+		$upload_dir = timesheetweekGetDocumentDir($object);
 
 		// EN: Authorise document creation to employees or managers allowed to act on the sheet.
 		// FR: Autorise la création de documents aux salariés ou responsables habilités à agir sur la feuille.
@@ -1230,7 +1221,7 @@ if ($object->id > 0) {
 		if (!empty($upload_dir)) {
 				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
 				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
-				$modulepart = 'timesheetweek';
+				$modulepart = timesheetweekGetDocumentModulePart();
 				$permissiontoread = $permReadAny ? 1 : 0;
 				$permissiontoadd = $permissiontoadd ? 1 : 0;
 				$permissiontodownload = $permissiontoread;
@@ -2322,18 +2313,9 @@ JS;
 				if ($includedocgeneration) {
 					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
 					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
-					$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 					$object->element = 'timesheetweek';
-					$docRef = dol_sanitizeFileName($object->ref);
-					$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
-					if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
-						$entityOutput = $conf->timesheetweek->dir_output;
-					}
-					if (empty($entityOutput)) {
-						$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
-					}
-					$relativePath = $object->element.'/'.$docRef;
-					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+					$relativePath = timesheetweekGetDocumentRelativeDir($object);
+					$filedir = timesheetweekGetDocumentDir($object);
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
 					$genallowed = $permReadAny ? 1 : 0;
 					if ($permReadAny) {
@@ -2347,7 +2329,7 @@ JS;
 					$delallowed = $permissiontoadd ? 1 : 0;
 
 				$documentHtml = $formfile->showdocuments(
-					'timesheetweek:TimesheetWeek',
+					timesheetweekGetDocumentModulePart(),
 					$relativePath,
 					$filedir,
 					$urlsource,

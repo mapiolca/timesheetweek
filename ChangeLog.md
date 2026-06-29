@@ -1,5 +1,12 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 1.8.4 (29/06/2026)
+- Aligne les événements métier sur les triggers CRUD `TIMESHEETWEEK_TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` et `TIMESHEETWEEK_TIMESHEETWEEK_DELETE`, avec contexte métier pour les changements de statut. / Aligns business events with CRUD triggers `TIMESHEETWEEK_TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` and `TIMESHEETWEEK_TIMESHEETWEEK_DELETE`, with business context for status changes.
+- Déclare les événements dans `c_action_trigger`, expose le hook Notifications natif et ajoute les substitutions TimesheetWeek pour les modèles d'e-mails. / Declares events in `c_action_trigger`, exposes the native Notifications hook and adds TimesheetWeek substitutions for email templates.
+- Remplace la création manuelle systématique d'événements Agenda par l'auto-création Agenda native, avec migration conservatrice de l'ancien `elementtype` et diagnostic des liens suspects. / Replaces systematic manual Agenda event creation with native Agenda auto-creation, with conservative migration of the legacy `elementtype` and diagnostics for suspicious links.
+- Centralise les chemins de documents sur le répertoire de l'entité propriétaire avec `getMultidirOutput()` et persiste `last_main_doc`. / Centralizes document paths on the owner entity directory with `getMultidirOutput()` and persists `last_main_doc`.
+- Ajoute l'onglet Compatibilité, met les prérequis à Dolibarr 20+ et PHP 8.0+, et corrige la formule de numérotation des droits. / Adds the Compatibility tab, sets prerequisites to Dolibarr 20+ and PHP 8.0+, and fixes the permission numbering formula.
+
 ## 1.8.3 (29/06/2026)
 - Exclut les feuilles des salariés au forfait jour de la demande de justification des heures supplémentaires lors de l'approbation, tout en conservant le contrôle pour les salariés horaires. / Excludes daily-rate employees' timesheets from overtime justification during approval while keeping the check for hourly employees.
 

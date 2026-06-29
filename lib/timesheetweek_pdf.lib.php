@@ -67,14 +67,11 @@ function tw_generate_timesheet_pdf_to_temp(TimesheetWeek $sheet, Conf $conf, Tra
 
         // EN: Locate the freshly generated PDF inside the standard output directory.
         // FR: Localise le PDF fraîchement généré dans le répertoire de sortie standard.
-        $entityId = !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity;
-        $baseOutput = !empty($conf->timesheetweek->multidir_output[$entityId] ?? null)
-                ? $conf->timesheetweek->multidir_output[$entityId]
-                : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+        $baseOutput = timesheetweekGetDocumentBaseDir($sheet);
         $relativePath = $sheet->last_main_doc;
         if (empty($relativePath)) {
                 $cleanRef = dol_sanitizeFileName($sheet->ref ?: 'timesheetweek-'.$sheet->id);
-                $relativePath = $sheet->element.'/'.$cleanRef.'/'.$cleanRef.'.pdf';
+                $relativePath = timesheetweekGetDocumentRelativeDir($sheet).'/'.$cleanRef.'.pdf';
         }
 
         $sourcePath = rtrim($baseOutput, '/').'/'.ltrim($relativePath, '/');
@@ -762,10 +759,11 @@ function tw_pdf_resolve_sealed_by($db, $timesheetId, $entityId)
 	$sql = "SELECT ac.fk_user_author as sealer_id, u.firstname, u.lastname";
 	$sql .= " FROM ".MAIN_DB_PREFIX."actioncomm as ac";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = ac.fk_user_author";
-	$sql .= " WHERE ac.code = 'TSWK_SEAL'";
-	$sql .= " AND ac.elementtype = 'timesheetweek'";
+	$sql .= " WHERE ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE')";
+	$sql .= " AND ac.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
 	$sql .= " AND ac.fk_element = ".$timesheetId;
 	$sql .= " AND ac.entity = ".$entityId;
+	$sql .= " AND (ac.code = 'TSWK_SEAL' OR ac.note_private LIKE '%seal%' OR ac.note_private LIKE '%Scell%')";
 	$sql .= " ORDER BY ac.rowid DESC";
 	$sql .= " LIMIT 1";
 

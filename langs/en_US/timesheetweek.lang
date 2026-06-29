@@ -115,6 +115,62 @@ TimesheetWeekAboutContact = Publisher website
 TimesheetWeekDescription = TimesheetWeek module to manage entry, approval and reporting of weekly timesheets.
 
 #
+# Compatibility
+#
+Compatibility = Compatibility
+TimesheetWeekCompatibility = TimesheetWeek compatibility
+TimesheetWeekCompatibilityPageHelp = Status of module features according to the detected Dolibarr and PHP versions.
+TimesheetWeekCompatibilityEnvironment = Detected environment
+TimesheetWeekCompatibilityDetectedDolibarr = Detected Dolibarr version
+TimesheetWeekCompatibilityDetectedPhp = Detected PHP version
+TimesheetWeekCompatibilityMinDolibarr = Minimum supported Dolibarr version
+TimesheetWeekCompatibilityMinPhp = Minimum supported PHP version
+TimesheetWeekCompatibilityAvailableFrom = Availability
+TimesheetWeekCompatibilityNativeCrudTriggers = Native CRUD triggers
+TimesheetWeekCompatibilityNativeCrudTriggersDesc = Fires TimesheetWeek events through CREATE, UPDATE and DELETE codes.
+TimesheetWeekCompatibilityAgenda = Native Agenda
+TimesheetWeekCompatibilityAgendaDesc = Makes events configurable from the native Agenda administration page.
+TimesheetWeekCompatibilityNotifications = Native Notifications
+TimesheetWeekCompatibilityNotificationsDesc = Makes events configurable from the native Notifications administration page.
+TimesheetWeekCompatibilityEmailTemplateClass = CEmailTemplate class
+TimesheetWeekCompatibilityEmailTemplateClassDesc = Uses the native email template class when it is available in the core.
+TimesheetWeekCompatibilityMultidirDocuments = Multicompany documents
+TimesheetWeekCompatibilityMultidirDocumentsDesc = Uses the document directory of the timesheet owner entity.
+TimesheetWeekCompatibilityElementProperties = Object resolution
+TimesheetWeekCompatibilityElementPropertiesDesc = Declares properties required by generic helpers and navigation history.
+TimesheetWeekCompatibilityRequiresDolibarr20Php80 = Requires Dolibarr 20+ and PHP 8.0+.
+TimesheetWeekCompatibilityAgendaDisabled = The Agenda module is disabled.
+TimesheetWeekCompatibilityNotificationsDisabled = The Notifications module is disabled.
+TimesheetWeekCompatibilityEmailTemplateClassUnavailable = CEmailTemplate class unavailable on this version.
+TimesheetWeekCompatibilityMultidirUnavailable = getMultidirOutput helper unavailable.
+TimesheetWeekCompatibilityElementPropertiesUnavailable = getElementProperties helper unavailable.
+TimesheetWeekCompatibilityToCheck = To check
+TimesheetWeekAgendaDiagnostics = Agenda diagnostics
+TimesheetWeekAgendaDiagnosticLegacyElementtype = Legacy Agenda object type
+TimesheetWeekAgendaDiagnosticLegacyElementtypeDesc = Events still linked with elementtype=timesheetweek and eligible for migration to timesheetweek@timesheetweek.
+TimesheetWeekAgendaDiagnosticUnresolvedLinks = Unresolved Agenda links
+TimesheetWeekAgendaDiagnosticUnresolvedLinksDesc = TimesheetWeek events whose fk_element no longer points to an existing timesheet.
+TimesheetWeekAgendaDiagnosticPotentialDuplicates = Suspected Agenda duplicates
+TimesheetWeekAgendaDiagnosticPotentialDuplicatesDesc = Event groups sharing the same object, code and timestamp; no automatic deletion is applied.
+
+#
+# Triggers, Agenda and Notifications
+#
+EventsAgenda = Events/Agenda
+TimesheetWeekTriggerGeneric = Timesheet %s updated
+TimesheetWeekTriggerCreate = Timesheet %s created
+TimesheetWeekTriggerSubmit = Timesheet %s submitted
+TimesheetWeekTriggerApprove = Timesheet %s approved
+TimesheetWeekTriggerRefuse = Timesheet %s refused
+TimesheetWeekTriggerSetdraft = Timesheet %s set back to draft
+TimesheetWeekTriggerSeal = Timesheet %s sealed
+TimesheetWeekTriggerUnseal = Timesheet %s unsealed
+TimesheetWeekTriggerDelete = Timesheet %s deleted
+Notify_TIMESHEETWEEK_TIMESHEETWEEK_CREATE = Timesheet created
+Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE = Timesheet updated
+Notify_TIMESHEETWEEK_TIMESHEETWEEK_DELETE = Timesheet deleted
+
+#
 # Sample page
 #
 TimesheetWeekArea = Home TimesheetWeek
