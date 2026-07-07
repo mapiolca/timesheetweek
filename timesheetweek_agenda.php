@@ -206,7 +206,7 @@ $extrafields->fetch_name_optionals_label($object->table_element);
 // Load object
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php'; // Must be 'include', not 'include_once'. Include fetch and fetch_thirdparty but not fetch_optionals
 if ($id > 0 || !empty($ref)) {
-	$upload_dir = $conf->timesheetweek->multidir_output[!empty($object->entity) ? $object->entity : $conf->entity]."/".$object->id;
+	$upload_dir = timesheetweekGetDocumentDir($object);
 }
 
 // There is several ways to check permission.
@@ -409,7 +409,7 @@ if ($object->id > 0) {
                 }
 
                 $sqlWhere = " WHERE a.entity IN (".getEntity('actioncomm', 1).")"
-                        ." AND a.elementtype='".$db->escape($object->element)."'"
+                        ." AND a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')"
                         ." AND a.fk_element=".(int) $object->id;
 
                 if (!empty($search_rowid)) {
@@ -469,7 +469,7 @@ if ($object->id > 0) {
                                 }
                         }
 
-                        $titlelist = $langs->trans("Actions").(is_numeric($nbEvent) ? '<span class="opacitymedium colorblack paddingleft">('.$nbEvent.')</span>' : '');
+                        $titlelist = $langs->trans("Actions");
                         print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
 
                         print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';

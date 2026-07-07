@@ -21,6 +21,10 @@
  *  \brief      Setup page for TimesheetWeek module (numbering, options...)
  */
 
+if (!defined('REQUIRE_JQUERY_MULTISELECT')) {
+	define('REQUIRE_JQUERY_MULTISELECT', 1);
+}
+
 // EN: Load Dolibarr environment with fallback paths.
 $res = 0;
 if (!$res && file_exists(__DIR__.'/../main.inc.php')) {
@@ -36,6 +40,7 @@ if (!$res) {
 die('Include of main fails');
 }
 require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/core/lib/ajax.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/pdf.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
@@ -65,6 +70,7 @@ if (empty($user->admin)) {
 $action = GETPOST('action', 'aZ09');
 $value = GETPOST('value', 'alphanohtml');
 $token = GETPOST('token', 'alphanohtml');
+$backtopage = GETPOST('backtopage', 'alpha');
 // EN: Capture additional parameters used to reproduce Dolibarr's document model toggles.
 $docLabel = GETPOST('label', 'alphanohtml');
 $scanDir = GETPOST('scan_dir', 'alpha');
@@ -286,7 +292,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -303,6 +309,22 @@ if ($action === 'setmodule' && !empty($value)) {
 				setEventMessages($langs->trans('Error'), null, 'errors');
 		}
 }
+
+// EN: Persist mask configuration for numbering models (action=updateMask).
+if ($action === 'updateMask') {
+	$maskconst = GETPOST('maskconst', 'alphanohtml');
+	$maskconst = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $maskconst);
+	$maskvalue = GETPOST('maskvalue', 'nohtml'); // Allow mask tokens like {yy}{mm}...
+	if (!empty($maskconst)) {
+		$result = dolibarr_set_const($db, $maskconst, $maskvalue, 'chaine', 0, '', $conf->entity);
+		if ($result > 0) {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
+	}
+}
+
 
 // EN: Set the default PDF model while ensuring the model is enabled.
 if ($action === 'setdoc' && !empty($value)) {
@@ -354,6 +376,48 @@ if ($action === 'setquarterday') {
 	}
 }
 
+// EN: Enable or disable showing all shared-entity timesheets regardless of employee access to the current entity.
+// FR: Active ou désactive l'affichage des feuilles partagées sans accès salarié à l'entité courante.
+if ($action === 'setshowallmulticompanyuserstimesheet') {
+	$targetValue = (int) GETPOST('value', 'int');
+	if ($targetValue !== 0) {
+		$targetValue = 1;
+	}
+	$res = dolibarr_set_const($db, 'TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', $targetValue, 'chaine', 0, '', $conf->entity);
+	if ($res > 0) {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+}
+
+
+if ($action === 'saveovertimeoptions') {
+	$overtimeRequireMotif = (int) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 'int');
+	$overtimeThreshold = trim((string) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', 'alphanohtml'));
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $overtimeThreshold)) {
+		$overtimeThreshold = '00:00';
+	}
+
+	$results = array();
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', ($overtimeRequireMotif ? 1 : 0), 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', $overtimeThreshold, 'chaine', 0, '', $conf->entity);
+
+	$hasError = false;
+	foreach ($results as $resultValue) {
+		if ($resultValue <= 0) {
+			$hasError = true;
+			break;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 if ($action === 'savereminder') {
 	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
 	$reminderStartYear = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEyear', 'int');
@@ -363,17 +427,18 @@ if ($action === 'savereminder') {
 	$reminderStartMinute = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEmin', 'int');
 	$reminderTemplateValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 'int');
 	$reminderExcludedUsersValue = GETPOST('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', 'array');
+	$reminderEligibleUsersForSave = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
+	$reminderEligibleUsersForSaveMap = array_flip($reminderEligibleUsersForSave);
 	$reminderExcludedUsersList = array();
 	if (is_array($reminderExcludedUsersValue)) {
 		foreach ($reminderExcludedUsersValue as $reminderExcludedUserId) {
 			$reminderExcludedUserId = (int) $reminderExcludedUserId;
-			if ($reminderExcludedUserId > 0) {
+			if ($reminderExcludedUserId > 0 && isset($reminderEligibleUsersForSaveMap[$reminderExcludedUserId])) {
 				$reminderExcludedUsersList[] = $reminderExcludedUserId;
 			}
 		}
 	}
-	
-	
+	$reminderExcludedUsersList = array_values(array_unique($reminderExcludedUsersList));
 	
 	$error = 0;
 	
@@ -422,10 +487,40 @@ if ($action === 'testreminder') {
 		}
 }
 
+if ($action === 'saveautoseal') {
+	$autoSealEnabledValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_ENABLE', 'int');
+	$autoSealDelayValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 'int');
+	$autoSealUserIdValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_USERID', 'int');
+
+	if ($autoSealDelayValue < 0) {
+		$autoSealDelayValue = 0;
+	}
+
+	$results = array();
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_ENABLE', ($autoSealEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', $autoSealDelayValue, 'chaine', 0, '', $conf->entity);
+	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_USERID', $autoSealUserIdValue, 'chaine', 0, '', $conf->entity);
+
+	$hasError = false;
+	foreach ($results as $resultValue) {
+		if ($resultValue <= 0) {
+			$hasError = true;
+			break;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 // EN: Read the selected options so we can highlight them in the UI.
 $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetweek_standard');
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
+$showAllMulticompanyUsersTimesheet = getDolGlobalInt('TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', 0);
 $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 $reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '');
 $reminderStartTimestamp = '';
@@ -464,6 +559,13 @@ $reminderExcludedUsers = array();
 if ($reminderExcludedUsersString !== '') {
 	$reminderExcludedUsers = array_filter(array_map('intval', explode(',', $reminderExcludedUsersString)));
 }
+$reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
+$reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
+$autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
+$autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
+$autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
+$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+$overtimeMotifThreshold = getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00');
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
 
 // EN: Prepare a lightweight object to test numbering module activation.
@@ -511,7 +613,8 @@ $helpurl = '';
 llxHeader('', $title, $helpurl, '', 0, 0, '', '', '', 'mod-timesheetweek page-admin');
 
 // Subheader
-$linkback = '<a href="'.($backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1').'">'.$langs->trans("BackToModuleList").'</a>';
+$linkbackUrl = $backtopage ? $backtopage : DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_values=1';
+$linkback = '<a href="'.dol_escape_htmltag($linkbackUrl).'">'.$langs->trans("BackToModuleList").'</a>';
 print load_fiche_titre($langs->trans($title), $linkback, 'title_setup');
 
 // Configuration header
@@ -579,6 +682,38 @@ print '</div>';
 
 print '<br>';
 
+// EN: Display Multicompany visibility options for the weekly list.
+// FR: Affiche les options de visibilité Multicompany pour la liste hebdomadaire.
+print load_fiche_titre($langs->trans('TimesheetWeekMulticompanyOptions'), '', 'entity');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekMulticompanyOptionsHelp').'</div>';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Status').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekShowAllMulticompanyUsersTimesheet').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekShowAllMulticompanyUsersTimesheetHelp').'</td>';
+print '<td class="center">';
+if (!empty($showAllMulticompanyUsersTimesheet)) {
+	$url = $_SERVER['PHP_SELF'].'?action=setshowallmulticompanyuserstimesheet&value=0&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Disable'), 'switch_on').'</a>';
+} else {
+	$url = $_SERVER['PHP_SELF'].'?action=setshowallmulticompanyuserstimesheet&value=1&token='.$pageToken;
+	print '<a class="reposition" href="'.dol_escape_htmltag($url).'">'.img_picto($langs->trans('Activate'), 'switch_off').'</a>';
+}
+print '</td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+
+print '<br>';
+
 // EN: Display the helper switches dedicated to the daily-rate contract workflows.
 print load_fiche_titre($langs->trans('TimesheetWeekDailyRateOptions'), '', 'setup');
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekDailyRateOptionsHelp').'</div>';
@@ -608,6 +743,42 @@ print '</tr>';
 
 print '</table>';
 print '</div>';
+
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekOvertimeSectionTitle'), '', 'clock');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekOvertimeSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekOvertimeRequireMotif').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekOvertimeRequireMotifHelp').'</td>';
+print '<td class="center"><input type="checkbox" name="TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED" value="1"'.(!empty($overtimeRequireMotif) ? ' checked' : '').'></td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekOvertimeThreshold').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekOvertimeThresholdHelp').'</td>';
+print '<td class="center"><input type="text" name="TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD" value="'.dol_escape_htmltag($overtimeMotifThreshold).'" placeholder="HH:mm" class="width100"></td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+print '<div class="center"><button type="submit" class="butAction" name="action" value="saveovertimeoptions">'.$langs->trans('Save').'</button></div>';
+print '</form>';
+
+print '<br>';
 
 print '<br>';
 
@@ -647,25 +818,8 @@ print '<td class="small">'.$langs->trans('TimesheetWeekReminderEmailTemplateHelp
 print '<td class="center">'.$form->selectarray('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', $templateOptions, $reminderTemplateId, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity).'</td>';
 print '</tr>';
 
-$selectExcludedUsers = $form->select_dolusers(
-$reminderExcludedUsers,
-'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS',
-0,
-'',
-0,
-'',
-'',
-0,
-0,
-0,
-'',
-0,
-'',
-'minwidth300',
-0,
-0,
-1
-);
+$selectExcludedUsers = tw_render_user_multiselect_from_ids($db, $reminderEligibleUserIds, 'TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', $reminderExcludedUsers, $langs, 'minwidth300');
+$selectExcludedUsers .= ajax_combobox('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS');
 
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderExcludedUsers').'</td>';
@@ -680,6 +834,69 @@ print '<div class="center">';
 print '<button type="submit" class="butAction" name="action" value="savereminder">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '&nbsp;';
 print '<button type="submit" class="butAction" name="action" value="testreminder">'.($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test').'</button>';
+print '</div>';
+print '</form>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekAutoSealSectionTitle'), '', 'calendar');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekAutoSealSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_ENABLE').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealEnableHelp').'</td>';
+print '<td class="center">';
+print '<input type="checkbox" name="TIMESHEETWEEK_AUTOSEAL_ENABLE" value="1"'.(!empty($autoSealEnabled) ? ' checked' : '').'>';
+print '</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealDelayHelp').'</td>';
+print '<td class="center">';
+print '<input type="number" name="TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS" min="0" class="width60" value="'.(int) $autoSealDelayDays.'">';
+print '</td>';
+print '</tr>';
+
+$selectAutoSealUser = $form->select_dolusers(
+	$autoSealUserId,
+	'TIMESHEETWEEK_AUTOSEAL_USERID',
+	1,
+	'',
+	0,
+	'',
+	'',
+	0,
+	0,
+	0,
+	'',
+	0,
+	'',
+	'minwidth300'
+);
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_USERID').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealUserHelp').'</td>';
+print '<td class="center">'.$selectAutoSealUser.'</td>';
+print '</tr>';
+
+print '</table>';
+print '</div>';
+
+print '<div class="center">';
+print '<button type="submit" class="butAction" name="action" value="saveautoseal">'.($langs->trans("Save")!='Save'?$langs->trans("Save"):'Enregistrer').'</button>';
 print '</div>';
 print '</form>';
 

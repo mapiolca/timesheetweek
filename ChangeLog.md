@@ -1,6 +1,52 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 1.6.2 (14/12/2025)
+## 1.8.4 (29/06/2026)
+- Aligne les événements métier sur les triggers CRUD `TIMESHEETWEEK_TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` et `TIMESHEETWEEK_TIMESHEETWEEK_DELETE`, avec contexte métier pour les changements de statut. / Aligns business events with CRUD triggers `TIMESHEETWEEK_TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` and `TIMESHEETWEEK_TIMESHEETWEEK_DELETE`, with business context for status changes.
+- Déclare les événements dans `c_action_trigger`, expose le hook Notifications natif et ajoute les substitutions TimesheetWeek pour les modèles d'e-mails. / Declares events in `c_action_trigger`, exposes the native Notifications hook and adds TimesheetWeek substitutions for email templates.
+- Remplace la création manuelle systématique d'événements Agenda par l'auto-création Agenda native, avec migration conservatrice de l'ancien `elementtype` et diagnostic des liens suspects. / Replaces systematic manual Agenda event creation with native Agenda auto-creation, with conservative migration of the legacy `elementtype` and diagnostics for suspicious links.
+- Centralise les chemins de documents sur le répertoire de l'entité propriétaire avec `getMultidirOutput()` et persiste `last_main_doc`. / Centralizes document paths on the owner entity directory with `getMultidirOutput()` and persists `last_main_doc`.
+- Ajoute l'onglet Compatibilité, met les prérequis à Dolibarr 20+ et PHP 8.0+, et corrige la formule de numérotation des droits. / Adds the Compatibility tab, sets prerequisites to Dolibarr 20+ and PHP 8.0+, and fixes the permission numbering formula.
+
+## 1.8.3 (29/06/2026)
+- Exclut les feuilles des salariés au forfait jour de la demande de justification des heures supplémentaires lors de l'approbation, tout en conservant le contrôle pour les salariés horaires. / Excludes daily-rate employees' timesheets from overtime justification during approval while keeping the check for hourly employees.
+
+## 1.8.2 (08/06/2026)
+- Sécurise le rappel hebdomadaire contre les doubles envois en environnement Multicompany avec verrou MySQL, déduplication globale par email et replanification après traitement. / Secures the weekly reminder against duplicate sends in Multicompany environments with a MySQL lock, global email deduplication and rescheduling after processing.
+
+## 1.8.1 (25/05/2026)
+- Préserve les réglages de partage Multicompany lors de l'activation et de la désactivation du module. / Preserves Multicompany sharing settings when enabling or disabling the module.
+- Ajoute les traductions manquantes du partage de numérotation et les libellés de jours fériés. / Adds missing numbering-sharing translations and public-holiday labels.
+- Filtre les feuilles, sélecteurs, actions AJAX et PDF selon l'accès du salarié à l'entité courante. / Filters sheets, selectors, AJAX actions and PDFs according to the employee's access to the current entity.
+- Ajoute le paramètre `TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET` pour afficher toutes les feuilles des entités partagées lorsque le partage Multicompany est actif. / Adds the `TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET` setting to show all timesheets from shared entities when Multicompany sharing is enabled.
+- Traite un jour férié recouvrant un congé comme un jour férié saisissable, non compté en congé, avec affichage dédié dans l'interface et les PDF. / Treats a public holiday overlapping leave as editable public-holiday time, excluded from leave totals and displayed accordingly in the UI and PDFs.
+
+## 1.8 (02/05/2026)
+- Ajoute la saisie et la persistance du motif sur validation/refus, avec affichage contextuel sur la fiche. / Adds motif capture and persistence on approve/refuse with contextual display on the card.
+- Ajoute les réglages de justification des heures supplémentaires (interrupteur + seuil HH:mm) dans la configuration module. / Adds overtime justification settings (switch + HH:mm threshold) in module setup.
+- Ajoute le support des congés et RTT approuvés dans la fiche hebdomadaire avec placeholders dédiés et verrouillage conditionnel des champs. / Adds support for approved leave and RTT in the weekly card with dedicated placeholders and conditional field locking.
+- Ajoute trois permissions de déverrouillage des congés (`disableownholiday`, `disablechildholiday`, `disableallholiday`). / Adds three leave unlock permissions (`disableownholiday`, `disablechildholiday`, `disableallholiday`).
+- Affiche les congés/RTT (y compris demi-journées) dans le PDF standard de feuille hebdomadaire. / Displays leave/RTT (including half-days) in the standard weekly timesheet PDF.
+- Ajoute des colonnes dédiées « jours de congés » et « jours RTT » dans la synthèse PDF massaction lorsque des valeurs existent. / Adds dedicated "leave days" and "RTT days" columns in the mass-action summary PDF when values exist.
+- Raccourcit les libellés FR de la synthèse PDF pour optimiser la largeur des colonnes (`Heures supp.`, `Dépl. Zone X`). / Shortens FR summary PDF labels to optimize column width (`Heures supp.`, `Dépl. Zone X`).
+
+## 1.7.2 (27/01/2026)
+- Respecte MAIN_DISABLE_FORCE_SAVEAS pour les liens PDF (aperçu, téléchargement, redirections). / Honors MAIN_DISABLE_FORCE_SAVEAS for PDF links (preview, download, redirects).
+- Ajuste la hauteur des lignes du tableau de synthèse PDF selon le contenu. / Adjusts summary PDF table row height based on content.
+- Ajoute le scelleur et la date de scellement dans la synthèse PDF générée par la massaction. / Adds the sealer and seal date in the summary PDF generated by the mass action.
+- Met à jour les métadonnées de scellement (fk_user_seal, date_seal) lors du scellement via l'action de masse. / Updates seal metadata (fk_user_seal, date_seal) during the mass action sealing.
+- Met à jour les métadonnées de scellement (fk_user_seal, date_seal) lors des scellements manuels et automatiques. / Updates seal metadata (fk_user_seal, date_seal) during manual and automatic sealing.
+- Met à jour les métadonnées de scellement (fk_user_seal, date_seal) lors du scellement manuel. / Updates seal metadata (fk_user_seal, date_seal) during manual sealing.
+- Ajoute les colonnes fk_user_seal et date_seal sur llx_timesheet_week avec les index associés. / Adds fk_user_seal and date_seal columns on llx_timesheet_week with the related indexes.
+
+## 1.7.1 (25/01/2026)
+- Corrige un problème pouvant empecher la création des PDF chez certains utilisateurs / Fix an issue that could break the PDF's generation for some users.
+
+## 1.7.0 (14/01/2026)
+- Ajoute un scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native. / Adds automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
+
+## 1.6.2 (02/01/2026)
+- Correctif : ajout de TimesheetWeek::initAsSpecimen() pour éviter une erreur fatale lors de l’aperçu du modèle de numérotation “advanced”. / Fix: add missing TimesheetWeek::initAsSpecimen() to prevent a fatal error when previewing the “advanced” numbering model.
+- Correctif : prise en charge de action=updateMask dans la page de configuration pour enregistrer correctement le masque “advanced” (TIMESHEETWEEK_ADVANCED_MASK). / Fix: handle action=updateMask in setup page to correctly save the “advanced” mask (TIMESHEETWEEK_ADVANCED_MASK).
 - Envoie les notifications de changement d'état avec des versions HTML pour conserver les actions et caractères spéciaux. / Sends status change notifications with HTML variants to preserve actions and special characters.
 - Décode les entités HTML dans les objets générés pour afficher correctement les accents dans les courriels. / Decodes HTML entities in generated subjects to display accented characters correctly in emails.
 - Calcule la signature des notifications en utilisant MAIN_APPLICATION_TITLE ou, à défaut, le nom de la société. / Builds notification signatures using MAIN_APPLICATION_TITLE or, if unavailable, the company name.

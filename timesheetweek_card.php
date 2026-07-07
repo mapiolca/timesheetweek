@@ -31,6 +31,7 @@ if (!$res) die("Include of main fails");
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formactions.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 // EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
@@ -39,6 +40,7 @@ dol_include_once('/timesheetweek/core/modules/timesheetweek/modules_timesheetwee
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
+require_once DOL_DOCUMENT_ROOT.'/holiday/class/holiday.class.php';
 // EN: Load price helpers to display day totals with Dolibarr formatting rules.
 // FR: Charge les aides de prix pour afficher les totaux en jours avec les règles de formatage Dolibarr.
 require_once DOL_DOCUMENT_ROOT.'/core/lib/price.lib.php';
@@ -52,6 +54,7 @@ $langs->loadLangs(array('timesheetweek@timesheetweek','projects','users','other'
 $id = GETPOSTINT('id');
 $action = GETPOST('action', 'aZ09');
 $confirm = GETPOST('confirm', 'alpha');
+$motif = trim((string) GETPOST('motif', 'restricthtml'));
 // EN: Retrieve PDF display flags to align with Dolibarr's document generator options.
 // FR: Récupère les indicateurs d'affichage PDF pour s'aligner sur les options du générateur de documents Dolibarr.
 $hidedetails = GETPOSTISSET('hidedetails') ? GETPOSTINT('hidedetails') : (getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_HIDE_DETAILS') ? 1 : 0);
@@ -108,6 +111,18 @@ function tw_translate_error($errorKey, $langs)
 	return $msg;
 }
 
+
+function tw_hhmm_to_hours($value)
+{
+	if (!preg_match('/^([0-1][0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+		return 0.0;
+	}
+
+	$hours = (int) $matches[1];
+	$minutes = (int) $matches[2];
+	return $hours + ($minutes / 60);
+}
+
 /**
 * EN: Format day totals by reusing Dolibarr price helpers to respect locale settings.
 * FR: Formate les totaux en jours en réutilisant les aides de prix Dolibarr pour respecter les paramètres régionaux.
@@ -154,6 +169,27 @@ function tw_get_employee_with_daily_rate(DoliDB $db, $userId)
 	}
 	$cache[$userId] = $result;
 	return $result;
+}
+
+/**
+* EN: Tell if overtime approval requires a justification for this timesheet.
+* FR: Indique si l'approbation des heures supplémentaires nécessite une justification pour cette feuille.
+*
+* @param DoliDB         $db     Database handler / Gestionnaire de base de données
+* @param TimesheetWeek  $object Timesheet object / Objet feuille d'heures
+* @return bool                  True when a justification is required / Vrai si une justification est requise
+*/
+function tw_requires_overtime_motif(DoliDB $db, TimesheetWeek $object)
+{
+	$employeeInfoDaily = tw_get_employee_with_daily_rate($db, $object->fk_user);
+	if ($employeeInfoDaily['user'] instanceof User && !empty($employeeInfoDaily['is_daily_rate'])) {
+		return false;
+	}
+
+	$overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
+	$overtimeThresholdHours = tw_hhmm_to_hours(getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00'));
+
+	return !empty($overtimeRequireMotif) && ((float) $object->overtime_hours >= (float) $overtimeThresholdHours);
 }
 
 /**
@@ -224,6 +260,189 @@ function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 	return $map;
 }
 
+/**
+* EN: Check if current user can unlock day columns that are marked as approved leave.
+* FR: Vérifie si l'utilisateur courant peut déverrouiller les colonnes marquées en congé approuvé.
+*
+* @param User $user Current user / Utilisateur courant
+* @return bool      True when leave lock override is allowed / Vrai si le déverrouillage est autorisé
+*/
+function tw_can_override_holiday_lock(User $user)
+{
+	if (!method_exists($user, 'hasRight')) {
+		// @BACKPORT v19→v20 : hasRight() is not available before v19.
+		return !empty($user->rights->timesheetweek->disableownholiday)
+			|| !empty($user->rights->timesheetweek->disablechildholiday)
+			|| !empty($user->rights->timesheetweek->disableallholiday);
+	}
+
+	return $user->hasRight('timesheetweek', 'disableownholiday')
+		|| $user->hasRight('timesheetweek', 'disablechildholiday')
+		|| $user->hasRight('timesheetweek', 'disableallholiday');
+}
+
+/**
+* EN: Build per-day leave placeholders for the selected user and week.
+* FR: Construit les placeholders de congés par jour pour l'utilisateur et la semaine sélectionnés.
+*
+* @param DoliDB     $db        Database handler / Gestionnaire de base de données
+* @param int        $userId    Target user identifier / Identifiant utilisateur ciblé
+* @param array      $weekdates ISO dates by day name / Dates ISO indexées par nom de jour
+* @param Translate  $langs     Translator instance / Instance de traduction
+* @return array<string,string> Placeholder by day key / Placeholder par clé de jour
+*/
+function tw_get_holiday_placeholders_by_day(DoliDB $db, $userId, array $weekdates, Translate $langs)
+{
+	$placeholders = array();
+	foreach ($weekdates as $dayKey => $isoDate) {
+		$placeholders[$dayKey] = '';
+	}
+
+	$userId = (int) $userId;
+	if ($userId <= 0 || empty($weekdates) || !isModEnabled('holiday')) {
+		return $placeholders;
+	}
+
+	$weekStart = min(array_values($weekdates));
+	$weekEnd = max(array_values($weekdates));
+	if (empty($weekStart) || empty($weekEnd)) {
+		return $placeholders;
+	}
+
+	$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+	$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+	$sql .= " AND h.fk_user = ".$userId;
+	$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+	$sql .= " AND h.date_debut <= '".$db->escape($weekEnd)." 23:59:59'";
+	$sql .= " AND h.date_fin >= '".$db->escape($weekStart)." 00:00:00'";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return $placeholders;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$startTs = strtotime((string) $obj->date_debut);
+		$endTs = strtotime((string) $obj->date_fin);
+		if ($startTs === false || $endTs === false) {
+			continue;
+		}
+
+		$isRtt = false;
+		$typeCode = strtoupper(trim((string) $obj->type_code));
+		$typeLabel = strtoupper(trim((string) $obj->type_label));
+		if (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false) {
+			$isRtt = true;
+		}
+		$placeholderValue = $isRtt ? $langs->trans('TimesheetWeekHolidayPlaceholderRtt') : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
+
+		foreach ($weekdates as $dayKey => $isoDate) {
+			if (empty($isoDate)) {
+				continue;
+			}
+			$dayStartTs = strtotime($isoDate.' 00:00:00');
+			$dayEndTs = strtotime($isoDate.' 23:59:59');
+			if ($dayStartTs === false || $dayEndTs === false) {
+				continue;
+			}
+			if ($startTs <= $dayEndTs && $endTs >= $dayStartTs) {
+				$placeholders[$dayKey] = $placeholderValue;
+			}
+		}
+	}
+	$db->free($resql);
+
+	return $placeholders;
+}
+
+/**
+* EN: Build per-day leave/public-holiday markers for the selected user and week.
+* FR: Construit les marqueurs congés/jours fériés par jour pour l'utilisateur et la semaine sélectionnés.
+*
+* @param DoliDB     $db        Database handler / Gestionnaire de base de données
+* @param int        $userId    Target user identifier / Identifiant utilisateur ciblé
+* @param array      $weekdates ISO dates by day name / Dates ISO indexées par nom de jour
+* @param Translate  $langs     Translator instance / Instance de traduction
+* @param int        $entityId  Timesheet entity / Entité de la feuille
+* @return array<string,array{label:string,has_leave:bool,is_public_holiday:bool}>
+*/
+function tw_get_holiday_markers_by_day(DoliDB $db, $userId, array $weekdates, Translate $langs, $entityId)
+{
+	$markers = array();
+	foreach ($weekdates as $dayKey => $isoDate) {
+		$markers[$dayKey] = array('label' => '', 'has_leave' => false, 'is_public_holiday' => false);
+	}
+
+	$userId = (int) $userId;
+	if ($userId <= 0 || empty($weekdates) || !isModEnabled('holiday')) {
+		return $markers;
+	}
+
+	$publicHolidayByDay = tw_get_public_holiday_map_by_day($db, $weekdates, $entityId);
+	$weekStart = min(array_values($weekdates));
+	$weekEnd = max(array_values($weekdates));
+	if (empty($weekStart) || empty($weekEnd)) {
+		return $markers;
+	}
+
+	$sql = "SELECT h.date_debut, h.date_fin, h.halfday, t.code AS type_code, t.label AS type_label";
+	$sql .= " FROM ".MAIN_DB_PREFIX."holiday AS h";
+	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."c_holiday_types AS t ON t.rowid = h.fk_type";
+	$sql .= " WHERE h.entity IN (".getEntity('holiday').")";
+	$sql .= " AND h.fk_user = ".$userId;
+	$sql .= " AND h.statut = ".Holiday::STATUS_APPROVED;
+	$sql .= " AND h.date_debut <= '".$db->escape($weekEnd)." 23:59:59'";
+	$sql .= " AND h.date_fin >= '".$db->escape($weekStart)." 00:00:00'";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return $markers;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$startTs = strtotime((string) $obj->date_debut);
+		$endTs = strtotime((string) $obj->date_fin);
+		if ($startTs === false || $endTs === false) {
+			continue;
+		}
+
+		$isRtt = false;
+		$typeCode = strtoupper(trim((string) $obj->type_code));
+		$typeLabel = strtoupper(trim((string) $obj->type_label));
+		if (strpos($typeCode, 'RTT') !== false || strpos($typeLabel, 'RTT') !== false) {
+			$isRtt = true;
+		}
+		$placeholderValue = $isRtt ? $langs->trans('TimesheetWeekHolidayPlaceholderRtt') : $langs->trans('TimesheetWeekHolidayPlaceholderLeave');
+
+		foreach ($weekdates as $dayKey => $isoDate) {
+			if (empty($isoDate)) {
+				continue;
+			}
+			$dayStartTs = strtotime($isoDate.' 00:00:00');
+			$dayEndTs = strtotime($isoDate.' 23:59:59');
+			if ($dayStartTs === false || $dayEndTs === false) {
+				continue;
+			}
+			if ($startTs <= $dayEndTs && $endTs >= $dayStartTs) {
+				$markers[$dayKey]['label'] = $placeholderValue;
+				$markers[$dayKey]['has_leave'] = true;
+			}
+		}
+	}
+	$db->free($resql);
+
+	foreach ($markers as $dayKey => $marker) {
+		if (!empty($marker['has_leave']) && !empty($publicHolidayByDay[$dayKey])) {
+			$markers[$dayKey]['label'] = $langs->trans('TimesheetWeekHolidayPlaceholderPublicHoliday');
+			$markers[$dayKey]['is_public_holiday'] = true;
+		}
+	}
+
+	return $markers;
+}
+
 // ---- Permissions (nouveau modèle) ----
 $permRead          = $user->hasRight('timesheetweek','read');
 $permReadChild     = $user->hasRight('timesheetweek','readChild');
@@ -265,6 +484,12 @@ function tw_can_validate_timesheet(
 		$permWriteChild = false,
 		$permWriteAll = false
 ) {
+		global $db, $conf;
+
+		if (!tw_user_has_access_to_entity($db, $o->fk_user, !empty($o->entity) ? (int) $o->entity : (int) $conf->entity)) {
+				return false;
+		}
+
 		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
 
 		if (!empty($user->admin)) {
@@ -304,6 +529,9 @@ function tw_can_validate_timesheet(
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
+if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, (int) $conf->entity)) {
+	accessforbidden();
+}
 
 $canSendMail = false;
 if ($object->id > 0) {
@@ -316,6 +544,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status(
 	$newval = GETPOSTINT('fk_user');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
 	if ($newval > 0) {
+		if (!tw_user_has_access_to_entity($db, $newval, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) accessforbidden();
 		$object->fk_user = $newval;
 		$res = $object->update($user);
 		if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -327,6 +556,7 @@ if ($action === 'setfk_user' && $object->id > 0 && $object->status == tw_status(
 if ($action === 'setvalidator' && $object->id > 0 && $object->status == tw_status('draft')) {
 	$newval = GETPOSTINT('fk_user_valid');
 	if (!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) accessforbidden();
+	if ($newval > 0 && !tw_user_has_access_to_entity($db, $newval, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) accessforbidden();
 	$object->fk_user_valid = ($newval > 0 ? $newval : null);
 	$res = $object->update($user);
 	if ($res > 0) setEventMessages($langs->trans("RecordModified"), null, 'mesgs');
@@ -438,6 +668,9 @@ if ($action === 'add') {
 
 	$targetUserId = $fk_user > 0 ? $fk_user : $user->id;
 	if (!tw_can_act_on_user($targetUserId, $permWrite, $permWriteChild, $permWriteAll, $user)) {
+		accessforbidden();
+	}
+	if (!tw_user_has_access_to_entity($db, $targetUserId, (int) $conf->entity)) {
 		accessforbidden();
 	}
 
@@ -596,7 +829,6 @@ $h = (float) str_replace(',', '.', $hoursStr);
 												(int) $dailyRateValue.", ".
 												(int) $zone.", ".
 												(int) $meal.")";
-										")";
 					if (!$db->query($sqlIns)) {
 						$db->rollback();
 						setEventMessages($db->lasterror(), null, 'errors');
@@ -675,7 +907,7 @@ if ($action === 'submit' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_SUBMIT';
+		$object->context['trigger_reason'] = 'submit';
 		$object->context['timesheetweek_card_action'] = 'submit';
 
 		$res = $object->submit($user);
@@ -754,10 +986,16 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
+		$object->context['trigger_reason'] = 'approve';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
-		$res = $object->approve($user);
+		if (tw_requires_overtime_motif($db, $object) && $motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifOvertimeRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_validate");
+			exit;
+		}
+
+		$res = $object->approve($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetApproved"), null, 'mesgs');
 		} else {
@@ -783,10 +1021,16 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
+		$object->context['trigger_reason'] = 'refuse';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
-		$res = $object->refuse($user);
+		if ($motif === '') {
+			setEventMessages($langs->trans('TimesheetWeekMotifRefuseRequired'), null, 'errors');
+			header("Location: ".$_SERVER["PHP_SELF"]."?id=".$object->id."&action=ask_refuse");
+			exit;
+		}
+
+		$res = $object->refuse($user, $motif);
 		if ($res > 0) {
 				setEventMessages($langs->trans("TimesheetRefused"), null, 'mesgs');
 		} else {
@@ -809,7 +1053,7 @@ if ($action === 'seal' && $id > 0) {
 		// FR : Marque l'action courante pour les triggers et journaux.
 		$object->context['timesheetweek_card_action'] = 'seal';
 
-		$res = $object->seal($user);
+		$res = $object->seal($user, 'manual');
 		if ($res > 0) {
 				setEventMessages($langs->trans('TimesheetSealed'), null, 'mesgs');
 		} else {
@@ -907,16 +1151,7 @@ if ($object->id > 0) {
 
 		// EN: Prepare PDF generation permissions once the object is fully loaded.
 		// FR: Prépare les permissions de génération PDF une fois l'objet complètement chargé.
-		$entityIdForDocs = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-		$baseTimesheetDir = '';
-		if (!empty($conf->timesheetweek->multidir_output[$entityIdForDocs])) {
-			$baseTimesheetDir = $conf->timesheetweek->multidir_output[$entityIdForDocs];
-		} elseif (!empty($conf->timesheetweek->dir_output)) {
-			$baseTimesheetDir = $conf->timesheetweek->dir_output;
-		} else {
-			$baseTimesheetDir = DOL_DATA_ROOT.'/timesheetweek';
-		}
-		$upload_dir = $baseTimesheetDir.'/timesheetweek/'.dol_sanitizeFileName($object->ref);
+		$upload_dir = timesheetweekGetDocumentDir($object);
 
 		// EN: Authorise document creation to employees or managers allowed to act on the sheet.
 		// FR: Autorise la création de documents aux salariés ou responsables habilités à agir sur la feuille.
@@ -987,7 +1222,7 @@ if ($object->id > 0) {
 		if (!empty($upload_dir)) {
 				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
 				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
-				$modulepart = 'timesheetweek';
+				$modulepart = timesheetweekGetDocumentModulePart();
 				$permissiontoread = $permReadAny ? 1 : 0;
 				$permissiontoadd = $permissiontoadd ? 1 : 0;
 				$permissiontodownload = $permissiontoread;
@@ -999,6 +1234,7 @@ if ($object->id > 0) {
 // ----------------- View -----------------
 $form = new Form($db);
 $formfile = new FormFile($db);
+$formactions = new FormActions($db);
 $title = $langs->trans("TimesheetWeek");
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
@@ -1027,7 +1263,11 @@ if ($action === 'create') {
 	echo '<td class="titlefield">'.$langs->trans("Employee").'</td>';
 	// EN: Display the employee selector with avatars to align with Dolibarr UX.
 	// FR: Affiche le sélecteur salarié avec avatars pour rester cohérent avec l'UX Dolibarr.
-	echo '<td>'.$form->select_dolusers($user->id, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+	$createEmployeeIds = tw_get_timesheet_visible_user_ids($db, array((int) $conf->entity), $user, $permWrite, $permWriteChild, $permWriteAll);
+	$defaultEmployeeId = in_array((int) $user->id, $createEmployeeIds, true) ? (int) $user->id : -1;
+	$employeeSelectHtml = $form->select_dolusers($defaultEmployeeId > 0 ? $defaultEmployeeId : '', 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $createEmployeeIds, $defaultEmployeeId > 0 ? $defaultEmployeeId : 0);
+	echo '<td>'.$employeeSelectHtml.'</td>';
 
 	echo '</tr>';
 
@@ -1039,11 +1279,17 @@ if ($action === 'create') {
 
 	// Validateur (défaut = manager)
 	$defaultValidatorId = !empty($user->fk_user) ? (int)$user->fk_user : 0;
+	$validatorIds = tw_get_user_ids_for_entities($db, array((int) $conf->entity));
+	if ($defaultValidatorId > 0 && !in_array($defaultValidatorId, $validatorIds, true)) {
+		$defaultValidatorId = 0;
+	}
 	echo '<tr>';
 	echo '<td>'.$langs->trans("Validator").'</td>';
 	// EN: Pre-select the default validator with picture support for clarity.
 	// FR: Pré-sélectionne le validateur par défaut avec prise en charge de la photo pour plus de clarté.
-	echo '<td>'.$form->select_dolusers($defaultValidatorId, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1).'</td>';
+	$validatorSelectHtml = $form->select_dolusers($defaultValidatorId > 0 ? $defaultValidatorId : '', 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+	$validatorSelectHtml = tw_filter_select_by_user_ids($validatorSelectHtml, $validatorIds, $defaultValidatorId);
+	echo '<td>'.$validatorSelectHtml.'</td>';
 
 	echo '</tr>';
 
@@ -1129,7 +1375,7 @@ JS;
 				}
 		}
 
-		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
+		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', 0, '', $morehtmlstatus, 0, $morehtmlright);
 		print timesheetweekRenderStatusBadgeCleanup();
 
 		// Confirm modals
@@ -1178,26 +1424,57 @@ JS;
 			print $formconfirm;
 		}
 		if ($action === 'ask_validate') {
+			$formquestion = array();
+			$confirmMessage = $langs->trans('ConfirmValidate');
+			if (tw_requires_overtime_motif($db, $object)) {
+				$formquestion[] = array(
+					'label' => '',
+					'type' => 'other',
+					'value' => $langs->trans('TimesheetWeekMotifOvertimePrompt'),
+				);
+				$formquestion[] = array(
+					'label' => $langs->trans('TimesheetWeekMotif'),
+					'type' => 'textarea',
+					'name' => 'motif',
+					'value' => $motif,
+					'moreattr' => 'required rows="2" style="width: 90%;"',
+				);
+			}
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'),
-				$langs->trans('ConfirmValidate'),
+				$confirmMessage,
 				'confirm_validate',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
 		if ($action === 'ask_refuse') {
+			$formquestion = array();
+			$formquestion[] = array(
+				'label' => '',
+				'type' => 'other',
+				'value' => $langs->trans('TimesheetWeekMotifRefusePrompt'),
+			);
+			$formquestion[] = array(
+				'label' => $langs->trans('TimesheetWeekMotif'),
+				'type' => 'textarea',
+				'name' => 'motif',
+				'value' => $motif,
+				'moreattr' => 'required rows="2" style="width: 90%;"',
+			);
 			$formconfirm = $form->formconfirm(
 				$_SERVER["PHP_SELF"].'?id='.$object->id,
 				$langs->trans("Refuse"),
 				$langs->trans('ConfirmRefuse'),
 				'confirm_refuse',
-				array(),
+				$formquestion,
 				'yes',
-				1
+				1,
+				310
 			);
 			print $formconfirm;
 		}
@@ -1218,7 +1495,10 @@ JS;
 			echo '<input type="hidden" name="action" value="setfk_user">';
 			// EN: Keep avatar rendering when editing the employee inline.
 			// FR: Conserve l'affichage des avatars lors de l'édition du salarié en ligne.
-			echo $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableEmployeeIds = tw_get_timesheet_visible_user_ids($db, array(!empty($object->entity) ? (int) $object->entity : (int) $conf->entity), $user, $permWrite, $permWriteChild, $permWriteAll);
+			$editableEmployeeSelectHtml = $form->select_dolusers($object->fk_user, 'fk_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableEmployeeSelectHtml = tw_filter_select_by_user_ids($editableEmployeeSelectHtml, $editableEmployeeIds, (int) $object->fk_user);
+			echo $editableEmployeeSelectHtml;
 			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			echo '</form>';
@@ -1281,7 +1561,10 @@ JS;
 			echo '<input type="hidden" name="action" value="setvalidator">';
 			// EN: Preserve photo display while updating the validator inline.
 			// FR: Préserve l'affichage de la photo lors de la mise à jour du validateur en ligne.
-			echo $form->select_dolusers($object->fk_user_valid, 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableValidatorIds = tw_get_user_ids_for_entities($db, array(!empty($object->entity) ? (int) $object->entity : (int) $conf->entity));
+			$editableValidatorSelectHtml = $form->select_dolusers($object->fk_user_valid > 0 ? $object->fk_user_valid : '', 'fk_user_valid', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+			$editableValidatorSelectHtml = tw_filter_select_by_user_ids($editableValidatorSelectHtml, $editableValidatorIds, (int) $object->fk_user_valid);
+			echo $editableValidatorSelectHtml;
 			echo '&nbsp;<input type="submit" class="button small" value="'.$langs->trans("Save").'">';
 			echo '&nbsp;<a class="button small button-cancel" href="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">'.$langs->trans("Cancel").'</a>';
 			echo '</form>';
@@ -1347,6 +1630,10 @@ JS;
 		} else {
 			echo '<tr><td>'.$displayedTotalLabel.'</td><td><span class="'.$headerTotalClass.'">'.formatHours($displayedTotal).'</span></td></tr>';
 			echo '<tr><td>'.$langs->trans("Overtime").' ('.formatHours($contractedHoursDisp).')</td><td><span class="header-overtime">'.formatHours($ot).'</span></td></tr>';
+			if (!empty($object->motif)) {
+				$motifLabelKey = ((int) $object->status === (int) tw_status('refused')) ? 'TimesheetWeekRefuseMotifLabel' : 'TimesheetWeekOvertimeJustificationLabel';
+				echo '<tr><td>'.$langs->trans($motifLabelKey).'</td><td>'.nl2br(dol_escape_htmltag($object->motif)).'</td></tr>';
+			}
 		}
 		echo '</table>';
 		echo '</div>';
@@ -1568,6 +1855,8 @@ $hasLegacyHalfDayDailyRate = true;
 
 		// Inputs zone/panier bloqués si statut != brouillon
 		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
+		$canOverrideHolidayLock = tw_can_override_holiday_lock($user);
+		$holidayMarkerByDay = tw_get_holiday_markers_by_day($db, $object->fk_user, $weekdates, $langs, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity);
 
 		echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
@@ -1670,13 +1959,18 @@ if (!$isDailyRateEmployee) {
 echo '<tr class="liste_titre">';
 echo '<td class="col-project-task"></td>';
 foreach ($days as $d) {
+	$dayDisabledAttr = $disabledAttr;
+	$hasLockedLeaveDay = !empty($holidayMarkerByDay[$d]['has_leave']) && empty($holidayMarkerByDay[$d]['is_public_holiday']);
+	if ($object->status == tw_status('draft') && $hasLockedLeaveDay && !$canOverrideHolidayLock) {
+		$dayDisabledAttr = ' disabled';
+	}
 // EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
 // FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
 echo '<td class="center cellule-zone-panier">';
 // EN: Prefix zone selector with its label to improve understanding.
 // FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
 echo '<span class="zone-select">'.$langs->trans("Zone").' ';
-echo '<select name="zone_'.$d.'" class="flat"'.$disabledAttr.'>';
+echo '<select name="zone_'.$d.'" class="flat"'.$dayDisabledAttr.'>';
 // EN: Provide an empty choice so the default zone selector starts blank.
 // FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
 $selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
@@ -1687,7 +1981,7 @@ echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
 }
 echo '</select></span><br>';
 $checked = $dayMeal[$d] ? ' checked' : '';
-echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$disabledAttr.'> '.$langs->trans("Meal").'</label>';
+echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$dayDisabledAttr.'> '.$langs->trans("Meal").'</label>';
 echo '</td>';
 }
 echo '<td class=""></td>';
@@ -1766,6 +2060,28 @@ $iname = 'hours_'.$task['task_id'].'_'.$d;
 $rateName = 'daily_'.$task['task_id'].'_'.$d;
 $val = '';
 $rateVal = 0;
+$dayPlaceholder = '00:00';
+$hasHolidayDayMarker = !empty($holidayMarkerByDay[$d]['label']);
+$isPublicHolidayLeaveDay = !empty($holidayMarkerByDay[$d]['is_public_holiday']);
+$daySelectEmptyLabel = '';
+$daySelectEmptySelected = ' selected';
+$daySelectEmptyValue = '';
+$daySelectEmptyDisabled = '';
+$daySelectEmptyHidden = '';
+$daySelectEmptyTitle = '';
+$daySelectTitleAttr = '';
+$isHolidayLockedDay = ($object->status == tw_status('draft') && $hasHolidayDayMarker && !$isPublicHolidayLeaveDay && !$canOverrideHolidayLock);
+if ($hasHolidayDayMarker) {
+	$dayPlaceholder = $holidayMarkerByDay[$d]['label'];
+	$daySelectEmptyLabel = $dayPlaceholder;
+	$daySelectTitleAttr = ' title="'.dol_escape_htmltag($dayPlaceholder).'"';
+}
+if ($isHolidayLockedDay) {
+	$daySelectEmptyValue = '__holiday__';
+	$daySelectEmptyDisabled = ' disabled';
+	$daySelectEmptyHidden = ' hidden';
+	$daySelectEmptyTitle = ' data-dayplaceholder="'.dol_escape_htmltag($dayPlaceholder).'"';
+}
 $keydate = $weekdates[$d];
 if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
 $val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
@@ -1776,8 +2092,12 @@ $rateVal = (int)$dailyRateBy[(int)$task['task_id']][$keydate];
 }
 if ($isDailyRateEmployee) {
 $disabledSelect = ($object->status != tw_status('draft')) ? ' disabled' : '';
-$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.'>';
-$selectHtml .= '<option value=""></option>';
+$disabledSelect = $isHolidayLockedDay ? ' disabled' : $disabledSelect;
+$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.$daySelectTitleAttr.'>';
+if ($rateVal > 0) {
+	$daySelectEmptySelected = '';
+}
+$selectHtml .= '<option value="'.$daySelectEmptyValue.'"'.$daySelectEmptySelected.$daySelectEmptyDisabled.$daySelectEmptyHidden.$daySelectEmptyTitle.'>'.dol_escape_htmltag($daySelectEmptyLabel).'</option>';
 foreach ($dailyRateOptions as $code => $label) {
 $selected = ($rateVal === (int) $code) ? ' selected' : '';
 $selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
@@ -1786,7 +2106,9 @@ $selectHtml .= '</select>';
 echo '<td class="center cellule-temps">'.$selectHtml.'</td>';
 		} else {
 $readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
-echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="00:00"'.$readonly.'></td>';
+$readonly = $isHolidayLockedDay ? '' : $readonly;
+$inputDisabled = $isHolidayLockedDay ? ' disabled' : '';
+echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="'.dol_escape_htmltag($dayPlaceholder).'"'.$readonly.$inputDisabled.'></td>';
 }
 }
 $grandInit += $rowTotal;
@@ -2049,18 +2371,9 @@ JS;
 				if ($includedocgeneration) {
 					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
 					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
-					$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 					$object->element = 'timesheetweek';
-					$docRef = dol_sanitizeFileName($object->ref);
-					$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
-					if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
-						$entityOutput = $conf->timesheetweek->dir_output;
-					}
-					if (empty($entityOutput)) {
-						$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
-					}
-					$relativePath = $object->element.'/'.$docRef;
-					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+					$relativePath = timesheetweekGetDocumentRelativeDir($object);
+					$filedir = timesheetweekGetDocumentDir($object);
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
 					$genallowed = $permReadAny ? 1 : 0;
 					if ($permReadAny) {
@@ -2074,7 +2387,7 @@ JS;
 					$delallowed = $permissiontoadd ? 1 : 0;
 
 				$documentHtml = $formfile->showdocuments(
-					'timesheetweek:TimesheetWeek',
+					timesheetweekGetDocumentModulePart(),
 					$relativePath,
 					$filedir,
 					$urlsource,
@@ -2165,6 +2478,10 @@ JS;
 				print $documentHtml;
 				}
 
+				print '</div><div class="fichehalfright">';
+				$MAXEVENT = getDolUserInt('MAIN_SIZE_SHORTLIST_LIMIT', getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5));
+				$morehtmlcenter = dolGetButtonTitle($langs->trans('SeeAll'), '', 'fa fa-bars imgforviewmode', dol_buildpath('/timesheetweek/timesheetweek_agenda.php', 1).'?id='.(int) $object->id);
+				$formactions->showactions($object, 'timesheetweek@timesheetweek', 0, 1, '', $MAXEVENT, '', $morehtmlcenter);
 				print '</div></div>';
 			}
 

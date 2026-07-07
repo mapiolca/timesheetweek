@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.6.2';
+		$this->version = '1.8.4';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -133,7 +133,7 @@ class modTimesheetWeek extends DolibarrModules
 			// Set this to 1 if module has its own login method file (core/login)
 			'login' => 0,
 			// Set this to 1 if module has its own substitution function file (core/substitutions)
-			'substitutions' => 0,
+			'substitutions' => 1,
 			// Set this to 1 if module has its own menus handler directory (core/menus)
 			'menus' => 0,
 			// Set this to 1 if module overwrite template dir (core/tpl)
@@ -159,6 +159,11 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        'timesheetweekcard',
+                                        'globalcard',
+                                        'document',
+                                        'notification',
+                                        'elementproperties',
                                         // EN: Register multicompany sharing contexts to expose sharing options.
                                         // FR: Enregistrer les contextes multicompany pour exposer les options de partage.
                                         'multicompanyexternalmodulesharing',
@@ -197,9 +202,9 @@ class modTimesheetWeek extends DolibarrModules
 		$this->langfiles = array("timesheetweek@timesheetweek");
 
 		// Prerequisites
-		$this->phpmin = array(7, 1); // Minimum version of PHP required by module
+		$this->phpmin = array(8, 0); // Minimum version of PHP required by module
 		// $this->phpmax = array(8, 0); // Maximum version of PHP required by module
-		$this->need_dolibarr_version = array(21, -3); // Minimum version of Dolibarr required by module
+		$this->need_dolibarr_version = array(20, 0); // Minimum version of Dolibarr required by module
 		// $this->max_dolibarr_version = array(19, -3); // Maximum version of Dolibarr required by module
 		$this->need_javascript_ajax = 0;
 
@@ -323,6 +328,20 @@ class modTimesheetWeek extends DolibarrModules
 				'test' => 'isModEnabled("timesheetweek")',
 				'priority' => 50,
 			),
+			1 => array(
+				'label' => 'TimesheetWeekAutoSeal',
+				'jobtype' => 'method',
+				'class' => '/timesheetweek/class/timesheetweekautoseal.class.php',
+				'objectname' => 'TimesheetweekAutoSeal',
+				'method' => 'run',
+				'parameters' => '',
+				'comment' => 'TimesheetWeekAutoSealComment',
+				'frequency' => 1,
+				'unitfrequency' => 86400,
+				'status' => 1,
+				'test' => 'isModEnabled("timesheetweek")',
+				'priority' => 50,
+			),
 		);
 		/* END MODULEBUILDER CRON */
 		// Example: $this->cronjobs=array(
@@ -335,55 +354,56 @@ class modTimesheetWeek extends DolibarrModules
 		$r = 0;
 		// Add here entries to declare new permissions
 		/* BEGIN MODULEBUILDER PERMISSIONS */
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 0 + 1);
+		$r++;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadOwn');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'read';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 1 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadChild');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'readChild';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 2 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightReadAll');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'readAll';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 3 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteOwn');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'write';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 4 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteChild');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'writeChild';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 5 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightWriteAll');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'writeAll';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 6 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteOwn');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'delete';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 7 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
         $this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteChild');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'deleteChild';
 		$this->rights[$r][5] = '';
 		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 8 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDeleteAll');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'deleteAll';
@@ -391,7 +411,7 @@ class modTimesheetWeek extends DolibarrModules
 		$r++;
 		// EN: Legacy validation permission kept for backward compatibility
 		// FR : Droit de validation générique conservé pour compatibilité ascendante
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 9 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateGeneric');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'validate';
@@ -399,7 +419,7 @@ class modTimesheetWeek extends DolibarrModules
 		$r++;
 		// EN: Allow managers to validate their own timesheets only
 		// FR : Autorise un utilisateur à valider uniquement ses propres feuilles
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 10 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateOwn');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'validateOwn';
@@ -407,7 +427,7 @@ class modTimesheetWeek extends DolibarrModules
 		$r++;
 		// EN: Allow validation on subordinate timesheets
 		// FR : Autorise la validation des feuilles des subordonnés
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 11 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateChild');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'validateChild';
@@ -415,7 +435,7 @@ class modTimesheetWeek extends DolibarrModules
 		$r++;
 		// EN: Allow global validation on all employee timesheets
 		// FR : Autorise la validation de toutes les feuilles de temps
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 12 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightValidateAll');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'validateAll';
@@ -424,7 +444,7 @@ class modTimesheetWeek extends DolibarrModules
 
 		// EN: Allow sealing approved timesheets.
 		// FR : Autorise le scellement des feuilles approuvées.
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 13 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightSeal');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'seal';
@@ -433,10 +453,37 @@ class modTimesheetWeek extends DolibarrModules
 
 		// EN: Allow reopening sealed timesheets.
 		// FR : Autorise le descellage des feuilles scellées.
-		$this->rights[$r][0] = $this->numero . sprintf('%02d', (0 * 10) + 14 + 1);
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightUnseal');
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'unseal';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow users to unlock their own leave days directly in timesheets.
+		// FR : Autorise le déverrouillage de ses propres jours de congé dans la feuille.
+		$this->rights[$r][0] = $this->numero * 100 + $r;
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableOwnHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disableownholiday';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow managers to unlock leave days for subordinate employees.
+		// FR : Autorise les responsables à déverrouiller les jours de congé des subordonnés.
+		$this->rights[$r][0] = $this->numero * 100 + $r;
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableChildHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disablechildholiday';
+		$this->rights[$r][5] = '';
+		$r++;
+
+		// EN: Allow global unlocking of leave days in any employee timesheet.
+		// FR : Autorise le déverrouillage global des jours de congé sur toutes les feuilles.
+		$this->rights[$r][0] = $this->numero * 100 + $r;
+		$this->rights[$r][1] = $langs->trans('TimesheetWeekRightDisableAllHoliday');
+		$this->rights[$r][3] = 0;
+		$this->rights[$r][4] = 'disableallholiday';
 		$this->rights[$r][5] = '';
 		$r++;
 
@@ -843,10 +890,33 @@ class modTimesheetWeek extends DolibarrModules
 				}
 			}
 
+			$sqlCheckLastMainDoc = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'last_main_doc'";
+			$resqlCheckLastMainDoc = $this->db->query($sqlCheckLastMainDoc);
+			if (!$resqlCheckLastMainDoc) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasLastMainDocColumn = (bool) $this->db->num_rows($resqlCheckLastMainDoc);
+			$this->db->free($resqlCheckLastMainDoc);
+			if (!$hasLastMainDocColumn) {
+				$sqlAddLastMainDoc = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN last_main_doc VARCHAR(255) DEFAULT NULL AFTER model_pdf";
+				if (!$this->db->query($sqlAddLastMainDoc)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
 		// Permissions
 		$this->remove($options);
 
 		$sql = array();
+
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED', 'TSWK_CREATE', 'TSWK_SUBMIT', 'TSWK_REOPEN', 'TSWK_APPROVE', 'TSWK_SEAL', 'TSWK_UNSEAL', 'TSWK_REFUSE', 'TSWK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE') AND elementtype = 'timesheetweek@timesheetweek'";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303)";
+		$sql[] = "UPDATE ".MAIN_DB_PREFIX."actioncomm SET elementtype = 'timesheetweek@timesheetweek' WHERE elementtype = 'timesheetweek' AND fk_element IN (SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week)";
 
 		// Document templates
 		$moduledir = dol_sanitizeFileName('timesheetweek');
@@ -879,30 +949,9 @@ class modTimesheetWeek extends DolibarrModules
 				dolibarr_set_const($this->db, 'TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek', 'chaine', 0, '', $conf->entity);
 			}
 
-		// Register Multicompany sharing metadata when the module is enabled.
-		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
-
-		// Start from the current external module sharing configuration or an empty set.
-		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-		if (!is_array($externalmodule)) {
-			// Guarantee an array structure even when the constant is missing or invalid.
-			$externalmodule = array();
-		}
-
-		// Initialize the parameters container before filling it with sharing data.
-		$params = array();
-		if (class_exists('ActionsTimesheetweek')) {
-			// Reuse the hook helper to expose the sharing parameters to Multicompany.
-			$params = ActionsTimesheetweek::getMulticompanySharingDefinition();
-		}
-
-		if (!empty($params)) {
-			// Merge TimesheetWeek definitions with any existing external module configuration.
-			$externalmodule = array_merge($externalmodule, $params);
-
-			// Persist the refreshed configuration in the Dolibarr constants table.
-			$jsonformat = json_encode($externalmodule);
-			dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
+		$sharingStatus = $this->syncMulticompanySharingDefinition();
+		if ($sharingStatus < 0) {
+			return $sharingStatus;
 		}
 
 		$resultInit = $this->_init($sql, $options);
@@ -928,33 +977,51 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		// Access the global configuration to manipulate stored constants.
-		global $conf;
-
-		// Load the hook helper to clean the sharing definition on deactivation.
-		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
-
-		// Decode the current external module sharing configuration safely.
-		$externalmodule = json_decode((string) ($conf->global->MULTICOMPANY_EXTERNAL_MODULES_SHARING ?? ''), true);
-		if (!is_array($externalmodule)) {
-			// Fallback to an empty array when the stored value is not valid JSON.
-			$externalmodule = array();
-		}
-
-		// Determine the key used to store TimesheetWeek sharing data.
-		$sharingKey = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::MULTICOMPANY_SHARING_ROOT_KEY : 'timesheetweek';
-
-		// Remove the module definition so Multicompany forgets our sharing options.
-		unset($externalmodule[$sharingKey]);
-
-		// Persist the cleaned configuration back into Dolibarr constants.
-		$jsonformat = json_encode($externalmodule);
-		dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $jsonformat, 'chaine', 0, '', $conf->entity);
-
 		$this->setReminderCronStatus(0);
+		$this->syncMulticompanySharingDefinition();
 
 		$sql = array();
 		return $this->_remove($sql, $options);
+	}
+
+	/**
+	 * Persist Multicompany external-module sharing metadata in the current entity.
+	 *
+	 * @return int 1 if OK, <0 if KO
+	 */
+	protected function syncMulticompanySharingDefinition()
+	{
+		global $conf;
+
+		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		if (!class_exists('ActionsTimesheetweek')) {
+			return 1;
+		}
+
+		$definition = ActionsTimesheetweek::getMulticompanySharingDefinition();
+		$currentJson = getDolGlobalString('MULTICOMPANY_EXTERNAL_MODULES_SHARING', '');
+		$current = array();
+		if ($currentJson !== '') {
+			$decoded = json_decode($currentJson, true);
+			if (is_array($decoded)) {
+				$current = $decoded;
+			}
+		}
+
+		$merged = array_replace_recursive($current, $definition);
+		$json = json_encode($merged);
+		if ($json === false) {
+			$this->error = 'Unable to encode Multicompany sharing definition';
+			return -1;
+		}
+
+		$result = dolibarr_set_const($this->db, 'MULTICOMPANY_EXTERNAL_MODULES_SHARING', $json, 'chaine', 0, '', (int) $conf->entity);
+		if ($result < 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+
+		return 1;
 	}
 
 	/**
@@ -965,6 +1032,8 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	protected function setReminderCronStatus($status)
 	{
+		global $conf;
+
 		if (empty($this->db)) {
 			return -1;
 		}
@@ -972,6 +1041,7 @@ class modTimesheetWeek extends DolibarrModules
 		$statusValue = ((int) $status === 1) ? 1 : 0;
 		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
 		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
+		$sql .= ' AND entity = '.((int) $conf->entity);
 
 		$resql = $this->db->query($sql);
 		if (!$resql) {

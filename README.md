@@ -11,6 +11,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Suivi des compteurs hebdomadaires de zones et de paniers directement sur les feuilles et recalcul automatique à chaque enregistrement.
 - Saisie dédiée pour les salariés en forfait jour grâce à des sélecteurs Journée/Matin/Après-midi convertissant automatiquement les heures.
 - Rappel hebdomadaire automatique par email configurable (activation, jour, heure, modèle) avec tâche planifiée dédiée et bouton d'envoi de test administrateur.
+- Scellement automatique des feuilles approuvées après un délai configurable via une tâche planifiée Dolibarr native.
+- Stocke l'utilisateur et la date de scellement dans des colonnes dédiées pour faciliter le suivi.
 - Affichage des compteurs dans la liste hebdomadaire et ajout du libellé « Zone » sur chaque sélecteur quotidien pour clarifier la saisie.
 - Capture les heures au contrat au moment de la soumission pour figer le calcul des heures supplémentaires et les PDF, même si le contrat salarié évolue ensuite.
 - Ligne de total en bas de la liste hebdomadaire pour additionner heures, zones, paniers et afficher la colonne de date de validation.
@@ -23,6 +25,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Refonte complète de la page de configuration inspirée du module DiffusionPlans pour gérer les masques de numérotation et les modèles PDF selon les codes graphiques Dolibarr.
 - Sélection du masque de numérotation via des commutateurs natifs directement depuis la configuration Dolibarr.
 - Génération du PDF de la feuille directement depuis la fiche hebdomadaire avec le widget Documents et respect du modèle configuré dans l'administration.
+- Événements Agenda et Notifications exposés par les triggers CRUD natifs du module, avec substitutions disponibles pour les modèles d'e-mails.
+- Chemins documentaires centralisés par entité propriétaire et onglet Compatibilité détaillant les dépendances Dolibarr/PHP ainsi que les diagnostics Agenda.
 - Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
 - README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
 
@@ -36,7 +40,10 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Configuration
 
 - Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
+- Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
+- Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
+- Consultez l'onglet « Compatibilité » pour vérifier les fonctionnalités disponibles selon la version Dolibarr/PHP courante.
 - L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
 
 ### Traductions
@@ -54,6 +61,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Weekly counters for zones and meal allowances with automatic recomputation on each save.
 - Dedicated input for daily rate employees with Full day/Morning/Afternoon selectors that automatically convert hours.
 - Configurable automatic weekly email reminder (enablement, weekday, time, template) with a dedicated scheduled task and admin test send button.
+- Automatic sealing of approved timesheets after a configurable delay through a native Dolibarr scheduled task.
+- Stores seal user and seal date in dedicated columns for easier tracking.
 - Counter display inside the weekly list plus a « Zone » caption on each daily selector for better input guidance.
 - Snapshots contract hours at submission so overtime calculations and PDFs stay aligned even if the employee contract changes later.
 - Total row at the bottom of the weekly list to sum hours, zones, meals and expose the validation date column.
@@ -66,6 +75,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Fully redesigned setup page inspired by the DiffusionPlans module to drive numbering masks and PDF templates with Dolibarr's graphical and functional patterns.
 - Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
 - PDF generation available directly from the weekly sheet through the Documents widget, honouring the template configured in the administration area.
+- Agenda events and Notifications are exposed through the module native CRUD triggers, with substitutions available for email templates.
+- Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
 
@@ -79,7 +90,10 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Configuration
 
 - Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
+- Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
+- Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
+- Open the Compatibility tab to check feature availability for the current Dolibarr/PHP version.
 - The « À propos » tab summarises the module version, publisher and support links.
 
 ### Translations

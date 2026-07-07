@@ -76,6 +76,7 @@ if (!$canSeeAllEmployees) {
 // EN: Detect if the Multicompany module is enabled to expose entity-specific data.
 // FR: Détecte si le module Multicompany est activé pour exposer les données spécifiques d'entité.
 $multicompanyEnabled = !empty($conf->multicompany->enabled);
+$showAllMulticompanyUsersTimesheet = tw_show_all_multicompany_users_timesheets();
 
 if (!function_exists('tw_can_validate_timesheet_masslist')) {
 	/**
@@ -104,6 +105,12 @@ if (!function_exists('tw_can_validate_timesheet_masslist')) {
 		$permWriteChild,
 		$permWriteAll
 	) {
+		global $db, $conf;
+
+		if (!tw_user_has_access_to_entity($db, $sheet->fk_user, !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity)) {
+			return false;
+		}
+
 		// EN: Check explicit validation rights first to keep the behaviour consistent with the card view.
 		// FR: Vérifie d'abord les droits explicites de validation pour rester cohérent avec la fiche détaillée.
 		$hasExplicitValidation = ($permValidate || $permValidateOwn || $permValidateChild || $permValidateAll);
@@ -171,12 +178,11 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 		// EN: Determine the entity and base output directory, compatible with Multicompany.
 		// FR: Détermine l'entité et le répertoire de sortie, compatible avec Multicompany.
 		$docEntityId = property_exists($rowData, 'entity') ? (int) $rowData->entity : (int) $conf->entity;
-		$entityOutputs = $conf->timesheetweek->multidir_output[$docEntityId] ?? null;
-		$baseOutput = $entityOutputs ? $entityOutputs : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+		$baseOutput = timesheetweekGetDocumentBaseDir($rowData);
 
 		// EN: Compose the expected PDF path and ensure the file exists before rendering actions.
 		// FR: Compose le chemin attendu du PDF et vérifie l'existence du fichier avant d'afficher les actions.
-		$relativeDir = 'timesheetweek/'.$docRef;
+		$relativeDir = timesheetweekGetDocumentRelativeDir($rowData);
 		$pdfFilename = $docRef.'.pdf';
 		$relativeFile = $relativeDir.'/'.$pdfFilename;
 		$absoluteFile = rtrim($baseOutput, '/').'/'.$relativeFile;
@@ -184,10 +190,14 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 			return '';
 		}
 
-		// EN: Build preview and download URLs exactly like Dolibarr's invoice dropdown for consistency.
-		// FR: Construit les URLs d'aperçu et de téléchargement comme le menu des factures Dolibarr pour rester cohérent.
-		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
-		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment=1&permission=read';
+		// EN: Build preview and download URLs while honoring the MAIN_DISABLE_FORCE_SAVEAS setting.
+		// FR: Construit les URLs d'aperçu et de téléchargement en respectant MAIN_DISABLE_FORCE_SAVEAS.
+		$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+		$downloadAttachment = ($forceSaveAs > 0 ? 0 : 1);
+		$downloadTarget = ($forceSaveAs === 2 ? ' target="_blank"' : '');
+		$modulepart = timesheetweekGetDocumentModulePart();
+		$previewUrl = DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&attachment=0&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&permission=read';
+		$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart='.urlencode($modulepart).'&file='.urlencode($relativeFile).'&entity='.$docEntityId.'&attachment='.$downloadAttachment.'&permission=read';
 		$previewLabel = dol_escape_htmltag($langs->trans('TimesheetWeekPreviewPdf'));
 		$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
 		$titleLabel = dol_escape_htmltag($pdfFilename);
@@ -198,7 +208,7 @@ if (!function_exists('tw_render_timesheet_pdf_dropdown')) {
 		$html .= '<dt><a data-ajax="false" href="#" onclick="return false;"><span class="fas fa-download valignmiddle" style=" color: #999;"></span></a></dt>';
 		$html .= '<dd><div class="multichoicedoc" style="position:absolute;left:100px;"><ul class="ulselectedfields">';
 		$html .= '<li><a href="'.dol_escape_htmltag($previewUrl).'" class="documentpreview" mime="application/pdf" target="_blank"><span class="fas fa-search-plus paddingright" style=" color: #808080;"></span>'.$previewLabel.'</a></li>';
-		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
+		$html .= '<li class="nowrap"><a class="pictopreview nowrap" href="'.dol_escape_htmltag($downloadUrl).'"'.$downloadTarget.'><i class="fa fa-file-pdf paddingright " title="'.$titleLabel.'"></i>'.$downloadLabel.'</a></li>';
 		$html .= '</ul></div></dd>';
 		$html .= '</dl>';
 
@@ -216,6 +226,26 @@ $confirm      = GETPOST('confirm', 'alpha');
 $cancel       = GETPOST('cancel', 'alpha');
 $toselect     = GETPOST('toselect', 'array', 2);
 $contextpage  = GETPOST('contextpage', 'aZ') ? GETPOST('contextpage', 'aZ') : 'timesheetweeklist';
+
+if ($massaction === 'predelete') {
+	// EN: Convert the confirmation into the effective deletion action to avoid redisplaying the confirm box.
+	// FR: Convertit la confirmation en action de suppression effective pour éviter de réafficher la boîte de confirmation.
+	if ($confirm === 'yes') {
+		$massaction = 'delete';
+		$confirm = '';
+		$_POST['massaction'] = 'delete';
+		$_REQUEST['massaction'] = 'delete';
+		unset($_POST['confirm'], $_REQUEST['confirm']);
+	} elseif ($confirm === 'no') {
+		// EN: Cancel the delete workflow when the operator declines the confirmation prompt.
+		// FR: Annule le flux de suppression lorsque l'opérateur refuse la demande de confirmation.
+		$massaction = '';
+		$confirm = '';
+		$_POST['massaction'] = '';
+		$_REQUEST['massaction'] = '';
+		unset($_POST['confirm'], $_REQUEST['confirm']);
+	}
+}
 
 $sortfield    = GETPOST('sortfield', 'aZ09comma');
 $sortorder    = GETPOST('sortorder', 'aZ09comma');
@@ -526,6 +556,23 @@ if ($massaction === 'sceller') {
 		// FR: Refuse le scellement lorsque l'opérateur ne possède pas le droit dédié.
 		setEventMessages($langs->trans('NotEnoughPermissions'), null, 'errors');
 	} else {
+		$hasSealUserColumn = false;
+		$hasSealDateColumn = false;
+		// EN: Detect optional seal metadata columns once for the mass action.
+		// FR: Détecte les colonnes optionnelles de métadonnées de scellement pour l'action de masse.
+		$sqlCheckSealUser = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'fk_user_seal'";
+		$resqlCheckSealUser = $db->query($sqlCheckSealUser);
+		if ($resqlCheckSealUser) {
+			$hasSealUserColumn = ($db->num_rows($resqlCheckSealUser) > 0);
+			$db->free($resqlCheckSealUser);
+		}
+		$sqlCheckSealDate = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."timesheet_week LIKE 'date_seal'";
+		$resqlCheckSealDate = $db->query($sqlCheckSealDate);
+		if ($resqlCheckSealDate) {
+			$hasSealDateColumn = ($db->num_rows($resqlCheckSealDate) > 0);
+			$db->free($resqlCheckSealDate);
+		}
+
 		$db->begin();
 		$ok = 0;
 		$ko = array();
@@ -545,8 +592,29 @@ if ($massaction === 'sceller') {
 				$ko[] = $o->ref ?: '#'.$id;
 				continue;
 			}
-			$res = $o->seal($user);
+			$res = $o->seal($user, 'manual');
 			if ($res > 0) {
+				if ($hasSealUserColumn || $hasSealDateColumn) {
+					$sealNow = dol_now();
+					// EN: Persist seal metadata for the mass action when columns exist.
+					// FR: Persiste les métadonnées de scellement pour l'action de masse lorsque les colonnes existent.
+					$sqlSealMetadata = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET";
+					$sealUpdates = array();
+					if ($hasSealUserColumn) {
+						$sealUpdates[] = "fk_user_seal=".(int) $user->id;
+					}
+					if ($hasSealDateColumn) {
+						$sealUpdates[] = "date_seal='".$db->idate($sealNow)."'";
+					}
+					$sqlSealMetadata .= " ".implode(', ', $sealUpdates);
+					$sqlSealMetadata .= " WHERE rowid=".(int) $o->id;
+					$sqlSealMetadata .= " AND entity IN (".getEntity('timesheetweek').")";
+					if (!$db->query($sqlSealMetadata)) {
+						// EN: Keep the sheet sealed even if the metadata update fails.
+						// FR: Conserver la feuille scellée même si la mise à jour des métadonnées échoue.
+						dol_syslog('TimesheetWeek mass seal metadata update failed: '.$db->lasterror(), LOG_WARNING);
+					}
+				}
 				$ok++;
 			} else {
 				$ko[] = $o->ref ?: '#'.$id;
@@ -592,11 +660,20 @@ if ($massaction === 'generate_summary_pdf') {
 					setEventMessages(null, $result['warnings'], 'warnings');
 				}
 				if (!empty($result['relative'])) {
-					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&permission=read';
-					header('Location: '.$downloadUrl);
-					exit;
+					$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+					$attachment = ($forceSaveAs > 0 ? 0 : 1);
+					$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($result['relative']).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+					if ($forceSaveAs === 2) {
+						$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+						$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+						setEventMessages($langs->trans('TimesheetWeekSummaryGenerated').' '.$link, null, 'mesgs');
+					} else {
+						header('Location: '.$downloadUrl);
+						exit;
+					}
+				} else {
+					setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
 				}
-				setEventMessages($langs->trans('TimesheetWeekSummaryGenerated'), null, 'mesgs');
 			}
 		}
 	}
@@ -631,7 +708,8 @@ if ($massaction === 'builddoc_merge_pdf') {
 							continue;
 					}
 
-					if (!tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
+					if (!tw_user_has_timesheet_read_entity_access($db, $sheet->fk_user, (int) $conf->entity)
+						|| !tw_can_act_on_user($sheet->fk_user, $permRead, $permReadChild, ($permReadAll || !empty($user->admin)), $user)) {
 							// EN: Skip the timesheet when the user cannot access the employee scope.
 							// FR: Ignore la feuille lorsque l'utilisateur ne peut pas accéder au périmètre du salarié.
 							$warnings[] = $langs->trans('TimesheetWeekMassMergeForbidden', ($sheet->ref ?: '#'.$id));
@@ -749,10 +827,18 @@ if ($massaction === 'builddoc_merge_pdf') {
 							if (!empty($errors)) {
 									setEventMessages(null, array_values(array_unique($errors)), 'warnings');
 							}
-							setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
-							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&permission=read';
-							header('Location: '.$downloadUrl);
-							exit;
+							$forceSaveAs = getDolGlobalInt('MAIN_DISABLE_FORCE_SAVEAS');
+							$attachment = ($forceSaveAs > 0 ? 0 : 1);
+							$downloadUrl = DOL_URL_ROOT.'/document.php?modulepart=timesheetweek&file='.urlencode($relativeMerged).'&entity='.$conf->entity.'&attachment='.$attachment.'&permission=read';
+							if ($forceSaveAs === 2) {
+								$downloadLabel = dol_escape_htmltag($langs->trans('TimesheetWeekDownloadPdf'));
+								$link = '<a href="'.dol_escape_htmltag($downloadUrl).'" target="_blank" rel="noopener noreferrer">'.$downloadLabel.'</a>';
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess').' '.$link, null, 'mesgs');
+							} else {
+								setEventMessages($langs->trans('TimesheetWeekMassMergeSuccess'), null, 'mesgs');
+								header('Location: '.$downloadUrl);
+								exit;
+							}
 					}
 			}
 	}
@@ -778,7 +864,8 @@ if ($massaction === 'delete') {
 				$ko[] = '#'.$id;
 				continue;
 			}
-			if (!tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
+			if (!tw_user_has_access_to_entity($db, $o->fk_user, !empty($o->entity) ? (int) $o->entity : (int) $conf->entity)
+				|| !tw_can_act_on_user($o->fk_user, $permDelete, $permDeleteChild, ($permDeleteAll || !empty($user->admin)), $user)) {
 				// EN: Prevent deletion outside the managerial scope defined by Dolibarr rights.
 				// FR: Empêche la suppression en dehors du périmètre managérial défini par les droits Dolibarr.
 				$ko[] = $o->ref ?: '#'.$id;
@@ -865,6 +952,7 @@ $sql .= " WHERE 1=1";
 // EN: Restrict the listing to the entities allowed for the timesheet module.
 // FR: Restreint la liste aux entités autorisées pour le module de feuilles de temps.
 $sql .= " AND t.entity IN (".getEntity('timesheetweek').")";
+$sql .= " AND ".tw_sql_timesheet_read_user_entity_access('u', (int) $conf->entity);
 if (!$canSeeAllEmployees) {
 	if (!empty($allowedUserIds)) {
 		// EN: Restrict the SQL query to employees that belong to the manager's scope.
@@ -1041,12 +1129,24 @@ if (!empty($arrayfields['user']['checked'])) {
 	// FR: Affiche le sélecteur utilisateur Dolibarr avec photos tout en respectant le périmètre autorisé.
 	// EN: Default the employee selector to an empty value when no filter is applied.
 	// FR: Définit une valeur vide par défaut pour le sélecteur salarié lorsqu'aucun filtre n'est appliqué.
-	$employeeSelectSelected = $search_user > 0 ? $search_user : '';
-	$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
-	if (!$canSeeAllEmployees) {
-		// EN: Remove any option outside the authorised employees while preserving placeholders.
-		// FR: Supprime toute option hors des salariés autorisés tout en conservant les valeurs de remplacement.
-		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $allowedUserIds, $search_user);
+	$employeeFilterEntityIds = !empty($search_entities) ? $search_entities : ($multicompanyEnabled && !empty($allowedEntityIds) ? $allowedEntityIds : tw_parse_entity_ids(getEntity('timesheetweek')));
+	$employeeVisibleUserIds = tw_get_timesheet_read_visible_user_ids(
+		$db,
+		$employeeFilterEntityIds,
+		$user,
+		($permRead || $permWrite || $permDelete || $permValidate || $permValidateOwn),
+		($permReadChild || $permWriteChild || $permDeleteChild || $permValidateChild),
+		$canSeeAllEmployees,
+		(int) $conf->entity
+	);
+	$employeeSelectSelected = ($search_user > 0 && in_array((int) $search_user, $employeeVisibleUserIds, true)) ? (int) $search_user : '';
+	if ($showAllMulticompanyUsersTimesheet) {
+		$employeeSelectHtml = tw_render_user_select_from_ids($db, $employeeVisibleUserIds, 'search_user', $employeeSelectSelected, $langs, 'maxwidth200');
+	} else {
+		$employeeSelectHtml = $form->select_dolusers($employeeSelectSelected, 'search_user', 1, '', '', 0, -1, '', 0, 'maxwidth200', '', '', '', 1);
+		// EN: Remove employees outside both the rights perimeter and the selected entities.
+		// FR: Supprime les salariés hors du périmètre de droits et des entités sélectionnées.
+		$employeeSelectHtml = tw_filter_select_by_user_ids($employeeSelectHtml, $employeeVisibleUserIds, $employeeSelectSelected);
 	}
 	// EN: Hide any trailing internal ID to keep the dropdown label clean for end users.
 	// FR: Masque tout identifiant interne pour conserver un libellé propre côté utilisateur final.

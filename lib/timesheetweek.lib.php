@@ -44,6 +44,11 @@ function timesheetweekAdminPrepareHead()
 	$head[$h][2] = 'settings';
 	$h++;
 
+	$head[$h][0] = dol_buildpath("/timesheetweek/admin/compatibility.php", 1);
+	$head[$h][1] = $langs->trans("Compatibility");
+	$head[$h][2] = 'compatibility';
+	$h++;
+
 	/*
 	$head[$h][0] = dol_buildpath("/timesheetweek/admin/myobject_extrafields.php", 1);
 	$head[$h][1] = $langs->trans("ExtraFields");
@@ -82,6 +87,88 @@ function timesheetweekAdminPrepareHead()
 	complete_head_from_modules($conf, $langs, null, $head, $h, 'timesheetweek@timesheetweek', 'remove');
 
 	return $head;
+}
+
+/**
+ * Return the stable external element type used by Dolibarr cross-object helpers.
+ *
+ * @return string
+ */
+function timesheetweekGetElementType()
+{
+	return 'timesheetweek@timesheetweek';
+}
+
+/**
+ * Return the modulepart used by document generation helpers.
+ *
+ * @return string
+ */
+function timesheetweekGetDocumentModulePart()
+{
+	return 'timesheetweek';
+}
+
+/**
+ * Return the document relative directory for a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentRelativeDir($object)
+{
+	$ref = '';
+	if (is_object($object) && !empty($object->ref)) {
+		$ref = (string) $object->ref;
+	} elseif (is_object($object) && !empty($object->id)) {
+		$ref = 'timesheetweek-'.((int) $object->id);
+	}
+
+	$ref = dol_sanitizeFileName($ref !== '' ? $ref : 'timesheetweek');
+	return 'timesheetweek/'.$ref;
+}
+
+/**
+ * Return the base document directory for the owner entity of a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentBaseDir($object)
+{
+	global $conf;
+
+	$baseDir = '';
+	if (function_exists('getMultidirOutput')) {
+		$baseDir = (string) getMultidirOutput($object, 'timesheetweek', 0);
+		if (strpos($baseDir, 'error-diroutput-') === 0) {
+			$baseDir = '';
+		}
+	}
+
+	if ($baseDir === '') {
+		$objectEntity = (is_object($object) && !empty($object->entity)) ? (int) $object->entity : (!empty($conf->entity) ? (int) $conf->entity : 1);
+		if (!empty($conf->timesheetweek->multidir_output[$objectEntity])) {
+			$baseDir = $conf->timesheetweek->multidir_output[$objectEntity];
+		} elseif (!empty($conf->timesheetweek->dir_output)) {
+			$baseDir = $conf->timesheetweek->dir_output;
+		} elseif (defined('DOL_DATA_ROOT')) {
+			$baseDir = DOL_DATA_ROOT.'/timesheetweek';
+		}
+	}
+
+	return rtrim($baseDir, '/');
+}
+
+/**
+ * Return the full document directory for a timesheet.
+ *
+ * @param object $object Timesheet-like object
+ * @return string
+ */
+function timesheetweekGetDocumentDir($object)
+{
+	return timesheetweekGetDocumentBaseDir($object).'/'.timesheetweekGetDocumentRelativeDir($object);
 }
 
 /**
@@ -131,7 +218,7 @@ function timesheetweekPrepareHead($object)
 	if ($showtabofpagedocument) {
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 		require_once DOL_DOCUMENT_ROOT.'/core/class/link.class.php';
-		$upload_dir = $conf->timesheetweek->dir_output."/timesheetweek/".dol_sanitizeFileName($object->ref);
+		$upload_dir = timesheetweekGetDocumentDir($object);
 		$nbFiles = count(dol_dir_list($upload_dir, 'files', 0, '', '(\.meta|_preview.*\.png)$'));
 		$nbLinks = Link::count($db, $object->element, $object->id);
 		$head[$h][0] = dol_buildpath("/timesheetweek/timesheetweek_document.php", 1).'?id='.$object->id;
@@ -145,7 +232,7 @@ function timesheetweekPrepareHead($object)
 
 	if ($showtabofpageagenda) {
 		$head[$h][0] = dol_buildpath("/timesheetweek/timesheetweek_agenda.php", 1).'?id='.$object->id;
-		$head[$h][1] = $langs->trans("Events");
+		$head[$h][1] = $langs->trans("EventsAgenda");
 		$head[$h][2] = 'agenda';
 		$h++;
 	}
@@ -247,6 +334,131 @@ function tw_filter_select_by_user_ids($html, array $allowedUserIds, $selectedUse
 		}
 		return $matches[0];
 	}, $html);
+}
+
+/**
+ * EN: Render a simple user selector from explicit ids, without applying Dolibarr entity filtering.
+ * FR: Affiche un sélecteur utilisateur depuis des identifiants explicites, sans filtre d'entité Dolibarr.
+ *
+ * @param DoliDB    $db             Database handler / Gestionnaire de base de données
+ * @param int[]     $userIds        User identifiers / Identifiants utilisateur
+ * @param string    $htmlname       Select field name / Nom du champ select
+ * @param int       $selectedUserId Selected user / Utilisateur sélectionné
+ * @param Translate $langs          Translator / Traducteur
+ * @param string    $css            Additional CSS classes / Classes CSS supplémentaires
+ * @return string HTML select / Select HTML
+ */
+function tw_render_user_select_from_ids($db, array $userIds, $htmlname, $selectedUserId, Translate $langs, $css = 'maxwidth200')
+{
+	$userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	$selectedUserId = (int) $selectedUserId;
+	$htmlname = preg_replace('/[^a-z0-9_\\-\\[\\]]/i', '', (string) $htmlname);
+	if ($htmlname === '') {
+		$htmlname = 'fk_user';
+	}
+
+	$out = '<select class="flat '.dol_escape_htmltag($css).'" name="'.dol_escape_htmltag($htmlname).'" id="'.dol_escape_htmltag($htmlname).'">';
+	$out .= '<option value="">&nbsp;</option>';
+	if (empty($userIds)) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	$sql = "SELECT rowid, lastname, firstname, login";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user";
+	$sql .= " WHERE rowid IN (".implode(',', $userIds).")";
+	$sql .= " ORDER BY lastname ASC, firstname ASC, login ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$userId = (int) $obj->rowid;
+		$label = trim(dolGetFirstLastname($obj->firstname, $obj->lastname));
+		if ($label === '') {
+			$label = (string) $obj->login;
+		}
+		if ($label === '') {
+			$label = $langs->trans('User').' #'.$userId;
+		}
+		$out .= '<option value="'.$userId.'"'.($selectedUserId === $userId ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+	}
+	$db->free($resql);
+
+	$out .= '</select>';
+	return $out;
+}
+
+/**
+ * EN: Render a multiple user selector from explicit ids, without applying Dolibarr entity filtering.
+ * FR: Affiche un sélecteur utilisateur multiple depuis des identifiants explicites, sans filtre d'entité Dolibarr.
+ *
+ * @param DoliDB    $db              Database handler / Gestionnaire de base de données
+ * @param int[]     $userIds         User identifiers / Identifiants utilisateur
+ * @param string    $htmlname        Select field name / Nom du champ select
+ * @param int[]     $selectedUserIds Selected users / Utilisateurs sélectionnés
+ * @param Translate $langs           Translator / Traducteur
+ * @param string    $css             Additional CSS classes / Classes CSS supplémentaires
+ * @return string HTML select / Select HTML
+ */
+function tw_render_user_multiselect_from_ids($db, array $userIds, $htmlname, array $selectedUserIds, Translate $langs, $css = 'minwidth300')
+{
+	$userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	$selectedMap = array();
+	foreach ($selectedUserIds as $selectedUserId) {
+		$selectedUserId = (int) $selectedUserId;
+		if ($selectedUserId > 0) {
+			$selectedMap[$selectedUserId] = true;
+		}
+	}
+
+	$fieldname = preg_replace('/[^a-z0-9_\\-]/i', '', (string) $htmlname);
+	if ($fieldname === '') {
+		$fieldname = 'fk_user';
+	}
+	$htmlid = $fieldname;
+
+	$out = '<select class="flat '.dol_escape_htmltag($css).'" name="'.dol_escape_htmltag($fieldname).'[]" id="'.dol_escape_htmltag($htmlid).'" multiple>';
+	if (empty($userIds)) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	$sql = "SELECT rowid, lastname, firstname, login";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user";
+	$sql .= " WHERE rowid IN (".implode(',', $userIds).")";
+	$sql .= " ORDER BY lastname ASC, firstname ASC, login ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$out .= '</select>';
+		return $out;
+	}
+
+	while ($obj = $db->fetch_object($resql)) {
+		$userId = (int) $obj->rowid;
+		$label = trim(dolGetFirstLastname($obj->firstname, $obj->lastname));
+		if ($label === '') {
+			$label = (string) $obj->login;
+		}
+		if ($label === '') {
+			$label = $langs->trans('User').' #'.$userId;
+		}
+		$out .= '<option value="'.$userId.'"'.(isset($selectedMap[$userId]) ? ' selected' : '').'>'.dol_escape_htmltag($label).'</option>';
+	}
+	$db->free($resql);
+
+	$out .= '</select>';
+	return $out;
 }
 /**
  * Return the project link formatted as "Ref - Label"
@@ -366,6 +578,705 @@ function tw_can_act_on_user($targetUserId, $own, $child, $all, User $user)
 		return true;
 	}
 	return false;
+}
+
+/**
+ * EN: Convert an entity SQL list into unique positive identifiers.
+ * FR: Convertit une liste SQL d'entités en identifiants positifs uniques.
+ *
+ * @param string|array $entityList Entity list / Liste d'entités
+ * @return int[] Entity identifiers / Identifiants d'entité
+ */
+function tw_parse_entity_ids($entityList)
+{
+	if (is_array($entityList)) {
+		$candidates = $entityList;
+	} else {
+		$candidates = explode(',', (string) $entityList);
+	}
+
+	$entityIds = array();
+	foreach ($candidates as $candidate) {
+		$entityId = (int) trim((string) $candidate);
+		if ($entityId > 0 && !in_array($entityId, $entityIds, true)) {
+			$entityIds[] = $entityId;
+		}
+	}
+
+	return $entityIds;
+}
+
+/**
+ * EN: Build the SQL predicate telling if a user can access a given entity.
+ * FR: Construit le prédicat SQL indiquant si un utilisateur peut accéder à une entité.
+ *
+ * @param string $userAlias       SQL alias of llx_user / Alias SQL de llx_user
+ * @param string $entitySql       Entity SQL expression / Expression SQL de l'entité
+ * @return string SQL predicate / Prédicat SQL
+ */
+function tw_sql_user_has_entity_access($userAlias, $entitySql)
+{
+	$userAlias = preg_replace('/[^a-z0-9_]/i', '', (string) $userAlias);
+	if ($userAlias === '') {
+		$userAlias = 'u';
+	}
+	$entitySql = trim((string) $entitySql);
+	if ($entitySql === '') {
+		$entitySql = '0';
+	}
+
+	if (function_exists('isModEnabled') && isModEnabled('multicompany') && function_exists('getDolGlobalInt') && getDolGlobalInt('MULTICOMPANY_TRANSVERSE_MODE')) {
+		return "EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."usergroup_user AS twugu WHERE twugu.fk_user = ".$userAlias.".rowid AND twugu.entity IN (0, ".$entitySql."))";
+	}
+
+	return "(".$userAlias.".entity IN (0, ".$entitySql."))";
+}
+
+/**
+ * EN: Check if a Dolibarr user can access a specific entity.
+ * FR: Vérifie si un utilisateur Dolibarr peut accéder à une entité donnée.
+ *
+ * @param DoliDB $db       Database handler / Gestionnaire de base de données
+ * @param int    $userId   User identifier / Identifiant utilisateur
+ * @param int    $entityId Entity identifier / Identifiant d'entité
+ * @return bool True when access is allowed / Vrai si l'accès est autorisé
+ */
+function tw_user_has_access_to_entity($db, $userId, $entityId)
+{
+	$userId = (int) $userId;
+	$entityId = (int) $entityId;
+	if ($userId <= 0 || $entityId <= 0) {
+		return false;
+	}
+
+	$sql = "SELECT u.rowid FROM ".MAIN_DB_PREFIX."user AS u";
+	$sql .= " WHERE u.rowid = ".$userId;
+	$sql .= " AND ".tw_sql_user_has_entity_access('u', (string) $entityId);
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return false;
+	}
+
+	$hasAccess = ($db->num_rows($resql) > 0);
+	$db->free($resql);
+	return $hasAccess;
+}
+
+/**
+ * EN: Tell if list-style reads must ignore employee access to the current entity.
+ * FR: Indique si les lectures de type liste ignorent l'accès salarié à l'entité courante.
+ *
+ * @return bool True when all shared-entity timesheets are visible / Vrai si toutes les feuilles partagées sont visibles
+ */
+function tw_show_all_multicompany_users_timesheets()
+{
+	return function_exists('getDolGlobalInt') && (bool) getDolGlobalInt('TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', 0);
+}
+
+/**
+ * EN: Build the SQL predicate used by read views for employee access to the current entity.
+ * FR: Construit le prédicat SQL utilisé en lecture pour l'accès salarié à l'entité courante.
+ *
+ * @param string $userAlias       SQL alias of llx_user / Alias SQL de llx_user
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return string SQL predicate / Prédicat SQL
+ */
+function tw_sql_timesheet_read_user_entity_access($userAlias, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		return '1=1';
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_sql_user_has_entity_access($userAlias, (string) $currentEntityId);
+}
+
+/**
+ * EN: Build the SQL predicate used to select reminder recipients.
+ * FR: Construit le prédicat SQL utilisé pour sélectionner les destinataires du rappel.
+ *
+ * @param string $userAlias       SQL alias of llx_user / Alias SQL de llx_user
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return string SQL predicate / Prédicat SQL
+ */
+function tw_sql_timesheet_reminder_eligible_user($userAlias, $currentEntityId = 0)
+{
+	global $conf;
+
+	$userAlias = preg_replace('/[^a-z0-9_]/i', '', (string) $userAlias);
+	if ($userAlias === '') {
+		$userAlias = 'u';
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	$sql = "(".$userAlias.".statut = 1";
+	$sql .= " AND ".$userAlias.".employee = 1";
+	$sql .= " AND ".$userAlias.".email IS NOT NULL";
+	$sql .= " AND ".$userAlias.".email <> ''";
+	$sql .= " AND ".tw_sql_timesheet_read_user_entity_access($userAlias, $currentEntityId);
+	$sql .= ")";
+
+	return $sql;
+}
+
+/**
+ * EN: Return users eligible to receive the weekly reminder.
+ * FR: Renvoie les utilisateurs pouvant recevoir le rappel hebdomadaire.
+ *
+ * @param DoliDB $db              Database handler / Gestionnaire de base de données
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_reminder_eligible_user_ids($db, $currentEntityId = 0)
+{
+	$sql = "SELECT DISTINCT u.rowid";
+	$sql .= " FROM ".MAIN_DB_PREFIX."user AS u";
+	$sql .= " WHERE ".tw_sql_timesheet_reminder_eligible_user('u', (int) $currentEntityId);
+	$sql .= " ORDER BY u.lastname ASC, u.firstname ASC, u.login ASC, u.rowid ASC";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return array();
+	}
+
+	$userIds = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$userIds[] = (int) $obj->rowid;
+	}
+	$db->free($resql);
+
+	return $userIds;
+}
+
+/**
+ * EN: Check if a user is visible in read views according to the current entity option.
+ * FR: Vérifie si un utilisateur est visible en lecture selon l'option d'entité courante.
+ *
+ * @param DoliDB $db              Database handler / Gestionnaire de base de données
+ * @param int    $userId          User identifier / Identifiant utilisateur
+ * @param int    $currentEntityId Current entity / Entité courante
+ * @return bool True when visible in read views / Vrai si visible en lecture
+ */
+function tw_user_has_timesheet_read_entity_access($db, $userId, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		return true;
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_user_has_access_to_entity($db, $userId, $currentEntityId);
+}
+
+/**
+ * EN: Return users having at least one timesheet in the requested entities.
+ * FR: Renvoie les utilisateurs ayant au moins une feuille dans les entités demandées.
+ *
+ * @param DoliDB $db        Database handler / Gestionnaire de base de données
+ * @param int[]  $entityIds Entity identifiers / Identifiants d'entité
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_user_ids_for_entities($db, array $entityIds)
+{
+	$entityIds = tw_parse_entity_ids($entityIds);
+	if (empty($entityIds) && function_exists('getEntity')) {
+		$entityIds = tw_parse_entity_ids(getEntity('timesheetweek'));
+	}
+	if (empty($entityIds)) {
+		return array();
+	}
+
+	$sql = "SELECT DISTINCT t.fk_user";
+	$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week AS t";
+	$sql .= " WHERE t.entity IN (".implode(',', array_map('intval', $entityIds)).")";
+	$sql .= " AND t.fk_user > 0";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return array();
+	}
+
+	$userIds = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$userIds[] = (int) $obj->fk_user;
+	}
+	$db->free($resql);
+
+	return $userIds;
+}
+
+/**
+ * EN: Filter user ids according to own/child/all timesheet rights.
+ * FR: Filtre des utilisateurs selon les droits feuilles propre/enfant/toutes.
+ *
+ * @param int[] $candidateUserIds Candidate users / Utilisateurs candidats
+ * @param User  $user             Current user / Utilisateur courant
+ * @param bool  $own              Own scope / Périmètre propre
+ * @param bool  $child            Child scope / Périmètre subordonné
+ * @param bool  $all              Global scope / Périmètre global
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_filter_user_ids_by_timesheet_scope(array $candidateUserIds, User $user, $own, $child, $all)
+{
+	$candidateUserIds = array_values(array_unique(array_filter(array_map('intval', $candidateUserIds), function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	if ($all || !empty($user->admin)) {
+		return $candidateUserIds;
+	}
+
+	$scopeIds = array();
+	if ($own) {
+		$scopeIds[] = (int) $user->id;
+	}
+	if ($child) {
+		$scopeIds = array_merge($scopeIds, tw_get_user_child_ids($user));
+	}
+	$scopeIds = array_values(array_unique(array_filter($scopeIds, function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	if (empty($scopeIds)) {
+		return array();
+	}
+
+	return array_values(array_intersect($candidateUserIds, $scopeIds));
+}
+
+/**
+ * EN: Return users attached to at least one requested entity.
+ * FR: Renvoie les utilisateurs rattachés à au moins une des entités demandées.
+ *
+ * @param DoliDB $db        Database handler / Gestionnaire de base de données
+ * @param int[]  $entityIds Entity identifiers / Identifiants d'entité
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_user_ids_for_entities($db, array $entityIds)
+{
+	$entityIds = tw_parse_entity_ids($entityIds);
+	if (empty($entityIds)) {
+		return array();
+	}
+
+	$conditions = array();
+	foreach ($entityIds as $entityId) {
+		$conditions[] = tw_sql_user_has_entity_access('u', (string) (int) $entityId);
+	}
+
+	$sql = "SELECT DISTINCT u.rowid FROM ".MAIN_DB_PREFIX."user AS u";
+	$sql .= " WHERE (".implode(' OR ', $conditions).")";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return array();
+	}
+
+	$userIds = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$userIds[] = (int) $obj->rowid;
+	}
+	$db->free($resql);
+
+	return $userIds;
+}
+
+/**
+ * EN: Return users visible for a timesheet action, combining hierarchy rights and entity access.
+ * FR: Renvoie les utilisateurs visibles pour une action feuille, en combinant droits hiérarchiques et accès entité.
+ *
+ * @param DoliDB       $db        Database handler / Gestionnaire de base de données
+ * @param int|int[]    $entityIds Entity identifiers / Identifiants d'entité
+ * @param User         $user      Current user / Utilisateur courant
+ * @param bool         $own       Own scope / Périmètre propre
+ * @param bool         $child     Child scope / Périmètre subordonné
+ * @param bool         $all       Global scope / Périmètre global
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_visible_user_ids($db, $entityIds, User $user, $own, $child, $all)
+{
+	$entityIds = tw_parse_entity_ids($entityIds);
+	if (empty($entityIds) && function_exists('getEntity')) {
+		$entityIds = tw_parse_entity_ids(getEntity('timesheetweek'));
+	}
+	if (empty($entityIds)) {
+		return array();
+	}
+
+	$entityUserIds = tw_get_user_ids_for_entities($db, $entityIds);
+	if (empty($entityUserIds)) {
+		return array();
+	}
+
+	if ($all || !empty($user->admin)) {
+		return $entityUserIds;
+	}
+
+	$scopeIds = array();
+	if ($own) {
+		$scopeIds[] = (int) $user->id;
+	}
+	if ($child) {
+		$scopeIds = array_merge($scopeIds, tw_get_user_child_ids($user));
+	}
+	$scopeIds = array_values(array_unique(array_filter($scopeIds, function ($candidateId) {
+		return (int) $candidateId > 0;
+	})));
+
+	if (empty($scopeIds)) {
+		return array();
+	}
+
+	return array_values(array_intersect($entityUserIds, $scopeIds));
+}
+
+/**
+ * EN: Return user ids visible in list read filters according to the multicompany option.
+ * FR: Renvoie les utilisateurs visibles dans les filtres de lecture selon l'option multicompany.
+ *
+ * @param DoliDB       $db              Database handler / Gestionnaire de base de données
+ * @param int|int[]    $entityIds       Shared timesheet entities / Entités de feuilles partagées
+ * @param User         $user            Current user / Utilisateur courant
+ * @param bool         $own             Own scope / Périmètre propre
+ * @param bool         $child           Child scope / Périmètre subordonné
+ * @param bool         $all             Global scope / Périmètre global
+ * @param int          $currentEntityId Current entity / Entité courante
+ * @return int[] User identifiers / Identifiants utilisateur
+ */
+function tw_get_timesheet_read_visible_user_ids($db, $entityIds, User $user, $own, $child, $all, $currentEntityId = 0)
+{
+	global $conf;
+
+	if (tw_show_all_multicompany_users_timesheets()) {
+		$entityIds = tw_parse_entity_ids($entityIds);
+		if (empty($entityIds) && function_exists('getEntity')) {
+			$entityIds = tw_parse_entity_ids(getEntity('timesheetweek'));
+		}
+		return tw_filter_user_ids_by_timesheet_scope(tw_get_timesheet_user_ids_for_entities($db, $entityIds), $user, $own, $child, $all);
+	}
+
+	$currentEntityId = (int) $currentEntityId;
+	if ($currentEntityId <= 0 && !empty($conf->entity)) {
+		$currentEntityId = (int) $conf->entity;
+	}
+
+	return tw_get_timesheet_visible_user_ids($db, array($currentEntityId), $user, $own, $child, $all);
+}
+
+/**
+ * EN: Resolve a public-holiday rule to an ISO date for a given year.
+ * FR: Résout une règle de jour férié vers une date ISO pour une année donnée.
+ *
+ * @param int    $year    Target year / Année cible
+ * @param string $dayrule Dolibarr day rule / Règle Dolibarr
+ * @param int    $month   Fixed month / Mois fixe
+ * @param int    $day     Fixed day / Jour fixe
+ * @return string ISO date or empty string / Date ISO ou chaîne vide
+ */
+function tw_resolve_public_holiday_rule_date($year, $dayrule, $month = 0, $day = 0)
+{
+	$year = (int) $year;
+	$dayrule = strtolower(trim((string) $dayrule));
+	if ($year <= 0) {
+		return '';
+	}
+
+	if ($dayrule === '' || $dayrule === 'date') {
+		$month = (int) $month;
+		$day = (int) $day;
+		if ($month <= 0 || $day <= 0 || !checkdate($month, $day, $year)) {
+			return '';
+		}
+		return sprintf('%04d-%02d-%02d', $year, $month, $day);
+	}
+
+	if (!function_exists('easter_days')) {
+		return '';
+	}
+
+	$easter = new DateTime($year.'-03-21', new DateTimeZone('UTC'));
+	$easter->modify('+'.((int) easter_days($year)).' days');
+	$offsets = array(
+		'easter' => 0,
+		'eastermonday' => 1,
+		'goodfriday' => -2,
+		'viernessanto' => -2,
+		'ascension' => 39,
+		'pentecost' => 49,
+		'pentecotemonday' => 50,
+		'fronleichnam' => 60,
+	);
+
+	if (isset($offsets[$dayrule])) {
+		$date = clone $easter;
+		$offset = (int) $offsets[$dayrule];
+		if ($offset !== 0) {
+			$date->modify(($offset > 0 ? '+' : '').$offset.' days');
+		}
+		return $date->format('Y-m-d');
+	}
+
+	if ($dayrule === 'genevafast') {
+		$date = new DateTime($year.'-09-01', new DateTimeZone('UTC'));
+		$date->modify('next sunday');
+		$date->modify('next thursday');
+		return $date->format('Y-m-d');
+	}
+
+	return '';
+}
+
+/**
+ * EN: Tell if a date matches a public-holiday rule set.
+ * FR: Indique si une date correspond à un jeu de règles de jours fériés.
+ *
+ * @param string $isoDate ISO date / Date ISO
+ * @param array  $rules   Rules from llx_c_hrm_public_holiday / Règles de llx_c_hrm_public_holiday
+ * @return bool True when public holiday / Vrai si jour férié
+ */
+function tw_is_public_holiday_from_rules($isoDate, array $rules)
+{
+	$isoDate = substr((string) $isoDate, 0, 10);
+	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $isoDate)) {
+		return false;
+	}
+
+	$targetYear = (int) substr($isoDate, 0, 4);
+	foreach ($rules as $rule) {
+		$rule = (array) $rule;
+		$ruleYear = isset($rule['year']) ? (int) $rule['year'] : 0;
+		if ($ruleYear > 0 && $ruleYear !== $targetYear) {
+			continue;
+		}
+		$ruleDate = tw_resolve_public_holiday_rule_date(
+			$targetYear,
+			isset($rule['dayrule']) ? (string) $rule['dayrule'] : '',
+			isset($rule['month']) ? (int) $rule['month'] : 0,
+			isset($rule['day']) ? (int) $rule['day'] : 0
+		);
+		if ($ruleDate === $isoDate) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * EN: Split a leave day value between leave/RTT and public-holiday counters.
+ * FR: Répartit une valeur de congé entre compteurs congé/RTT et jour férié.
+ *
+ * @param float $dayValue        Day value / Valeur du jour
+ * @param bool  $isRtt           RTT flag / Drapeau RTT
+ * @param bool  $isPublicHoliday Public-holiday flag / Drapeau jour férié
+ * @return array{leave_days:float,rtt_days:float,public_holiday_days:float}
+ */
+function tw_split_leave_day_value($dayValue, $isRtt, $isPublicHoliday)
+{
+	$result = array('leave_days' => 0.0, 'rtt_days' => 0.0, 'public_holiday_days' => 0.0);
+	$dayValue = (float) $dayValue;
+	if ($dayValue <= 0) {
+		return $result;
+	}
+
+	if ($isPublicHoliday) {
+		$result['public_holiday_days'] = $dayValue;
+	} elseif ($isRtt) {
+		$result['rtt_days'] = $dayValue;
+	} else {
+		$result['leave_days'] = $dayValue;
+	}
+
+	return $result;
+}
+
+/**
+ * EN: Resolve the country of one entity from Dolibarr company constants.
+ * FR: Résout le pays d'une entité depuis les constantes société Dolibarr.
+ *
+ * @param DoliDB $db       Database handler / Gestionnaire de base de données
+ * @param int    $entityId Entity identifier / Identifiant d'entité
+ * @return array{country_id:int,country_code:string}
+ */
+function tw_get_entity_country_info($db, $entityId)
+{
+	static $cache = array();
+	$entityId = (int) $entityId;
+	if ($entityId <= 0) {
+		$entityId = 1;
+	}
+	if (isset($cache[$entityId])) {
+		return $cache[$entityId];
+	}
+
+	$sql = "SELECT entity, value FROM ".MAIN_DB_PREFIX."const";
+	$sql .= " WHERE name = 'MAIN_INFO_SOCIETE_COUNTRY'";
+	$sql .= " AND entity IN (0, ".$entityId.")";
+	$sql .= " ORDER BY entity DESC";
+
+	$value = '';
+	$resql = $db->query($sql);
+	if ($resql) {
+		$obj = $db->fetch_object($resql);
+		if ($obj) {
+			$value = (string) $obj->value;
+		}
+		$db->free($resql);
+	}
+
+	$countryId = 0;
+	$countryCode = '';
+	if ($value !== '') {
+		$parts = explode(':', $value);
+		$countryId = !empty($parts[0]) && is_numeric($parts[0]) ? (int) $parts[0] : 0;
+		if (!empty($parts[1])) {
+			$countryCode = (string) $parts[1];
+		} elseif ($countryId <= 0 && preg_match('/^[A-Z]{2,3}$/i', $value)) {
+			$countryCode = strtoupper((string) $value);
+		}
+	}
+
+	if ($countryCode === '') {
+		$sqlCode = "SELECT entity, value FROM ".MAIN_DB_PREFIX."const";
+		$sqlCode .= " WHERE name = 'MAIN_INFO_SOCIETE_COUNTRY_CODE'";
+		$sqlCode .= " AND entity IN (0, ".$entityId.")";
+		$sqlCode .= " ORDER BY entity DESC";
+		$resCode = $db->query($sqlCode);
+		if ($resCode) {
+			$objCode = $db->fetch_object($resCode);
+			if ($objCode) {
+				$countryCode = strtoupper((string) $objCode->value);
+			}
+			$db->free($resCode);
+		}
+	}
+
+	if ($countryCode === '' && $countryId > 0) {
+		$sqlCountry = "SELECT code FROM ".MAIN_DB_PREFIX."c_country WHERE rowid = ".$countryId;
+		$resCountry = $db->query($sqlCountry);
+		if ($resCountry) {
+			$objCountry = $db->fetch_object($resCountry);
+			if ($objCountry) {
+				$countryCode = (string) $objCountry->code;
+			}
+			$db->free($resCountry);
+		}
+	}
+
+	if ($countryId <= 0 && $countryCode !== '') {
+		$sqlCountryId = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_country WHERE code = '".$db->escape($countryCode)."'";
+		$resCountryId = $db->query($sqlCountryId);
+		if ($resCountryId) {
+			$objCountryId = $db->fetch_object($resCountryId);
+			if ($objCountryId) {
+				$countryId = (int) $objCountryId->rowid;
+			}
+			$db->free($resCountryId);
+		}
+	}
+
+	$cache[$entityId] = array('country_id' => $countryId, 'country_code' => $countryCode);
+	return $cache[$entityId];
+}
+
+/**
+ * EN: Fetch active public-holiday rules for an entity.
+ * FR: Charge les règles actives de jours fériés pour une entité.
+ *
+ * @param DoliDB $db       Database handler / Gestionnaire de base de données
+ * @param int    $entityId Entity identifier / Identifiant d'entité
+ * @return array<int,array<string,int|string>>
+ */
+function tw_fetch_public_holiday_rules_for_entity($db, $entityId)
+{
+	static $cache = array();
+	$entityId = (int) $entityId;
+	if ($entityId <= 0) {
+		$entityId = 1;
+	}
+	if (isset($cache[$entityId])) {
+		return $cache[$entityId];
+	}
+
+	$countryInfo = tw_get_entity_country_info($db, $entityId);
+	$countryId = (int) $countryInfo['country_id'];
+
+	$sql = "SELECT id, code, dayrule, year, month, day";
+	$sql .= " FROM ".MAIN_DB_PREFIX."c_hrm_public_holiday";
+	$sql .= " WHERE active = 1";
+	$sql .= " AND (fk_country IS NULL OR fk_country IN (0".($countryId > 0 ? ", ".$countryId : '')."))";
+	$sql .= " AND entity IN (0, ".$entityId.")";
+
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$cache[$entityId] = array();
+		return $cache[$entityId];
+	}
+
+	$rules = array();
+	while ($obj = $db->fetch_object($resql)) {
+		$rules[] = array(
+			'id' => (int) $obj->id,
+			'code' => (string) $obj->code,
+			'dayrule' => (string) $obj->dayrule,
+			'year' => (int) $obj->year,
+			'month' => (int) $obj->month,
+			'day' => (int) $obj->day,
+		);
+	}
+	$db->free($resql);
+
+	$cache[$entityId] = $rules;
+	return $cache[$entityId];
+}
+
+/**
+ * EN: Build a public-holiday map for week days.
+ * FR: Construit une carte des jours fériés pour les jours d'une semaine.
+ *
+ * @param DoliDB $db        Database handler / Gestionnaire de base de données
+ * @param array  $weekdates ISO dates by day key / Dates ISO par clé de jour
+ * @param int    $entityId  Entity identifier / Identifiant d'entité
+ * @return array<string,bool>
+ */
+function tw_get_public_holiday_map_by_day($db, array $weekdates, $entityId)
+{
+	$rules = tw_fetch_public_holiday_rules_for_entity($db, $entityId);
+	$map = array();
+	foreach ($weekdates as $dayKey => $isoDate) {
+		$map[$dayKey] = tw_is_public_holiday_from_rules((string) $isoDate, $rules);
+	}
+	return $map;
+}
+
+/**
+ * EN: Tell if a date is a public holiday for the requested entity.
+ * FR: Indique si une date est fériée pour l'entité demandée.
+ *
+ * @param DoliDB $db       Database handler / Gestionnaire de base de données
+ * @param string $isoDate  ISO date / Date ISO
+ * @param int    $entityId Entity identifier / Identifiant d'entité
+ * @return bool True when public holiday / Vrai si jour férié
+ */
+function tw_is_public_holiday_for_entity($db, $isoDate, $entityId)
+{
+	return tw_is_public_holiday_from_rules((string) $isoDate, tw_fetch_public_holiday_rules_for_entity($db, $entityId));
 }
 
 /**
