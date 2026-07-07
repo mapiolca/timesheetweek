@@ -1,6 +1,7 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.8.4 (29/06/2026)
+- Corrige le rendu `getNomUrl()` pour afficher la référence de la feuille avec son pictogramme dans les liens Agenda et objets liés. / Fixes `getNomUrl()` rendering so the timesheet reference is displayed with its pictogram in Agenda and linked-object links.
 - Stabilise l'élément externe sur `timesheetweek@timesheetweek` pour Agenda, Notifications et l'historique de navigation, avec migration idempotente des anciennes déclarations. / Stabilizes the external element on `timesheetweek@timesheetweek` for Agenda, Notifications and navigation history, with an idempotent migration of legacy declarations.
 - Renforce les garde-fous Multicompany sur les transitions métier, les contrôles documentaires et les générations PDF. / Strengthens Multicompany safeguards on business transitions, document checks and PDF generation.
 - Préserve les réglages de tâches planifiées lors des cycles d'activation et de désactivation, et neutralise les anciens chemins Agenda/Notifications directs. / Preserves scheduled job settings across enable and disable cycles, and disables legacy direct Agenda/Notification paths.

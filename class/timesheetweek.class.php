@@ -1898,12 +1898,12 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$tooltip = empty($notooltip) ? $labeltooltip : '';
 			$picto = img_object($tooltip, $this->picto);
 			$result .= $linkstart.$picto.$linkend;
-			if ($withpicto != 1) {
+			if ($withpicto != 2) {
 				$result .= ' ';
 			}
 		}
 
-		if ($withpicto != 1 || $option === 'ref' || !$withpicto) {
+		if ($withpicto != 2 || $option === 'ref' || !$withpicto) {
 			$result .= $linkstart.$label.$linkend;
 		}
 
