@@ -360,6 +360,21 @@ Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
 TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 
+TimesheetWeekWorkflowNotificationSectionTitle = Business step notifications
+TimesheetWeekWorkflowNotificationSectionHelp = Enable emails emitted from the CRUD UPDATE trigger for each business step, then select a customizable email template.
+TimesheetWeekWorkflowNotificationNoTemplate = No TimesheetWeek notification template is available. Re-enable the module or run sql/update_all.sql to create the default templates.
+TimesheetWeekNotificationReasonSubmit = Submission
+TimesheetWeekNotificationReasonSubmitHelp = Sends an email to the assigned validator when the timesheet is submitted.
+TimesheetWeekNotificationReasonApprove = Approval
+TimesheetWeekNotificationReasonApproveHelp = Sends an email to the employee when the timesheet is approved.
+TimesheetWeekNotificationReasonRefuse = Refusal
+TimesheetWeekNotificationReasonRefuseHelp = Sends an email to the employee when the timesheet is refused.
+TimesheetWeekNotificationReasonSetdraft = Revert to draft
+TimesheetWeekNotificationReasonSetdraftHelp = Sends an email to the employee when the timesheet is reverted to draft.
+TimesheetWeekNotificationReasonSeal = Seal
+TimesheetWeekNotificationReasonSealHelp = Sends an email to the employee when the timesheet is sealed.
+TimesheetWeekNotificationReasonUnseal = Unseal
+TimesheetWeekNotificationReasonUnsealHelp = Sends an email to the employee when the timesheet is unsealed.
 TimesheetWeekTemplateSubmitLabel = Timesheet submission notification
 TimesheetWeekTemplateSubmitSubject = Timesheet __TIMESHEETWEEK_REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__
 TimesheetWeekTemplateSubmitBody = Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted the timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
@@ -369,6 +384,15 @@ TimesheetWeekTemplateApproveBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timeshe
 TimesheetWeekTemplateRefuseLabel = Timesheet refusal notification
 TimesheetWeekTemplateRefuseSubject = Timesheet __TIMESHEETWEEK_REF__ refused
 TimesheetWeekTemplateRefuseBody = Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __TIMESHEETWEEK_VALIDATOR_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+TimesheetWeekTemplateSetdraftLabel = Timesheet revert-to-draft notification
+TimesheetWeekTemplateSetdraftSubject = Timesheet __TIMESHEETWEEK_REF__ reverted to draft
+TimesheetWeekTemplateSetdraftBody = Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+TimesheetWeekTemplateSealLabel = Timesheet seal notification
+TimesheetWeekTemplateSealSubject = Timesheet __TIMESHEETWEEK_REF__ sealed
+TimesheetWeekTemplateSealBody = Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
+TimesheetWeekTemplateUnsealLabel = Timesheet unseal notification
+TimesheetWeekTemplateUnsealSubject = Timesheet __TIMESHEETWEEK_REF__ unsealed
+TimesheetWeekTemplateUnsealBody = Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 
 TimesheetWeekPDFModels = TimesheetWeek PDF templates
 

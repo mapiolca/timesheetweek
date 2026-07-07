@@ -9,6 +9,7 @@
 
 require_once DOL_DOCUMENT_ROOT.'/core/triggers/dolibarrtriggers.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
 
 /**
  * Trigger class for TimesheetWeek native integrations.
@@ -42,7 +43,7 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 	 */
 	public function runTrigger($action, $object, $user, $langs, $conf)
 	{
-		if (empty($conf->timesheetweek->enabled)) {
+		if (!isModEnabled('timesheetweek')) {
 			return 0;
 		}
 
@@ -94,6 +95,10 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		}
 		if (empty($object->actionmsg) && !empty($object->context['actionmsg'])) {
 			$object->actionmsg = $object->context['actionmsg'];
+		}
+
+		if ($action === TimesheetWeek::TRIGGER_UPDATE && class_exists('TimesheetWeekNotification')) {
+			TimesheetWeekNotification::sendForTriggerContext($object, $user);
 		}
 
 		return 0;

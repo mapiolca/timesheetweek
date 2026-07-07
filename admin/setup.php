@@ -57,6 +57,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweek_reminder.class.php');
+dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
 
 // EN: Load translation files required for the configuration page.
 $langs->loadLangs(array('admin', 'other', 'timesheetweek@timesheetweek'));
@@ -292,7 +293,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveautoseal'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveworkflownotifications', 'saveautoseal'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -477,6 +478,36 @@ if ($action === 'savereminder') {
 	}
 }
 
+if ($action === 'saveworkflownotifications') {
+	$workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
+	$workflowTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
+	$workflowTemplateOptionIds = array_flip(array_map('intval', array_keys($workflowTemplateOptions)));
+	$hasError = false;
+
+	foreach ($workflowNotificationReasons as $workflowReason => $workflowDefinition) {
+		$templateConstant = TimesheetWeekNotification::getTemplateConstant($workflowReason);
+		if ($templateConstant === '') {
+			continue;
+		}
+
+		$templateValue = (int) GETPOST($templateConstant, 'int');
+		if ($templateValue > 0 && !isset($workflowTemplateOptionIds[$templateValue])) {
+			$templateValue = 0;
+		}
+
+		$resultValue = dolibarr_set_const($db, $templateConstant, $templateValue, 'chaine', 0, '', $conf->entity);
+		if ($resultValue <= 0) {
+			$hasError = true;
+		}
+	}
+
+	if ($hasError) {
+		setEventMessages($langs->trans('Error'), null, 'errors');
+	} else {
+		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+	}
+}
+
 if ($action === 'testreminder') {
 		$reminder = new TimesheetweekReminder($db);
 		$resultTest = $reminder->sendTest($user);
@@ -561,6 +592,8 @@ if ($reminderExcludedUsersString !== '') {
 }
 $reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
 $reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
+$workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
+$workflowNotificationTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
@@ -835,6 +868,57 @@ print '<button type="submit" class="butAction" name="action" value="savereminder
 print '&nbsp;';
 print '<button type="submit" class="butAction" name="action" value="testreminder">'.($langs->trans("TimesheetWeekReminderSendTest")!='Send a test e-mail'?$langs->trans("TimesheetWeekReminderSendTest"):'Envoyer un mail de test').'</button>';
 print '</div>';
+print '</form>';
+
+print '<br>';
+
+print load_fiche_titre($langs->trans('TimesheetWeekWorkflowNotificationSectionTitle'), '', 'email');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationSectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Status').'</th>';
+print '<th class="center">'.$langs->trans('EMailTemplate').'</th>';
+print '</tr>';
+
+if (empty($workflowNotificationReasons)) {
+	print '<tr class="oddeven"><td colspan="4"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+}
+
+foreach ($workflowNotificationReasons as $workflowReason => $workflowDefinition) {
+	$enableConstant = TimesheetWeekNotification::getEnableConstant($workflowReason);
+	$templateConstant = TimesheetWeekNotification::getTemplateConstant($workflowReason);
+	$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0) : 0;
+
+	print '<tr class="oddeven">';
+	print '<td class="nowraponall">'.$langs->trans($workflowDefinition['label']).'</td>';
+	print '<td class="small">'.$langs->trans($workflowDefinition['description']).'</td>';
+	print '<td class="center">';
+	if ($enableConstant !== '') {
+		print ajax_constantonoff($enableConstant);
+	} else {
+		print '&nbsp;';
+	}
+	print '</td>';
+	print '<td class="center">';
+	if (!empty($workflowNotificationTemplateOptions) && $templateConstant !== '') {
+		print $form->selectarray($templateConstant, $workflowNotificationTemplateOptions, $templateId, 1, 0, 0, '', 0, 0, 0, '', '', $conf->entity);
+	} else {
+		print '<span class="opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationNoTemplate').'</span>';
+	}
+	print '</td>';
+	print '</tr>';
+}
+
+print '</table>';
+print '</div>';
+print '<div class="center"><button type="submit" class="butAction" name="action" value="saveworkflownotifications">'.$langs->trans('Save').'</button></div>';
 print '</form>';
 
 print '<br>';
