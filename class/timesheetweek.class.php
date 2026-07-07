@@ -21,7 +21,7 @@ class TimesheetWeek extends CommonObject
 	public $module = 'timesheetweek';
 	public $element = 'timesheetweek';
 	public $table_element = 'timesheet_week';
-	public $picto = 'bookcal';
+	public $picto = 'fa-calendar-check';
 	public $ismultientitymanaged = 1;	// There is an entity field
 	public $modulepart = 'timesheetweek';
 	public $hasFiles = 1;
@@ -38,6 +38,12 @@ class TimesheetWeek extends CommonObject
 	const TRIGGER_CREATE = 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE';
 	const TRIGGER_UPDATE = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE';
 	const TRIGGER_DELETE = 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE';
+	const TRIGGER_SUBMIT = 'TIMESHEETWEEK_SUBMIT';
+	const TRIGGER_APPROVE = 'TIMESHEETWEEK_APPROVE';
+	const TRIGGER_REFUSE = 'TIMESHEETWEEK_REFUSE';
+	const TRIGGER_SETDRAFT = 'TIMESHEETWEEK_SETDRAFT';
+	const TRIGGER_SEAL = 'TIMESHEETWEEK_SEAL';
+	const TRIGGER_UNSEAL = 'TIMESHEETWEEK_UNSEAL';
 
 	// Properties
 	public $id;
@@ -239,9 +245,9 @@ class TimesheetWeek extends CommonObject
 	}
 
 	/**
-	* Call a TimesheetWeek CRUD trigger with a stable business context.
+	* Call a TimesheetWeek native trigger with a stable business context.
 	*
-	* @param string $triggerCode CRUD trigger code
+	* @param string $triggerCode Trigger code
 	* @param User   $user User triggering the action
 	* @param string $reason Business reason
 	* @param array  $changedFields Changed fields
@@ -1057,7 +1063,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'submit', array('status', 'ref', 'date_validation', 'total_hours', 'overtime_hours', 'contract'), $oldStatus, (int) $this->status) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SUBMIT, $user, 'submit', array('status', 'ref', 'date_validation', 'total_hours', 'overtime_hours', 'contract'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1133,7 +1139,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->date_validation = null;
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'setdraft', array('status', 'date_validation', 'total_hours', 'overtime_hours'), $previousStatus, (int) $this->status) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SETDRAFT, $user, 'setdraft', array('status', 'date_validation', 'total_hours', 'overtime_hours'), $previousStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1204,7 +1210,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->motif = ($motif !== '' ? $motif : null);
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'approve', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_APPROVE, $user, 'approve', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1310,7 +1316,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'seal', array('status', 'fk_user_seal', 'date_seal'), $oldStatus, (int) $this->status) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SEAL, $user, 'seal', array('status', 'fk_user_seal', 'date_seal'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1362,7 +1368,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_APPROVED;
 		$this->tms = $now;
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'unseal', array('status'), $oldStatus, (int) $this->status) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UNSEAL, $user, 'unseal', array('status'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
 		}
@@ -1735,7 +1741,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->tms = $now;
 		$this->motif = ($motif !== '' ? $motif : null);
 
-		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'refuse', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
+		if ($this->callTimesheetWeekTrigger(self::TRIGGER_REFUSE, $user, 'refuse', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
 			$this->db->rollback();
 			return -1;
 		}

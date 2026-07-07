@@ -65,9 +65,9 @@ class TimesheetWeekCompatibility
 		$hasNativeNotificationRouter = class_exists('TimesheetWeekNotification') && method_exists('TimesheetWeekNotification', 'getNativeNotificationSubstitutions');
 
 		return array(
-			'native_crud_triggers' => array(
-				'label' => 'TimesheetWeekCompatibilityNativeCrudTriggers',
-				'description' => 'TimesheetWeekCompatibilityNativeCrudTriggersDesc',
+			'native_notification_triggers' => array(
+				'label' => 'TimesheetWeekCompatibilityNativeNotificationTriggers',
+				'description' => 'TimesheetWeekCompatibilityNativeNotificationTriggersDesc',
 				'min_dolibarr' => '20.0.0',
 				'core_available_from' => '20.0.0',
 				'module_available_from' => '1.8.4',

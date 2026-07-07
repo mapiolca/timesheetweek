@@ -128,12 +128,14 @@ TimesheetWeekCompatibilityMinPhp = Minimum supported PHP version
 TimesheetWeekCompatibilityAvailableFrom = Availability
 TimesheetWeekCompatibilityNativeCrudTriggers = Native CRUD triggers
 TimesheetWeekCompatibilityNativeCrudTriggersDesc = Fires TimesheetWeek events through CREATE, UPDATE and DELETE codes.
+TimesheetWeekCompatibilityNativeNotificationTriggers = Native Notification events
+TimesheetWeekCompatibilityNativeNotificationTriggersDesc = Declares TimesheetWeek CRUD events and the six business steps in the native Notifications administration.
 TimesheetWeekCompatibilityAgenda = Native Agenda
 TimesheetWeekCompatibilityAgendaDesc = Makes events configurable from the native Agenda administration page.
 TimesheetWeekCompatibilityNotifications = Native Notifications
 TimesheetWeekCompatibilityNotificationsDesc = Makes events configurable from the native Notifications administration page.
 TimesheetWeekCompatibilityNotificationWorkflowRouter = Per-step notification router
-TimesheetWeekCompatibilityNotificationWorkflowRouterDesc = Routes business-step content from the native CRUD UPDATE trigger without creating non-CRUD triggers.
+TimesheetWeekCompatibilityNotificationWorkflowRouterDesc = Routes business-step content from the native events declared in Notifications.
 TimesheetWeekCompatibilityEmailTemplateClass = CEmailTemplate class
 TimesheetWeekCompatibilityEmailTemplateClassDesc = Uses the native email template class when it is available in the core.
 TimesheetWeekCompatibilityMultidirDocuments = Multicompany documents
@@ -172,6 +174,8 @@ TimesheetWeekTriggerDelete = Timesheet %s deleted
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_CREATE = Timesheet created
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE = Timesheet updated
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_DELETE = Timesheet deleted
+TimesheetWeekNativeEmailTemplates = Weekly timesheet
+TimesheetWeekStepEmailTemplates = Weekly timesheet - per-step content
 
 #
 # Sample page
@@ -360,12 +364,15 @@ TimesheetWeekNotificationTriggerError = Unable to execute notification trigger %
 Notify_TIMESHEETWEEK_SUBMIT = Timesheet submitted
 Notify_TIMESHEETWEEK_APPROVE = Timesheet approved
 Notify_TIMESHEETWEEK_REFUSE = Timesheet refused
+Notify_TIMESHEETWEEK_SETDRAFT = Timesheet set back to draft
+Notify_TIMESHEETWEEK_SEAL = Timesheet sealed
+Notify_TIMESHEETWEEK_UNSEAL = Timesheet unsealed
 TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 
 TimesheetWeekWorkflowNotificationSectionTitle = Business step notifications
-TimesheetWeekWorkflowNotificationSectionHelp = Assign one content template to each business step. Actual sending is configured in the native Notifications module on the CRUD UPDATE trigger.
-TimesheetWeekWorkflowNotificationNativeEnabled = The native Notifications module is available. Configure event %s with template %s from the native administration page.
+TimesheetWeekWorkflowNotificationSectionHelp = Assign one content template to each business step. Actual sending is configured in the native Notifications module on the per-step events.
+TimesheetWeekWorkflowNotificationNativeEnabled = The native Notifications module is available. Configure events %s with template %s from the native administration page.
 TimesheetWeekWorkflowNotificationNativeUnavailable = The native Notifications module is not enabled or not compatible with this instance; no direct TimesheetWeek send will be triggered.
 TimesheetWeekWorkflowNotificationNativeLink = Open native Notifications setup
 TimesheetWeekWorkflowNotificationNoTemplate = No TimesheetWeek notification template is available. Re-enable the module or run sql/update_all.sql to create the default templates.

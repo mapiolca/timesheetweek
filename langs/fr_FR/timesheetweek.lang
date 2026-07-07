@@ -128,12 +128,14 @@ TimesheetWeekCompatibilityMinPhp = Version PHP minimale supportée
 TimesheetWeekCompatibilityAvailableFrom = Disponibilité
 TimesheetWeekCompatibilityNativeCrudTriggers = Triggers CRUD natifs
 TimesheetWeekCompatibilityNativeCrudTriggersDesc = Déclenche les événements TimesheetWeek via les codes CREATE, UPDATE et DELETE.
+TimesheetWeekCompatibilityNativeNotificationTriggers = Événements Notifications natifs
+TimesheetWeekCompatibilityNativeNotificationTriggersDesc = Déclare les événements TimesheetWeek CRUD et les six étapes métier dans l'administration native des Notifications.
 TimesheetWeekCompatibilityAgenda = Agenda natif
 TimesheetWeekCompatibilityAgendaDesc = Rend les événements configurables depuis l'administration native de l'Agenda.
 TimesheetWeekCompatibilityNotifications = Notifications natives
 TimesheetWeekCompatibilityNotificationsDesc = Rend les événements configurables depuis l'administration native des Notifications.
 TimesheetWeekCompatibilityNotificationWorkflowRouter = Routeur de notifications par étape
-TimesheetWeekCompatibilityNotificationWorkflowRouterDesc = Route le contenu des étapes métier depuis le trigger CRUD UPDATE natif, sans créer de triggers non-CRUD.
+TimesheetWeekCompatibilityNotificationWorkflowRouterDesc = Route le contenu des étapes métier depuis les événements natifs déclarés dans Notifications.
 TimesheetWeekCompatibilityEmailTemplateClass = Classe CEmailTemplate
 TimesheetWeekCompatibilityEmailTemplateClassDesc = Utilise la classe native de modèles d'e-mails lorsqu'elle est disponible dans le core.
 TimesheetWeekCompatibilityMultidirDocuments = Documents Multicompany
@@ -172,6 +174,8 @@ TimesheetWeekTriggerDelete = Feuille de temps %s supprimée
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_CREATE = Feuille de temps créée
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE = Feuille de temps modifiée
 Notify_TIMESHEETWEEK_TIMESHEETWEEK_DELETE = Feuille de temps supprimée
+TimesheetWeekNativeEmailTemplates = Feuille de temps hebdomadaire
+TimesheetWeekStepEmailTemplates = Feuille de temps hebdomadaire - contenus par étape
 
 #
 # Page d'exemple
@@ -348,12 +352,15 @@ TimesheetWeekNotificationTriggerError = Impossible d'exécuter le déclencheur d
 Notify_TIMESHEETWEEK_SUBMIT = Feuille de temps soumise
 Notify_TIMESHEETWEEK_APPROVE = Feuille de temps approuvée
 Notify_TIMESHEETWEEK_REFUSE = Feuille de temps refusée
+Notify_TIMESHEETWEEK_SETDRAFT = Feuille de temps repassée en brouillon
+Notify_TIMESHEETWEEK_SEAL = Feuille de temps scellée
+Notify_TIMESHEETWEEK_UNSEAL = Feuille de temps descellée
 TimesheetWeekElementTimeNote = Feuille de temps %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
 
 TimesheetWeekWorkflowNotificationSectionTitle = Notifications métier par étape
-TimesheetWeekWorkflowNotificationSectionHelp = Associez un modèle de contenu à chaque étape métier. L'envoi réel est configuré dans le module natif Notifications sur le trigger CRUD UPDATE.
-TimesheetWeekWorkflowNotificationNativeEnabled = Le module Notifications natif est disponible. Configurez l'événement %s avec le modèle %s depuis l'administration native.
+TimesheetWeekWorkflowNotificationSectionHelp = Associez un modèle de contenu à chaque étape métier. L'envoi réel est configuré dans le module natif Notifications sur les événements par étape.
+TimesheetWeekWorkflowNotificationNativeEnabled = Le module Notifications natif est disponible. Configurez les événements %s avec le modèle %s depuis l'administration native.
 TimesheetWeekWorkflowNotificationNativeUnavailable = Le module Notifications natif n'est pas actif ou n'est pas compatible avec cette instance ; aucun envoi direct TimesheetWeek ne sera déclenché.
 TimesheetWeekWorkflowNotificationNativeLink = Ouvrir la configuration native des Notifications
 TimesheetWeekWorkflowNotificationNoTemplate = Aucun modèle de notification TimesheetWeek disponible. Réactivez le module ou exécutez sql/update_all.sql pour créer les modèles par défaut.

@@ -55,6 +55,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweek_reminder.class.php');
 dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
@@ -595,8 +596,9 @@ $reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcl
 $workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
 $workflowNotificationTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
 $nativeWorkflowNotificationAvailable = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::isNativeNotificationAvailable() : false;
-$nativeWorkflowNotificationEvent = class_exists('TimesheetWeek') ? TimesheetWeek::TRIGGER_UPDATE : 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE';
-$nativeWorkflowNotificationTemplate = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getNativeRouterTemplateLabel() : 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
+$nativeWorkflowNotificationEvents = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::getNativeNotificationWorkflowTriggerCodes() : array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SETDRAFT', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_UNSEAL');
+$nativeWorkflowNotificationEvent = implode(', ', $nativeWorkflowNotificationEvents);
+$nativeWorkflowNotificationTemplate = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getNativeRouterTemplateLabel() : 'Notification TimesheetWeek';
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);

@@ -9,6 +9,8 @@ class ActionsTimesheetweek
     // FR: Identifiant utilisé par la charge utile de partage Multicompany.
     public const MULTICOMPANY_SHARING_ROOT_KEY = 'timesheetweek';
 
+    public const NATIVE_PICTO = 'fa-calendar-check';
+
     /** @var array<string,bool> */
     protected static $nativeNotificationSetupSynced = array();
 
@@ -46,17 +48,57 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Return native CRUD triggers exposed to Dolibarr Notifications.
+     * Return native triggers exposed to Dolibarr Notifications.
      *
      * @return array<int,string>
      */
     public static function getNativeNotificationTriggerCodes()
+    {
+        return array_merge(
+            self::getNativeNotificationCrudTriggerCodes(),
+            self::getNativeNotificationWorkflowTriggerCodes()
+        );
+    }
+
+    /**
+     * Return native CRUD triggers exposed to Dolibarr Notifications.
+     *
+     * @return array<int,string>
+     */
+    public static function getNativeNotificationCrudTriggerCodes()
     {
         return array(
             'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
             'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
             'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
         );
+    }
+
+    /**
+     * Return native workflow triggers exposed to Dolibarr Notifications.
+     *
+     * @return array<int,string>
+     */
+    public static function getNativeNotificationWorkflowTriggerCodes()
+    {
+        return array(
+            'TIMESHEETWEEK_SUBMIT',
+            'TIMESHEETWEEK_APPROVE',
+            'TIMESHEETWEEK_REFUSE',
+            'TIMESHEETWEEK_SETDRAFT',
+            'TIMESHEETWEEK_SEAL',
+            'TIMESHEETWEEK_UNSEAL',
+        );
+    }
+
+    /**
+     * Return the native picto used by generic Dolibarr screens.
+     *
+     * @return string
+     */
+    public static function getNativePicto()
+    {
+        return self::NATIVE_PICTO;
     }
 
     /**
@@ -91,20 +133,65 @@ class ActionsTimesheetweek
                 'description' => 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet',
                 'rang' => 45000303,
             ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_SUBMIT',
+                'contexts' => 'notification',
+                'label' => 'Submit weekly timesheet',
+                'description' => 'Executed when a weekly timesheet is submitted for approval',
+                'rang' => 45000304,
+            ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_APPROVE',
+                'contexts' => 'notification',
+                'label' => 'Approve weekly timesheet',
+                'description' => 'Executed when a weekly timesheet is approved',
+                'rang' => 45000305,
+            ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_REFUSE',
+                'contexts' => 'notification',
+                'label' => 'Refuse weekly timesheet',
+                'description' => 'Executed when a weekly timesheet is refused',
+                'rang' => 45000306,
+            ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_SETDRAFT',
+                'contexts' => 'notification',
+                'label' => 'Revert weekly timesheet to draft',
+                'description' => 'Executed when a weekly timesheet is reverted to draft',
+                'rang' => 45000307,
+            ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_SEAL',
+                'contexts' => 'notification',
+                'label' => 'Seal weekly timesheet',
+                'description' => 'Executed when a weekly timesheet is sealed',
+                'rang' => 45000308,
+            ),
+            array(
+                'elementtype' => 'timesheetweek@timesheetweek',
+                'code' => 'TIMESHEETWEEK_UNSEAL',
+                'contexts' => 'notification',
+                'label' => 'Unseal weekly timesheet',
+                'description' => 'Executed when a weekly timesheet is unsealed',
+                'rang' => 45000309,
+            ),
         );
     }
 
     /**
-     * Return obsolete non-CRUD trigger codes no longer exposed to native features.
+     * Return obsolete historical trigger codes no longer exposed to native features.
      *
      * @return array<int,string>
      */
     public static function getLegacyNotificationTriggerCodes()
     {
         return array(
-            'TIMESHEETWEEK_SUBMIT',
-            'TIMESHEETWEEK_APPROVE',
-            'TIMESHEETWEEK_REFUSE',
             'TIMESHEETWEEK_SUBMITTED',
             'TIMESHEETWEEK_APPROVED',
             'TIMESHEETWEEK_REFUSED',
@@ -129,14 +216,14 @@ class ActionsTimesheetweek
         return array(
             array(
                 'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',
+                'label' => 'Notification TimesheetWeek',
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
                 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
             ),
             array(
                 'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',
+                'label' => 'Notification TimesheetWeek',
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
                 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
@@ -171,9 +258,9 @@ class ActionsTimesheetweek
             return -1;
         }
 
-        $crudCodes = self::getNativeNotificationTriggerCodes();
+        $nativeCodes = self::getNativeNotificationTriggerCodes();
         $shortElementSql = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger";
-        $shortElementSql .= " WHERE code IN (".self::buildSqlStringList($db, $crudCodes).")";
+        $shortElementSql .= " WHERE code IN (".self::buildSqlStringList($db, $nativeCodes).")";
         $shortElementSql .= " AND elementtype = 'timesheetweek'";
         if (!$db->query($shortElementSql)) {
             return -1;
@@ -193,10 +280,20 @@ class ActionsTimesheetweek
             }
         }
 
-        if (function_exists('getDolGlobalString') && function_exists('dolibarr_set_const') && getDolGlobalString('TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE', '') === '') {
-            $result = dolibarr_set_const($db, 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE', 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'chaine', 0, '', $entity);
-            if ($result < 0) {
-                return -1;
+        if (function_exists('getDolGlobalString') && function_exists('dolibarr_set_const')) {
+            $templateConstants = array('TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE');
+            foreach (self::getNativeNotificationWorkflowTriggerCodes() as $workflowTriggerCode) {
+                $templateConstants[] = $workflowTriggerCode.'_TEMPLATE';
+            }
+
+            foreach ($templateConstants as $templateConstant) {
+                $selectedTemplate = getDolGlobalString($templateConstant, '');
+                if ($selectedTemplate === '' || $selectedTemplate === 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER') {
+                    $result = dolibarr_set_const($db, $templateConstant, 'Notification TimesheetWeek', 'chaine', 0, '', $entity);
+                    if ($result < 0) {
+                        return -1;
+                    }
+                }
             }
         }
 
@@ -283,6 +380,18 @@ class ActionsTimesheetweek
     {
         $newType = 'timesheetweek@timesheetweek';
         $legacyType = 'timesheetweek';
+        $legacyLabel = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
+
+        $sqlMigrateLabel = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlMigrateLabel .= " SET label = '".$db->escape($template['label'])."'";
+        $sqlMigrateLabel .= " WHERE module = 'timesheetweek'";
+        $sqlMigrateLabel .= " AND type_template IN ('".$db->escape($newType)."', '".$db->escape($legacyType)."')";
+        $sqlMigrateLabel .= " AND lang = '".$db->escape($template['lang'])."'";
+        $sqlMigrateLabel .= " AND label = '".$db->escape($legacyLabel)."'";
+        $sqlMigrateLabel .= " AND NOT EXISTS (SELECT 1 FROM (SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE module = 'timesheetweek' AND type_template = '".$db->escape($newType)."' AND lang = '".$db->escape($template['lang'])."' AND label = '".$db->escape($template['label'])."') AS tsw_existing_router_template_label)";
+        if (!$db->query($sqlMigrateLabel)) {
+            return -1;
+        }
 
         $sqlExistingNew = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates";
         $sqlExistingNew .= " WHERE module = 'timesheetweek'";
@@ -418,7 +527,7 @@ class ActionsTimesheetweek
             'url' => '/custom/timesheetweek/timesheetweek_card.php?action=create',
             'title' => 'QuickCreateTimesheetWeek@timesheetweek',
             'name' => 'Timesheet@timesheetweek',
-            'picto' => 'bookcal',
+            'picto' => self::getNativePicto(),
             // EN: Activate the quick add entry only when the module is enabled and rights allow it.
             // FR: Activer l'entrée de création rapide uniquement lorsque le module est actif et que les droits le permettent.
             'activation' => isModEnabled('timesheetweek') && ($hasWriteRight),
@@ -429,7 +538,7 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Expose TimesheetWeek CRUD triggers to the native Notification module.
+     * Expose TimesheetWeek triggers to the native Notification module.
      *
      * @param array        $parameters  Hook parameters
      * @param object       $object      Current object
@@ -454,6 +563,8 @@ class ActionsTimesheetweek
                 $conf->{$alias} = new stdClass();
             }
             $conf->{$alias}->enabled = $moduleEnabled;
+            $conf->{$alias}->name = 'TimesheetWeek';
+            $conf->{$alias}->picto = self::getNativePicto();
         }
 
         $entity = (!empty($conf->entity) ? (int) $conf->entity : 1);
@@ -511,10 +622,34 @@ class ActionsTimesheetweek
             'classpath' => 'timesheetweek/class',
             'classfile' => 'timesheetweek',
             'classname' => 'TimesheetWeek',
+            'picto' => self::getNativePicto(),
             'dir_output' => $dirOutput,
             'dir_temp' => $dirTemp,
             'parent_element' => '',
         ));
+
+        return 0;
+    }
+
+    /**
+     * Add TimesheetWeek entries to the native email templates element list.
+     *
+     * @param array        $parameters  Hook parameters
+     * @param object       $object      Current object
+     * @param string       $action      Current action
+     * @param HookManager  $hookmanager Hook manager
+     * @return int
+     */
+    public function emailElementlist($parameters, &$object, &$action, $hookmanager)
+    {
+        global $langs;
+
+        $langs->load('timesheetweek@timesheetweek');
+
+        $this->results = array(
+            'timesheetweek@timesheetweek' => img_picto('', self::getNativePicto(), 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('TimesheetWeekNativeEmailTemplates')),
+            'timesheetweek_notification' => img_picto('', self::getNativePicto(), 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('TimesheetWeekStepEmailTemplates')),
+        );
 
         return 0;
     }

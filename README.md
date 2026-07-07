@@ -25,8 +25,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Refonte complète de la page de configuration inspirée du module DiffusionPlans pour gérer les masques de numérotation et les modèles PDF selon les codes graphiques Dolibarr.
 - Sélection du masque de numérotation via des commutateurs natifs directement depuis la configuration Dolibarr.
 - Génération du PDF de la feuille directement depuis la fiche hebdomadaire avec le widget Documents et respect du modèle configuré dans l'administration.
-- Événements Agenda et Notifications exposés par les triggers CRUD natifs du module, avec substitutions disponibles pour les modèles d'e-mails.
-- Notifications métier par étape (soumission, approbation, refus, retour en brouillon, scellement, descellement) routées par le modèle natif `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE`, avec contenu choisi depuis le contexte du trigger CRUD `UPDATE`.
+- Événements Agenda et Notifications exposés dans les écrans natifs Dolibarr, avec substitutions disponibles pour les modèles d'e-mails.
+- Notifications métier par étape (soumission, approbation, refus, retour en brouillon, scellement, descellement) déclarées comme événements natifs à la manière du module Diffusion, avec pictogramme TimesheetWeek et contenu personnalisable.
 - Chemins documentaires centralisés par entité propriétaire et onglet Compatibilité détaillant les dépendances Dolibarr/PHP ainsi que les diagnostics Agenda.
 - Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
 - README bilingue (FR/EN) pour faciliter le déploiement et l'adoption.
@@ -44,7 +44,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
-- Dans la page native Notifications, configurez l'événement `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` avec le modèle `TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER`; la configuration TimesheetWeek sert uniquement à choisir le contenu `timesheetweek_notification` de chaque étape.
+- Dans la page native Notifications, configurez les événements `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL` et `TIMESHEETWEEK_UNSEAL` avec le modèle `Notification TimesheetWeek`; la configuration TimesheetWeek sert à choisir le contenu `timesheetweek_notification` de chaque étape.
 - Consultez l'onglet « Compatibilité » pour vérifier les fonctionnalités disponibles selon la version Dolibarr/PHP courante.
 - L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
 
@@ -77,8 +77,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Fully redesigned setup page inspired by the DiffusionPlans module to drive numbering masks and PDF templates with Dolibarr's graphical and functional patterns.
 - Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
 - PDF generation available directly from the weekly sheet through the Documents widget, honouring the template configured in the administration area.
-- Agenda events and Notifications are exposed through the module native CRUD triggers, with substitutions available for email templates.
-- Business step notifications (submission, approval, refusal, revert to draft, seal, unseal) are routed by the native `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE` model, with content selected from the CRUD `UPDATE` trigger context.
+- Agenda events and Notifications are exposed in native Dolibarr screens, with substitutions available for email templates.
+- Business step notifications (submission, approval, refusal, revert to draft, seal, unseal) are declared as native events like in the Diffusion module, with the TimesheetWeek pictogram and customizable content.
 - Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
 - Native scheduled job settings are preserved when the module is disabled and re-enabled.
 - Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
@@ -98,7 +98,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
 - Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
-- In the native Notifications page, configure event `TIMESHEETWEEK_TIMESHEETWEEK_UPDATE` with template `TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER`; TimesheetWeek setup only selects the `timesheetweek_notification` content used for each workflow step.
+- In the native Notifications page, configure events `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL` and `TIMESHEETWEEK_UNSEAL` with template `Notification TimesheetWeek`; TimesheetWeek setup selects the `timesheetweek_notification` content used for each workflow step.
 - Open the Compatibility tab to check feature availability for the current Dolibarr/PHP version.
 - The « À propos » tab summarises the module version, publisher and support links.
 

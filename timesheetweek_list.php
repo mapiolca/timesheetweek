@@ -1098,7 +1098,7 @@ print '<input type="hidden" name="contextpage" value="'.$contextpage.'">';
 // FR: Conserve la limite de liste sélectionnée lors des filtrages tout en évitant les identifiants dupliqués dans le DOM.
 print '<input type="hidden" name="limit" id="limit-hidden" value="'.((int) $limit).'">';
 
-print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'bookcal', 0, $newcardbutton, '', $limit, 0, 0, 1);
+print_barre_liste($title, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $massactionbutton, $num, $nbtotalofrecords, 'fa-calendar-check', 0, $newcardbutton, '', $limit, 0, 0, 1);
 
 $topicmail = "SendTimesheetWeekRef";
 $modelmail = "timesheetweek";

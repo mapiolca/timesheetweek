@@ -25,9 +25,9 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 		$this->db = $db;
 		$this->name = 'timesheetweektriggers';
 		$this->family = 'timesheetweek';
-		$this->description = 'TimesheetWeek CRUD events';
+		$this->description = 'TimesheetWeek native events';
 		$this->version = 'dolibarr';
-		$this->picto = 'bookcal@timesheetweek';
+		$this->picto = 'fa-calendar-check';
 	}
 
 	/**
@@ -50,16 +50,19 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			return 0;
 		}
 
-		$crudTriggers = array(
+		$supportedTriggers = array(
 			TimesheetWeek::TRIGGER_CREATE,
 			TimesheetWeek::TRIGGER_UPDATE,
 			TimesheetWeek::TRIGGER_DELETE,
+			TimesheetWeek::TRIGGER_SUBMIT,
+			TimesheetWeek::TRIGGER_APPROVE,
+			TimesheetWeek::TRIGGER_REFUSE,
+			TimesheetWeek::TRIGGER_SETDRAFT,
+			TimesheetWeek::TRIGGER_SEAL,
+			TimesheetWeek::TRIGGER_UNSEAL,
 		);
-		if (!in_array($action, $crudTriggers, true)) {
+		if (!in_array($action, $supportedTriggers, true)) {
 			$legacyTriggers = array(
-				'TIMESHEETWEEK_SUBMIT',
-				'TIMESHEETWEEK_APPROVE',
-				'TIMESHEETWEEK_REFUSE',
 				'TIMESHEETWEEK_SUBMITTED',
 				'TIMESHEETWEEK_APPROVED',
 				'TIMESHEETWEEK_REFUSED',

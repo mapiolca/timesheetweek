@@ -24,9 +24,9 @@ WHERE NOT EXISTS (
 );
 
 UPDATE llx_c_email_templates
-SET type_template = 'timesheetweek@timesheetweek'
+SET label = 'Notification TimesheetWeek'
 WHERE module = 'timesheetweek'
-AND type_template = 'timesheetweek'
+AND type_template IN ('timesheetweek', 'timesheetweek@timesheetweek')
 AND lang = 'fr_FR'
 AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'
 AND NOT EXISTS (
@@ -37,14 +37,14 @@ AND NOT EXISTS (
         WHERE module = 'timesheetweek'
         AND type_template = 'timesheetweek@timesheetweek'
         AND lang = 'fr_FR'
-        AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'
-    ) AS tsw_existing_router_template
+        AND label = 'Notification TimesheetWeek'
+    ) AS tsw_existing_router_template_label
 );
 
 UPDATE llx_c_email_templates
-SET type_template = 'timesheetweek@timesheetweek'
+SET label = 'Notification TimesheetWeek'
 WHERE module = 'timesheetweek'
-AND type_template = 'timesheetweek'
+AND type_template IN ('timesheetweek', 'timesheetweek@timesheetweek')
 AND lang = 'en_US'
 AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'
 AND NOT EXISTS (
@@ -55,33 +55,74 @@ AND NOT EXISTS (
         WHERE module = 'timesheetweek'
         AND type_template = 'timesheetweek@timesheetweek'
         AND lang = 'en_US'
-        AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'
+        AND label = 'Notification TimesheetWeek'
+    ) AS tsw_existing_router_template_label
+);
+
+UPDATE llx_c_email_templates
+SET type_template = 'timesheetweek@timesheetweek'
+WHERE module = 'timesheetweek'
+AND type_template = 'timesheetweek'
+AND lang = 'fr_FR'
+AND label = 'Notification TimesheetWeek'
+AND NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT rowid
+        FROM llx_c_email_templates
+        WHERE module = 'timesheetweek'
+        AND type_template = 'timesheetweek@timesheetweek'
+        AND lang = 'fr_FR'
+        AND label = 'Notification TimesheetWeek'
+    ) AS tsw_existing_router_template
+);
+
+UPDATE llx_c_email_templates
+SET type_template = 'timesheetweek@timesheetweek'
+WHERE module = 'timesheetweek'
+AND type_template = 'timesheetweek'
+AND lang = 'en_US'
+AND label = 'Notification TimesheetWeek'
+AND NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT rowid
+        FROM llx_c_email_templates
+        WHERE module = 'timesheetweek'
+        AND type_template = 'timesheetweek@timesheetweek'
+        AND lang = 'en_US'
+        AND label = 'Notification TimesheetWeek'
     ) AS tsw_existing_router_template
 );
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
-WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'Notification TimesheetWeek');
 
 UPDATE llx_c_email_templates
 SET topic = '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__'
-WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (topic IS NULL OR topic = '');
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'Notification TimesheetWeek' AND (topic IS NULL OR topic = '');
 
 UPDATE llx_c_email_templates
 SET content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'
-WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (content IS NULL OR content = '');
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'fr_FR' AND label = 'Notification TimesheetWeek' AND (content IS NULL OR content = '');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
-WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'Notification TimesheetWeek');
 
 UPDATE llx_c_email_templates
 SET topic = '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__'
-WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (topic IS NULL OR topic = '');
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'Notification TimesheetWeek' AND (topic IS NULL OR topic = '');
 
 UPDATE llx_c_email_templates
 SET content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'
-WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (content IS NULL OR content = '');
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek' AND lang = 'en_US' AND label = 'Notification TimesheetWeek' AND (content IS NULL OR content = '');
+
+UPDATE llx_const
+SET value = 'Notification TimesheetWeek'
+WHERE name = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE'
+AND value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
 SELECT 0,'timesheetweek','timesheetweek_notification','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ soumise','Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
@@ -133,9 +174,6 @@ WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetw
 
 DELETE FROM llx_c_action_trigger
 WHERE code IN (
-    'TIMESHEETWEEK_SUBMIT',
-    'TIMESHEETWEEK_APPROVE',
-    'TIMESHEETWEEK_REFUSE',
     'TIMESHEETWEEK_SUBMITTED',
     'TIMESHEETWEEK_APPROVED',
     'TIMESHEETWEEK_REFUSED',
@@ -154,7 +192,13 @@ DELETE FROM llx_c_action_trigger
 WHERE code IN (
     'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
     'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
-    'TIMESHEETWEEK_TIMESHEETWEEK_DELETE'
+    'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
+    'TIMESHEETWEEK_SUBMIT',
+    'TIMESHEETWEEK_APPROVE',
+    'TIMESHEETWEEK_REFUSE',
+    'TIMESHEETWEEK_SETDRAFT',
+    'TIMESHEETWEEK_SEAL',
+    'TIMESHEETWEEK_UNSEAL'
 )
 AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek');
 
@@ -166,3 +210,21 @@ VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'ag
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
 VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SUBMIT', 'notification', 'Submit weekly timesheet', 'Executed when a weekly timesheet is submitted for approval', 45000304);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_APPROVE', 'notification', 'Approve weekly timesheet', 'Executed when a weekly timesheet is approved', 45000305);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_REFUSE', 'notification', 'Refuse weekly timesheet', 'Executed when a weekly timesheet is refused', 45000306);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SETDRAFT', 'notification', 'Revert weekly timesheet to draft', 'Executed when a weekly timesheet is reverted to draft', 45000307);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SEAL', 'notification', 'Seal weekly timesheet', 'Executed when a weekly timesheet is sealed', 45000308);
+
+INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_UNSEAL', 'notification', 'Unseal weekly timesheet', 'Executed when a weekly timesheet is unsealed', 45000309);

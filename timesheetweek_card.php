@@ -1243,7 +1243,7 @@ if ($action === 'create') {
 
 	llxHeader('', $title);
 
-	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
+	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'fa-calendar-check');
 
 	echo '<form method="POST" action="'.dol_escape_htmltag($_SERVER["PHP_SELF"]).'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
@@ -1331,7 +1331,7 @@ JS;
 
 	// Head + banner
 	$head = timesheetweekPrepareHead($object);
-		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
+		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'fa-calendar-check');
 
 		$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 		$morehtmlright = '';

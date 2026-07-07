@@ -17,14 +17,15 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 /**
  * Workflow email notification content for TimesheetWeek status steps.
  *
- * The native Notifications module sends the CRUD UPDATE event. This class only
- * resolves the step-specific content from trigger_reason.
+ * The native Notifications module sends the configured workflow event. This
+ * class resolves the step-specific content from trigger_reason.
  */
 class TimesheetWeekNotification
 {
 	public const TEMPLATE_TYPE = 'timesheetweek_notification';
 	public const NATIVE_TEMPLATE_TYPE = 'timesheetweek@timesheetweek';
-	public const NATIVE_ROUTER_TEMPLATE_LABEL = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
+	public const NATIVE_ROUTER_TEMPLATE_LABEL = 'Notification TimesheetWeek';
+	public const NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
 	public const NATIVE_UPDATE_TEMPLATE_CONSTANT = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE';
 
 	/** @var DoliDB */
@@ -134,7 +135,7 @@ class TimesheetWeekNotification
 	}
 
 	/**
-	 * Return the native Notification template constant used by the CRUD UPDATE event.
+	 * Return the native Notification template constant used by the generic UPDATE event.
 	 *
 	 * @return string
 	 */
@@ -151,6 +152,16 @@ class TimesheetWeekNotification
 	public static function getNativeRouterTemplateLabel()
 	{
 		return self::NATIVE_ROUTER_TEMPLATE_LABEL;
+	}
+
+	/**
+	 * Return the former technical router template label.
+	 *
+	 * @return string
+	 */
+	public static function getNativeRouterTemplateLegacyLabel()
+	{
+		return self::NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL;
 	}
 
 	/**
@@ -319,7 +330,7 @@ class TimesheetWeekNotification
 	}
 
 	/**
-	 * Send a workflow notification from a TimesheetWeek CRUD trigger context.
+	 * Send a workflow notification from a TimesheetWeek trigger context.
 	 *
 	 * @param TimesheetWeek $object Current timesheet
 	 * @param User          $actionUser User who triggered the action
