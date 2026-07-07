@@ -441,22 +441,33 @@ class ActionsTimesheetweek
     {
         global $conf;
 
+        $moduleEnabled = 0;
+        if (function_exists('isModEnabled')) {
+            $moduleEnabled = isModEnabled('timesheetweek') ? 1 : 0;
+        } elseif (!empty($conf->timesheetweek->enabled)) {
+            $moduleEnabled = 1;
+        }
+
+        $notificationElementAliases = array('timesheetweek', 'timesheetweek@timesheetweek');
+        foreach ($notificationElementAliases as $alias) {
+            if (empty($conf->{$alias}) || !is_object($conf->{$alias})) {
+                $conf->{$alias} = new stdClass();
+            }
+            $conf->{$alias}->enabled = $moduleEnabled;
+        }
+
         $entity = (!empty($conf->entity) ? (int) $conf->entity : 1);
         if (self::ensureNativeNotificationSetup($this->db, $entity) < 0) {
             $this->error = $this->db->lasterror();
             $this->errors[] = $this->error;
         }
 
-        if (!is_array($this->results)) {
-            $this->results = array();
+        $events = self::getNativeNotificationTriggerCodes();
+        if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
+            $events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
         }
 
-        $current = array();
-        if (!empty($this->results['arrayofnotifsupported']) && is_array($this->results['arrayofnotifsupported'])) {
-            $current = $this->results['arrayofnotifsupported'];
-        }
-
-        $this->results['arrayofnotifsupported'] = array_values(array_unique(array_merge($current, self::getNativeNotificationTriggerCodes())));
+        $this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
 
         return 0;
     }
