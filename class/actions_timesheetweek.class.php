@@ -426,7 +426,6 @@ class ActionsTimesheetweek
                         'tooltip' => 'ShareTimesheetWeekNumberingTooltip',
                         //'mandatory' => 'timesheetweek',
                         'enable' => '!empty($conf->timesheetweek->enabled)',
-                        //'display' => '!empty($conf->global->MULTICOMPANY_TIMESHEETWEEK_SHARING_ENABLED)',
                         'input' => array(
                             'global' => array(
                                 'showhide' => true,

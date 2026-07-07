@@ -912,10 +912,10 @@ class modTimesheetWeek extends DolibarrModules
 		$sql = array();
 
 		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED', 'TSWK_CREATE', 'TSWK_SUBMIT', 'TSWK_REOPEN', 'TSWK_APPROVE', 'TSWK_SEAL', 'TSWK_UNSEAL', 'TSWK_REFUSE', 'TSWK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
-		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE') AND elementtype = 'timesheetweek@timesheetweek'";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301)";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302)";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303)";
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303)";
 		$sql[] = "UPDATE ".MAIN_DB_PREFIX."actioncomm SET elementtype = 'timesheetweek@timesheetweek' WHERE elementtype = 'timesheetweek' AND fk_element IN (SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week)";
 
 		// Document templates
@@ -959,11 +959,6 @@ class modTimesheetWeek extends DolibarrModules
 			return $resultInit;
 		}
 
-		$cronStatus = $this->setReminderCronStatus(1);
-		if ($cronStatus < 0) {
-			return $cronStatus;
-		}
-
 		return $resultInit;
 	}
 
@@ -977,7 +972,6 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		$this->setReminderCronStatus(0);
 		$this->syncMulticompanySharingDefinition();
 
 		$sql = array();
@@ -1024,31 +1018,4 @@ class modTimesheetWeek extends DolibarrModules
 		return 1;
 	}
 
-	/**
-	 * Update the cron status for the reminder job.
-	 *
-	 * @param int $status Target status (1 enabled, 0 disabled)
-	 * @return int        1 if OK, <0 if error
-	 */
-	protected function setReminderCronStatus($status)
-	{
-		global $conf;
-
-		if (empty($this->db)) {
-			return -1;
-		}
-
-		$statusValue = ((int) $status === 1) ? 1 : 0;
-		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
-		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
-		$sql .= ' AND entity = '.((int) $conf->entity);
-
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-
-		return 1;
-	}
 }

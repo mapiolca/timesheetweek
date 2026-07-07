@@ -57,6 +57,11 @@ class TimesheetWeekCompatibility
 	 */
 	public static function getCompatibilityFeatures()
 	{
+		if (function_exists('dol_include_once')) {
+			dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		}
+		$hasElementPropertiesHook = class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties');
+
 		return array(
 			'native_crud_triggers' => array(
 				'label' => 'TimesheetWeekCompatibilityNativeCrudTriggers',
@@ -120,8 +125,8 @@ class TimesheetWeekCompatibility
 				'core_available_from' => '20.0.0',
 				'module_available_from' => '1.8.4',
 				'min_php' => '8.0.0',
-				'compatibility_check' => "function_exists('getElementProperties')",
-				'available' => function_exists('getElementProperties'),
+				'compatibility_check' => "class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties')",
+				'available' => $hasElementPropertiesHook,
 				'reason' => 'TimesheetWeekCompatibilityElementPropertiesUnavailable',
 			),
 		);

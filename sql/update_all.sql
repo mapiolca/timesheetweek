@@ -161,16 +161,16 @@ WHERE code IN (
 	'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
 	'TIMESHEETWEEK_TIMESHEETWEEK_DELETE'
 )
-AND elementtype = 'timesheetweek@timesheetweek';
+AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek');
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303);
 
 -- EN: Repair historical Agenda links that used the short element type.
 UPDATE llx_actioncomm

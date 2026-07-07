@@ -76,6 +76,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
 - PDF generation available directly from the weekly sheet through the Documents widget, honouring the template configured in the administration area.
 - Agenda events and Notifications are exposed through the module native CRUD triggers, with substitutions available for email templates.
+- Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
+- Native scheduled job settings are preserved when the module is disabled and re-enabled.
 - Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.

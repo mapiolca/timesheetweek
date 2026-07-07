@@ -1349,6 +1349,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= " status=".(int) self::STATUS_APPROVED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
 		$sql .= " WHERE rowid=".(int) $this->id;
+		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
 		if (!$this->db->query($sql)) {
 			$this->db->rollback();
@@ -1721,6 +1722,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= $setvalid;
 		$sql .= ", motif=".($motif !== '' ? "'".$this->db->escape($motif)."'" : 'NULL');
 		$sql .= " WHERE rowid=".(int) $this->id;
+		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
 		if (!$this->db->query($sql)) {
 			$this->db->rollback();
@@ -1942,6 +1944,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	protected function sendAutomaticNotification($triggerCode, User $actionUser)
 	{
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_NOTIFICATION_HELPERS', 0)) {
+			return true;
+		}
+
 		global $langs;
 
 		$langs->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
@@ -2182,6 +2188,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	public function sendNativeMailNotification($triggerCode, User $actionUser, $recipient, $langs, $conf, array $substitutions, array $options = array())
 	{
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_NOTIFICATION_HELPERS', 0)) {
+			return 0;
+		}
+
 		$sendto = isset($options['sendto']) ? trim((string) $options['sendto']) : '';
 		if ($sendto === '') {
 			return 0;
@@ -2198,7 +2208,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$htmlMessage = (string) $options['message_html'];
 		}
 
-		if (!empty($conf->global->MAIN_MAIL_USE_MULTI_PART) || $isHtml) {
+		if (getDolGlobalInt('MAIN_MAIL_USE_MULTI_PART', 0) || $isHtml) {
 			$isHtml = 1;
 		}
 
@@ -2394,6 +2404,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	protected function triggerBusinessNotification($triggerCode, User $actionUser)
 	{
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_NOTIFICATION_HELPERS', 0)) {
+			return 0;
+		}
+
 		if (!is_array($this->context)) {
 			$this->context = array();
 		}
@@ -2561,6 +2575,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	*/
 	protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true, $motif = '')
 	{
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_AGENDA_HELPER', 0)) {
+			return true;
+		}
+
 		global $conf, $langs;
 
 		if (!function_exists('isModEnabled') || !isModEnabled('agenda')) {
