@@ -8,6 +8,7 @@
  */
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 /**
@@ -33,18 +34,22 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	}
 
 	$employeeName = '';
+	$employeeEmail = '';
 	if (!empty($object->fk_user)) {
 		$employee = new User($db);
 		if ($employee->fetch((int) $object->fk_user) > 0) {
 			$employeeName = $employee->getFullName($trans);
+			$employeeEmail = (string) $employee->email;
 		}
 	}
 
 	$validatorName = '';
+	$validatorEmail = '';
 	if (!empty($object->fk_user_valid)) {
 		$validator = new User($db);
 		if ($validator->fetch((int) $object->fk_user_valid) > 0) {
 			$validatorName = $validator->getFullName($trans);
+			$validatorEmail = (string) $validator->email;
 		}
 	}
 
@@ -85,7 +90,18 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	$substitutionarray['__TIMESHEETWEEK_URL_RAW__'] = $url;
 	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_NAME__'] = $employeeName;
 	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'] = $employeeName;
+	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_EMAIL__'] = $employeeEmail;
 	$substitutionarray['__TIMESHEETWEEK_VALIDATOR_NAME__'] = $validatorName;
 	$substitutionarray['__TIMESHEETWEEK_VALIDATOR_FULLNAME__'] = $validatorName;
+	$substitutionarray['__TIMESHEETWEEK_VALIDATOR_EMAIL__'] = $validatorEmail;
 	$substitutionarray['__TIMESHEETWEEK_MOTIF__'] = !empty($object->motif) ? (string) $object->motif : ((!empty($object->context) && is_array($object->context) && !empty($object->context['timesheetweek_motif'])) ? (string) $object->context['timesheetweek_motif'] : '');
+
+	static $buildingNativeNotificationSubstitutions = false;
+	if (!$buildingNativeNotificationSubstitutions && class_exists('TimesheetWeekNotification')) {
+		$buildingNativeNotificationSubstitutions = true;
+		$actionUser = isset($GLOBALS['user']) && $GLOBALS['user'] instanceof User ? $GLOBALS['user'] : null;
+		$nativeNotificationSubstitutions = TimesheetWeekNotification::getNativeNotificationSubstitutions($object, $trans, $actionUser);
+		$substitutionarray = array_replace($substitutionarray, $nativeNotificationSubstitutions);
+		$buildingNativeNotificationSubstitutions = false;
+	}
 }

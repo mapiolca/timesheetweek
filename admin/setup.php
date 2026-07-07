@@ -594,6 +594,9 @@ $reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int
 $reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
 $workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
 $workflowNotificationTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
+$nativeWorkflowNotificationAvailable = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::isNativeNotificationAvailable() : false;
+$nativeWorkflowNotificationEvent = class_exists('TimesheetWeek') ? TimesheetWeek::TRIGGER_UPDATE : 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE';
+$nativeWorkflowNotificationTemplate = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getNativeRouterTemplateLabel() : 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
@@ -874,6 +877,15 @@ print '<br>';
 
 print load_fiche_titre($langs->trans('TimesheetWeekWorkflowNotificationSectionTitle'), '', 'email');
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationSectionHelp').'</div>';
+print '<div class="'.($nativeWorkflowNotificationAvailable ? 'info' : 'warning').'">';
+if ($nativeWorkflowNotificationAvailable) {
+	$notificationUrl = DOL_URL_ROOT.'/admin/notification.php';
+	print $langs->trans('TimesheetWeekWorkflowNotificationNativeEnabled', $nativeWorkflowNotificationEvent, $nativeWorkflowNotificationTemplate);
+	print ' <a href="'.dol_escape_htmltag($notificationUrl).'">'.$langs->trans('TimesheetWeekWorkflowNotificationNativeLink').'</a>';
+} else {
+	print $langs->trans('TimesheetWeekWorkflowNotificationNativeUnavailable');
+}
+print '</div>';
 
 print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.$pageToken.'">';
@@ -883,32 +895,24 @@ print '<table class="noborder centpercent">';
 print '<tr class="liste_titre">';
 print '<th>'.$langs->trans('Name').'</th>';
 print '<th>'.$langs->trans('Description').'</th>';
-print '<th class="center">'.$langs->trans('Status').'</th>';
 print '<th class="center">'.$langs->trans('EMailTemplate').'</th>';
 print '</tr>';
 
 if (empty($workflowNotificationReasons)) {
-	print '<tr class="oddeven"><td colspan="4"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
+	print '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
 }
 
 foreach ($workflowNotificationReasons as $workflowReason => $workflowDefinition) {
-	$enableConstant = TimesheetWeekNotification::getEnableConstant($workflowReason);
 	$templateConstant = TimesheetWeekNotification::getTemplateConstant($workflowReason);
-	$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0) : 0;
+	$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, (int) $conf->entity) : 0;
 
 	print '<tr class="oddeven">';
 	print '<td class="nowraponall">'.$langs->trans($workflowDefinition['label']).'</td>';
 	print '<td class="small">'.$langs->trans($workflowDefinition['description']).'</td>';
 	print '<td class="center">';
-	if ($enableConstant !== '') {
-		print ajax_constantonoff($enableConstant);
-	} else {
-		print '&nbsp;';
-	}
-	print '</td>';
-	print '<td class="center">';
 	if (!empty($workflowNotificationTemplateOptions) && $templateConstant !== '') {
 		print $form->selectarray($templateConstant, $workflowNotificationTemplateOptions, $templateId, 1, 0, 0, '', 0, 0, 0, '', '', $conf->entity);
+		print ajax_combobox($templateConstant);
 	} else {
 		print '<span class="opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationNoTemplate').'</span>';
 	}

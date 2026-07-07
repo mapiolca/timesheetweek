@@ -135,6 +135,31 @@ PREPARE tsw_last_main_doc_stmt FROM @tsw_add_last_main_doc;
 EXECUTE tsw_last_main_doc_stmt;
 DEALLOCATE PREPARE tsw_last_main_doc_stmt;
 
+-- EN: Add the native Notification router template selected by TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE when unset by activation.
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+
+UPDATE llx_c_email_templates
+SET topic = '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__'
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (topic IS NULL OR topic = '');
+
+UPDATE llx_c_email_templates
+SET content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (content IS NULL OR content = '');
+
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+
+UPDATE llx_c_email_templates
+SET topic = '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__'
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (topic IS NULL OR topic = '');
+
+UPDATE llx_c_email_templates
+SET content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'
+WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND (content IS NULL OR content = '');
+
 -- EN: Add workflow email templates used by configurable TimesheetWeek step notifications.
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
 SELECT 0,'timesheetweek','timesheetweek_notification','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ soumise','Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'

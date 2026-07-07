@@ -15,14 +15,17 @@ require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
 /**
- * Workflow email notifications for TimesheetWeek status steps.
+ * Workflow email notification content for TimesheetWeek status steps.
  *
- * These emails are routed from the CRUD UPDATE trigger context. They do not add
- * non-CRUD trigger codes; the business step is read from trigger_reason.
+ * The native Notifications module sends the CRUD UPDATE event. This class only
+ * resolves the step-specific content from trigger_reason.
  */
 class TimesheetWeekNotification
 {
 	public const TEMPLATE_TYPE = 'timesheetweek_notification';
+	public const NATIVE_TEMPLATE_TYPE = 'timesheetweek';
+	public const NATIVE_ROUTER_TEMPLATE_LABEL = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
+	public const NATIVE_UPDATE_TEMPLATE_CONSTANT = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE';
 
 	/** @var DoliDB */
 	public $db;
@@ -131,6 +134,46 @@ class TimesheetWeekNotification
 	}
 
 	/**
+	 * Return the native Notification template constant used by the CRUD UPDATE event.
+	 *
+	 * @return string
+	 */
+	public static function getNativeUpdateTemplateConstant()
+	{
+		return self::NATIVE_UPDATE_TEMPLATE_CONSTANT;
+	}
+
+	/**
+	 * Return the router template label selected by the native Notification event.
+	 *
+	 * @return string
+	 */
+	public static function getNativeRouterTemplateLabel()
+	{
+		return self::NATIVE_ROUTER_TEMPLATE_LABEL;
+	}
+
+	/**
+	 * Return the native object template type used by Notify::send().
+	 *
+	 * @return string
+	 */
+	public static function getNativeRouterTemplateType()
+	{
+		return self::NATIVE_TEMPLATE_TYPE;
+	}
+
+	/**
+	 * Check whether native Notifications can be used in the current instance.
+	 *
+	 * @return bool
+	 */
+	public static function isNativeNotificationAvailable()
+	{
+		return (!defined('DOL_VERSION') || version_compare(DOL_VERSION, '20.0.0', '>=')) && function_exists('isModEnabled') && isModEnabled('notification');
+	}
+
+	/**
 	 * Return one reason definition.
 	 *
 	 * @param string $reason Workflow reason
@@ -182,6 +225,100 @@ class TimesheetWeekNotification
 	}
 
 	/**
+	 * Build substitutions consumed by the native workflow router template.
+	 *
+	 * @param TimesheetWeek  $object Current timesheet
+	 * @param Translate|null $outputlangs Output language
+	 * @param User|null      $actionUser User who triggered the action
+	 * @return array<string,string>
+	 */
+	public static function getNativeNotificationSubstitutions(TimesheetWeek $object, $outputlangs = null, $actionUser = null)
+	{
+		$service = new self($object->db);
+		$content = $service->getNativeNotificationContent($object, $outputlangs, $actionUser);
+		$substitutions = !empty($content['substitutions']) && is_array($content['substitutions']) ? $content['substitutions'] : array();
+
+		$substitutions['__TIMESHEETWEEK_NOTIFICATION_SUBJECT__'] = !empty($content['subject']) ? (string) $content['subject'] : '';
+		$substitutions['__TIMESHEETWEEK_NOTIFICATION_BODY__'] = !empty($content['body']) ? (string) $content['body'] : '';
+		$substitutions['__TIMESHEETWEEK_NOTIFICATION_REASON__'] = !empty($content['reason']) ? (string) $content['reason'] : '';
+		$substitutions['__TIMESHEETWEEK_NOTIFICATION_REASON_LABEL__'] = !empty($content['reason_label']) ? (string) $content['reason_label'] : '';
+		$substitutions['__TIMESHEETWEEK_NOTIFICATION_TEMPLATE_ID__'] = !empty($content['template_id']) ? (string) $content['template_id'] : '';
+
+		return $substitutions;
+	}
+
+	/**
+	 * Resolve the subject and body inserted into the native Notification router template.
+	 *
+	 * @param TimesheetWeek  $object Current timesheet
+	 * @param Translate|null $outputlangs Output language
+	 * @param User|null      $actionUser User who triggered the action
+	 * @return array{subject:string,body:string,reason:string,reason_label:string,template_id:int,substitutions:array<string,string>}
+	 */
+	public function getNativeNotificationContent(TimesheetWeek $object, $outputlangs = null, $actionUser = null)
+	{
+		global $langs, $user, $conf;
+
+		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
+		if ($trans instanceof Translate) {
+			$trans->loadLangs(array('mails', 'timesheetweek@timesheetweek', 'users'));
+		}
+
+		if (!($actionUser instanceof User) && isset($user) && $user instanceof User) {
+			$actionUser = $user;
+		}
+
+		$reason = is_array($object->context) && !empty($object->context['trigger_reason']) ? (string) $object->context['trigger_reason'] : '';
+		$definition = self::getReasonDefinition($reason);
+		if (empty($definition)) {
+			$definition = array(
+				'label' => 'Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
+				'description' => 'TimesheetWeekCompatibilityNotificationsDesc',
+				'recipient' => 'employee',
+				'template_label' => '',
+				'subject_key' => 'Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
+				'body_key' => 'TimesheetWeekNativeNotificationDefaultBody',
+			);
+		}
+
+		$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$templateConstant = self::getTemplateConstant($reason);
+		$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, $entity) : 0;
+		$template = $templateId > 0 ? $this->fetchEmailTemplate($templateId, $entity) : array();
+
+		$defaultRecipients = $this->resolveDefaultRecipients($object, !empty($definition['recipient']) ? $definition['recipient'] : 'employee');
+		$recipientUser = !empty($defaultRecipients) ? reset($defaultRecipients) : null;
+		$substitutions = $this->buildSubstitutions($object, $actionUser, $recipientUser instanceof User ? $recipientUser : null, $reason, $definition, $trans, false);
+
+		$subject = !empty($template['topic']) ? $template['topic'] : $this->getDefaultTemplateText($definition['subject_key'], $object, $actionUser, $trans);
+		$body = !empty($template['content']) ? $template['content'] : $this->getDefaultTemplateText($definition['body_key'], $object, $actionUser, $trans);
+
+		$subject = make_substitutions($subject, $substitutions);
+		$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
+
+		$subject = dol_string_nohtmltag(html_entity_decode($subject, ENT_QUOTES, 'UTF-8'));
+		$body = html_entity_decode($body, ENT_QUOTES, 'UTF-8');
+
+		$reasonLabel = !empty($substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__']) ? $substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] : $reason;
+		if ($subject === '') {
+			$subject = $trans instanceof Translate ? $trans->transnoentities('Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE') : 'Timesheet updated';
+		}
+		if ($body === '') {
+			$body = $trans instanceof Translate ? $trans->transnoentities('TimesheetWeekNativeNotificationDefaultBody') : 'The timesheet __TIMESHEETWEEK_REF__ was updated.';
+			$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
+		}
+
+		return array(
+			'subject' => $subject,
+			'body' => $body,
+			'reason' => $reason,
+			'reason_label' => $reasonLabel,
+			'template_id' => $templateId,
+			'substitutions' => $substitutions,
+		);
+	}
+
+	/**
 	 * Send a workflow notification from a TimesheetWeek CRUD trigger context.
 	 *
 	 * @param TimesheetWeek $object Current timesheet
@@ -190,6 +327,10 @@ class TimesheetWeekNotification
 	 */
 	public static function sendForTriggerContext(TimesheetWeek $object, User $actionUser)
 	{
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_NOTIFICATION_HELPERS', 0)) {
+			return 0;
+		}
+
 		if (!is_array($object->context)) {
 			return 0;
 		}
@@ -214,6 +355,10 @@ class TimesheetWeekNotification
 	public function sendWorkflowNotification(TimesheetWeek $object, User $actionUser, $reason)
 	{
 		global $conf, $langs;
+
+		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_NOTIFICATION_HELPERS', 0)) {
+			return 0;
+		}
 
 		$definition = self::getReasonDefinition($reason);
 		if (empty($definition)) {
@@ -245,7 +390,7 @@ class TimesheetWeekNotification
 
 		$defaultRecipients = $this->resolveDefaultRecipients($object, $definition['recipient']);
 		$recipientUser = !empty($defaultRecipients) ? reset($defaultRecipients) : null;
-		$substitutions = $this->buildSubstitutions($object, $actionUser, $recipientUser instanceof User ? $recipientUser : null, $reason, $definition);
+		$substitutions = $this->buildSubstitutions($object, $actionUser, $recipientUser instanceof User ? $recipientUser : null, $reason, $definition, $langs, true);
 
 		$sendTo = !empty($template['email_to']) ? make_substitutions($template['email_to'], $substitutions) : '';
 		if ($sendTo === '') {
@@ -420,16 +565,19 @@ class TimesheetWeekNotification
 	 * Build substitutions available to workflow email templates.
 	 *
 	 * @param TimesheetWeek        $object Current timesheet
-	 * @param User                 $actionUser User who triggered the action
+	 * @param User|null            $actionUser User who triggered the action
 	 * @param User|null            $recipientUser Default recipient user
 	 * @param string               $reason Workflow reason
 	 * @param array<string,string> $definition Reason definition
+	 * @param Translate|null       $outputlangs Output language
+	 * @param bool                 $includeCommonSubstitutions Include module substitutions
 	 * @return array<string,string>
 	 */
-	protected function buildSubstitutions(TimesheetWeek $object, User $actionUser, $recipientUser, $reason, array $definition)
+	protected function buildSubstitutions(TimesheetWeek $object, $actionUser, $recipientUser, $reason, array $definition, $outputlangs = null, $includeCommonSubstitutions = true)
 	{
 		global $langs;
 
+		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
 		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
@@ -443,9 +591,12 @@ class TimesheetWeekNotification
 			$signature = getDolGlobalString('MAIN_INFO_SOCIETE_NOM', '');
 		}
 
-		$substitutions = function_exists('getCommonSubstitutionArray') ? getCommonSubstitutionArray($langs, 0, null, null, null) : array();
-		if (function_exists('complete_substitutions_array')) {
-			complete_substitutions_array($substitutions, $langs, $object);
+		$substitutions = array();
+		if ($trans instanceof Translate && function_exists('getCommonSubstitutionArray')) {
+			$substitutions = getCommonSubstitutionArray($trans, 0, null, null, null);
+		}
+		if ($includeCommonSubstitutions && $trans instanceof Translate && function_exists('complete_substitutions_array')) {
+			complete_substitutions_array($substitutions, $trans, $object);
 		}
 
 		$substitutions['__TIMESHEETWEEK_ID__'] = (string) $object->id;
@@ -456,21 +607,21 @@ class TimesheetWeekNotification
 		$substitutions['__TIMESHEETWEEK_OLD_STATUS__'] = ($oldStatus !== null ? $this->getStatusLabel((int) $oldStatus) : '');
 		$substitutions['__TIMESHEETWEEK_NEW_STATUS__'] = ($newStatus !== null ? $this->getStatusLabel((int) $newStatus) : '');
 		$substitutions['__TIMESHEETWEEK_TRIGGER_REASON__'] = $reason;
-		$substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] = $langs instanceof Translate ? $langs->trans($definition['label']) : $reason;
+		$substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] = $trans instanceof Translate ? $trans->trans($definition['label']) : $reason;
 		$substitutions['__TIMESHEETWEEK_URL__'] = $urlHtml;
 		$substitutions['__TIMESHEETWEEK_URL_RAW__'] = $urlRaw;
 		$substitutions['__TIMESHEETWEEK_MOTIF__'] = $motif;
 		$substitutions['__TIMESHEETWEEK_MAIL_SIGNATURE__'] = $signature;
 
-		$substitutions['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'] = $employee instanceof User ? $employee->getFullName($langs) : '';
+		$substitutions['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'] = $employee instanceof User ? $employee->getFullName($trans) : '';
 		$substitutions['__TIMESHEETWEEK_EMPLOYEE_NAME__'] = $substitutions['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'];
 		$substitutions['__TIMESHEETWEEK_EMPLOYEE_EMAIL__'] = $employee instanceof User ? (string) $employee->email : '';
-		$substitutions['__TIMESHEETWEEK_VALIDATOR_FULLNAME__'] = $validator instanceof User ? $validator->getFullName($langs) : '';
+		$substitutions['__TIMESHEETWEEK_VALIDATOR_FULLNAME__'] = $validator instanceof User ? $validator->getFullName($trans) : '';
 		$substitutions['__TIMESHEETWEEK_VALIDATOR_NAME__'] = $substitutions['__TIMESHEETWEEK_VALIDATOR_FULLNAME__'];
 		$substitutions['__TIMESHEETWEEK_VALIDATOR_EMAIL__'] = $validator instanceof User ? (string) $validator->email : '';
-		$substitutions['__ACTION_USER_FULLNAME__'] = $actionUser->getFullName($langs);
-		$substitutions['__ACTION_USER_EMAIL__'] = (string) $actionUser->email;
-		$substitutions['__RECIPIENT_FULLNAME__'] = $recipientUser instanceof User ? $recipientUser->getFullName($langs) : '';
+		$substitutions['__ACTION_USER_FULLNAME__'] = $actionUser instanceof User ? $actionUser->getFullName($trans) : '';
+		$substitutions['__ACTION_USER_EMAIL__'] = $actionUser instanceof User ? (string) $actionUser->email : '';
+		$substitutions['__RECIPIENT_FULLNAME__'] = $recipientUser instanceof User ? $recipientUser->getFullName($trans) : '';
 		$substitutions['__RECIPIENT_EMAIL__'] = $recipientUser instanceof User ? (string) $recipientUser->email : '';
 
 		return $substitutions;
@@ -522,18 +673,20 @@ class TimesheetWeekNotification
 	 *
 	 * @param string        $translationKey Translation key
 	 * @param TimesheetWeek $object Current timesheet
-	 * @param User          $actionUser Action user
+	 * @param User|null     $actionUser Action user
+	 * @param Translate|null $outputlangs Output language
 	 * @return string
 	 */
-	protected function getDefaultTemplateText($translationKey, TimesheetWeek $object, User $actionUser)
+	protected function getDefaultTemplateText($translationKey, TimesheetWeek $object, $actionUser = null, $outputlangs = null)
 	{
 		global $langs;
 
-		if (!($langs instanceof Translate)) {
+		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
+		if (!($trans instanceof Translate)) {
 			return '';
 		}
 
-		$translated = $langs->transnoentities($translationKey);
+		$translated = $trans->transnoentities($translationKey);
 		return ($translated === $translationKey) ? '' : $translated;
 	}
 }

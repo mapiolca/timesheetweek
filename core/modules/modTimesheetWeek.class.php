@@ -916,6 +916,15 @@ class modTimesheetWeek extends DolibarrModules
 		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301)";
 		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302)";
 		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303)";
+		$nativeWorkflowRouterTemplates = array(
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'position' => 200, 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__', 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__'),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'position' => 200, 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__', 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__'),
+		);
+		foreach ($nativeWorkflowRouterTemplates as $nativeWorkflowRouterTemplate) {
+			$sql[] = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content) SELECT 0,'timesheetweek','timesheetweek','".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."',0,NULL,NOW(),'".$this->db->escape($nativeWorkflowRouterTemplate['label'])."',".((int) $nativeWorkflowRouterTemplate['position']).",1,'isModEnabled(\\\"timesheetweek\\\")',0,'".$this->db->escape($nativeWorkflowRouterTemplate['topic'])."','".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."')";
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET topic = '".$this->db->escape($nativeWorkflowRouterTemplate['topic'])."' WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' AND (topic IS NULL OR topic = '')";
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET content = '".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE module = 'timesheetweek' AND type_template = 'timesheetweek' AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' AND (content IS NULL OR content = '')";
+		}
 		$workflowNotificationTemplates = array(
 			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT', 'position' => 210, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ soumise', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
 			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE', 'position' => 220, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ approuvée', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est approuvée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
@@ -974,6 +983,14 @@ class modTimesheetWeek extends DolibarrModules
 		$resultInit = $this->_init($sql, $options);
 		if ($resultInit <= 0) {
 			return $resultInit;
+		}
+
+		if (getDolGlobalString('TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE', '') === '') {
+			$templateResult = dolibarr_set_const($this->db, 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE', 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'chaine', 0, '', (int) $conf->entity);
+			if ($templateResult < 0) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
 		}
 
 		return $resultInit;

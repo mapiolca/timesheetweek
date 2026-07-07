@@ -1,6 +1,7 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.8.4 (29/06/2026)
+- Route les notifications métier par étape via le module natif Notifications avec le modèle `TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER`, sans envoi direct depuis le trigger TimesheetWeek. / Routes per-step business notifications through the native Notifications module with the `TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER` template, without direct sending from the TimesheetWeek trigger.
 - Ajoute des notifications métier par étape avec modèles de courriel personnalisables (`timesheetweek_notification`) pour soumission, approbation, refus, retour en brouillon, scellement et descellement, routées depuis le contexte du trigger CRUD `UPDATE`. / Adds per-step business notifications with customizable email templates (`timesheetweek_notification`) for submission, approval, refusal, revert to draft, seal and unseal, routed from the CRUD `UPDATE` trigger context.
 - Corrige le rendu `getNomUrl()` pour afficher la référence de la feuille avec son pictogramme dans les liens Agenda et objets liés. / Fixes `getNomUrl()` rendering so the timesheet reference is displayed with its pictogram in Agenda and linked-object links.
 - Stabilise l'élément externe sur `timesheetweek@timesheetweek` pour Agenda, Notifications et l'historique de navigation, avec migration idempotente des anciennes déclarations. / Stabilizes the external element on `timesheetweek@timesheetweek` for Agenda, Notifications and navigation history, with an idempotent migration of legacy declarations.
