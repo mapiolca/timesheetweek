@@ -234,8 +234,55 @@ WHERE module = 'timesheetweek' AND type_template = 'timesheetweek@timesheetweek'
 
 UPDATE llx_const
 SET value = 'Notification TimesheetWeek'
-WHERE name = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE'
+WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
 AND value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'TIMESHEETWEEK_CREATE_TEMPLATE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'TIMESHEETWEEK_CREATE_TEMPLATE' AND newc.entity = oldc.entity);
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'TIMESHEETWEEK_MODIFY_TEMPLATE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'TIMESHEETWEEK_MODIFY_TEMPLATE' AND newc.entity = oldc.entity);
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'TIMESHEETWEEK_DELETE_TEMPLATE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'TIMESHEETWEEK_DELETE_TEMPLATE' AND newc.entity = oldc.entity);
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_CREATE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_TIMESHEETWEEK_CREATE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_CREATE' AND newc.entity = oldc.entity);
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_MODIFY', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_MODIFY' AND newc.entity = oldc.entity);
+
+INSERT INTO llx_const (name, type, value, note, visible, entity)
+SELECT 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_DELETE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
+FROM llx_const AS oldc
+WHERE oldc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_TIMESHEETWEEK_DELETE'
+AND oldc.value <> ''
+AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_DELETE' AND newc.entity = oldc.entity);
+
+UPDATE llx_const
+SET value = 'Notification TimesheetWeek'
+WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
 
 -- EN: Add workflow email templates used by configurable TimesheetWeek step notifications.
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
@@ -306,7 +353,7 @@ WHERE NOT EXISTS (
 
 UPDATE llx_const
 SET value = 'Notification TimesheetWeek'
-WHERE name = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE'
+WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
 AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
 
 UPDATE llx_const
@@ -342,9 +389,9 @@ AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'No
 UPDATE llx_const
 SET type = 'emailtemplate:timesheetweek'
 WHERE name IN (
-	'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE',
-	'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE',
-	'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE',
+	'TIMESHEETWEEK_CREATE_TEMPLATE',
+	'TIMESHEETWEEK_MODIFY_TEMPLATE',
+	'TIMESHEETWEEK_DELETE_TEMPLATE',
 	'TIMESHEETWEEK_SUBMIT_TEMPLATE',
 	'TIMESHEETWEEK_APPROVE_TEMPLATE',
 	'TIMESHEETWEEK_REFUSE_TEMPLATE',
@@ -353,7 +400,7 @@ WHERE name IN (
 	'TIMESHEETWEEK_UNSEAL_TEMPLATE'
 );
 
--- EN: Keep only CRUD TimesheetWeek triggers configurable through native Agenda/Notification pages.
+-- EN: Keep only TimesheetWeek business triggers configurable through native Agenda/Notification pages.
 DELETE FROM llx_c_action_trigger
 WHERE code IN (
 	'TIMESHEETWEEK_SUBMITTED',
@@ -374,42 +421,50 @@ DELETE FROM llx_c_action_trigger
 WHERE code IN (
 	'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
 	'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
-	'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
+	'TIMESHEETWEEK_TIMESHEETWEEK_DELETE'
+)
+AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek');
+
+DELETE FROM llx_c_action_trigger
+WHERE code IN (
+	'TIMESHEETWEEK_CREATE',
 	'TIMESHEETWEEK_SUBMIT',
 	'TIMESHEETWEEK_APPROVE',
 	'TIMESHEETWEEK_REFUSE',
 	'TIMESHEETWEEK_SETDRAFT',
 	'TIMESHEETWEEK_SEAL',
-	'TIMESHEETWEEK_UNSEAL'
+	'TIMESHEETWEEK_UNSEAL',
+	'TIMESHEETWEEK_DELETE',
+	'TIMESHEETWEEK_MODIFY'
 )
-AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek');
+AND elementtype = 'timesheetweek';
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created.', 45000301);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SUBMIT', 'agenda:notification', 'Submit weekly timesheet', 'Executed when a weekly timesheet is submitted for approval.', 45000302);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_APPROVE', 'agenda:notification', 'Approve weekly timesheet', 'Executed when a weekly timesheet is approved.', 45000303);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SUBMIT', 'notification', 'Submit weekly timesheet', 'Executed when a weekly timesheet is submitted for approval', 45000304);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_REFUSE', 'agenda:notification', 'Refuse weekly timesheet', 'Executed when a weekly timesheet is refused.', 45000304);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_APPROVE', 'notification', 'Approve weekly timesheet', 'Executed when a weekly timesheet is approved', 45000305);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SETDRAFT', 'agenda:notification', 'Revert weekly timesheet to draft', 'Executed when a weekly timesheet is reverted to draft.', 45000305);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_REFUSE', 'notification', 'Refuse weekly timesheet', 'Executed when a weekly timesheet is refused', 45000306);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SEAL', 'agenda:notification', 'Seal weekly timesheet', 'Executed when a weekly timesheet is sealed.', 45000306);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SETDRAFT', 'notification', 'Revert weekly timesheet to draft', 'Executed when a weekly timesheet is reverted to draft', 45000307);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_UNSEAL', 'agenda:notification', 'Unseal weekly timesheet', 'Executed when a weekly timesheet is unsealed.', 45000307);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SEAL', 'notification', 'Seal weekly timesheet', 'Executed when a weekly timesheet is sealed', 45000308);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted.', 45000308);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_UNSEAL', 'notification', 'Unseal weekly timesheet', 'Executed when a weekly timesheet is unsealed', 45000309);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_MODIFY', 'agenda:notification', 'Modify weekly timesheet', 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 45000309);
 
 -- EN: Repair historical Agenda links that used the short element type.
 UPDATE llx_actioncomm

@@ -759,11 +759,11 @@ function tw_pdf_resolve_sealed_by($db, $timesheetId, $entityId)
 	$sql = "SELECT ac.fk_user_author as sealer_id, u.firstname, u.lastname";
 	$sql .= " FROM ".MAIN_DB_PREFIX."actioncomm as ac";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = ac.fk_user_author";
-	$sql .= " WHERE ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE')";
+	$sql .= " WHERE ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_MODIFY', 'TIMESHEETWEEK_SEAL')";
 	$sql .= " AND ac.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
 	$sql .= " AND ac.fk_element = ".$timesheetId;
 	$sql .= " AND ac.entity = ".$entityId;
-	$sql .= " AND (ac.code = 'TSWK_SEAL' OR ac.note_private LIKE '%seal%' OR ac.note_private LIKE '%Scell%')";
+	$sql .= " AND (ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_SEAL') OR ac.note_private LIKE '%seal%' OR ac.note_private LIKE '%Scell%')";
 	$sql .= " ORDER BY ac.rowid DESC";
 	$sql .= " LIMIT 1";
 

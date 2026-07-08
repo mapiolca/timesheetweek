@@ -48,29 +48,86 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Return native triggers exposed to Dolibarr Notifications.
+     * Return business events exposed by TimesheetWeek, following the Diffusion module pattern.
+     *
+     * @return array<string,array<string,int|string>>
+     */
+    public static function getBusinessEventsDefinition()
+    {
+        $timesheetweek = array(
+            'contexts' => 'agenda:notification',
+            'notification_elementtype' => 'timesheetweek@timesheetweek',
+            'agenda_elementtype' => 'timesheetweek@timesheetweek',
+        );
+
+        return array(
+            'TIMESHEETWEEK_CREATE' => array_merge(array('label' => 'Create weekly timesheet', 'description' => 'Executed when a weekly timesheet is created.', 'rang' => 45000301), $timesheetweek),
+            'TIMESHEETWEEK_SUBMIT' => array_merge(array('label' => 'Submit weekly timesheet', 'description' => 'Executed when a weekly timesheet is submitted for approval.', 'rang' => 45000302), $timesheetweek),
+            'TIMESHEETWEEK_APPROVE' => array_merge(array('label' => 'Approve weekly timesheet', 'description' => 'Executed when a weekly timesheet is approved.', 'rang' => 45000303), $timesheetweek),
+            'TIMESHEETWEEK_REFUSE' => array_merge(array('label' => 'Refuse weekly timesheet', 'description' => 'Executed when a weekly timesheet is refused.', 'rang' => 45000304), $timesheetweek),
+            'TIMESHEETWEEK_SETDRAFT' => array_merge(array('label' => 'Revert weekly timesheet to draft', 'description' => 'Executed when a weekly timesheet is reverted to draft.', 'rang' => 45000305), $timesheetweek),
+            'TIMESHEETWEEK_SEAL' => array_merge(array('label' => 'Seal weekly timesheet', 'description' => 'Executed when a weekly timesheet is sealed.', 'rang' => 45000306), $timesheetweek),
+            'TIMESHEETWEEK_UNSEAL' => array_merge(array('label' => 'Unseal weekly timesheet', 'description' => 'Executed when a weekly timesheet is unsealed.', 'rang' => 45000307), $timesheetweek),
+            'TIMESHEETWEEK_DELETE' => array_merge(array('label' => 'Delete weekly timesheet', 'description' => 'Executed when a weekly timesheet is deleted.', 'rang' => 45000308), $timesheetweek),
+            'TIMESHEETWEEK_MODIFY' => array_merge(array('label' => 'Modify weekly timesheet', 'description' => 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 'rang' => 45000309), $timesheetweek),
+        );
+    }
+
+    /**
+     * Return one business event definition.
+     *
+     * @param string $code Business trigger code
+     * @return array<string,int|string>
+     */
+    public static function getBusinessEventDefinition($code)
+    {
+        $events = self::getBusinessEventsDefinition();
+        return !empty($events[$code]) ? $events[$code] : array();
+    }
+
+    /**
+     * Return business event codes supported by native notifications.
+     *
+     * @return array<int,string>
+     */
+    public static function getNotificationEventCodes()
+    {
+        return array_values(array_diff(array_keys(self::getBusinessEventsDefinition()), self::getExcludedNotificationEventCodes()));
+    }
+
+    /**
+     * Return business event codes intentionally hidden from native notifications.
+     *
+     * @return array<int,string>
+     */
+    public static function getExcludedNotificationEventCodes()
+    {
+        return array(
+            'TIMESHEETWEEK_MODIFY',
+        );
+    }
+
+    /**
+     * Return native triggers exposed to Dolibarr Agenda and Notifications.
      *
      * @return array<int,string>
      */
     public static function getNativeNotificationTriggerCodes()
     {
-        return array_merge(
-            self::getNativeNotificationCrudTriggerCodes(),
-            self::getNativeNotificationWorkflowTriggerCodes()
-        );
+        return array_keys(self::getBusinessEventsDefinition());
     }
 
     /**
-     * Return native CRUD triggers exposed to Dolibarr Notifications.
+     * Return native CREATE/MODIFY/DELETE triggers.
      *
      * @return array<int,string>
      */
     public static function getNativeNotificationCrudTriggerCodes()
     {
         return array(
-            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
-            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
-            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
+            'TIMESHEETWEEK_CREATE',
+            'TIMESHEETWEEK_MODIFY',
+            'TIMESHEETWEEK_DELETE',
         );
     }
 
@@ -108,80 +165,19 @@ class ActionsTimesheetweek
      */
     public static function getNativeNotificationTriggerRows()
     {
-        return array(
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE',
-                'contexts' => 'agenda:notification',
-                'label' => 'Create weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is created; the precise business context is carried by the object context',
-                'rang' => 45000301,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
-                'contexts' => 'agenda:notification',
-                'label' => 'Update weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context',
-                'rang' => 45000302,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE',
-                'contexts' => 'agenda:notification',
-                'label' => 'Delete weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet',
-                'rang' => 45000303,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_SUBMIT',
-                'contexts' => 'notification',
-                'label' => 'Submit weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is submitted for approval',
-                'rang' => 45000304,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_APPROVE',
-                'contexts' => 'notification',
-                'label' => 'Approve weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is approved',
-                'rang' => 45000305,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_REFUSE',
-                'contexts' => 'notification',
-                'label' => 'Refuse weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is refused',
-                'rang' => 45000306,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_SETDRAFT',
-                'contexts' => 'notification',
-                'label' => 'Revert weekly timesheet to draft',
-                'description' => 'Executed when a weekly timesheet is reverted to draft',
-                'rang' => 45000307,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_SEAL',
-                'contexts' => 'notification',
-                'label' => 'Seal weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is sealed',
-                'rang' => 45000308,
-            ),
-            array(
-                'elementtype' => 'timesheetweek@timesheetweek',
-                'code' => 'TIMESHEETWEEK_UNSEAL',
-                'contexts' => 'notification',
-                'label' => 'Unseal weekly timesheet',
-                'description' => 'Executed when a weekly timesheet is unsealed',
-                'rang' => 45000309,
-            ),
-        );
+        $rows = array();
+        foreach (self::getBusinessEventsDefinition() as $code => $event) {
+            $rows[] = array(
+                'elementtype' => (string) $event['notification_elementtype'],
+                'code' => (string) $code,
+                'contexts' => (string) $event['contexts'],
+                'label' => (string) $event['label'],
+                'description' => (string) $event['description'],
+                'rang' => (int) $event['rang'],
+            );
+        }
+
+        return $rows;
     }
 
     /**
@@ -203,6 +199,20 @@ class ActionsTimesheetweek
             'TSWK_UNSEAL',
             'TSWK_REFUSE',
             'TSWK_DELETE',
+        );
+    }
+
+    /**
+     * Return the recent CRUD trigger codes that must be migrated to business codes.
+     *
+     * @return array<string,string>
+     */
+    public static function getRecentCrudTriggerCodeMap()
+    {
+        return array(
+            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE' => 'TIMESHEETWEEK_CREATE',
+            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE' => 'TIMESHEETWEEK_MODIFY',
+            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE' => 'TIMESHEETWEEK_DELETE',
         );
     }
 
@@ -239,17 +249,17 @@ class ActionsTimesheetweek
     public static function getNativeNotificationTemplateConstantDefinitions()
     {
         return array(
-            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE' => array(
+            'TIMESHEETWEEK_CREATE_TEMPLATE' => array(
                 'type' => 'emailtemplate:timesheetweek',
                 'default' => '',
                 'legacy_values' => array(),
             ),
-            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE' => array(
+            'TIMESHEETWEEK_MODIFY_TEMPLATE' => array(
                 'type' => 'emailtemplate:timesheetweek',
                 'default' => 'Notification TimesheetWeek',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'),
             ),
-            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE' => array(
+            'TIMESHEETWEEK_DELETE_TEMPLATE' => array(
                 'type' => 'emailtemplate:timesheetweek',
                 'default' => '',
                 'legacy_values' => array(),
@@ -306,6 +316,10 @@ class ActionsTimesheetweek
             return 1;
         }
 
+        if (self::migrateRecentCrudNotificationSetup($db, $entity) < 0) {
+            return -1;
+        }
+
         $legacyCodes = self::getLegacyNotificationTriggerCodes();
         $legacySql = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger";
         $legacySql .= " WHERE code IN (".self::buildSqlStringList($db, $legacyCodes).")";
@@ -341,6 +355,101 @@ class ActionsTimesheetweek
         }
 
         self::$nativeNotificationSetupSynced[$cacheKey] = true;
+
+        return 1;
+    }
+
+    /**
+     * Migrate recent CRUD notification metadata to the business-event names used by this module.
+     *
+     * @param DoliDB $db     Database handler
+     * @param int    $entity Current entity
+     * @return int 1 on success, -1 on error
+     */
+    protected static function migrateRecentCrudNotificationSetup($db, $entity)
+    {
+        $entity = (int) $entity;
+        if ($entity <= 0) {
+            $entity = 1;
+        }
+
+        foreach (self::getRecentCrudTriggerCodeMap() as $oldCode => $newCode) {
+            $sqlTarget = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_action_trigger";
+            $sqlTarget .= " WHERE code = '".$db->escape($newCode)."'";
+            $sqlTarget .= " AND elementtype = 'timesheetweek@timesheetweek'";
+            $sqlTarget .= " LIMIT 1";
+            $resqlTarget = $db->query($sqlTarget);
+            if (!$resqlTarget) {
+                return -1;
+            }
+            $targetExists = (bool) $db->num_rows($resqlTarget);
+            $db->free($resqlTarget);
+
+            if ($targetExists) {
+                $sqlDeleteOld = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger";
+                $sqlDeleteOld .= " WHERE code = '".$db->escape($oldCode)."'";
+                $sqlDeleteOld .= " AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
+                if (!$db->query($sqlDeleteOld)) {
+                    return -1;
+                }
+            } else {
+                $sqlUpdateExternal = "UPDATE ".MAIN_DB_PREFIX."c_action_trigger";
+                $sqlUpdateExternal .= " SET code = '".$db->escape($newCode)."'";
+                $sqlUpdateExternal .= " WHERE code = '".$db->escape($oldCode)."'";
+                $sqlUpdateExternal .= " AND elementtype = 'timesheetweek@timesheetweek'";
+                if (!$db->query($sqlUpdateExternal)) {
+                    return -1;
+                }
+
+                $sqlDeleteShort = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger";
+                $sqlDeleteShort .= " WHERE code = '".$db->escape($oldCode)."'";
+                $sqlDeleteShort .= " AND elementtype = 'timesheetweek'";
+                if (!$db->query($sqlDeleteShort)) {
+                    return -1;
+                }
+            }
+        }
+
+        $constMap = array(
+            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE' => 'TIMESHEETWEEK_CREATE_TEMPLATE',
+            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE' => 'TIMESHEETWEEK_MODIFY_TEMPLATE',
+            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE' => 'TIMESHEETWEEK_DELETE_TEMPLATE',
+        );
+        foreach ($constMap as $oldConst => $newConst) {
+            $sqlConst = "INSERT INTO ".MAIN_DB_PREFIX."const (name, type, value, note, visible, entity)";
+            $sqlConst .= " SELECT '".$db->escape($newConst)."', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity";
+            $sqlConst .= " FROM ".MAIN_DB_PREFIX."const AS oldc";
+            $sqlConst .= " WHERE oldc.name = '".$db->escape($oldConst)."'";
+            $sqlConst .= " AND oldc.entity = ".$entity;
+            $sqlConst .= " AND oldc.value <> ''";
+            $sqlConst .= " AND NOT EXISTS (";
+            $sqlConst .= "SELECT 1 FROM ".MAIN_DB_PREFIX."const AS newc";
+            $sqlConst .= " WHERE newc.name = '".$db->escape($newConst)."'";
+            $sqlConst .= " AND newc.entity = oldc.entity";
+            $sqlConst .= ")";
+            if (!$db->query($sqlConst)) {
+                return -1;
+            }
+        }
+
+        foreach (self::getRecentCrudTriggerCodeMap() as $oldCode => $newCode) {
+            $oldConst = 'MAIN_AGENDA_ACTIONAUTO_'.$oldCode;
+            $newConst = 'MAIN_AGENDA_ACTIONAUTO_'.$newCode;
+            $sqlAgendaConst = "INSERT INTO ".MAIN_DB_PREFIX."const (name, type, value, note, visible, entity)";
+            $sqlAgendaConst .= " SELECT '".$db->escape($newConst)."', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity";
+            $sqlAgendaConst .= " FROM ".MAIN_DB_PREFIX."const AS oldc";
+            $sqlAgendaConst .= " WHERE oldc.name = '".$db->escape($oldConst)."'";
+            $sqlAgendaConst .= " AND oldc.entity = ".$entity;
+            $sqlAgendaConst .= " AND oldc.value <> ''";
+            $sqlAgendaConst .= " AND NOT EXISTS (";
+            $sqlAgendaConst .= "SELECT 1 FROM ".MAIN_DB_PREFIX."const AS newc";
+            $sqlAgendaConst .= " WHERE newc.name = '".$db->escape($newConst)."'";
+            $sqlAgendaConst .= " AND newc.entity = oldc.entity";
+            $sqlAgendaConst .= ")";
+            if (!$db->query($sqlAgendaConst)) {
+                return -1;
+            }
+        }
 
         return 1;
     }
@@ -567,6 +676,10 @@ class ActionsTimesheetweek
         foreach ($templateConstants as $templateConstant => $definition) {
             $selectedTemplate = getDolGlobalString($templateConstant, '');
             if ($selectedTemplate === '' && $definition['default'] === '') {
+                $result = dolibarr_set_const($db, $templateConstant, '', $definition['type'], 0, '', $entity);
+                if ($result < 0) {
+                    return -1;
+                }
                 continue;
             }
 
@@ -698,12 +811,13 @@ class ActionsTimesheetweek
             $this->errors[] = $this->error;
         }
 
-        $events = self::getNativeNotificationTriggerCodes();
+        $events = self::getNotificationEventCodes();
         if (!empty($hookmanager->resArray['arrayofnotifsupported']) && is_array($hookmanager->resArray['arrayofnotifsupported'])) {
             $events = array_merge($hookmanager->resArray['arrayofnotifsupported'], $events);
         }
 
-        $this->results = array('arrayofnotifsupported' => array_values(array_unique($events)));
+        $events = array_values(array_diff(array_unique($events), self::getExcludedNotificationEventCodes()));
+        $this->results = array('arrayofnotifsupported' => $events);
 
         return 0;
     }

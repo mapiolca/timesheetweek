@@ -26,7 +26,7 @@ class TimesheetWeekNotification
 	public const NATIVE_TEMPLATE_TYPE = 'timesheetweek@timesheetweek';
 	public const NATIVE_ROUTER_TEMPLATE_LABEL = 'Notification TimesheetWeek';
 	public const NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
-	public const NATIVE_UPDATE_TEMPLATE_CONSTANT = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE';
+	public const NATIVE_UPDATE_TEMPLATE_CONSTANT = 'TIMESHEETWEEK_MODIFY_TEMPLATE';
 
 	/** @var DoliDB */
 	public $db;
@@ -283,11 +283,11 @@ class TimesheetWeekNotification
 		$definition = self::getReasonDefinition($reason);
 		if (empty($definition)) {
 			$definition = array(
-				'label' => 'Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
+				'label' => 'Notify_TIMESHEETWEEK_MODIFY',
 				'description' => 'TimesheetWeekCompatibilityNotificationsDesc',
 				'recipient' => 'employee',
 				'template_label' => '',
-				'subject_key' => 'Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE',
+				'subject_key' => 'Notify_TIMESHEETWEEK_MODIFY',
 				'body_key' => 'TimesheetWeekNativeNotificationDefaultBody',
 			);
 		}
@@ -312,7 +312,7 @@ class TimesheetWeekNotification
 
 		$reasonLabel = !empty($substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__']) ? $substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] : $reason;
 		if ($subject === '') {
-			$subject = $trans instanceof Translate ? $trans->transnoentities('Notify_TIMESHEETWEEK_TIMESHEETWEEK_UPDATE') : 'Timesheet updated';
+			$subject = $trans instanceof Translate ? $trans->transnoentities('Notify_TIMESHEETWEEK_MODIFY') : 'Timesheet updated';
 		}
 		if ($body === '') {
 			$body = $trans instanceof Translate ? $trans->transnoentities('TimesheetWeekNativeNotificationDefaultBody') : 'The timesheet __TIMESHEETWEEK_REF__ was updated.';

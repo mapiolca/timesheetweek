@@ -15,6 +15,12 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
  */
 class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 {
+	/** @var string */
+	public $error = '';
+
+	/** @var array<int,string> */
+	public $errors = array();
+
 	/**
 	 * Constructor.
 	 *
@@ -99,6 +105,94 @@ class InterfaceTimesheetWeekTriggers extends DolibarrTriggers
 			$object->actionmsg = $object->context['actionmsg'];
 		}
 
+		$result = $this->createAgendaEvent($action, $object, $user, $langs, $conf);
+		if ($result < 0) {
+			return -1;
+		}
+
 		return 0;
+	}
+
+	/**
+	 * Create a native Agenda event when the matching automatic action is enabled.
+	 *
+	 * @param string       $action Trigger code
+	 * @param TimesheetWeek $object Current object
+	 * @param User         $user Current user
+	 * @param Translate    $langs Translation handler
+	 * @param Conf         $conf Dolibarr configuration
+	 * @return int<-1,1>
+	 */
+	private function createAgendaEvent($action, $object, $user, $langs, $conf)
+	{
+		if (!isModEnabled('agenda') || !getDolGlobalInt('MAIN_AGENDA_ACTIONAUTO_'.$action)) {
+			return 0;
+		}
+		if (empty($object->id)) {
+			return 0;
+		}
+		if (!class_exists('ActionComm')) {
+			dol_include_once('/comm/action/class/actioncomm.class.php');
+		}
+		if (!class_exists('ActionComm')) {
+			return 0;
+		}
+
+		$elementtype = 'timesheetweek@timesheetweek';
+		$objectid = (int) $object->id;
+		$duplicateWindowStart = dol_now() - 60;
+
+		$sql = "SELECT id FROM ".MAIN_DB_PREFIX."actioncomm";
+		$sql .= " WHERE elementtype = '".$this->db->escape($elementtype)."'";
+		$sql .= " AND fk_element = ".$objectid;
+		$sql .= " AND code = '".$this->db->escape($action)."'";
+		$sql .= " AND datep >= '".$this->db->idate($duplicateWindowStart)."'";
+		$sql .= " LIMIT 1";
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		if ($this->db->num_rows($resql) > 0) {
+			$this->db->free($resql);
+			return 0;
+		}
+		$this->db->free($resql);
+
+		$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
+
+		$label = !empty($object->actionmsg2) ? (string) $object->actionmsg2 : $langs->trans('Notify_'.$action);
+		if ($label === 'Notify_'.$action) {
+			$label = $langs->trans('TimesheetWeekTriggerGeneric', $object->ref);
+		}
+		$note = !empty($object->actionmsg) ? (string) $object->actionmsg : $label;
+
+		$agenda = new ActionComm($this->db);
+		$agenda->type_code = 'AC_OTH_AUTO';
+		$agenda->code = $action;
+		$agenda->label = $label;
+		$agenda->note_private = $note;
+		$agenda->datep = dol_now();
+		$agenda->datef = $agenda->datep;
+		$agenda->percentage = -1;
+		$agenda->elementtype = $elementtype;
+		$agenda->fk_element = $objectid;
+		$agenda->entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$agenda->userownerid = !empty($user->id) ? (int) $user->id : (!empty($object->fk_user) ? (int) $object->fk_user : 0);
+
+		if (!empty($object->fk_user)) {
+			$agenda->userassigned = array(
+				(int) $object->fk_user => array('id' => (int) $object->fk_user),
+			);
+		}
+
+		$result = $agenda->create($user);
+		if ($result < 0) {
+			$this->error = $agenda->error;
+			$this->errors = $agenda->errors;
+			return -1;
+		}
+
+		return 1;
 	}
 }

@@ -35,9 +35,9 @@ class TimesheetWeek extends CommonObject
 	const STATUS_SEALED    = 8; // EN: "sealed" status / FR : statut "scellée"
 	const STATUS_REFUSED   = 6;
 
-	const TRIGGER_CREATE = 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE';
-	const TRIGGER_UPDATE = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE';
-	const TRIGGER_DELETE = 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE';
+	const TRIGGER_CREATE = 'TIMESHEETWEEK_CREATE';
+	const TRIGGER_UPDATE = 'TIMESHEETWEEK_MODIFY';
+	const TRIGGER_DELETE = 'TIMESHEETWEEK_DELETE';
 	const TRIGGER_SUBMIT = 'TIMESHEETWEEK_SUBMIT';
 	const TRIGGER_APPROVE = 'TIMESHEETWEEK_APPROVE';
 	const TRIGGER_REFUSE = 'TIMESHEETWEEK_REFUSE';
@@ -643,7 +643,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
-		if (empty($notrigger) && $this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'update', array('ref', 'fk_user', 'week', 'year', 'status', 'note', 'motif', 'model_pdf', 'last_main_doc'), $oldStatus, (int) $this->status) < 0) {
+		if (empty($notrigger) && $this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'modify', array('ref', 'fk_user', 'week', 'year', 'status', 'note', 'motif', 'model_pdf', 'last_main_doc'), $oldStatus, (int) $this->status) < 0) {
 			return -1;
 		}
 		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
@@ -2634,7 +2634,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if ($linkToObject) {
-			$event->elementtype = $this->element;
+			$event->elementtype = 'timesheetweek@timesheetweek';
 			$event->fk_element = (int) $this->id;
 		}
 
@@ -2648,7 +2648,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		if ($linkToObject && method_exists($event, 'add_object_linked')) {
-			$event->add_object_linked($this->element, (int) $this->id);
+			$event->add_object_linked('timesheetweek@timesheetweek', (int) $this->id);
 		}
 
 		return true;
