@@ -23,7 +23,7 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 class TimesheetWeekNotification
 {
 	public const TEMPLATE_TYPE = 'timesheetweek@timesheetweek';
-	public const NATIVE_TEMPLATE_TYPE = 'timesheetweek@timesheetweek';
+	public const NATIVE_TEMPLATE_TYPE = 'timesheetweek_send';
 	public const NATIVE_ROUTER_TEMPLATE_LABEL = 'Notification TimesheetWeek';
 	public const NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
 	public const NATIVE_UPDATE_TEMPLATE_CONSTANT = 'TIMESHEETWEEK_MODIFY_TEMPLATE';
