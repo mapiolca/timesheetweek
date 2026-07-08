@@ -250,47 +250,47 @@ class ActionsTimesheetweek
     {
         return array(
             'TIMESHEETWEEK_CREATE_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => '',
                 'legacy_values' => array(),
             ),
             'TIMESHEETWEEK_MODIFY_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'Notification TimesheetWeek',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'),
             ),
             'TIMESHEETWEEK_DELETE_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => '',
                 'legacy_values' => array(),
             ),
             'TIMESHEETWEEK_SUBMIT_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_APPROVE_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_REFUSE_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_SETDRAFT_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_SEAL_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_SEAL',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_UNSEAL_TEMPLATE' => array(
-                'type' => 'emailtemplate:timesheetweek',
+                'type' => 'emailtemplate:timesheetweek@timesheetweek',
                 'default' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
@@ -348,6 +348,14 @@ class ActionsTimesheetweek
             if ($result < 0) {
                 return -1;
             }
+        }
+
+        $sqlMigrateWorkflowTemplates = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlMigrateWorkflowTemplates .= " SET type_template = 'timesheetweek@timesheetweek'";
+        $sqlMigrateWorkflowTemplates .= " WHERE module = 'timesheetweek'";
+        $sqlMigrateWorkflowTemplates .= " AND type_template = 'timesheetweek_notification'";
+        if (!$db->query($sqlMigrateWorkflowTemplates)) {
+            return -1;
         }
 
         if (self::ensureNativeNotificationTemplateConstants($db, $entity) < 0) {
@@ -540,14 +548,13 @@ class ActionsTimesheetweek
         $sqlMigrateLabel .= " AND type_template IN ('".$db->escape($newType)."', '".$db->escape($legacyType)."')";
         $sqlMigrateLabel .= " AND lang = '".$db->escape($template['lang'])."'";
         $sqlMigrateLabel .= " AND label = '".$db->escape($legacyLabel)."'";
-        $sqlMigrateLabel .= " AND NOT EXISTS (SELECT 1 FROM (SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE module = 'timesheetweek' AND type_template = '".$db->escape($newType)."' AND lang = '".$db->escape($template['lang'])."' AND label = '".$db->escape($template['label'])."') AS tsw_existing_router_template_label)";
+        $sqlMigrateLabel .= " AND NOT EXISTS (SELECT 1 FROM (SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$db->escape($template['lang'])."' AND label = '".$db->escape($template['label'])."') AS tsw_existing_router_template_label)";
         if (!$db->query($sqlMigrateLabel)) {
             return -1;
         }
 
         $sqlExistingNew = "SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates";
-        $sqlExistingNew .= " WHERE module = 'timesheetweek'";
-        $sqlExistingNew .= " AND type_template = '".$db->escape($newType)."'";
+        $sqlExistingNew .= " WHERE entity = 0";
         $sqlExistingNew .= " AND lang = '".$db->escape($template['lang'])."'";
         $sqlExistingNew .= " AND label = '".$db->escape($template['label'])."'";
         $sqlExistingNew .= " LIMIT 1";
@@ -617,10 +624,23 @@ class ActionsTimesheetweek
             }
         }
 
+        if ($newRowid > 0) {
+            $sqlNormalize = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+            $sqlNormalize .= " SET module = 'timesheetweek',";
+            $sqlNormalize .= " type_template = '".$db->escape($newType)."',";
+            $sqlNormalize .= " position = ".((int) $template['position']).",";
+            $sqlNormalize .= " active = 1,";
+            $sqlNormalize .= " enabled = 'isModEnabled(\\\"timesheetweek\\\")',";
+            $sqlNormalize .= " joinfiles = 0";
+            $sqlNormalize .= " WHERE rowid = ".$newRowid;
+            if (!$db->query($sqlNormalize)) {
+                return -1;
+            }
+        }
+
         $sqlUpdateTopic = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
         $sqlUpdateTopic .= " SET topic = '".$db->escape($template['topic'])."'";
-        $sqlUpdateTopic .= " WHERE module = 'timesheetweek'";
-        $sqlUpdateTopic .= " AND type_template = '".$db->escape($newType)."'";
+        $sqlUpdateTopic .= " WHERE entity = 0";
         $sqlUpdateTopic .= " AND lang = '".$db->escape($template['lang'])."'";
         $sqlUpdateTopic .= " AND label = '".$db->escape($template['label'])."'";
         $sqlUpdateTopic .= " AND (topic IS NULL OR topic = '')";
@@ -630,8 +650,7 @@ class ActionsTimesheetweek
 
         $sqlUpdateContent = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
         $sqlUpdateContent .= " SET content = '".$db->escape($template['content'])."'";
-        $sqlUpdateContent .= " WHERE module = 'timesheetweek'";
-        $sqlUpdateContent .= " AND type_template = '".$db->escape($newType)."'";
+        $sqlUpdateContent .= " WHERE entity = 0";
         $sqlUpdateContent .= " AND lang = '".$db->escape($template['lang'])."'";
         $sqlUpdateContent .= " AND label = '".$db->escape($template['label'])."'";
         $sqlUpdateContent .= " AND (content IS NULL OR content = '')";
@@ -656,13 +675,9 @@ class ActionsTimesheetweek
             $entity = 1;
         }
 
-        if (self::copyNativeNotificationTemplatesToObjectType($db) < 0) {
-            return -1;
-        }
-
         $templateConstants = self::getNativeNotificationTemplateConstantDefinitions();
         $sqlUpdateTypes = "UPDATE ".MAIN_DB_PREFIX."const";
-        $sqlUpdateTypes .= " SET type = 'emailtemplate:timesheetweek'";
+        $sqlUpdateTypes .= " SET type = 'emailtemplate:timesheetweek@timesheetweek'";
         $sqlUpdateTypes .= " WHERE name IN (".self::buildSqlStringList($db, array_keys($templateConstants)).")";
         $sqlUpdateTypes .= " AND entity = ".$entity;
         if (!$db->query($sqlUpdateTypes)) {
@@ -700,32 +715,14 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Copy TimesheetWeek notification templates to the object template type used by Notify::send().
+     * Kept for upgrade compatibility; visible templates now use timesheetweek@timesheetweek directly.
      *
      * @param DoliDB $db Database handler
      * @return int 1 on success, -1 on error
      */
     protected static function copyNativeNotificationTemplatesToObjectType($db)
     {
-        $sql = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
-        $sql .= " (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)";
-        $sql .= " SELECT src.entity, src.module, 'timesheetweek', src.lang, src.private, src.fk_user, NOW(), src.label, src.position, src.active, src.enabled, src.joinfiles, src.topic, src.content";
-        $sql .= " FROM (";
-        $sql .= " SELECT entity,module,type_template,lang,private,fk_user,label,position,active,enabled,joinfiles,topic,content";
-        $sql .= " FROM ".MAIN_DB_PREFIX."c_email_templates";
-        $sql .= " WHERE module = 'timesheetweek'";
-        $sql .= " AND type_template IN ('timesheetweek@timesheetweek', 'timesheetweek_notification')";
-        $sql .= " ) AS src";
-        $sql .= " WHERE NOT EXISTS (";
-        $sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates AS dest";
-        $sql .= " WHERE dest.module = 'timesheetweek'";
-        $sql .= " AND dest.type_template = 'timesheetweek'";
-        $sql .= " AND dest.entity = src.entity";
-        $sql .= " AND ((dest.lang = src.lang) OR (dest.lang IS NULL AND src.lang IS NULL))";
-        $sql .= " AND dest.label = src.label";
-        $sql .= " )";
-
-        return $db->query($sql) ? 1 : -1;
+        return 1;
     }
 
     /**
