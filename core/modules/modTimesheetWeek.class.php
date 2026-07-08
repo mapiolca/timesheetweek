@@ -150,7 +150,7 @@ class modTimesheetWeek extends DolibarrModules
 			'css' => array(),
 			// Set this to relative path of js file if module must load a js on all pages
 			'js' => array(
-				//   '/timesheetweek/js/timesheetweek.js.php',
+				'/timesheetweek/js/timesheetweek.js.php',
 			),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
@@ -994,24 +994,10 @@ class modTimesheetWeek extends DolibarrModules
 			return $resultInit;
 		}
 
-		$nativeNotificationTemplateConstants = array(
-			'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE',
-			'TIMESHEETWEEK_SUBMIT_TEMPLATE',
-			'TIMESHEETWEEK_APPROVE_TEMPLATE',
-			'TIMESHEETWEEK_REFUSE_TEMPLATE',
-			'TIMESHEETWEEK_SETDRAFT_TEMPLATE',
-			'TIMESHEETWEEK_SEAL_TEMPLATE',
-			'TIMESHEETWEEK_UNSEAL_TEMPLATE',
-		);
-		foreach ($nativeNotificationTemplateConstants as $nativeNotificationTemplateConstant) {
-			$currentNativeTemplate = getDolGlobalString($nativeNotificationTemplateConstant, '');
-			if ($currentNativeTemplate === '' || $currentNativeTemplate === 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER') {
-				$templateResult = dolibarr_set_const($this->db, $nativeNotificationTemplateConstant, 'Notification TimesheetWeek', 'chaine', 0, '', (int) $conf->entity);
-				if ($templateResult < 0) {
-					$this->error = $this->db->lasterror();
-					return -1;
-				}
-			}
+		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		if (class_exists('ActionsTimesheetweek') && ActionsTimesheetweek::ensureNativeNotificationTemplateConstants($this->db, (int) $conf->entity) < 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
 		}
 
 		return $resultInit;

@@ -93,6 +93,8 @@ ShareTimesheetWeekNumbering = Share weekly timesheet numbering
 ShareTimesheetweeknumbering = Share weekly timesheet numbering
 ShareTimesheetWeekNumberingTooltip = Synchronize numbering sequences for weekly timesheets between entities.
 SelectWeekPlaceholder = -- Select a week --
+Timesheetweek = Timesheet
+Timesheetweek@timesheetweek = Timesheet
 
 
 #

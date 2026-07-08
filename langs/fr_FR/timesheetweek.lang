@@ -94,6 +94,8 @@ ShareTimesheetWeekNumbering = Partager la numérotation des feuilles de temps he
 ShareTimesheetweeknumbering = Partager la numérotation des feuilles de temps hebdomadaires
 ShareTimesheetWeekNumberingTooltip = Synchroniser les séquences de numérotation des feuilles de temps hebdomadaires entre les entités.
 SelectWeekPlaceholder = -- Sélectionnez une semaine --
+Timesheetweek = Feuille de temps
+Timesheetweek@timesheetweek = Feuille de temps
 
 #
 # Page À propos

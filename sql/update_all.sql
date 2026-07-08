@@ -286,6 +286,73 @@ INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_u
 SELECT 0,'timesheetweek','timesheetweek_notification','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_UNSEAL',260,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ unsealed','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek_notification' AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL');
 
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT src.entity,src.module,'timesheetweek',src.lang,src.private,src.fk_user,NOW(),src.label,src.position,src.active,src.enabled,src.joinfiles,src.topic,src.content
+FROM (
+	SELECT entity,module,type_template,lang,private,fk_user,label,position,active,enabled,joinfiles,topic,content
+	FROM llx_c_email_templates
+	WHERE module = 'timesheetweek'
+	AND type_template IN ('timesheetweek@timesheetweek', 'timesheetweek_notification')
+) AS src
+WHERE NOT EXISTS (
+	SELECT 1
+	FROM llx_c_email_templates AS dest
+	WHERE dest.module = 'timesheetweek'
+	AND dest.type_template = 'timesheetweek'
+	AND dest.entity = src.entity
+	AND ((dest.lang = src.lang) OR (dest.lang IS NULL AND src.lang IS NULL))
+	AND dest.label = src.label
+);
+
+UPDATE llx_const
+SET value = 'Notification TimesheetWeek'
+WHERE name = 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_SUBMIT'
+WHERE name = 'TIMESHEETWEEK_SUBMIT_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_APPROVE'
+WHERE name = 'TIMESHEETWEEK_APPROVE_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_REFUSE'
+WHERE name = 'TIMESHEETWEEK_REFUSE_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_SETDRAFT'
+WHERE name = 'TIMESHEETWEEK_SETDRAFT_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_SEAL'
+WHERE name = 'TIMESHEETWEEK_SEAL_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET value = 'TIMESHEETWEEK_NOTIFY_UNSEAL'
+WHERE name = 'TIMESHEETWEEK_UNSEAL_TEMPLATE'
+AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+
+UPDATE llx_const
+SET type = 'emailtemplate:timesheetweek'
+WHERE name IN (
+	'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE',
+	'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE',
+	'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE',
+	'TIMESHEETWEEK_SUBMIT_TEMPLATE',
+	'TIMESHEETWEEK_APPROVE_TEMPLATE',
+	'TIMESHEETWEEK_REFUSE_TEMPLATE',
+	'TIMESHEETWEEK_SETDRAFT_TEMPLATE',
+	'TIMESHEETWEEK_SEAL_TEMPLATE',
+	'TIMESHEETWEEK_UNSEAL_TEMPLATE'
+);
+
 -- EN: Keep only CRUD TimesheetWeek triggers configurable through native Agenda/Notification pages.
 DELETE FROM llx_c_action_trigger
 WHERE code IN (

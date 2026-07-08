@@ -232,6 +232,62 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Return native Notification template constants and their expected email-template type.
+     *
+     * @return array<string,array{type:string,default:string,legacy_values:array<int,string>}>
+     */
+    public static function getNativeNotificationTemplateConstantDefinitions()
+    {
+        return array(
+            'TIMESHEETWEEK_TIMESHEETWEEK_CREATE_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => '',
+                'legacy_values' => array(),
+            ),
+            'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'Notification TimesheetWeek',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'),
+            ),
+            'TIMESHEETWEEK_TIMESHEETWEEK_DELETE_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => '',
+                'legacy_values' => array(),
+            ),
+            'TIMESHEETWEEK_SUBMIT_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+            'TIMESHEETWEEK_APPROVE_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+            'TIMESHEETWEEK_REFUSE_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+            'TIMESHEETWEEK_SETDRAFT_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+            'TIMESHEETWEEK_SEAL_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_SEAL',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+            'TIMESHEETWEEK_UNSEAL_TEMPLATE' => array(
+                'type' => 'emailtemplate:timesheetweek',
+                'default' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
+            ),
+        );
+    }
+
+    /**
      * Ensure native Notification metadata exists before Dolibarr reads c_action_trigger.
      *
      * @param DoliDB $db     Database handler
@@ -280,21 +336,8 @@ class ActionsTimesheetweek
             }
         }
 
-        if (function_exists('getDolGlobalString') && function_exists('dolibarr_set_const')) {
-            $templateConstants = array('TIMESHEETWEEK_TIMESHEETWEEK_UPDATE_TEMPLATE');
-            foreach (self::getNativeNotificationWorkflowTriggerCodes() as $workflowTriggerCode) {
-                $templateConstants[] = $workflowTriggerCode.'_TEMPLATE';
-            }
-
-            foreach ($templateConstants as $templateConstant) {
-                $selectedTemplate = getDolGlobalString($templateConstant, '');
-                if ($selectedTemplate === '' || $selectedTemplate === 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER') {
-                    $result = dolibarr_set_const($db, $templateConstant, 'Notification TimesheetWeek', 'chaine', 0, '', $entity);
-                    if ($result < 0) {
-                        return -1;
-                    }
-                }
-            }
+        if (self::ensureNativeNotificationTemplateConstants($db, $entity) < 0) {
+            return -1;
         }
 
         self::$nativeNotificationSetupSynced[$cacheKey] = true;
@@ -491,6 +534,88 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Ensure native Notification template constants render as selectors and remain usable by Notify::send().
+     *
+     * @param DoliDB $db     Database handler
+     * @param int    $entity Current entity
+     * @return int 1 on success, -1 on error
+     */
+    public static function ensureNativeNotificationTemplateConstants($db, $entity)
+    {
+        $entity = (int) $entity;
+        if ($entity <= 0) {
+            $entity = 1;
+        }
+
+        if (self::copyNativeNotificationTemplatesToObjectType($db) < 0) {
+            return -1;
+        }
+
+        $templateConstants = self::getNativeNotificationTemplateConstantDefinitions();
+        $sqlUpdateTypes = "UPDATE ".MAIN_DB_PREFIX."const";
+        $sqlUpdateTypes .= " SET type = 'emailtemplate:timesheetweek'";
+        $sqlUpdateTypes .= " WHERE name IN (".self::buildSqlStringList($db, array_keys($templateConstants)).")";
+        $sqlUpdateTypes .= " AND entity = ".$entity;
+        if (!$db->query($sqlUpdateTypes)) {
+            return -1;
+        }
+
+        if (!function_exists('getDolGlobalString') || !function_exists('dolibarr_set_const')) {
+            return 1;
+        }
+
+        foreach ($templateConstants as $templateConstant => $definition) {
+            $selectedTemplate = getDolGlobalString($templateConstant, '');
+            if ($selectedTemplate === '' && $definition['default'] === '') {
+                continue;
+            }
+
+            if ($selectedTemplate === '' || in_array($selectedTemplate, $definition['legacy_values'], true)) {
+                $selectedTemplate = $definition['default'];
+            }
+            if ($selectedTemplate === '') {
+                continue;
+            }
+
+            $result = dolibarr_set_const($db, $templateConstant, $selectedTemplate, $definition['type'], 0, '', $entity);
+            if ($result < 0) {
+                return -1;
+            }
+        }
+
+        return 1;
+    }
+
+    /**
+     * Copy TimesheetWeek notification templates to the object template type used by Notify::send().
+     *
+     * @param DoliDB $db Database handler
+     * @return int 1 on success, -1 on error
+     */
+    protected static function copyNativeNotificationTemplatesToObjectType($db)
+    {
+        $sql = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
+        $sql .= " (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)";
+        $sql .= " SELECT src.entity, src.module, 'timesheetweek', src.lang, src.private, src.fk_user, NOW(), src.label, src.position, src.active, src.enabled, src.joinfiles, src.topic, src.content";
+        $sql .= " FROM (";
+        $sql .= " SELECT entity,module,type_template,lang,private,fk_user,label,position,active,enabled,joinfiles,topic,content";
+        $sql .= " FROM ".MAIN_DB_PREFIX."c_email_templates";
+        $sql .= " WHERE module = 'timesheetweek'";
+        $sql .= " AND type_template IN ('timesheetweek@timesheetweek', 'timesheetweek_notification')";
+        $sql .= " ) AS src";
+        $sql .= " WHERE NOT EXISTS (";
+        $sql .= " SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates AS dest";
+        $sql .= " WHERE dest.module = 'timesheetweek'";
+        $sql .= " AND dest.type_template = 'timesheetweek'";
+        $sql .= " AND dest.entity = src.entity";
+        $sql .= " AND ((dest.lang = src.lang) OR (dest.lang IS NULL AND src.lang IS NULL))";
+        $sql .= " AND dest.label = src.label";
+        $sql .= " )";
+
+        return $db->query($sql) ? 1 : -1;
+    }
+
+    /**
      * Inject TimesheetWeek entry into the quick add dropdown menu.
      * Injecter une entrée TimesheetWeek dans le menu déroulant de création rapide.
      *
@@ -647,6 +772,7 @@ class ActionsTimesheetweek
         $langs->load('timesheetweek@timesheetweek');
 
         $this->results = array(
+            'timesheetweek' => img_picto('', self::getNativePicto(), 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('TimesheetWeekNativeEmailTemplates')),
             'timesheetweek@timesheetweek' => img_picto('', self::getNativePicto(), 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('TimesheetWeekNativeEmailTemplates')),
             'timesheetweek_notification' => img_picto('', self::getNativePicto(), 'class="pictofixedwidth"').dol_escape_htmltag($langs->trans('TimesheetWeekStepEmailTemplates')),
         );
