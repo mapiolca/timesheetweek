@@ -379,11 +379,10 @@ TimesheetWeekElementTimeNote = Feuille de temps %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Impossible de charger la classe de gestion des modèles d'e-mail.
 
 TimesheetWeekWorkflowNotificationSectionTitle = Notifications métier par étape
-TimesheetWeekWorkflowNotificationSectionHelp = Associez un modèle de contenu à chaque étape métier. L'envoi réel est configuré dans le module natif Notifications sur les événements par étape.
-TimesheetWeekWorkflowNotificationNativeEnabled = Le module Notifications natif est disponible. Configurez les événements %s avec le modèle %s depuis l'administration native.
-TimesheetWeekWorkflowNotificationNativeUnavailable = Le module Notifications natif n'est pas actif ou n'est pas compatible avec cette instance ; aucun envoi direct TimesheetWeek ne sera déclenché.
-TimesheetWeekWorkflowNotificationNativeLink = Ouvrir la configuration native des Notifications
-TimesheetWeekWorkflowNotificationNoTemplate = Aucun modèle de notification TimesheetWeek disponible. Réactivez le module ou exécutez sql/update_all.sql pour créer les modèles par défaut.
+TimesheetWeekWorkflowNotificationSectionHelp = Les notifications métier TimesheetWeek se configurent exclusivement dans le module natif Notifications de Dolibarr.
+TimesheetWeekWorkflowNotificationNativeEnabled = Les événements TimesheetWeek sont disponibles dans le module natif Notifications. Configurez les destinataires et les modèles de courriel depuis l'administration native.
+TimesheetWeekWorkflowNotificationNativeUnavailable = Le module Notifications natif n'est pas actif ou n'est pas compatible avec cette instance. Activez-le pour configurer les notifications métier TimesheetWeek.
+TimesheetWeekWorkflowNotificationNativeLink = Ouvrir les réglages du module Notifications
 TimesheetWeekNativeNotificationDefaultBody = La feuille de temps __TIMESHEETWEEK_REF__ a été modifiée.\nÉtape métier : __TIMESHEETWEEK_TRIGGER_REASON_LABEL__\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekNativeWorkflowRouterTemplateLabel = Routeur natif des notifications TimesheetWeek
 TimesheetWeekNotificationReasonSubmit = Soumission

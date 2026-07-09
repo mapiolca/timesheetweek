@@ -391,11 +391,10 @@ TimesheetWeekElementTimeNote = Timesheet %s - %s - %s
 ErrorFailedToLoadEmailTemplateClass = Failed to load email template manager class.
 
 TimesheetWeekWorkflowNotificationSectionTitle = Business step notifications
-TimesheetWeekWorkflowNotificationSectionHelp = Assign one content template to each business step. Actual sending is configured in the native Notifications module on the per-step events.
-TimesheetWeekWorkflowNotificationNativeEnabled = The native Notifications module is available. Configure events %s with template %s from the native administration page.
-TimesheetWeekWorkflowNotificationNativeUnavailable = The native Notifications module is not enabled or not compatible with this instance; no direct TimesheetWeek send will be triggered.
-TimesheetWeekWorkflowNotificationNativeLink = Open native Notifications setup
-TimesheetWeekWorkflowNotificationNoTemplate = No TimesheetWeek notification template is available. Re-enable the module or run sql/update_all.sql to create the default templates.
+TimesheetWeekWorkflowNotificationSectionHelp = TimesheetWeek business notifications are configured exclusively in the native Dolibarr Notifications module.
+TimesheetWeekWorkflowNotificationNativeEnabled = TimesheetWeek events are available in the native Notifications module. Configure recipients and email templates from the native administration page.
+TimesheetWeekWorkflowNotificationNativeUnavailable = The native Notifications module is not enabled or not compatible with this instance. Enable it to configure TimesheetWeek business notifications.
+TimesheetWeekWorkflowNotificationNativeLink = Open Notifications module settings
 TimesheetWeekNativeNotificationDefaultBody = Timesheet __TIMESHEETWEEK_REF__ was updated.\nBusiness step: __TIMESHEETWEEK_TRIGGER_REASON_LABEL__\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__
 TimesheetWeekNativeWorkflowRouterTemplateLabel = Native TimesheetWeek notification router
 TimesheetWeekNotificationReasonSubmit = Submission

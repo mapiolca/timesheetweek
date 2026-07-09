@@ -294,7 +294,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveworkflownotifications', 'saveautoseal'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveautoseal'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -479,36 +479,6 @@ if ($action === 'savereminder') {
 	}
 }
 
-if ($action === 'saveworkflownotifications') {
-	$workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
-	$workflowTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
-	$workflowTemplateOptionIds = array_flip(array_map('intval', array_keys($workflowTemplateOptions)));
-	$hasError = false;
-
-	foreach ($workflowNotificationReasons as $workflowReason => $workflowDefinition) {
-		$templateConstant = TimesheetWeekNotification::getTemplateConstant($workflowReason);
-		if ($templateConstant === '') {
-			continue;
-		}
-
-		$templateValue = (int) GETPOST($templateConstant, 'int');
-		if ($templateValue > 0 && !isset($workflowTemplateOptionIds[$templateValue])) {
-			$templateValue = 0;
-		}
-
-		$resultValue = dolibarr_set_const($db, $templateConstant, $templateValue, 'chaine', 0, '', $conf->entity);
-		if ($resultValue <= 0) {
-			$hasError = true;
-		}
-	}
-
-	if ($hasError) {
-		setEventMessages($langs->trans('Error'), null, 'errors');
-	} else {
-		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
-	}
-}
-
 if ($action === 'testreminder') {
 		$reminder = new TimesheetweekReminder($db);
 		$resultTest = $reminder->sendTest($user);
@@ -593,12 +563,7 @@ if ($reminderExcludedUsersString !== '') {
 }
 $reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
 $reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
-$workflowNotificationReasons = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getWorkflowReasons() : array();
-$workflowNotificationTemplateOptions = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getEmailTemplateOptions($db, (int) $conf->entity) : array();
 $nativeWorkflowNotificationAvailable = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::isNativeNotificationAvailable() : false;
-$nativeWorkflowNotificationEvents = class_exists('ActionsTimesheetweek') ? ActionsTimesheetweek::getNativeNotificationWorkflowTriggerCodes() : array('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SETDRAFT', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_UNSEAL');
-$nativeWorkflowNotificationEvent = implode(', ', $nativeWorkflowNotificationEvents);
-$nativeWorkflowNotificationTemplate = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::getNativeRouterTemplateLabel() : 'Notification TimesheetWeek';
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
@@ -625,25 +590,6 @@ $numberingModules = timesheetweekListNumberingModules($directories, $langs, $sam
 $documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
 $pageToken = function_exists('newToken') ? newToken() : '';
 $form = new Form($db);
-
-$emailTemplates = array();
-$emailTemplateClass = '';
-if (class_exists('CEmailTemplates')) {
-        $emailTemplateClass = 'CEmailTemplates';
-} elseif (class_exists('EmailTemplates')) {
-        $emailTemplateClass = 'EmailTemplates';
-}
-
-if (!empty($emailTemplateClass)) {
-        $emailTemplateObject = new $emailTemplateClass($db);
-        if (method_exists($emailTemplateObject, 'fetchAll')) {
-                $filters = array('entity' => $conf->entity);
-                $templatesResult = $emailTemplateObject->fetchAll('', '', 0, 0, $filters);
-                if (is_array($templatesResult)) {
-                        $emailTemplates = $templatesResult;
-                }
-        }
-}
 
 $title = $langs->trans('ModuleSetup', 'Timesheetweek');
 $helpurl = '';
@@ -879,53 +825,15 @@ print '<br>';
 
 print load_fiche_titre($langs->trans('TimesheetWeekWorkflowNotificationSectionTitle'), '', 'email');
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationSectionHelp').'</div>';
+$notificationUrl = DOL_URL_ROOT.'/admin/notification.php';
 print '<div class="'.($nativeWorkflowNotificationAvailable ? 'info' : 'warning').'">';
 if ($nativeWorkflowNotificationAvailable) {
-	$notificationUrl = DOL_URL_ROOT.'/admin/notification.php';
-	print $langs->trans('TimesheetWeekWorkflowNotificationNativeEnabled', $nativeWorkflowNotificationEvent, $nativeWorkflowNotificationTemplate);
-	print ' <a href="'.dol_escape_htmltag($notificationUrl).'">'.$langs->trans('TimesheetWeekWorkflowNotificationNativeLink').'</a>';
+	print $langs->trans('TimesheetWeekWorkflowNotificationNativeEnabled');
 } else {
 	print $langs->trans('TimesheetWeekWorkflowNotificationNativeUnavailable');
 }
+print ' <a href="'.dol_escape_htmltag($notificationUrl).'">'.$langs->trans('TimesheetWeekWorkflowNotificationNativeLink').'</a>';
 print '</div>';
-
-print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
-print '<input type="hidden" name="token" value="'.$pageToken.'">';
-
-print '<div class="div-table-responsive-no-min">';
-print '<table class="noborder centpercent">';
-print '<tr class="liste_titre">';
-print '<th>'.$langs->trans('Name').'</th>';
-print '<th>'.$langs->trans('Description').'</th>';
-print '<th class="center">'.$langs->trans('EMailTemplate').'</th>';
-print '</tr>';
-
-if (empty($workflowNotificationReasons)) {
-	print '<tr class="oddeven"><td colspan="3"><span class="opacitymedium">'.$langs->trans('NoRecordFound').'</span></td></tr>';
-}
-
-foreach ($workflowNotificationReasons as $workflowReason => $workflowDefinition) {
-	$templateConstant = TimesheetWeekNotification::getTemplateConstant($workflowReason);
-	$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, (int) $conf->entity) : 0;
-
-	print '<tr class="oddeven">';
-	print '<td class="nowraponall">'.$langs->trans($workflowDefinition['label']).'</td>';
-	print '<td class="small">'.$langs->trans($workflowDefinition['description']).'</td>';
-	print '<td class="center">';
-	if (!empty($workflowNotificationTemplateOptions) && $templateConstant !== '') {
-		print $form->selectarray($templateConstant, $workflowNotificationTemplateOptions, $templateId, 1, 0, 0, '', 0, 0, 0, '', '', $conf->entity);
-		print ajax_combobox($templateConstant);
-	} else {
-		print '<span class="opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationNoTemplate').'</span>';
-	}
-	print '</td>';
-	print '</tr>';
-}
-
-print '</table>';
-print '</div>';
-print '<div class="center"><button type="submit" class="butAction" name="action" value="saveworkflownotifications">'.$langs->trans('Save').'</button></div>';
-print '</form>';
 
 print '<br>';
 
