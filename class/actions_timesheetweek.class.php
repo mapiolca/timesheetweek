@@ -1163,10 +1163,27 @@ class ActionsTimesheetweek
             $entityList = (string) ((int) $conf->entity);
         }
 
+        $sqlWhere = " WHERE t.fk_user = ".((int) $targetUserId);
+        $sqlWhere .= " AND t.entity IN (".$this->db->sanitize($entityList).")";
+
+        $totalTimesheetWeeks = 0;
+        $sqlCount = "SELECT COUNT(t.rowid) AS total";
+        $sqlCount .= " FROM ".MAIN_DB_PREFIX."timesheet_week AS t";
+        $sqlCount .= $sqlWhere;
+        $resqlCount = $this->db->query($sqlCount);
+        if ($resqlCount) {
+            $objCount = $this->db->fetch_object($resqlCount);
+            if (is_object($objCount)) {
+                $totalTimesheetWeeks = (int) $objCount->total;
+            }
+            $this->db->free($resqlCount);
+        } else {
+            dol_syslog(__METHOD__.': '.$this->db->lasterror(), LOG_ERR);
+        }
+
         $sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours, t.meal_count, t.tms";
         $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week AS t";
-        $sql .= " WHERE t.fk_user = ".((int) $targetUserId);
-        $sql .= " AND t.entity IN (".$this->db->sanitize($entityList).")";
+        $sql .= $sqlWhere;
         $sql .= " ORDER BY t.year DESC, t.week DESC, t.tms DESC";
         $sql .= $this->db->plimit($max);
 
@@ -1188,7 +1205,7 @@ class ActionsTimesheetweek
         $out .= '<td class="right">'.$langs->trans('TotalHours').'</td>';
         $out .= '<td class="right">'.$langs->trans('Overtime').'</td>';
         $out .= '<td class="right">'.$langs->trans('MealCount').'</td>';
-        $out .= '<td class="right"><a href="'.dol_escape_htmltag($allTimesheetsUrl).'">'.$langs->trans('TimesheetWeekAllSheets').'</a></td>';
+        $out .= '<td class="right"><a class="notasortlink" href="'.dol_escape_htmltag($allTimesheetsUrl).'">'.$langs->trans('TimesheetWeekAllSheets').'<span class="badge marginleftonlyshort">'.$totalTimesheetWeeks.'</span></a></td>';
         $out .= '</tr>';
 
         $num = $this->db->num_rows($resql);
