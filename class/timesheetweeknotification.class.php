@@ -725,10 +725,10 @@ class TimesheetWeekNotification
 		}
 
 		if (preg_match('/<\s*(a|br|div|p|span|table|tbody|thead|tr|td|th|ul|ol|li|strong|em|b|i)\b/i', $body)) {
-			return '<div style="white-space:pre-wrap">'.$body.'</div>';
+			return '<div style="white-space:pre-wrap">'.$this->convertNotificationLineBreaksToHtml($body).'</div>';
 		}
 
-		return '<div style="white-space:pre-wrap">'.$this->escapeTextWithLinks($body).'</div>';
+		return '<div style="white-space:pre-wrap">'.$this->convertNotificationLineBreaksToHtml($this->escapeTextWithLinks($body)).'</div>';
 	}
 
 	/**
@@ -743,6 +743,19 @@ class TimesheetWeekNotification
 		$body = str_replace(array('\\\\r\\\\n', '\\\\n', '\\\\r', '\\r\\n', '\\n', '\\r'), "\n", $body);
 
 		return $body;
+	}
+
+	/**
+	 * Convert normalized line breaks into HTML breaks for mail clients.
+	 *
+	 * @param string $html HTML fragment
+	 * @return string
+	 */
+	protected function convertNotificationLineBreaksToHtml($html)
+	{
+		$html = $this->normalizeNotificationLineBreaks($html);
+
+		return str_replace("\n", '<br>', $html);
 	}
 
 	/**
