@@ -1153,7 +1153,7 @@ class ActionsTimesheetweek
 
         dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 
-        $max = getDolGlobalInt('TIMESHEETWEEK_USERCARD_LAST_LIMIT', getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5));
+        $max = getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5);
         if ($max <= 0) {
             $max = 5;
         }
@@ -1177,12 +1177,12 @@ class ActionsTimesheetweek
             return '';
         }
 
-        $out = '';
+        $out = '<div id="timesheetweek-userbank-last-sheets-block">';
         $out .= load_fiche_titre($langs->trans('TimesheetWeekLastSheets', $max), '', 'bookcal@timesheetweek');
         $out .= '<div class="div-table-responsive-no-min">';
         $out .= '<table class="noborder centpercent">';
         $out .= '<tr class="liste_titre">';
-        $out .= '<td>'.$langs->trans('Ref').'</td>';
+        $out .= '<td>'.$langs->trans('TimesheetWeekLastSheetsTitle').'</td>';
         $out .= '<td class="center">'.$langs->trans('Week').'</td>';
         $out .= '<td class="right">'.$langs->trans('TotalHours').'</td>';
         $out .= '<td class="right">'.$langs->trans('Overtime').'</td>';
@@ -1208,6 +1208,7 @@ class ActionsTimesheetweek
         $this->db->free($resql);
 
         $out .= '</table>';
+        $out .= '</div>';
         $out .= '</div>';
 
         return $out;

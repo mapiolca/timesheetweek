@@ -17,7 +17,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Capture les heures au contrat au moment de la soumission pour figer le calcul des heures supplémentaires et les PDF, même si le contrat salarié évolue ensuite.
 - Ligne de total en bas de la liste hebdomadaire pour additionner heures, zones, paniers et afficher la colonne de date de validation.
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
-- Affichage des dernières feuilles d'heures sur la fiche bancaire utilisateur via le hook natif `formObjectOptions`, avec droits propres, subordonnés et globaux.
+- Affichage des dernières feuilles d'heures sous les tableaux natifs de la fiche bancaire utilisateur via `formObjectOptions`, limité par le réglage Dolibarr des listes courtes.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
 - Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
 - Sécurisation des requêtes SQL par entité et filtres multi-entités alignés sur les pratiques Dolibarr.
@@ -74,7 +74,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Snapshots contract hours at submission so overtime calculations and PDFs stay aligned even if the employee contract changes later.
 - Total row at the bottom of the weekly list to sum hours, zones, meals and expose the validation date column.
 - Quick creation shortcut available from the top-right « Add » menu.
-- Latest timesheets displayed on the user bank card through the native `formObjectOptions` hook, with own, subordinate and global read rights.
+- Latest timesheets displayed below the native user bank card tables through `formObjectOptions`, limited by Dolibarr's short-list setting.
 - Multicompany compatibility for sharing timesheets and numbering sequences, with dedicated sharing options and native-aligned multi-select filters.
 - Entity details shown on lists and cards in Multicompany environments with a badge under the reference when the entity differs.
 - Entity-scoped SQL queries and Multicompany filters harmonised with Dolibarr best practices.

@@ -97,6 +97,35 @@ if (empty($dolibarr_nocache)) {
 jQuery(document).ready(function () {
 	'use strict';
 
+	function isCurrentPath(pathPattern) {
+		return pathPattern.test(String(window.location.pathname || ''));
+	}
+
+	function moveUserBankLastSheetsBlock() {
+		if (!isCurrentPath(/\/user\/bank\.php$/)) {
+			return;
+		}
+
+		var $block = jQuery('#timesheetweek-userbank-last-sheets-block');
+		if (!$block.length) {
+			return;
+		}
+
+		var $rightColumn = jQuery('.fichehalfright').first();
+		if (!$rightColumn.length) {
+			return;
+		}
+
+		var $lastNativeTable = $rightColumn.children('.div-table-responsive-no-min').last();
+		if ($lastNativeTable.length) {
+			$block.insertAfter($lastNativeTable);
+		} else {
+			$rightColumn.append($block);
+		}
+	}
+
+	moveUserBankLastSheetsBlock();
+
 	if (!jQuery('body').hasClass('page-notification')) {
 		return;
 	}

@@ -269,6 +269,7 @@ MealCount = Meals count
 TotalHours = Total hours
 Overtime = Overtime
 TimesheetWeekLastSheets = Ultimi %s fogli ore
+TimesheetWeekLastSheetsTitle = Ultimi fogli ore
 TimesheetWeekMailDefaultSubject = Timesheet %s
 TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
 TimesheetWeekMailSendToHelp = Separate email addresses with commas.
