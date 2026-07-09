@@ -15,6 +15,8 @@ class ActionsTimesheetweek
 
     public const NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE = 'timesheetweek_send';
 
+    public const NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL = 'Notification TimesheetWeek';
+
     /** @var array<string,bool> */
     protected static $nativeNotificationSetupSynced = array();
 
@@ -233,14 +235,14 @@ class ActionsTimesheetweek
         return array(
             array(
                 'lang' => 'fr_FR',
-                'label' => 'Notification TimesheetWeek',
+                'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
                 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
             ),
             array(
                 'lang' => 'en_US',
-                'label' => 'Notification TimesheetWeek',
+                'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
                 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
@@ -249,126 +251,17 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Return visible native email templates for TimesheetWeek business notifications.
+     * Return additional visible native email templates for TimesheetWeek business notifications.
+     *
+     * The single "Notification TimesheetWeek" router template injects the
+     * step-specific subject and body through substitutions, so the module must
+     * not seed one visible template per workflow event.
      *
      * @return array<int,array{lang:string,label:string,position:int,topic:string,content:string}>
      */
     public static function getNativeNotificationEmailTemplates()
     {
-        return array(
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_CREATE',
-                'position' => 205,
-                'topic' => 'Feuille de temps __REF__ créée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été créée pour __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
-                'position' => 210,
-                'topic' => 'Feuille de temps __REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValideur : __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
-                'position' => 220,
-                'topic' => 'Feuille de temps __REF__ approuvée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
-                'position' => 230,
-                'topic' => 'Feuille de temps __REF__ refusée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
-                'position' => 240,
-                'topic' => 'Feuille de temps __REF__ repassée en brouillon',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été repassée en brouillon par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SEAL',
-                'position' => 250,
-                'topic' => 'Feuille de temps __REF__ scellée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été scellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
-                'position' => 260,
-                'topic' => 'Feuille de temps __REF__ descellée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été descellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'fr_FR',
-                'label' => 'TIMESHEETWEEK_NOTIFY_DELETE',
-                'position' => 270,
-                'topic' => 'Feuille de temps __REF__ supprimée',
-                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été supprimée par __ACTION_USER_FULLNAME__.\nSalarié : __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_CREATE',
-                'position' => 205,
-                'topic' => 'Timesheet __REF__ created',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was created for __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
-                'position' => 210,
-                'topic' => 'Timesheet __REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValidator: __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
-                'position' => 220,
-                'topic' => 'Timesheet __REF__ approved',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
-                'position' => 230,
-                'topic' => 'Timesheet __REF__ refused',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
-                'position' => 240,
-                'topic' => 'Timesheet __REF__ reverted to draft',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_SEAL',
-                'position' => 250,
-                'topic' => 'Timesheet __REF__ sealed',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
-                'position' => 260,
-                'topic' => 'Timesheet __REF__ unsealed',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-            array(
-                'lang' => 'en_US',
-                'label' => 'TIMESHEETWEEK_NOTIFY_DELETE',
-                'position' => 270,
-                'topic' => 'Timesheet __REF__ deleted',
-                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was deleted by __ACTION_USER_FULLNAME__.\nEmployee: __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__",
-            ),
-        );
+        return array();
     }
 
     /**
@@ -803,14 +696,14 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Kept for upgrade compatibility; create hidden mirrors instead of duplicate visible labels.
+     * Kept for upgrade compatibility; create the hidden mirror required by Notify::send().
      *
      * @param DoliDB $db Database handler
      * @return int 1 on success, -1 on error
      */
     protected static function copyNativeNotificationTemplatesToObjectType($db)
     {
-        return self::syncNotificationEmailTemplateMirror($db) < 0 ? -1 : 1;
+        return self::syncNotificationEmailTemplateMirror($db, self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL) < 0 ? -1 : 1;
     }
 
     /**
@@ -822,14 +715,16 @@ class ActionsTimesheetweek
      */
     protected static function syncNotificationEmailTemplateMirror($db, $label = '')
     {
+        if ($label === '') {
+            $label = self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL;
+        }
+
         $sql = "SELECT rowid, entity, module, type_template, lang, private, fk_user, label, position, defaultfortype, enabled, active,";
         $sql .= " email_from, email_to, email_tocc, email_tobcc, topic, joinfiles, content, content_lines";
         $sql .= " FROM ".MAIN_DB_PREFIX."c_email_templates";
         $sql .= " WHERE module = 'timesheetweek'";
         $sql .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE)."'";
-        if ($label !== '') {
-            $sql .= " AND label = '".$db->escape($label)."'";
-        }
+        $sql .= " AND label = '".$db->escape($label)."'";
         $sql .= " AND active = 1";
         $sql .= " ORDER BY entity, lang, position, rowid";
 

@@ -47,8 +47,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
-- La configuration TimesheetWeek affiche uniquement un lien vers le module natif Notifications ; les destinataires et modèles de courriel par événement se règlent dans cette administration native.
-- Dans la page native Notifications, configurez les événements métier `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` et `TIMESHEETWEEK_DELETE` avec les modèles de type `timesheetweek@timesheetweek`; les choix existants sont conservés à l'activation.
+- La configuration TimesheetWeek affiche uniquement un lien vers le module natif Notifications ; les destinataires et le modèle de courriel utilisé par les événements se règlent dans cette administration native.
+- Dans la page native Notifications, configurez les événements métier `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` et `TIMESHEETWEEK_DELETE` avec le modèle unique `Notification TimesheetWeek`; les choix existants sont conservés à l'activation.
 - À l'envoi, le module synchronise automatiquement un miroir technique `timesheetweek_send` pour que le module Notifications natif applique bien le modèle sélectionné au lieu du message standard.
 - Consultez l'onglet « Compatibilité » pour vérifier les fonctionnalités disponibles selon la version Dolibarr/PHP courante.
 - L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
@@ -106,8 +106,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
 - Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
-- TimesheetWeek setup only displays a link to the native Notifications module; recipients and email templates per event are configured in that native administration page.
-- In the native Notifications page, configure business events `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` and `TIMESHEETWEEK_DELETE` with `timesheetweek@timesheetweek` templates; existing selections are preserved on activation.
+- TimesheetWeek setup only displays a link to the native Notifications module; recipients and the email template used by events are configured in that native administration page.
+- In the native Notifications page, configure business events `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` and `TIMESHEETWEEK_DELETE` with the single `Notification TimesheetWeek` template; existing selections are preserved on activation.
 - When sending, the module automatically synchronizes a technical `timesheetweek_send` mirror so the native Notifications module applies the selected template instead of the standard message.
 - Open the Compatibility tab to check feature availability for the current Dolibarr/PHP version.
 - The « À propos » tab summarises the module version, publisher and support links.
