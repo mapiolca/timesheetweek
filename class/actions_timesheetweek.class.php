@@ -1177,8 +1177,9 @@ class ActionsTimesheetweek
             return '';
         }
 
+        $allTimesheetsUrl = dol_buildpath('/timesheetweek/timesheetweek_list.php', 1).'?search_user='.((int) $targetUserId);
+
         $out = '<div id="timesheetweek-userbank-last-sheets-block">';
-        $out .= load_fiche_titre($langs->trans('TimesheetWeekLastSheets', $max), '', 'bookcal@timesheetweek');
         $out .= '<div class="div-table-responsive-no-min">';
         $out .= '<table class="noborder centpercent">';
         $out .= '<tr class="liste_titre">';
@@ -1187,7 +1188,7 @@ class ActionsTimesheetweek
         $out .= '<td class="right">'.$langs->trans('TotalHours').'</td>';
         $out .= '<td class="right">'.$langs->trans('Overtime').'</td>';
         $out .= '<td class="right">'.$langs->trans('MealCount').'</td>';
-        $out .= '<td class="right">'.$langs->trans('Status').'</td>';
+        $out .= '<td class="right"><a href="'.dol_escape_htmltag($allTimesheetsUrl).'">'.$langs->trans('TimesheetWeekAllSheets').'</a></td>';
         $out .= '</tr>';
 
         $num = $this->db->num_rows($resql);

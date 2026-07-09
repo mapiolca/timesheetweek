@@ -345,6 +345,7 @@ TotalHours = Total d'heures
 Overtime = Heures supplémentaires
 TimesheetWeekLastSheets = %s dernières feuilles d'heures
 TimesheetWeekLastSheetsTitle = Les dernières feuilles d'heures
+TimesheetWeekAllSheets = Toutes les feuilles d'heures
 TimesheetWeekMailDefaultSubject = Feuille de temps %s
 TimesheetWeekMailDefaultBody = Bonjour,\n\nVeuillez trouver la feuille de temps %s (semaine %s / %s).\n\nCordialement,
 TimesheetWeekMailSendToHelp = Séparez les adresses e-mail par des virgules.

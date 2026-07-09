@@ -357,6 +357,7 @@ TotalHours = Total hours
 Overtime = Overtime
 TimesheetWeekLastSheets = Last %s timesheets
 TimesheetWeekLastSheetsTitle = Latest timesheets
+TimesheetWeekAllSheets = All timesheets
 TimesheetWeekMailDefaultSubject = Timesheet %s
 TimesheetWeekMailDefaultBody = Hello,\n\nPlease find the weekly timesheet %s (week %s / %s).\n\nBest regards,
 TimesheetWeekMailSendToHelp = Separate email addresses with commas.
