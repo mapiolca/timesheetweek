@@ -96,6 +96,10 @@ ShareTimesheetWeekNumberingTooltip = Synchroniser les séquences de numérotatio
 SelectWeekPlaceholder = -- Sélectionnez une semaine --
 Timesheetweek = Feuille de temps
 Timesheetweek@timesheetweek = Feuille de temps
+Creation=Création
+Validation=Validation
+TimesheetWeekInfoCreation=Création
+TimesheetWeekInfoValidation=Validation
 
 #
 # Page À propos
@@ -164,6 +168,7 @@ TimesheetWeekAgendaDiagnosticPotentialDuplicatesDesc = Groupes d'événements pa
 # Triggers, Agenda et Notifications
 #
 EventsAgenda = Événements/Agenda
+ActionsOnTimesheetWeek=Événements sur la feuille hebdomadaire
 TimesheetWeekTriggerGeneric = Feuille de temps %s modifiée
 TimesheetWeekTriggerCreate = Feuille de temps %s créée
 TimesheetWeekTriggerSubmit = Feuille de temps %s soumise

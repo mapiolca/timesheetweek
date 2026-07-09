@@ -28,6 +28,16 @@ class TimesheetWeek extends CommonObject
 	public $hasDocModel = 1;
 	public $dir_output = 'timesheetweek';
 
+	/**
+	 * @var array<string,array<string,mixed>>
+	 */
+	public $fields = array(
+		'rowid' => array('type' => 'integer', 'label' => 'TechnicalID', 'visible' => -1, 'notnull' => 1, 'index' => 1, 'position' => 1),
+		'ref' => array('type' => 'varchar(50)', 'label' => 'Ref', 'visible' => 1, 'notnull' => 1, 'index' => 1, 'position' => 10),
+		'entity' => array('type' => 'integer', 'label' => 'Entity', 'visible' => 0, 'notnull' => 1, 'index' => 1, 'position' => 20),
+		'status' => array('type' => 'integer', 'label' => 'Status', 'visible' => 1, 'notnull' => 1, 'index' => 1, 'position' => 30),
+	);
+
 	// Status
 	const STATUS_DRAFT     = 0;
 	const STATUS_SUBMITTED = 1;
@@ -50,6 +60,8 @@ class TimesheetWeek extends CommonObject
 	public $ref;
 	public $entity;
 	public $fk_user;          // employee
+	public $fk_user_creat;    // author
+	public $fk_user_modif;    // last modifier
 	public $year;
 	public $week;
 	public $status;
@@ -57,8 +69,12 @@ class TimesheetWeek extends CommonObject
 	public $motif;
 	public $fk_user_valid;    // validator (user id)
 	public $date_creation;
+	public $date_modification;
 	public $tms;
 	public $date_validation;
+	public $user_creation_id;
+	public $user_modification_id;
+	public $user_validation_id;
 
 	public $total_hours = 0.0;      // total week hours
 	public $overtime_hours = 0.0;   // overtime based on user weeklyhours
@@ -83,6 +99,12 @@ class TimesheetWeek extends CommonObject
 
 	/** @var bool|null */
 	protected $hasLastMainDocColumn = null;
+
+	/** @var bool|null */
+	protected $hasUserCreatColumn = null;
+
+	/** @var bool|null */
+	protected $hasUserModifColumn = null;
 
 	/** @var TimesheetWeekLine[] */
 	public $lines = array();
@@ -117,7 +139,16 @@ class TimesheetWeek extends CommonObject
 	*/
 	public function info($id)
 	{
+		$includeUserCreat = $this->checkUserCreatColumnAvailability();
+		$includeUserModif = $this->checkUserModifColumnAvailability();
+
 		$sql = 'SELECT rowid, fk_user, fk_user_valid, date_creation, date_validation, tms';
+		if ($includeUserCreat) {
+			$sql .= ', fk_user_creat';
+		}
+		if ($includeUserModif) {
+			$sql .= ', fk_user_modif';
+		}
 		$sql .= ' FROM '.MAIN_DB_PREFIX.$this->table_element;
 		$sql .= ' WHERE rowid='.(int) $id;
 		// EN: Restrict info fetch to authorized entities.
@@ -131,23 +162,49 @@ class TimesheetWeek extends CommonObject
 		}
 
 		if ($obj = $this->db->fetch_object($resql)) {
+			$authorId = ($includeUserCreat && !empty($obj->fk_user_creat)) ? (int) $obj->fk_user_creat : (int) $obj->fk_user;
+			$modifierId = ($includeUserModif && !empty($obj->fk_user_modif)) ? (int) $obj->fk_user_modif : (int) $obj->fk_user_valid;
+			if (empty($modifierId)) {
+				$modifierId = $authorId;
+			}
+			$this->date_creation = $this->db->jdate($obj->date_creation);
+			$this->date_validation = $this->db->jdate($obj->date_validation);
+			$this->date_modification = $this->db->jdate($obj->tms);
+			$this->user_creation_id = $authorId;
+			$this->user_modification_id = $modifierId;
+			$this->user_validation_id = (int) $obj->fk_user_valid;
+
 			// EN: Map custom fields to CommonObject info keys.
 			// FR: Mappe les champs personnalisés aux clés info CommonObject.
 			$this->info = array(
-				'datec' => $this->db->jdate($obj->date_creation),
-				'datev' => $this->db->jdate($obj->date_validation),
-				'datem' => $this->db->jdate($obj->tms),
-				'fk_user_author' => (int) $obj->fk_user,
+				'datec' => $this->date_creation,
+				'datev' => $this->date_validation,
+				'datem' => $this->date_modification,
+				'fk_user_author' => $authorId,
+				'fk_user_creat' => $authorId,
+				'fk_user_modif' => $modifierId,
 				'fk_user_valid' => (int) $obj->fk_user_valid,
 			);
 		} elseif (!empty($this->id)) {
+			$authorId = !empty($this->fk_user_creat) ? (int) $this->fk_user_creat : (int) $this->fk_user;
+			$modifierId = !empty($this->fk_user_modif) ? (int) $this->fk_user_modif : (int) $this->fk_user_valid;
+			if (empty($modifierId)) {
+				$modifierId = $authorId;
+			}
+			$this->user_creation_id = $authorId;
+			$this->user_modification_id = $modifierId;
+			$this->user_validation_id = (int) $this->fk_user_valid;
+			$this->date_modification = $this->tms;
+
 			// EN: Fallback to in-memory properties when SQL filters prevent a row.
 			// FR: Repli sur les propriétés mémoire quand les filtres SQL bloquent la ligne.
 			$this->info = array(
 				'datec' => $this->date_creation,
 				'datev' => $this->date_validation,
 				'datem' => $this->tms,
-				'fk_user_author' => (int) $this->fk_user,
+				'fk_user_author' => $authorId,
+				'fk_user_creat' => $authorId,
+				'fk_user_modif' => $modifierId,
 				'fk_user_valid' => (int) $this->fk_user_valid,
 			);
 		}
@@ -231,6 +288,69 @@ class TimesheetWeek extends CommonObject
 		}
 
 		return $this->hasLastMainDocColumn;
+	}
+
+	/**
+	 * Detect lazily if the database schema stores the author user.
+	 *
+	 * @return bool
+	 */
+	protected function checkUserCreatColumnAvailability()
+	{
+		if ($this->hasUserCreatColumn !== null) {
+			return $this->hasUserCreatColumn;
+		}
+
+		$sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$this->table_element." LIKE 'fk_user_creat'";
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			$this->hasUserCreatColumn = ($this->db->num_rows($resql) > 0);
+			$this->db->free($resql);
+		} else {
+			$this->hasUserCreatColumn = false;
+		}
+
+		return $this->hasUserCreatColumn;
+	}
+
+	/**
+	 * Detect lazily if the database schema stores the last modifier user.
+	 *
+	 * @return bool
+	 */
+	protected function checkUserModifColumnAvailability()
+	{
+		if ($this->hasUserModifColumn !== null) {
+			return $this->hasUserModifColumn;
+		}
+
+		$sql = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX.$this->table_element." LIKE 'fk_user_modif'";
+		$resql = $this->db->query($sql);
+		if ($resql) {
+			$this->hasUserModifColumn = ($this->db->num_rows($resql) > 0);
+			$this->db->free($resql);
+		} else {
+			$this->hasUserModifColumn = false;
+		}
+
+		return $this->hasUserModifColumn;
+	}
+
+	/**
+	 * Return the SQL fragment updating the native audit user when the schema supports it.
+	 *
+	 * @param User $user User triggering the update
+	 * @return string
+	 */
+	protected function getUserModifSql(User $user)
+	{
+		if (!$this->checkUserModifColumnAvailability()) {
+			return '';
+		}
+
+		$this->fk_user_modif = (int) $user->id;
+		$this->user_modification_id = (int) $user->id;
+		return ", fk_user_modif=".(int) $this->fk_user_modif;
 	}
 
 	/**
@@ -355,6 +475,12 @@ class TimesheetWeek extends CommonObject
 		(int) ($this->meal_count ?: 0)
 		);
 
+		if ($this->checkUserCreatColumnAvailability()) {
+			$this->fk_user_creat = (int) $user->id;
+			$fields[] = 'fk_user_creat';
+			$values[] = (int) $this->fk_user_creat;
+		}
+
 		if ($this->checkModelPdfColumnAvailability()) {
 			// EN: Persist the PDF model selection when the schema supports it.
 			// FR: Persiste la sélection du modèle PDF lorsque le schéma le supporte.
@@ -381,6 +507,7 @@ class TimesheetWeek extends CommonObject
 
 		$this->id = (int) $this->db->last_insert_id(MAIN_DB_PREFIX.$this->table_element);
 		$this->date_creation = $now;
+		$this->user_creation_id = !empty($this->fk_user_creat) ? (int) $this->fk_user_creat : (int) $this->fk_user;
 
 		// Replace provisional ref with (PROV<ID>)
 		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
@@ -470,6 +597,8 @@ class TimesheetWeek extends CommonObject
 
 		$includeModelPdf = $this->checkModelPdfColumnAvailability();
 		$includeLastMainDoc = $this->checkLastMainDocColumnAvailability();
+		$includeUserCreat = $this->checkUserCreatColumnAvailability();
+		$includeUserModif = $this->checkUserModifColumnAvailability();
 
 		$sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.note, t.motif, t.date_creation, t.tms, t.date_validation, t.fk_user_valid,";
 $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_count, t.zone3_count, t.zone4_count, t.zone5_count, t.meal_count";
@@ -478,6 +607,12 @@ $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_co
 		}
 		if ($includeLastMainDoc) {
 			$sql .= ", t.last_main_doc";
+		}
+		if ($includeUserCreat) {
+			$sql .= ", t.fk_user_creat";
+		}
+		if ($includeUserModif) {
+			$sql .= ", t.fk_user_modif";
 		}
 		$sql .= " FROM ".MAIN_DB_PREFIX.$this->table_element." as t";
 		$sql .= " WHERE 1=1";
@@ -506,6 +641,8 @@ $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_co
 		$this->ref = $obj->ref;
 		$this->entity = (int) $obj->entity;
 		$this->fk_user = (int) $obj->fk_user;
+		$this->fk_user_creat = ($includeUserCreat && isset($obj->fk_user_creat)) ? (int) $obj->fk_user_creat : 0;
+		$this->fk_user_modif = ($includeUserModif && isset($obj->fk_user_modif)) ? (int) $obj->fk_user_modif : 0;
 		$this->year = (int) $obj->year;
 		$this->week = (int) $obj->week;
 		$this->status = (int) $obj->status;
@@ -513,8 +650,12 @@ $sql .= " t.total_hours, t.overtime_hours, t.contract, t.zone1_count, t.zone2_co
 		$this->motif = $obj->motif;
 		$this->date_creation = $this->db->jdate($obj->date_creation);
 		$this->tms = $this->db->jdate($obj->tms);
+		$this->date_modification = $this->tms;
 		$this->date_validation = $this->db->jdate($obj->date_validation);
 $this->fk_user_valid = (int) $obj->fk_user_valid;
+		$this->user_creation_id = !empty($this->fk_user_creat) ? (int) $this->fk_user_creat : (int) $this->fk_user;
+		$this->user_modification_id = !empty($this->fk_user_modif) ? (int) $this->fk_user_modif : (!empty($this->fk_user_valid) ? (int) $this->fk_user_valid : (int) $this->user_creation_id);
+		$this->user_validation_id = (int) $this->fk_user_valid;
 $this->total_hours = (float) $obj->total_hours;
 $this->overtime_hours = (float) $obj->overtime_hours;
 $this->contract = ($obj->contract !== null ? (float) $obj->contract : null);
@@ -630,6 +771,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 		if ($this->checkLastMainDocColumnAvailability()) {
 			$sets[] = "last_main_doc=".($this->last_main_doc !== '' ? "'".$this->db->escape($this->last_main_doc)."'" : 'NULL');
+		}
+		if ($this->checkUserModifColumnAvailability()) {
+			$this->fk_user_modif = (int) $user->id;
+			$sets[] = "fk_user_modif=".(int) $this->fk_user_modif;
 		}
 		$sets[] = "tms='".$this->db->idate($now)."'";
 
@@ -1049,7 +1194,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			}
 		}
 
-		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL WHERE rowid=".(int) $this->id;
+		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET status=".(int) self::STATUS_SUBMITTED.", tms='".$this->db->idate($now)."', date_validation=NULL".$this->getUserModifSql($user)." WHERE rowid=".(int) $this->id;
 		// EN: Apply the status change strictly within the accessible entities.
 		// FR: Applique le changement de statut strictement au sein des entités accessibles.
 		$up .= " AND entity IN (".getEntity('timesheetweek').")";
@@ -1061,7 +1206,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->status = self::STATUS_SUBMITTED;
 		$this->tms = $now;
+		$this->date_modification = $now;
 		$this->date_validation = null;
+		$this->user_validation_id = 0;
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SUBMIT, $user, 'submit', array('status', 'ref', 'date_validation', 'total_hours', 'overtime_hours', 'contract'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
@@ -1109,7 +1256,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->db->begin();
 
 		$up = "UPDATE ".MAIN_DB_PREFIX.$this->table_element;
-		$up .= " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL";
+		$up .= " SET status=".(int) self::STATUS_DRAFT.", tms='".$this->db->idate($now)."', date_validation=NULL".$this->getUserModifSql($user);
 		// EN: Protect draft rollback with entity scoping for multi-company safety.
 		// FR: Protège le retour en brouillon en restreignant l'entité pour la sécurité multi-entreprise.
 		$up .= " WHERE rowid=".(int) $this->id;
@@ -1137,7 +1284,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->status = self::STATUS_DRAFT;
 		$this->tms = $now;
+		$this->date_modification = $now;
 		$this->date_validation = null;
+		$this->user_validation_id = 0;
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SETDRAFT, $user, 'setdraft', array('status', 'date_validation', 'total_hours', 'overtime_hours'), $previousStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
@@ -1185,6 +1334,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= " status=".(int) self::STATUS_APPROVED;
 		$sql .= ", date_validation='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		$sql .= $this->getUserModifSql($user);
 		$sql .= $setvalid;
 		$sql .= ", motif=".($motif !== '' ? "'".$this->db->escape($motif)."'" : 'NULL');
 		$sql .= " WHERE rowid=".(int) $this->id;
@@ -1208,6 +1358,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_APPROVED;
 		$this->date_validation = $now;
 		$this->tms = $now;
+		$this->date_modification = $now;
+		$this->user_validation_id = (int) $this->fk_user_valid;
 		$this->motif = ($motif !== '' ? $motif : null);
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_APPROVE, $user, 'approve', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
@@ -1285,6 +1437,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_SEALED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		$sql .= $this->getUserModifSql($user);
 		if ($hasSealUserColumn) {
 			$sql .= ", fk_user_seal=".(int) $user->id;
 		}
@@ -1295,6 +1448,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$sql .= ", note='".$this->db->escape($noteUpdate)."'";
 		}
 		$sql .= " WHERE rowid=".(int) $this->id;
+		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
 		if (!$this->db->query($sql)) {
 			$this->db->rollback();
@@ -1306,6 +1460,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR : Conserve les métadonnées d'approbation tout en verrouillant la feuille.
 		$this->status = self::STATUS_SEALED;
 		$this->tms = $now;
+		$this->date_modification = $now;
 		if ($hasSealUserColumn) {
 			$this->fk_user_seal = (int) $user->id;
 		}
@@ -1354,6 +1509,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql = "UPDATE ".MAIN_DB_PREFIX.$this->table_element." SET";
 		$sql .= " status=".(int) self::STATUS_APPROVED;
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		$sql .= $this->getUserModifSql($user);
 		$sql .= " WHERE rowid=".(int) $this->id;
 		$sql .= " AND entity IN (".getEntity('timesheetweek').")";
 
@@ -1367,6 +1523,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		// FR : Préserve la date d'approbation d'origine tout en rouvrant l'édition.
 		$this->status = self::STATUS_APPROVED;
 		$this->tms = $now;
+		$this->date_modification = $now;
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_UNSEAL, $user, 'unseal', array('status'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
@@ -1725,6 +1882,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$sql .= " status=".(int) self::STATUS_REFUSED;
 		$sql .= ", date_validation='".$this->db->idate($now)."'";
 		$sql .= ", tms='".$this->db->idate($now)."'";
+		$sql .= $this->getUserModifSql($user);
 		$sql .= $setvalid;
 		$sql .= ", motif=".($motif !== '' ? "'".$this->db->escape($motif)."'" : 'NULL');
 		$sql .= " WHERE rowid=".(int) $this->id;
@@ -1739,6 +1897,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$this->status = self::STATUS_REFUSED;
 		$this->date_validation = $now;
 		$this->tms = $now;
+		$this->date_modification = $now;
+		$this->user_validation_id = (int) $this->fk_user_valid;
 		$this->motif = ($motif !== '' ? $motif : null);
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_REFUSE, $user, 'refuse', array('status', 'date_validation', 'fk_user_valid', 'motif'), $oldStatus, (int) $this->status, $motif) < 0) {
@@ -2569,88 +2729,18 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	}
 
 	/**
-	* Create an agenda event for this timesheet action
+	* Legacy compatibility shim. Agenda events are created only by Dolibarr native triggers.
 	*
 	* @param User   $user
 	* @param string $code       Internal agenda code (ex: TSWK_SUBMIT)
 	* @param string $labelKey   Translation key for event label
 	* @param array  $labelParams Parameters passed to translation
 	* @param bool   $linkToObject Whether to create an object link
-	*
+	* @param string $motif Optional reason text
 	* @return bool
 	*/
 	protected function createAgendaEvent($user, $code, $labelKey, array $labelParams = array(), $linkToObject = true, $motif = '')
 	{
-		if (!getDolGlobalInt('TIMESHEETWEEK_ENABLE_LEGACY_AGENDA_HELPER', 0)) {
-			return true;
-		}
-
-		global $conf, $langs;
-
-		if (!function_exists('isModEnabled') || !isModEnabled('agenda')) {
-			return true;
-		}
-
-		$langs->loadLangs(array('timesheetweek@timesheetweek', 'agenda'));
-
-		dol_include_once('/comm/action/class/actioncomm.class.php');
-
-		$args = array_merge(array($labelKey), $labelParams);
-		$label = call_user_func_array(array($langs, 'trans'), $args);
-		if ($label === $labelKey) {
-			$label = $langs->trans('TimesheetWeekAgendaDefaultLabel', $this->ref);
-		}
-
-		$now = dol_now();
-
-		$event = new ActionComm($this->db);
-		$event->type_code = 'AC_OTH_AUTO';
-		$event->code = $code;
-		$event->label = $label;
-		$motif = trim((string) $motif);
-		$eventNote = $label;
-		if ($motif !== '') {
-			$eventNote .= "\n".$langs->trans('TimesheetWeekMotif').': '.$motif;
-		}
-		$event->note_private = $eventNote;
-		$event->fk_user_author = (int) $user->id;
-		$event->fk_user_mod = (int) $user->id;
-		$ownerId = (int) (!empty($user->id) ? $user->id : ($this->fk_user ?: 0));
-		$event->userownerid = $ownerId;
-		if (property_exists($event, 'fk_user_action')) {
-			$event->fk_user_action = $ownerId;
-		}
-		$event->datep = $now;
-		$event->datef = $now;
-		$event->percentage = -1;
-		$event->priority = 0;
-		$event->fulldayevent = 0;
-		$event->entity = !empty($this->entity) ? (int) $this->entity : (int) $conf->entity;
-
-		if (!empty($this->fk_user)) {
-			$event->userassigned = array(
-			(int) $this->fk_user => array('id' => (int) $this->fk_user),
-			);
-		}
-
-		if ($linkToObject) {
-			$event->elementtype = 'timesheetweek@timesheetweek';
-			$event->fk_element = (int) $this->id;
-		}
-
-		$res = $event->create($user);
-		if ($res <= 0) {
-			$this->error = !empty($event->error) ? $event->error : 'AgendaEventCreationFailed';
-			if (!empty($event->errors)) {
-				$this->errors = array_merge($this->errors, $event->errors);
-			}
-			return false;
-		}
-
-		if ($linkToObject && method_exists($event, 'add_object_linked')) {
-			$event->add_object_linked('timesheetweek@timesheetweek', (int) $this->id);
-		}
-
 		return true;
 	}
 }

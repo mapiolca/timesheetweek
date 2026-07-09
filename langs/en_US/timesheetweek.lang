@@ -95,6 +95,10 @@ ShareTimesheetWeekNumberingTooltip = Synchronize numbering sequences for weekly 
 SelectWeekPlaceholder = -- Select a week --
 Timesheetweek = Timesheet
 Timesheetweek@timesheetweek = Timesheet
+Creation=Creation
+Validation=Validation
+TimesheetWeekInfoCreation=Creation
+TimesheetWeekInfoValidation=Validation
 
 
 #
@@ -164,6 +168,7 @@ TimesheetWeekAgendaDiagnosticPotentialDuplicatesDesc = Event groups sharing the 
 # Triggers, Agenda and Notifications
 #
 EventsAgenda = Events/Agenda
+ActionsOnTimesheetWeek=Events on weekly timesheet
 TimesheetWeekTriggerGeneric = Timesheet %s updated
 TimesheetWeekTriggerCreate = Timesheet %s created
 TimesheetWeekTriggerSubmit = Timesheet %s submitted

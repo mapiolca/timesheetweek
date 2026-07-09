@@ -88,51 +88,6 @@ dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
- * Fetch assigned internal users for a list of agenda events
- *
- * @param DoliDB $db
- * @param int[]  $eventIds
- * @return array<int, array<int, stdClass>>
- */
-function tw_fetch_assigned_users_for_events($db, array $eventIds)
-{
-        $result = array();
-
-        if (empty($eventIds)) {
-                return $result;
-        }
-
-        $ids = array();
-        foreach ($eventIds as $eventId) {
-                $eventId = (int) $eventId;
-                if ($eventId > 0) {
-                        $ids[$eventId] = $eventId;
-                }
-        }
-
-        if (empty($ids)) {
-                return $result;
-        }
-
-        $sql = "SELECT ar.fk_actioncomm AS action_id, u.rowid AS user_id, u.lastname, u.firstname, u.login"
-                ." FROM ".MAIN_DB_PREFIX."actioncomm_resources as ar"
-                ." LEFT JOIN ".MAIN_DB_PREFIX."user as u ON (u.rowid = ar.fk_element AND ar.element_type IN ('user','internal'))"
-                ." WHERE ar.fk_actioncomm IN (".implode(',', $ids).")"
-                ." AND ar.element_type IN ('user','internal')"
-                ." ORDER BY ar.fk_actioncomm, u.lastname, u.firstname";
-
-        $res = $db->query($sql);
-        if ($res) {
-                while ($obj = $db->fetch_object($res)) {
-                        $result[(int) $obj->action_id][] = $obj;
-                }
-                $db->free($res);
-        }
-
-        return $result;
-}
-
-/**
  * @var Conf $conf
  * @var DoliDB $db
  * @var HookManager $hookmanager
@@ -141,7 +96,7 @@ function tw_fetch_assigned_users_for_events($db, array $eventIds)
  */
 
 // Load translation files required by the page
-$langs->loadLangs(array("timesheetweek@timesheetweek", "other"));
+$langs->loadLangs(array("main", "timesheetweek@timesheetweek", "other"));
 
 // Get parameters
 $id = GETPOSTINT('id');
@@ -192,6 +147,11 @@ if (!$sortfield) {
 	$sortfield = 'a.datep,a.id';
 }
 if (!$sortorder) {
+	$sortorder = 'DESC,DESC';
+}
+$allowedSortFields = array('a.datep,a.id', 'a.datep', 'a.id', 'a.percent');
+if (!in_array($sortfield, $allowedSortFields, true)) {
+	$sortfield = 'a.datep,a.id';
 	$sortorder = 'DESC,DESC';
 }
 
@@ -336,6 +296,14 @@ if ($object->id > 0) {
 	print '<div class="underbanner clearboth"></div>';
 
 	$object->info($object->id);
+	$creationLabel = $langs->transnoentitiesnoconv('TimesheetWeekInfoCreation');
+	if ($creationLabel !== 'TimesheetWeekInfoCreation') {
+		$langs->tab_translate['Creation'] = $creationLabel;
+	}
+	$validationLabel = $langs->transnoentitiesnoconv('TimesheetWeekInfoValidation');
+	if ($validationLabel !== 'TimesheetWeekInfoValidation') {
+		$langs->tab_translate['Validation'] = $validationLabel;
+	}
 	dol_print_object_info($object, 1);
 
 	print '</div>';
@@ -408,186 +376,13 @@ if ($object->id > 0) {
                         $param .= '&sortorder='.urlencode($sortorder);
                 }
 
-                $sqlWhere = " WHERE a.entity IN (".getEntity('actioncomm', 1).")"
-                        ." AND a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')"
-                        ." AND a.fk_element=".(int) $object->id;
+                print load_fiche_titre($langs->trans("ActionsOnTimesheetWeek"), $morehtmlright, '');
 
-                if (!empty($search_rowid)) {
-                        $sqlWhere .= " AND a.id=".(int) $search_rowid;
-                }
-                if (!empty($search_agenda_label)) {
-                        $sqlWhere .= " AND (a.label LIKE '%".$db->escape($search_agenda_label)."%'"
-                                ." OR a.note LIKE '%".$db->escape($search_agenda_label)."%')";
-                }
-                if (!empty($actioncode)) {
-                        $list = array();
-                        foreach ($actioncode as $code) {
-                                $list[] = "'".$db->escape($code)."'";
-                        }
-                        if (!empty($list)) {
-                                $sqlWhere .= ' AND COALESCE(a.code, ca.code) IN ('.implode(',', $list).')';
-                        }
-                }
+                $filters = array();
+                $filters['search_agenda_label'] = $search_agenda_label;
+                $filters['search_rowid'] = $search_rowid;
 
-                $sqlFrom = " FROM ".MAIN_DB_PREFIX."actioncomm as a"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."c_actioncomm as ca ON (ca.id = a.fk_action OR ca.code = a.code)"
-                        ." LEFT JOIN ".MAIN_DB_PREFIX."user as creator ON creator.rowid = a.fk_user_author";
-
-                $sqlCount = "SELECT COUNT(a.id) as nb".$sqlFrom.$sqlWhere;
-                $nbEvent = 0;
-                $resCount = $db->query($sqlCount);
-                if ($resCount) {
-                        $objCount = $db->fetch_object($resCount);
-                        if ($objCount) {
-                                $nbEvent = (int) $objCount->nb;
-                        }
-                        $db->free($resCount);
-                }
-
-                $sql = "SELECT a.id, a.label, a.datep, a.datep2, a.durationp, a.fulldayevent, a.percent, COALESCE(a.code, ca.code) as type_code, a.code,"
-                        ." a.fk_user_author, creator.lastname as creator_lastname, creator.firstname as creator_firstname,"
-                        ." creator.login as creator_login, creator.rowid as creator_id"
-                        .$sqlFrom
-                        .$sqlWhere;
-                if (!empty($sortfield)) {
-                        $sql .= $db->order($sortfield, $sortorder);
-                }
-                if (!empty($limit)) {
-                        $sql .= $db->plimit($limit, $offset);
-                }
-
-                $resql = $db->query($sql);
-                if (!$resql) {
-                        dol_print_error($db);
-                } else {
-                        $num = $db->num_rows($resql);
-
-                        $rows = array();
-                        if ($num > 0) {
-                                while ($obj = $db->fetch_object($resql)) {
-                                        $rows[] = $obj;
-                                }
-                        }
-
-                        $titlelist = $langs->trans("Actions");
-                        print_barre_liste($titlelist, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, '', $num, $nbEvent, '', 0, $morehtmlright, '', 0, 1, 0);
-
-                        print '<form method="POST" action="'.$_SERVER["PHP_SELF"].'">';
-                        print '<input type="hidden" name="token" value="'.newToken().'">';
-                        print '<input type="hidden" name="id" value="'.$object->id.'">';
-                        print '<input type="hidden" name="limit" value="'.$limit.'">';
-                        print '<input type="hidden" name="sortfield" value="'.$sortfield.'">';
-                        print '<input type="hidden" name="sortorder" value="'.$sortorder.'">';
-                        foreach ($actioncode as $code) {
-                                print '<input type="hidden" name="actioncode[]" value="'.dol_escape_htmltag($code).'">';
-                        }
-
-                        print '<div class="div-table-responsive">';
-                        $actionTypeOptions = array();
-                        $sqlActionType = "SELECT code, label FROM ".MAIN_DB_PREFIX."c_actioncomm WHERE active = 1 ORDER BY label";
-                        $resActionType = $db->query($sqlActionType);
-                        if ($resActionType) {
-                                while ($objType = $db->fetch_object($resActionType)) {
-                                        $label = !empty($objType->label) ? $langs->trans($objType->label) : $objType->code;
-                                        $actionTypeOptions[$objType->code] = $label;
-                                }
-                                $db->free($resActionType);
-                        }
-
-                        $selectedActionCodes = !empty($actioncode) ? $actioncode : array();
-
-                        print '<table class="noborder centpercent">';
-
-                        print '<tr class="liste_titre_filter">';
-                        print '<td class="liste_titre"><input type="text" class="flat" name="search_rowid" value="'.dol_escape_htmltag($search_rowid).'"></td>';
-                        print '<td class="liste_titre"><input type="text" class="flat minwidth200" name="search_agenda_label" value="'.dol_escape_htmltag($search_agenda_label).'"></td>';
-                        print '<td class="liste_titre">';
-                        print $form->multiselectarray('actioncode', $actionTypeOptions, $selectedActionCodes, 0, 0, 'minwidth200 maxwidth300', 0, 0, '', '', '', '', '', 1);
-                        print '</td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre"></td>';
-                        print '<td class="liste_titre right">'.$form->showFilterButtons('right').'</td>';
-                        print '</tr>';
-
-                        print '<tr class="liste_titre">';
-                        print_liste_field_titre($langs->trans('Ref'), $_SERVER["PHP_SELF"], 'a.id', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('Label'), $_SERVER["PHP_SELF"], 'a.label', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('Type'), $_SERVER["PHP_SELF"], 'a.code', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('DateStart'), $_SERVER["PHP_SELF"], 'a.datep', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('DateEnd'), $_SERVER["PHP_SELF"], 'a.datep2', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('AssignedTo'), $_SERVER["PHP_SELF"], '', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('Author'), $_SERVER["PHP_SELF"], 'a.fk_user_author', $param, '', '', $sortfield, $sortorder);
-                        print_liste_field_titre($langs->trans('Status'), $_SERVER["PHP_SELF"], 'a.percent', $param, '', '', $sortfield, $sortorder, 'right');
-                        print '</tr>';
-
-                        if ($num > 0) {
-                                $eventIds = array();
-                                foreach ($rows as $row) {
-                                        $eventIds[] = (int) $row->id;
-                                }
-
-                                $assignedByEvent = tw_fetch_assigned_users_for_events($db, $eventIds);
-
-                                $actionstatic = new ActionComm($db);
-                                $userstatic = new User($db);
-                                $creatorstatic = new User($db);
-
-                                foreach ($rows as $obj) {
-                                        $actionstatic->fetch($obj->id);
-
-                                        $creatorstatic->id = (int) $obj->creator_id;
-                                        $creatorstatic->lastname = $obj->creator_lastname;
-                                        $creatorstatic->firstname = $obj->creator_firstname;
-                                        $creatorstatic->login = $obj->creator_login;
-
-                                        $assignedHtml = '';
-                                        if (!empty($assignedByEvent[$obj->id])) {
-                                                $links = array();
-                                                foreach ($assignedByEvent[$obj->id] as $assignedUser) {
-                                                        if (!empty($assignedUser->user_id)) {
-                                                                $userstatic->id = (int) $assignedUser->user_id;
-                                                                $userstatic->lastname = $assignedUser->lastname;
-                                                                $userstatic->firstname = $assignedUser->firstname;
-                                                                $userstatic->login = $assignedUser->login;
-                                                                $links[] = $userstatic->getNomUrl(1);
-                                                        }
-                                                }
-                                                $assignedHtml = implode(', ', $links);
-                                        }
-
-                                        $typeLabel = '';
-                                        if (!empty($actionstatic->type_label)) {
-                                                $typeLabel = $langs->trans($actionstatic->type_label);
-                                        } elseif (!empty($obj->type_code)) {
-                                                $typeLabel = $langs->trans($obj->type_code);
-                                        }
-                                        if (empty($typeLabel)) {
-                                                $typeLabel = $obj->type_code;
-                                        }
-
-                                        print '<tr class="oddeven">';
-                                        print '<td>'.$actionstatic->getNomUrl(1, '', 0, 'classfortooltip').'</td>';
-                                        print '<td>'.dol_escape_htmltag($actionstatic->label).'</td>';
-                                        print '<td>'.dol_escape_htmltag($typeLabel).'</td>';
-                                        print '<td>'.dol_print_date($actionstatic->datep, 'dayhour').'</td>';
-                                        print '<td>'.dol_print_date($actionstatic->datef, 'dayhour').'</td>';
-                                        print '<td>'.$assignedHtml.'</td>';
-                                        print '<td>'.($creatorstatic->id > 0 ? $creatorstatic->getNomUrl(1) : '').'</td>';
-                                        print '<td class="right">'.$actionstatic->getLibStatut(5).'</td>';
-                                        print '</tr>';
-                                }
-                        } else {
-                                print '<tr class="oddeven"><td colspan="8" class="opacitymedium center">'.$langs->trans('NoEvent').'</td></tr>';
-                        }
-
-                        print '</table>';
-                        print '</div>';
-                        print '</form>';
-
-                        $db->free($resql);
-                }
+                show_actions_done($conf, $langs, $db, $object, null, 0, $actioncode, '', $filters, $sortfield, $sortorder, 'timesheetweek');
         }
 }
 

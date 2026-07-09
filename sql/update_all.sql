@@ -15,6 +15,84 @@ PREPARE tsw_stmt FROM @tsw_add_model_pdf;
 EXECUTE tsw_stmt;
 DEALLOCATE PREPARE tsw_stmt;
 
+-- EN: Add the creation user column to existing tables when missing.
+SET @tsw_has_fk_user_creat := (
+	SELECT COUNT(*)
+	FROM information_schema.COLUMNS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'llx_timesheet_week'
+		AND COLUMN_NAME = 'fk_user_creat'
+);
+SET @tsw_add_fk_user_creat := IF(
+	@tsw_has_fk_user_creat = 0,
+	'ALTER TABLE llx_timesheet_week ADD COLUMN fk_user_creat INT DEFAULT NULL AFTER fk_user',
+	'SELECT 1'
+);
+PREPARE tsw_fk_user_creat_stmt FROM @tsw_add_fk_user_creat;
+EXECUTE tsw_fk_user_creat_stmt;
+DEALLOCATE PREPARE tsw_fk_user_creat_stmt;
+
+-- EN: Add the last modification user column to existing tables when missing.
+SET @tsw_has_fk_user_modif := (
+	SELECT COUNT(*)
+	FROM information_schema.COLUMNS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'llx_timesheet_week'
+		AND COLUMN_NAME = 'fk_user_modif'
+);
+SET @tsw_add_fk_user_modif := IF(
+	@tsw_has_fk_user_modif = 0,
+	'ALTER TABLE llx_timesheet_week ADD COLUMN fk_user_modif INT DEFAULT NULL AFTER fk_user_creat',
+	'SELECT 1'
+);
+PREPARE tsw_fk_user_modif_stmt FROM @tsw_add_fk_user_modif;
+EXECUTE tsw_fk_user_modif_stmt;
+DEALLOCATE PREPARE tsw_fk_user_modif_stmt;
+
+UPDATE llx_timesheet_week
+SET fk_user_creat = fk_user
+WHERE fk_user_creat IS NULL
+AND fk_user IS NOT NULL;
+
+UPDATE llx_timesheet_week
+SET fk_user_modif = COALESCE(fk_user_valid, fk_user_creat, fk_user)
+WHERE fk_user_modif IS NULL
+AND COALESCE(fk_user_valid, fk_user_creat, fk_user) IS NOT NULL;
+
+-- EN: Add index on creation user when missing.
+SET @tsw_has_idx_fk_user_creat := (
+	SELECT COUNT(*)
+	FROM information_schema.STATISTICS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'llx_timesheet_week'
+		AND INDEX_NAME = 'idx_timesheet_week_user_creat'
+);
+SET @tsw_add_idx_fk_user_creat := IF(
+	@tsw_has_idx_fk_user_creat = 0,
+	'ALTER TABLE llx_timesheet_week ADD INDEX idx_timesheet_week_user_creat (fk_user_creat)',
+	'SELECT 1'
+);
+PREPARE tsw_idx_fk_user_creat_stmt FROM @tsw_add_idx_fk_user_creat;
+EXECUTE tsw_idx_fk_user_creat_stmt;
+DEALLOCATE PREPARE tsw_idx_fk_user_creat_stmt;
+
+-- EN: Add index on last modification user when missing.
+SET @tsw_has_idx_fk_user_modif := (
+	SELECT COUNT(*)
+	FROM information_schema.STATISTICS
+	WHERE TABLE_SCHEMA = DATABASE()
+		AND TABLE_NAME = 'llx_timesheet_week'
+		AND INDEX_NAME = 'idx_timesheet_week_user_modif'
+);
+SET @tsw_add_idx_fk_user_modif := IF(
+	@tsw_has_idx_fk_user_modif = 0,
+	'ALTER TABLE llx_timesheet_week ADD INDEX idx_timesheet_week_user_modif (fk_user_modif)',
+	'SELECT 1'
+);
+PREPARE tsw_idx_fk_user_modif_stmt FROM @tsw_add_idx_fk_user_modif;
+EXECUTE tsw_idx_fk_user_modif_stmt;
+DEALLOCATE PREPARE tsw_idx_fk_user_modif_stmt;
+
 -- EN: Add the contract hours column to existing tables when missing.
 SET @tsw_has_contract := (
 	SELECT COUNT(*)
@@ -466,3 +544,33 @@ UPDATE llx_actioncomm
 SET elementtype = 'timesheetweek@timesheetweek'
 WHERE elementtype = 'timesheetweek'
 	AND fk_element IN (SELECT rowid FROM llx_timesheet_week);
+
+-- EN: Remove duplicate Agenda entries created by the historical manual ActionComm path.
+-- EN: Keep the event whose title contains the timesheet reference.
+DELETE a
+FROM llx_actioncomm AS a
+INNER JOIN llx_timesheet_week AS t ON t.rowid = a.fk_element
+INNER JOIN llx_actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'
+	AND keepa.fk_element = a.fk_element
+	AND keepa.entity = a.entity
+	AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')
+	AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')
+	AND keepa.id <> a.id
+	AND keepa.label LIKE CONCAT('%', t.ref, '%')
+WHERE a.elementtype = 'timesheetweek@timesheetweek'
+	AND a.label NOT LIKE CONCAT('%', t.ref, '%')
+	AND TRIM(REPLACE(REPLACE(keepa.label, t.ref, ''), '  ', ' ')) = TRIM(a.label);
+
+-- EN: If the same referenced event was inserted twice, keep the oldest entry.
+DELETE a
+FROM llx_actioncomm AS a
+INNER JOIN llx_timesheet_week AS t ON t.rowid = a.fk_element
+INNER JOIN llx_actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'
+	AND keepa.fk_element = a.fk_element
+	AND keepa.entity = a.entity
+	AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')
+	AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')
+	AND keepa.label = a.label
+	AND keepa.id < a.id
+WHERE a.elementtype = 'timesheetweek@timesheetweek'
+	AND a.label LIKE CONCAT('%', t.ref, '%');

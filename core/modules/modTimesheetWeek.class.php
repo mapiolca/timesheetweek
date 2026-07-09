@@ -907,6 +907,81 @@ class modTimesheetWeek extends DolibarrModules
 				}
 			}
 
+			$sqlCheckUserCreat = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'fk_user_creat'";
+			$resqlCheckUserCreat = $this->db->query($sqlCheckUserCreat);
+			if (!$resqlCheckUserCreat) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserCreatColumn = (bool) $this->db->num_rows($resqlCheckUserCreat);
+			$this->db->free($resqlCheckUserCreat);
+			if (!$hasUserCreatColumn) {
+				$sqlAddUserCreat = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN fk_user_creat INT DEFAULT NULL AFTER fk_user";
+				if (!$this->db->query($sqlAddUserCreat)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlCheckUserModif = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'fk_user_modif'";
+			$resqlCheckUserModif = $this->db->query($sqlCheckUserModif);
+			if (!$resqlCheckUserModif) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserModifColumn = (bool) $this->db->num_rows($resqlCheckUserModif);
+			$this->db->free($resqlCheckUserModif);
+			if (!$hasUserModifColumn) {
+				$sqlAddUserModif = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN fk_user_modif INT DEFAULT NULL AFTER fk_user_creat";
+				if (!$this->db->query($sqlAddUserModif)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlBackfillUserCreat = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_creat = fk_user WHERE fk_user_creat IS NULL AND fk_user IS NOT NULL";
+			if (!$this->db->query($sqlBackfillUserCreat)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$sqlBackfillUserModif = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_modif = COALESCE(fk_user_valid, fk_user_creat, fk_user) WHERE fk_user_modif IS NULL AND COALESCE(fk_user_valid, fk_user_creat, fk_user) IS NOT NULL";
+			if (!$this->db->query($sqlBackfillUserModif)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+
+			$sqlCheckUserCreatIndex = "SHOW INDEX FROM ".MAIN_DB_PREFIX."timesheet_week WHERE Key_name = 'idx_timesheet_week_user_creat'";
+			$resqlCheckUserCreatIndex = $this->db->query($sqlCheckUserCreatIndex);
+			if (!$resqlCheckUserCreatIndex) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserCreatIndex = (bool) $this->db->num_rows($resqlCheckUserCreatIndex);
+			$this->db->free($resqlCheckUserCreatIndex);
+			if (!$hasUserCreatIndex) {
+				$sqlAddUserCreatIndex = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD INDEX idx_timesheet_week_user_creat (fk_user_creat)";
+				if (!$this->db->query($sqlAddUserCreatIndex)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlCheckUserModifIndex = "SHOW INDEX FROM ".MAIN_DB_PREFIX."timesheet_week WHERE Key_name = 'idx_timesheet_week_user_modif'";
+			$resqlCheckUserModifIndex = $this->db->query($sqlCheckUserModifIndex);
+			if (!$resqlCheckUserModifIndex) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserModifIndex = (bool) $this->db->num_rows($resqlCheckUserModifIndex);
+			$this->db->free($resqlCheckUserModifIndex);
+			if (!$hasUserModifIndex) {
+				$sqlAddUserModifIndex = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD INDEX idx_timesheet_week_user_modif (fk_user_modif)";
+				if (!$this->db->query($sqlAddUserModifIndex)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
 		// Permissions
 		$this->remove($options);
 
@@ -954,6 +1029,29 @@ class modTimesheetWeek extends DolibarrModules
 			$sql[] = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content) SELECT 0,'timesheetweek','timesheetweek@timesheetweek','".$this->db->escape($workflowNotificationTemplate['lang'])."',0,NULL,NOW(),'".$this->db->escape($workflowNotificationTemplate['label'])."',".((int) $workflowNotificationTemplate['position']).",1,'isModEnabled(\\\"timesheetweek\\\")',0,'".$this->db->escape($workflowNotificationTemplate['topic'])."','".$this->db->escape($workflowNotificationTemplate['content'])."' WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$this->db->escape($workflowNotificationTemplate['lang'])."' AND label = '".$this->db->escape($workflowNotificationTemplate['label'])."')";
 		}
 		$sql[] = "UPDATE ".MAIN_DB_PREFIX."actioncomm SET elementtype = 'timesheetweek@timesheetweek' WHERE elementtype = 'timesheetweek' AND fk_element IN (SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week)";
+		$sql[] = "DELETE a FROM ".MAIN_DB_PREFIX."actioncomm AS a"
+			." INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element"
+			." INNER JOIN ".MAIN_DB_PREFIX."actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'"
+			." AND keepa.fk_element = a.fk_element"
+			." AND keepa.entity = a.entity"
+			." AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')"
+			." AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')"
+			." AND keepa.id <> a.id"
+			." AND keepa.label LIKE CONCAT('%', t.ref, '%')"
+			." WHERE a.elementtype = 'timesheetweek@timesheetweek'"
+			." AND a.label NOT LIKE CONCAT('%', t.ref, '%')"
+			." AND TRIM(REPLACE(REPLACE(keepa.label, t.ref, ''), '  ', ' ')) = TRIM(a.label)";
+		$sql[] = "DELETE a FROM ".MAIN_DB_PREFIX."actioncomm AS a"
+			." INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element"
+			." INNER JOIN ".MAIN_DB_PREFIX."actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'"
+			." AND keepa.fk_element = a.fk_element"
+			." AND keepa.entity = a.entity"
+			." AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')"
+			." AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')"
+			." AND keepa.label = a.label"
+			." AND keepa.id < a.id"
+			." WHERE a.elementtype = 'timesheetweek@timesheetweek'"
+			." AND a.label LIKE CONCAT('%', t.ref, '%')";
 
 		// Document templates
 		$moduledir = dol_sanitizeFileName('timesheetweek');

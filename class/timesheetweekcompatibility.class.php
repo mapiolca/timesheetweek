@@ -198,7 +198,7 @@ class TimesheetWeekCompatibility
 			'potential_duplicates' => array(
 				'label' => 'TimesheetWeekAgendaDiagnosticPotentialDuplicates',
 				'description' => 'TimesheetWeekAgendaDiagnosticPotentialDuplicatesDesc',
-				'count' => self::countSql($db, "SELECT COUNT(*) as nb FROM (SELECT a.fk_element, a.code, a.datep, COUNT(*) as duplicate_count FROM ".MAIN_DB_PREFIX."actioncomm AS a WHERE a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek') AND a.fk_element IS NOT NULL GROUP BY a.fk_element, a.code, a.datep HAVING duplicate_count > 1) AS duplicates"),
+				'count' => self::countSql($db, "SELECT COUNT(*) as nb FROM (SELECT a.fk_element, CASE WHEN COALESCE(a.code, '') LIKE 'AC_TIMESHEETWEEK_%' THEN SUBSTRING(a.code, 4) ELSE COALESCE(a.code, '') END AS action_code, DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i') AS event_minute, TRIM(REPLACE(REPLACE(COALESCE(a.label, ''), t.ref, ''), '  ', ' ')) AS normalized_label, COUNT(*) as duplicate_count FROM ".MAIN_DB_PREFIX."actioncomm AS a INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element WHERE a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek') AND a.fk_element IS NOT NULL GROUP BY a.fk_element, action_code, event_minute, normalized_label HAVING duplicate_count > 1) AS duplicates"),
 				'severity' => 'warning',
 			),
 		);

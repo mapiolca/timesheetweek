@@ -26,6 +26,8 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Sélection du masque de numérotation via des commutateurs natifs directement depuis la configuration Dolibarr.
 - Génération du PDF de la feuille directement depuis la fiche hebdomadaire avec le widget Documents et respect du modèle configuré dans l'administration.
 - Événements Agenda et Notifications exposés dans les écrans natifs Dolibarr, avec substitutions disponibles pour les modèles d'e-mails.
+- Création des événements Agenda portée par le mécanisme natif Dolibarr, avec nettoyage conservateur des doublons historiques en conservant l'événement qui contient la référence de la feuille.
+- Onglet Événements/Agenda aligné sur le tableau natif Dolibarr, avec colonnes Réf., Date, Propriétaire, Type, Titre, Contact concerné, Objet lié et État.
 - Notifications métier par étape (soumission, approbation, refus, retour en brouillon, scellement, descellement) déclarées comme événements natifs à la manière du module Diffusion, avec pictogramme TimesheetWeek et contenu personnalisable.
 - Chemins documentaires centralisés par entité propriétaire et onglet Compatibilité détaillant les dépendances Dolibarr/PHP ainsi que les diagnostics Agenda.
 - Onglet « À propos » dédié pour retrouver la version, l'éditeur et les ressources utiles du module.
@@ -79,6 +81,8 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Numbering mask selection driven by native toggle switches directly inside Dolibarr's configuration.
 - PDF generation available directly from the weekly sheet through the Documents widget, honouring the template configured in the administration area.
 - Agenda events and Notifications are exposed in native Dolibarr screens, with substitutions available for email templates.
+- Agenda event creation is handled by the native Dolibarr mechanism, with conservative cleanup of historical duplicates while keeping the event that contains the timesheet reference.
+- The Events/Agenda tab now uses the native Dolibarr event table with Ref., Date, Owner, Type, Title, Related contact, Linked object and Status columns.
 - Business step notifications (submission, approval, refusal, revert to draft, seal, unseal) are declared as native events like in the Diffusion module, with the TimesheetWeek pictogram and customizable content.
 - Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
 - Native scheduled job settings are preserved when the module is disabled and re-enabled.
