@@ -1242,12 +1242,11 @@ class ActionsTimesheetweek
     {
         if (class_exists('TimesheetWeek')) {
             $timesheet = new TimesheetWeek($this->db);
-            $timesheet->id = (int) $row->rowid;
-            $timesheet->ref = (string) $row->ref;
-            $timesheet->entity = (int) $row->entity;
-            $timesheet->status = (int) $row->status;
+            if ($timesheet->fetch((int) $row->rowid) > 0) {
+                return $timesheet->getNomUrl(1);
+            }
 
-            return $timesheet->getNomUrl(1);
+            dol_syslog(__METHOD__.': unable to fetch TimesheetWeek #'.((int) $row->rowid).' before getNomUrl rendering', LOG_WARNING);
         }
 
         $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $row->rowid;
