@@ -124,7 +124,7 @@ class modTimesheetWeek extends DolibarrModules
 		// If file is in theme/yourtheme/img directory under name object_pictovalue.png, use this->picto='pictovalue'
 		// If file is in module/img directory under name object_pictovalue.png, use this->picto='pictovalue@module'
 		// To use a supported fa-xxx css style of font awesome, use this->picto='xxx'
-		$this->picto = 'bookcal';
+		$this->picto = 'fa-calendar-check';
 
 		// Define some features supported by module (triggers, login, substitutions, menus, css, etc...)
 		$this->module_parts = array(
@@ -150,7 +150,7 @@ class modTimesheetWeek extends DolibarrModules
 			'css' => array(),
 			// Set this to relative path of js file if module must load a js on all pages
 			'js' => array(
-				//   '/timesheetweek/js/timesheetweek.js.php',
+				'/timesheetweek/js/timesheetweek.js.php',
 			),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
@@ -159,10 +159,12 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        'usercardBank',
                                         'timesheetweekcard',
                                         'globalcard',
                                         'document',
                                         'notification',
+                                        'emailtemplates',
                                         'elementproperties',
                                         // EN: Register multicompany sharing contexts to expose sharing options.
                                         // FR: Enregistrer les contextes multicompany pour exposer les options de partage.
@@ -906,17 +908,151 @@ class modTimesheetWeek extends DolibarrModules
 				}
 			}
 
+			$sqlCheckUserCreat = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'fk_user_creat'";
+			$resqlCheckUserCreat = $this->db->query($sqlCheckUserCreat);
+			if (!$resqlCheckUserCreat) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserCreatColumn = (bool) $this->db->num_rows($resqlCheckUserCreat);
+			$this->db->free($resqlCheckUserCreat);
+			if (!$hasUserCreatColumn) {
+				$sqlAddUserCreat = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN fk_user_creat INT DEFAULT NULL AFTER fk_user";
+				if (!$this->db->query($sqlAddUserCreat)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlCheckUserModif = "SHOW COLUMNS FROM ".$this->db->prefix()."timesheet_week LIKE 'fk_user_modif'";
+			$resqlCheckUserModif = $this->db->query($sqlCheckUserModif);
+			if (!$resqlCheckUserModif) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserModifColumn = (bool) $this->db->num_rows($resqlCheckUserModif);
+			$this->db->free($resqlCheckUserModif);
+			if (!$hasUserModifColumn) {
+				$sqlAddUserModif = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD COLUMN fk_user_modif INT DEFAULT NULL AFTER fk_user_creat";
+				if (!$this->db->query($sqlAddUserModif)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlBackfillUserCreat = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_creat = fk_user WHERE fk_user_creat IS NULL AND fk_user IS NOT NULL";
+			if (!$this->db->query($sqlBackfillUserCreat)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$sqlBackfillUserModif = "UPDATE ".MAIN_DB_PREFIX."timesheet_week SET fk_user_modif = COALESCE(fk_user_valid, fk_user_creat, fk_user) WHERE fk_user_modif IS NULL AND COALESCE(fk_user_valid, fk_user_creat, fk_user) IS NOT NULL";
+			if (!$this->db->query($sqlBackfillUserModif)) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+
+			$sqlCheckUserCreatIndex = "SHOW INDEX FROM ".MAIN_DB_PREFIX."timesheet_week WHERE Key_name = 'idx_timesheet_week_user_creat'";
+			$resqlCheckUserCreatIndex = $this->db->query($sqlCheckUserCreatIndex);
+			if (!$resqlCheckUserCreatIndex) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserCreatIndex = (bool) $this->db->num_rows($resqlCheckUserCreatIndex);
+			$this->db->free($resqlCheckUserCreatIndex);
+			if (!$hasUserCreatIndex) {
+				$sqlAddUserCreatIndex = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD INDEX idx_timesheet_week_user_creat (fk_user_creat)";
+				if (!$this->db->query($sqlAddUserCreatIndex)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
+			$sqlCheckUserModifIndex = "SHOW INDEX FROM ".MAIN_DB_PREFIX."timesheet_week WHERE Key_name = 'idx_timesheet_week_user_modif'";
+			$resqlCheckUserModifIndex = $this->db->query($sqlCheckUserModifIndex);
+			if (!$resqlCheckUserModifIndex) {
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$hasUserModifIndex = (bool) $this->db->num_rows($resqlCheckUserModifIndex);
+			$this->db->free($resqlCheckUserModifIndex);
+			if (!$hasUserModifIndex) {
+				$sqlAddUserModifIndex = "ALTER TABLE ".MAIN_DB_PREFIX."timesheet_week ADD INDEX idx_timesheet_week_user_modif (fk_user_modif)";
+				if (!$this->db->query($sqlAddUserModifIndex)) {
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+
 		// Permissions
 		$this->remove($options);
 
 		$sql = array();
 
-		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED', 'TSWK_CREATE', 'TSWK_SUBMIT', 'TSWK_REOPEN', 'TSWK_APPROVE', 'TSWK_SEAL', 'TSWK_UNSEAL', 'TSWK_REFUSE', 'TSWK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
-		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE') AND elementtype = 'timesheetweek@timesheetweek'";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created; the precise business context is carried by the object context', 45000301)";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'agenda:notification', 'Update weekly timesheet', 'Executed when a weekly timesheet is updated; status, seal and refusal details are carried by the object context', 45000302)";
-		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted; the object context identifies the deleted sheet', 45000303)";
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_SUBMITTED', 'TIMESHEETWEEK_APPROVED', 'TIMESHEETWEEK_REFUSED', 'TSWK_CREATE', 'TSWK_SUBMIT', 'TSWK_REOPEN', 'TSWK_APPROVE', 'TSWK_SEAL', 'TSWK_UNSEAL', 'TSWK_REFUSE', 'TSWK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_TIMESHEETWEEK_DELETE') AND elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
+		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_action_trigger WHERE code IN ('TIMESHEETWEEK_CREATE', 'TIMESHEETWEEK_SUBMIT', 'TIMESHEETWEEK_APPROVE', 'TIMESHEETWEEK_REFUSE', 'TIMESHEETWEEK_SETDRAFT', 'TIMESHEETWEEK_SEAL', 'TIMESHEETWEEK_UNSEAL', 'TIMESHEETWEEK_DELETE', 'TIMESHEETWEEK_MODIFY') AND elementtype = 'timesheetweek'";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_CREATE', 'agenda:notification', 'Create weekly timesheet', 'Executed when a weekly timesheet is created.', 45000301)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SUBMIT', 'agenda:notification', 'Submit weekly timesheet', 'Executed when a weekly timesheet is submitted for approval.', 45000302)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_APPROVE', 'agenda:notification', 'Approve weekly timesheet', 'Executed when a weekly timesheet is approved.', 45000303)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_REFUSE', 'agenda:notification', 'Refuse weekly timesheet', 'Executed when a weekly timesheet is refused.', 45000304)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SETDRAFT', 'agenda:notification', 'Revert weekly timesheet to draft', 'Executed when a weekly timesheet is reverted to draft.', 45000305)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_SEAL', 'agenda:notification', 'Seal weekly timesheet', 'Executed when a weekly timesheet is sealed.', 45000306)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_UNSEAL', 'agenda:notification', 'Unseal weekly timesheet', 'Executed when a weekly timesheet is unsealed.', 45000307)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted.', 45000308)";
+		$sql[] = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_action_trigger (elementtype, code, contexts, label, description, rang) VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_MODIFY', 'agenda:notification', 'Modify weekly timesheet', 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 45000309)";
+		$nativeWorkflowRouterTemplates = array(
+			array('lang' => 'fr_FR', 'label' => 'Notification TimesheetWeek', 'position' => 200, 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__', 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__'),
+			array('lang' => 'en_US', 'label' => 'Notification TimesheetWeek', 'position' => 200, 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__', 'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__'),
+		);
+		foreach ($nativeWorkflowRouterTemplates as $nativeWorkflowRouterTemplate) {
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' WHERE module = 'timesheetweek' AND type_template IN ('timesheetweek', 'timesheetweek@timesheetweek') AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' AND NOT EXISTS (SELECT 1 FROM (SELECT rowid FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."') AS tsw_existing_router_template_label)";
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET module = 'timesheetweek', type_template = 'timesheetweek@timesheetweek', position = ".((int) $nativeWorkflowRouterTemplate['position']).", active = 1, enabled = 'isModEnabled(\\\"timesheetweek\\\")', joinfiles = 0 WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."'";
+			$sql[] = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content) SELECT 0,'timesheetweek','timesheetweek@timesheetweek','".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."',0,NULL,NOW(),'".$this->db->escape($nativeWorkflowRouterTemplate['label'])."',".((int) $nativeWorkflowRouterTemplate['position']).",1,'isModEnabled(\\\"timesheetweek\\\")',0,'".$this->db->escape($nativeWorkflowRouterTemplate['topic'])."','".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."')";
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET topic = '".$this->db->escape($nativeWorkflowRouterTemplate['topic'])."' WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' AND (topic IS NULL OR topic = '')";
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET content = '".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' AND (content IS NULL OR content = '')";
+		}
+		$workflowNotificationTemplates = array(
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT', 'position' => 210, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ soumise', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE', 'position' => 220, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ approuvée', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est approuvée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE', 'position' => 230, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ refusée', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT', 'position' => 240, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ remise en brouillon', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est remise en brouillon par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_SEAL', 'position' => 250, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ scellée', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est scellée.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'fr_FR', 'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL', 'position' => 260, 'topic' => 'Feuille de temps __TIMESHEETWEEK_REF__ descellée', 'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est descellée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT', 'position' => 210, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ submitted', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE', 'position' => 220, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ approved', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE', 'position' => 230, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ refused', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT', 'position' => 240, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ reverted to draft', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_SEAL', 'position' => 250, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ sealed', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+			array('lang' => 'en_US', 'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL', 'position' => 260, 'topic' => 'Timesheet __TIMESHEETWEEK_REF__ unsealed', 'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+		);
+		foreach ($workflowNotificationTemplates as $workflowNotificationTemplate) {
+			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET type_template = 'timesheetweek@timesheetweek' WHERE module = 'timesheetweek' AND type_template = 'timesheetweek_notification' AND lang = '".$this->db->escape($workflowNotificationTemplate['lang'])."' AND label = '".$this->db->escape($workflowNotificationTemplate['label'])."'";
+			$sql[] = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content) SELECT 0,'timesheetweek','timesheetweek@timesheetweek','".$this->db->escape($workflowNotificationTemplate['lang'])."',0,NULL,NOW(),'".$this->db->escape($workflowNotificationTemplate['label'])."',".((int) $workflowNotificationTemplate['position']).",1,'isModEnabled(\\\"timesheetweek\\\")',0,'".$this->db->escape($workflowNotificationTemplate['topic'])."','".$this->db->escape($workflowNotificationTemplate['content'])."' WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$this->db->escape($workflowNotificationTemplate['lang'])."' AND label = '".$this->db->escape($workflowNotificationTemplate['label'])."')";
+		}
 		$sql[] = "UPDATE ".MAIN_DB_PREFIX."actioncomm SET elementtype = 'timesheetweek@timesheetweek' WHERE elementtype = 'timesheetweek' AND fk_element IN (SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week)";
+		$sql[] = "DELETE a FROM ".MAIN_DB_PREFIX."actioncomm AS a"
+			." INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element"
+			." INNER JOIN ".MAIN_DB_PREFIX."actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'"
+			." AND keepa.fk_element = a.fk_element"
+			." AND keepa.entity = a.entity"
+			." AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')"
+			." AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')"
+			." AND keepa.id <> a.id"
+			." AND keepa.label LIKE CONCAT('%', t.ref, '%')"
+			." WHERE a.elementtype = 'timesheetweek@timesheetweek'"
+			." AND a.label NOT LIKE CONCAT('%', t.ref, '%')"
+			." AND TRIM(REPLACE(REPLACE(keepa.label, t.ref, ''), '  ', ' ')) = TRIM(a.label)";
+		$sql[] = "DELETE a FROM ".MAIN_DB_PREFIX."actioncomm AS a"
+			." INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element"
+			." INNER JOIN ".MAIN_DB_PREFIX."actioncomm AS keepa ON keepa.elementtype = 'timesheetweek@timesheetweek'"
+			." AND keepa.fk_element = a.fk_element"
+			." AND keepa.entity = a.entity"
+			." AND (COALESCE(keepa.code, '') = COALESCE(a.code, '') OR keepa.code = CONCAT('AC_', a.code) OR a.code = CONCAT('AC_', keepa.code) OR COALESCE(keepa.code, '') = '' OR COALESCE(a.code, '') = '')"
+			." AND DATE_FORMAT(keepa.datep, '%Y-%m-%d %H:%i') = DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i')"
+			." AND keepa.label = a.label"
+			." AND keepa.id < a.id"
+			." WHERE a.elementtype = 'timesheetweek@timesheetweek'"
+			." AND a.label LIKE CONCAT('%', t.ref, '%')";
 
 		// Document templates
 		$moduledir = dol_sanitizeFileName('timesheetweek');
@@ -959,9 +1095,10 @@ class modTimesheetWeek extends DolibarrModules
 			return $resultInit;
 		}
 
-		$cronStatus = $this->setReminderCronStatus(1);
-		if ($cronStatus < 0) {
-			return $cronStatus;
+		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+		if (class_exists('ActionsTimesheetweek') && ActionsTimesheetweek::ensureNativeNotificationSetup($this->db, (int) $conf->entity) < 0) {
+			$this->error = $this->db->lasterror();
+			return -1;
 		}
 
 		return $resultInit;
@@ -977,7 +1114,6 @@ class modTimesheetWeek extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		$this->setReminderCronStatus(0);
 		$this->syncMulticompanySharingDefinition();
 
 		$sql = array();
@@ -1024,31 +1160,4 @@ class modTimesheetWeek extends DolibarrModules
 		return 1;
 	}
 
-	/**
-	 * Update the cron status for the reminder job.
-	 *
-	 * @param int $status Target status (1 enabled, 0 disabled)
-	 * @return int        1 if OK, <0 if error
-	 */
-	protected function setReminderCronStatus($status)
-	{
-		global $conf;
-
-		if (empty($this->db)) {
-			return -1;
-		}
-
-		$statusValue = ((int) $status === 1) ? 1 : 0;
-		$sql = 'UPDATE '.MAIN_DB_PREFIX."cronjob SET status = ".$statusValue;
-		$sql .= " WHERE jobtype = 'method' AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php' AND methodename = 'run'";
-		$sql .= ' AND entity = '.((int) $conf->entity);
-
-		$resql = $this->db->query($sql);
-		if (!$resql) {
-			$this->error = $this->db->lasterror();
-			return -1;
-		}
-
-		return 1;
-	}
 }

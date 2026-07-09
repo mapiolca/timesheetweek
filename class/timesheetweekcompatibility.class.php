@@ -57,10 +57,18 @@ class TimesheetWeekCompatibility
 	 */
 	public static function getCompatibilityFeatures()
 	{
+		if (function_exists('dol_include_once')) {
+			dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
+			dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
+		}
+		$hasElementPropertiesHook = class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties');
+		$hasNativeNotificationRouter = class_exists('TimesheetWeekNotification') && method_exists('TimesheetWeekNotification', 'getNativeNotificationSubstitutions');
+		$hasUserBankLatestSheetsHook = self::isUserBankFormObjectOptionsHookAvailable();
+
 		return array(
-			'native_crud_triggers' => array(
-				'label' => 'TimesheetWeekCompatibilityNativeCrudTriggers',
-				'description' => 'TimesheetWeekCompatibilityNativeCrudTriggersDesc',
+			'native_notification_triggers' => array(
+				'label' => 'TimesheetWeekCompatibilityNativeNotificationTriggers',
+				'description' => 'TimesheetWeekCompatibilityNativeNotificationTriggersDesc',
 				'min_dolibarr' => '20.0.0',
 				'core_available_from' => '20.0.0',
 				'module_available_from' => '1.8.4',
@@ -91,6 +99,17 @@ class TimesheetWeekCompatibility
 				'available' => self::isDolibarrVersionAtLeast('20.0.0') && (!function_exists('isModEnabled') || isModEnabled('notification')),
 				'reason' => 'TimesheetWeekCompatibilityNotificationsDisabled',
 			),
+			'native_notification_workflow_router' => array(
+				'label' => 'TimesheetWeekCompatibilityNotificationWorkflowRouter',
+				'description' => 'TimesheetWeekCompatibilityNotificationWorkflowRouterDesc',
+				'min_dolibarr' => '20.0.0',
+				'core_available_from' => '20.0.0',
+				'module_available_from' => '1.8.4',
+				'min_php' => '8.0.0',
+				'compatibility_check' => "version_compare(DOL_VERSION, '20.0.0', '>=') && isModEnabled('notification') && class_exists('TimesheetWeekNotification')",
+				'available' => self::isDolibarrVersionAtLeast('20.0.0') && (!function_exists('isModEnabled') || isModEnabled('notification')) && $hasNativeNotificationRouter,
+				'reason' => 'TimesheetWeekCompatibilityNotificationWorkflowRouterUnavailable',
+			),
 			'email_template_class' => array(
 				'label' => 'TimesheetWeekCompatibilityEmailTemplateClass',
 				'description' => 'TimesheetWeekCompatibilityEmailTemplateClassDesc',
@@ -120,11 +139,47 @@ class TimesheetWeekCompatibility
 				'core_available_from' => '20.0.0',
 				'module_available_from' => '1.8.4',
 				'min_php' => '8.0.0',
-				'compatibility_check' => "function_exists('getElementProperties')",
-				'available' => function_exists('getElementProperties'),
+				'compatibility_check' => "class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties')",
+				'available' => $hasElementPropertiesHook,
 				'reason' => 'TimesheetWeekCompatibilityElementPropertiesUnavailable',
 			),
+			'user_bank_latest_timesheets' => array(
+				'label' => 'TimesheetWeekCompatibilityUserBankLatestSheets',
+				'description' => 'TimesheetWeekCompatibilityUserBankLatestSheetsDesc',
+				'min_dolibarr' => '20.0.0',
+				'core_available_from' => 'formObjectOptions hook in htdocs/user/bank.php',
+				'module_available_from' => '1.8.4',
+				'min_php' => '8.0.0',
+				'compatibility_check' => "strpos(file_get_contents(DOL_DOCUMENT_ROOT.'/user/bank.php'), \"executeHooks('formObjectOptions'\") !== false",
+				'available' => self::isDolibarrVersionAtLeast('20.0.0') && self::isPhpVersionAtLeast('8.0.0') && $hasUserBankLatestSheetsHook,
+				'reason' => 'TimesheetWeekCompatibilityUserBankHookUnavailable',
+			),
 		);
+	}
+
+	/**
+	 * Check if the user bank card exposes the native formObjectOptions hook.
+	 *
+	 * @return bool
+	 */
+	public static function isUserBankFormObjectOptionsHookAvailable()
+	{
+		if (!defined('DOL_DOCUMENT_ROOT')) {
+			return false;
+		}
+
+		$bankPage = DOL_DOCUMENT_ROOT.'/user/bank.php';
+		if (!is_readable($bankPage)) {
+			return false;
+		}
+
+		$content = file_get_contents($bankPage);
+		if (!is_string($content)) {
+			return false;
+		}
+
+		return strpos($content, "executeHooks('formObjectOptions'") !== false
+			|| strpos($content, 'executeHooks("formObjectOptions"') !== false;
 	}
 
 	/**
@@ -180,7 +235,7 @@ class TimesheetWeekCompatibility
 			'potential_duplicates' => array(
 				'label' => 'TimesheetWeekAgendaDiagnosticPotentialDuplicates',
 				'description' => 'TimesheetWeekAgendaDiagnosticPotentialDuplicatesDesc',
-				'count' => self::countSql($db, "SELECT COUNT(*) as nb FROM (SELECT a.fk_element, a.code, a.datep, COUNT(*) as duplicate_count FROM ".MAIN_DB_PREFIX."actioncomm AS a WHERE a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek') AND a.fk_element IS NOT NULL GROUP BY a.fk_element, a.code, a.datep HAVING duplicate_count > 1) AS duplicates"),
+				'count' => self::countSql($db, "SELECT COUNT(*) as nb FROM (SELECT a.fk_element, CASE WHEN COALESCE(a.code, '') LIKE 'AC_TIMESHEETWEEK_%' THEN SUBSTRING(a.code, 4) ELSE COALESCE(a.code, '') END AS action_code, DATE_FORMAT(a.datep, '%Y-%m-%d %H:%i') AS event_minute, TRIM(REPLACE(REPLACE(COALESCE(a.label, ''), t.ref, ''), '  ', ' ')) AS normalized_label, COUNT(*) as duplicate_count FROM ".MAIN_DB_PREFIX."actioncomm AS a INNER JOIN ".MAIN_DB_PREFIX."timesheet_week AS t ON t.rowid = a.fk_element WHERE a.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek') AND a.fk_element IS NOT NULL GROUP BY a.fk_element, action_code, event_minute, normalized_label HAVING duplicate_count > 1) AS duplicates"),
 				'severity' => 'warning',
 			),
 		);

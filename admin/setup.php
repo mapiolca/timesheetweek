@@ -55,8 +55,10 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/doc.lib.php';
 dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweek_reminder.class.php');
+dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
 
 // EN: Load translation files required for the configuration page.
 $langs->loadLangs(array('admin', 'other', 'timesheetweek@timesheetweek'));
@@ -292,7 +294,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'savereminder', 'testreminder'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveautoseal'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -393,7 +395,7 @@ if ($action === 'setshowallmulticompanyuserstimesheet') {
 
 
 if ($action === 'saveovertimeoptions') {
-	$overtimeRequireMotif = (int) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 'int');
+	$overtimeRequireMotif = GETPOSTISSET('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED') ? (int) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 'int') : getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 0);
 	$overtimeThreshold = trim((string) GETPOST('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', 'alphanohtml'));
 	if (!preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $overtimeThreshold)) {
 		$overtimeThreshold = '00:00';
@@ -419,7 +421,7 @@ if ($action === 'saveovertimeoptions') {
 }
 
 if ($action === 'savereminder') {
-	$reminderEnabledValue = (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int');
+	$reminderEnabledValue = GETPOSTISSET('TIMESHEETWEEK_REMINDER_ENABLED') ? (int) GETPOST('TIMESHEETWEEK_REMINDER_ENABLED', 'int') : getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 	$reminderStartYear = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEyear', 'int');
 	$reminderStartMonth = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEmonth', 'int');
 	$reminderStartDay = (int) GETPOST('TIMESHEETWEEK_REMINDER_STARTTIMEday', 'int');
@@ -488,7 +490,7 @@ if ($action === 'testreminder') {
 }
 
 if ($action === 'saveautoseal') {
-	$autoSealEnabledValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_ENABLE', 'int');
+	$autoSealEnabledValue = GETPOSTISSET('TIMESHEETWEEK_AUTOSEAL_ENABLE') ? (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_ENABLE', 'int') : getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 	$autoSealDelayValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 'int');
 	$autoSealUserIdValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_USERID', 'int');
 
@@ -561,6 +563,7 @@ if ($reminderExcludedUsersString !== '') {
 }
 $reminderEligibleUserIds = tw_get_timesheet_reminder_eligible_user_ids($db, (int) $conf->entity);
 $reminderExcludedUsers = array_values(array_unique(array_intersect($reminderExcludedUsers, $reminderEligibleUserIds)));
+$nativeWorkflowNotificationAvailable = class_exists('TimesheetWeekNotification') ? TimesheetWeekNotification::isNativeNotificationAvailable() : false;
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
@@ -587,25 +590,6 @@ $numberingModules = timesheetweekListNumberingModules($directories, $langs, $sam
 $documentModels = timesheetweekListDocumentModels($directories, $langs, $enabledModels, $defaultPdf);
 $pageToken = function_exists('newToken') ? newToken() : '';
 $form = new Form($db);
-
-$emailTemplates = array();
-$emailTemplateClass = '';
-if (class_exists('CEmailTemplates')) {
-        $emailTemplateClass = 'CEmailTemplates';
-} elseif (class_exists('EmailTemplates')) {
-        $emailTemplateClass = 'EmailTemplates';
-}
-
-if (!empty($emailTemplateClass)) {
-        $emailTemplateObject = new $emailTemplateClass($db);
-        if (method_exists($emailTemplateObject, 'fetchAll')) {
-                $filters = array('entity' => $conf->entity);
-                $templatesResult = $emailTemplateObject->fetchAll('', '', 0, 0, $filters);
-                if (is_array($templatesResult)) {
-                        $emailTemplates = $templatesResult;
-                }
-        }
-}
 
 $title = $langs->trans('ModuleSetup', 'Timesheetweek');
 $helpurl = '';
@@ -764,7 +748,7 @@ print '</tr>';
 print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekOvertimeRequireMotif').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekOvertimeRequireMotifHelp').'</td>';
-print '<td class="center"><input type="checkbox" name="TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED" value="1"'.(!empty($overtimeRequireMotif) ? ' checked' : '').'></td>';
+print '<td class="center">'.ajax_constantonoff('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED').'</td>';
 print '</tr>';
 
 print '<tr class="oddeven">';
@@ -800,7 +784,7 @@ print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TimesheetWeekReminderEnabled').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekReminderEnabledHelp').'</td>';
 print '<td class="center">';
-print '<input type="checkbox" name="TIMESHEETWEEK_REMINDER_ENABLED" value="1"'.(!empty($reminderEnabled) ? ' checked' : '').'>';
+print ajax_constantonoff('TIMESHEETWEEK_REMINDER_ENABLED');
 print '</td>';
 print '</tr>';
 
@@ -839,6 +823,20 @@ print '</form>';
 
 print '<br>';
 
+print load_fiche_titre($langs->trans('TimesheetWeekWorkflowNotificationSectionTitle'), '', 'email');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekWorkflowNotificationSectionHelp').'</div>';
+$notificationUrl = DOL_URL_ROOT.'/admin/notification.php';
+print '<div class="'.($nativeWorkflowNotificationAvailable ? 'info' : 'warning').'">';
+if ($nativeWorkflowNotificationAvailable) {
+	print $langs->trans('TimesheetWeekWorkflowNotificationNativeEnabled');
+} else {
+	print $langs->trans('TimesheetWeekWorkflowNotificationNativeUnavailable');
+}
+print ' <a href="'.dol_escape_htmltag($notificationUrl).'">'.$langs->trans('TimesheetWeekWorkflowNotificationNativeLink').'</a>';
+print '</div>';
+
+print '<br>';
+
 print load_fiche_titre($langs->trans('TimesheetWeekAutoSealSectionTitle'), '', 'calendar');
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekAutoSealSectionHelp').'</div>';
 
@@ -857,7 +855,7 @@ print '<tr class="oddeven">';
 print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_ENABLE').'</td>';
 print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealEnableHelp').'</td>';
 print '<td class="center">';
-print '<input type="checkbox" name="TIMESHEETWEEK_AUTOSEAL_ENABLE" value="1"'.(!empty($autoSealEnabled) ? ' checked' : '').'>';
+print ajax_constantonoff('TIMESHEETWEEK_AUTOSEAL_ENABLE');
 print '</td>';
 print '</tr>';
 

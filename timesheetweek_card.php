@@ -70,7 +70,7 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 // FR: Définit le flag forfait jour par défaut pour éviter les notices avant chargement des données.
 // EN: Default the quarter-day flag and daily rate usage before evaluating the employee profile.
 // FR: Définit par défaut le drapeau quart de jour et l'utilisation du forfait avant d'évaluer le profil du salarié.
-$useQuarterDayDailyContract = !empty($conf->global->TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT);
+$useQuarterDayDailyContract = (bool) getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
 $isDailyRateEmployee = false;
 
 // ---- Fetch (set $object if id) ----
@@ -269,13 +269,6 @@ function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 */
 function tw_can_override_holiday_lock(User $user)
 {
-	if (!method_exists($user, 'hasRight')) {
-		// @BACKPORT v19→v20 : hasRight() is not available before v19.
-		return !empty($user->rights->timesheetweek->disableownholiday)
-			|| !empty($user->rights->timesheetweek->disablechildholiday)
-			|| !empty($user->rights->timesheetweek->disableallholiday);
-	}
-
 	return $user->hasRight('timesheetweek', 'disableownholiday')
 		|| $user->hasRight('timesheetweek', 'disablechildholiday')
 		|| $user->hasRight('timesheetweek', 'disableallholiday');
@@ -529,7 +522,7 @@ function tw_can_validate_timesheet(
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
-if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, (int) $conf->entity)) {
+if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) {
 	accessforbidden();
 }
 
@@ -1250,7 +1243,7 @@ if ($action === 'create') {
 
 	llxHeader('', $title);
 
-	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
+	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'fa-calendar-check');
 
 	echo '<form method="POST" action="'.dol_escape_htmltag($_SERVER["PHP_SELF"]).'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
@@ -1338,7 +1331,7 @@ JS;
 
 	// Head + banner
 	$head = timesheetweekPrepareHead($object);
-		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
+		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'fa-calendar-check');
 
 		$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 		$morehtmlright = '';

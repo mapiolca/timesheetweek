@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 	entity INT NOT NULL DEFAULT 1,
 	ref VARCHAR(50) NOT NULL,
 	fk_user INT NOT NULL,
+	fk_user_creat INT DEFAULT NULL,
+	fk_user_modif INT DEFAULT NULL,
 	year SMALLINT NOT NULL,
 	week SMALLINT NOT NULL,
 	status SMALLINT NOT NULL DEFAULT 0,
@@ -35,6 +37,8 @@ CREATE TABLE IF NOT EXISTS llx_timesheet_week (
 
 	KEY idx_timesheet_week_entity (entity),
 	KEY idx_timesheet_week_user (fk_user),
+	KEY idx_timesheet_week_user_creat (fk_user_creat),
+	KEY idx_timesheet_week_user_modif (fk_user_modif),
 	KEY idx_timesheet_week_user_valid (fk_user_valid),
 	KEY idx_timesheet_week_fk_user_seal (fk_user_seal),
 	KEY idx_timesheet_week_yearweek (year, week),

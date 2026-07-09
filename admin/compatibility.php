@@ -40,7 +40,7 @@ llxHeader('', $title, '');
 print load_fiche_titre($title, $linkback, 'title_setup');
 
 $head = timesheetweekAdminPrepareHead();
-print dol_get_fiche_head($head, 'compatibility', $title, -1, 'bookcal@timesheetweek');
+print dol_get_fiche_head($head, 'compatibility', $title, -1, 'fa-calendar-check');
 
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekCompatibilityPageHelp').'</div>';
 print '<br>';

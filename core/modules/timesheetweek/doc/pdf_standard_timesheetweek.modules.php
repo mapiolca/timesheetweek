@@ -253,7 +253,8 @@ class pdf_standard_timesheetweek extends ModelePDFTimesheetWeek
 		
 		// EN: Resolve the destination directory while respecting Multicompany rules.
 		// FR: Résout le répertoire de destination en respectant les règles Multicompany.
-		if (!tw_user_has_timesheet_read_entity_access($this->db, (int) $object->fk_user, (int) $conf->entity)) {
+		$objectEntity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		if (!tw_user_has_timesheet_read_entity_access($this->db, (int) $object->fk_user, $objectEntity)) {
 			$this->error = $outputlangs->trans('TimesheetWeekSummaryUnauthorizedSheet');
 			dol_syslog(__METHOD__.' failed: '.$this->error, LOG_WARNING);
 			return -1;
