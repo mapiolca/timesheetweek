@@ -1635,27 +1635,46 @@ class ActionsTimesheetweek
      * @param HookManager  $hookmanager Hook manager
      * @return int
      */
-    public function getElementProperties($parameters, &$object = null, &$action = '', $hookmanager = null)
-    {
-        global $conf;
+	public function getElementProperties($parameters, &$object = null, &$action = '', $hookmanager = null)
+	{
+		global $conf;
 
-        $elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
-        if (!in_array($elementType, array('timesheetweek', 'timesheetweek@timesheetweek'), true)) {
-            return 0;
-        }
+		$elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
+		if ($elementType === '') {
+			$this->results = array(
+				'module' => 'timesheetweek_invalid_element',
+				'element' => '',
+				'table_element' => '',
+				'subelement' => '',
+				'classpath' => 'timesheetweek/class',
+				'classfile' => 'timesheetweek',
+				'classname' => 'TimesheetWeek',
+				'picto' => self::getNativePicto(),
+				'dir_output' => '',
+				'dir_temp' => '',
+				'parent_element' => '',
+			);
 
-        $dirOutput = '';
-        $dirTemp = '';
-        if (!empty($conf->timesheetweek->multidir_output[$conf->entity])) {
-            $dirOutput = $conf->timesheetweek->multidir_output[$conf->entity];
-        } elseif (!empty($conf->timesheetweek->dir_output)) {
-            $dirOutput = $conf->timesheetweek->dir_output;
-        }
-        if (!empty($conf->timesheetweek->multidir_temp[$conf->entity])) {
-            $dirTemp = $conf->timesheetweek->multidir_temp[$conf->entity];
-        } elseif (!empty($conf->timesheetweek->dir_temp)) {
-            $dirTemp = $conf->timesheetweek->dir_temp;
-        }
+			return 1;
+		}
+
+		if (!in_array($elementType, array('timesheetweek', 'timesheetweek@timesheetweek'), true)) {
+			return 0;
+		}
+
+		$dirOutput = '';
+		$dirTemp = '';
+		$entity = (!empty($conf) && is_object($conf) && !empty($conf->entity)) ? (int) $conf->entity : 1;
+		if (!empty($conf) && is_object($conf) && !empty($conf->timesheetweek->multidir_output[$entity])) {
+			$dirOutput = $conf->timesheetweek->multidir_output[$entity];
+		} elseif (!empty($conf) && is_object($conf) && !empty($conf->timesheetweek->dir_output)) {
+			$dirOutput = $conf->timesheetweek->dir_output;
+		}
+		if (!empty($conf) && is_object($conf) && !empty($conf->timesheetweek->multidir_temp[$entity])) {
+			$dirTemp = $conf->timesheetweek->multidir_temp[$entity];
+		} elseif (!empty($conf) && is_object($conf) && !empty($conf->timesheetweek->dir_temp)) {
+			$dirTemp = $conf->timesheetweek->dir_temp;
+		}
 
         $this->results = array_replace(is_array($this->results) ? $this->results : array(), array(
             'module' => 'timesheetweek',
