@@ -719,16 +719,30 @@ class TimesheetWeekNotification
 	 */
 	protected function formatNotificationBodyAsHtml($body)
 	{
-		$body = str_replace(array("\r\n", "\r"), "\n", (string) $body);
+		$body = $this->normalizeNotificationLineBreaks($body);
 		if ($body === '') {
 			return '';
 		}
 
 		if (preg_match('/<\s*(a|br|div|p|span|table|tbody|thead|tr|td|th|ul|ol|li|strong|em|b|i)\b/i', $body)) {
-			return $body;
+			return '<div style="white-space:pre-wrap">'.$body.'</div>';
 		}
 
 		return '<div style="white-space:pre-wrap">'.$this->escapeTextWithLinks($body).'</div>';
+	}
+
+	/**
+	 * Normalize real and escaped line breaks from templates.
+	 *
+	 * @param string $body Notification body
+	 * @return string
+	 */
+	protected function normalizeNotificationLineBreaks($body)
+	{
+		$body = str_replace(array("\r\n", "\r"), "\n", (string) $body);
+		$body = str_replace(array('\\\\r\\\\n', '\\\\n', '\\\\r', '\\r\\n', '\\n', '\\r'), "\n", $body);
+
+		return $body;
 	}
 
 	/**
