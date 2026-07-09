@@ -1034,6 +1034,212 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Print last TimesheetWeek rows on the native user bank card.
+     *
+     * @param array<string,mixed> $parameters Hook parameters
+     * @param object             $object Current user object displayed by user/bank.php
+     * @param string             $action Current action
+     * @param HookManager        $hookmanager Hook manager
+     * @return int
+     */
+    public function printUserBankAfterExpenseReportArea($parameters, &$object, &$action, $hookmanager)
+    {
+        global $langs;
+
+        $this->results = array();
+        $this->resprints = '';
+
+        if (!isModEnabled('timesheetweek')) {
+            return 0;
+        }
+
+        $targetUserId = 0;
+        if (is_object($object) && !empty($object->id)) {
+            $targetUserId = (int) $object->id;
+        } elseif (!empty($parameters['userid'])) {
+            $targetUserId = (int) $parameters['userid'];
+        }
+
+        if ($targetUserId <= 0 || !$this->canReadTimesheetWeekForUser($targetUserId)) {
+            return 0;
+        }
+
+        $langs->loadLangs(array('timesheetweek@timesheetweek'));
+        $this->resprints = $this->buildUserBankLastTimesheetWeeksBlock($targetUserId);
+
+        return 0;
+    }
+
+    /**
+     * Check whether current user may see timesheets for the target employee.
+     *
+     * @param int $targetUserId Target employee identifier
+     * @return bool
+     */
+    protected function canReadTimesheetWeekForUser($targetUserId)
+    {
+        global $user;
+
+        if (!is_object($user)) {
+            return false;
+        }
+
+        if (!empty($user->admin)) {
+            return true;
+        }
+
+        dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+
+        if (function_exists('tw_can_act_on_user')) {
+            return tw_can_act_on_user(
+                (int) $targetUserId,
+                $user->hasRight('timesheetweek', 'read'),
+                $user->hasRight('timesheetweek', 'readChild'),
+                $user->hasRight('timesheetweek', 'readAll'),
+                $user
+            );
+        }
+
+        if ($user->hasRight('timesheetweek', 'readAll')) {
+            return true;
+        }
+
+        if ($user->hasRight('timesheetweek', 'read') && (int) $targetUserId === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Build native table for the last TimesheetWeek rows of a user.
+     *
+     * @param int $targetUserId Target employee identifier
+     * @return string HTML output
+     */
+    protected function buildUserBankLastTimesheetWeeksBlock($targetUserId)
+    {
+        global $conf, $langs;
+
+        dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+
+        $max = getDolGlobalInt('TIMESHEETWEEK_USERCARD_LAST_LIMIT', getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5));
+        if ($max <= 0) {
+            $max = 5;
+        }
+
+        $entityList = getEntity('timesheetweek');
+        if ($entityList === '') {
+            $entityList = (string) ((int) $conf->entity);
+        }
+
+        $sql = "SELECT t.rowid, t.ref, t.entity, t.fk_user, t.year, t.week, t.status, t.total_hours, t.overtime_hours, t.meal_count, t.tms";
+        $sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week AS t";
+        $sql .= " WHERE t.fk_user = ".((int) $targetUserId);
+        $sql .= " AND t.entity IN (".$this->db->sanitize($entityList).")";
+        $sql .= " ORDER BY t.year DESC, t.week DESC, t.tms DESC";
+        $sql .= $this->db->plimit($max);
+
+        $resql = $this->db->query($sql);
+        if (!$resql) {
+            $this->error = $this->db->lasterror();
+            dol_syslog(__METHOD__.': '.$this->error, LOG_ERR);
+            return '';
+        }
+
+        $out = '';
+        $out .= load_fiche_titre($langs->trans('TimesheetWeekLastSheets', $max), '', 'bookcal@timesheetweek');
+        $out .= '<div class="div-table-responsive-no-min">';
+        $out .= '<table class="noborder centpercent">';
+        $out .= '<tr class="liste_titre">';
+        $out .= '<td>'.$langs->trans('Ref').'</td>';
+        $out .= '<td class="center">'.$langs->trans('Week').'</td>';
+        $out .= '<td class="right">'.$langs->trans('TotalHours').'</td>';
+        $out .= '<td class="right">'.$langs->trans('Overtime').'</td>';
+        $out .= '<td class="right">'.$langs->trans('MealCount').'</td>';
+        $out .= '<td class="right">'.$langs->trans('Status').'</td>';
+        $out .= '</tr>';
+
+        $num = $this->db->num_rows($resql);
+        if ($num <= 0) {
+            $out .= '<tr class="oddeven"><td colspan="6"><span class="opacitymedium">'.$langs->trans('None').'</span></td></tr>';
+        } else {
+            while (is_object($obj = $this->db->fetch_object($resql))) {
+                $out .= '<tr class="oddeven">';
+                $out .= '<td class="nowraponall">'.$this->getTimesheetWeekNomUrlFromRow($obj).'</td>';
+                $out .= '<td class="center nowraponall">'.sprintf('%02d / %d', (int) $obj->week, (int) $obj->year).'</td>';
+                $out .= '<td class="right nowraponall">'.$this->formatTimesheetWeekHours((float) $obj->total_hours).'</td>';
+                $out .= '<td class="right nowraponall">'.$this->formatTimesheetWeekHours((float) $obj->overtime_hours).'</td>';
+                $out .= '<td class="right nowraponall">'.((int) $obj->meal_count).'</td>';
+                $out .= '<td class="right nowraponall">'.$this->getTimesheetWeekStatusLabel((int) $obj->status).'</td>';
+                $out .= '</tr>';
+            }
+        }
+        $this->db->free($resql);
+
+        $out .= '</table>';
+        $out .= '</div>';
+
+        return $out;
+    }
+
+    /**
+     * Return a TimesheetWeek native object link from a database row.
+     *
+     * @param object $row Database row
+     * @return string HTML link
+     */
+    protected function getTimesheetWeekNomUrlFromRow($row)
+    {
+        if (class_exists('TimesheetWeek')) {
+            $timesheet = new TimesheetWeek($this->db);
+            $timesheet->id = (int) $row->rowid;
+            $timesheet->ref = (string) $row->ref;
+            $timesheet->entity = (int) $row->entity;
+            $timesheet->status = (int) $row->status;
+
+            return $timesheet->getNomUrl(1);
+        }
+
+        $url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $row->rowid;
+        return '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag((string) $row->ref).'</a>';
+    }
+
+    /**
+     * Format decimal hours into HH:MM like the TimesheetWeek list.
+     *
+     * @param float $hours Decimal hours
+     * @return string
+     */
+    protected function formatTimesheetWeekHours($hours)
+    {
+        $hours = max(0.0, (float) $hours);
+        $hh = (int) floor($hours);
+        $mm = (int) round(($hours - $hh) * 60);
+        if ($mm === 60) {
+            $hh++;
+            $mm = 0;
+        }
+
+        return str_pad((string) $hh, 2, '0', STR_PAD_LEFT).':'.str_pad((string) $mm, 2, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Return native TimesheetWeek status badge.
+     *
+     * @param int $status TimesheetWeek status
+     * @return string
+     */
+    protected function getTimesheetWeekStatusLabel($status)
+    {
+        if (class_exists('TimesheetWeek')) {
+            return TimesheetWeek::LibStatut((int) $status, 5);
+        }
+
+        return dol_escape_htmltag((string) $status);
+    }
+
+    /**
      * Expose TimesheetWeek triggers to the native Notification module.
      *
      * @param array        $parameters  Hook parameters

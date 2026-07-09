@@ -159,6 +159,7 @@ class modTimesheetWeek extends DolibarrModules
                         'hooks' => array(
                                 'data' => array(
                                         'toprightmenu',
+                                        'usercardBank',
                                         'timesheetweekcard',
                                         'globalcard',
                                         'document',

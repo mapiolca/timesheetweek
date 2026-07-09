@@ -63,6 +63,7 @@ class TimesheetWeekCompatibility
 		}
 		$hasElementPropertiesHook = class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties');
 		$hasNativeNotificationRouter = class_exists('TimesheetWeekNotification') && method_exists('TimesheetWeekNotification', 'getNativeNotificationSubstitutions');
+		$hasUserBankLatestSheetsHook = self::isUserBankAfterExpenseReportHookAvailable();
 
 		return array(
 			'native_notification_triggers' => array(
@@ -142,7 +143,43 @@ class TimesheetWeekCompatibility
 				'available' => $hasElementPropertiesHook,
 				'reason' => 'TimesheetWeekCompatibilityElementPropertiesUnavailable',
 			),
+			'user_bank_latest_timesheets' => array(
+				'label' => 'TimesheetWeekCompatibilityUserBankLatestSheets',
+				'description' => 'TimesheetWeekCompatibilityUserBankLatestSheetsDesc',
+				'min_dolibarr' => '20.0.0',
+				'core_available_from' => 'printUserBankAfterExpenseReportArea hook in htdocs/user/bank.php',
+				'module_available_from' => '1.8.4',
+				'min_php' => '8.0.0',
+				'compatibility_check' => "strpos(file_get_contents(DOL_DOCUMENT_ROOT.'/user/bank.php'), \"executeHooks('printUserBankAfterExpenseReportArea'\") !== false",
+				'available' => self::isDolibarrVersionAtLeast('20.0.0') && self::isPhpVersionAtLeast('8.0.0') && $hasUserBankLatestSheetsHook,
+				'reason' => 'TimesheetWeekCompatibilityUserBankHookUnavailable',
+			),
 		);
+	}
+
+	/**
+	 * Check if the user bank card exposes the TimesheetWeek insertion hook.
+	 *
+	 * @return bool
+	 */
+	public static function isUserBankAfterExpenseReportHookAvailable()
+	{
+		if (!defined('DOL_DOCUMENT_ROOT')) {
+			return false;
+		}
+
+		$bankPage = DOL_DOCUMENT_ROOT.'/user/bank.php';
+		if (!is_readable($bankPage)) {
+			return false;
+		}
+
+		$content = file_get_contents($bankPage);
+		if (!is_string($content)) {
+			return false;
+		}
+
+		return strpos($content, "executeHooks('printUserBankAfterExpenseReportArea'") !== false
+			|| strpos($content, 'executeHooks("printUserBankAfterExpenseReportArea"') !== false;
 	}
 
 	/**
