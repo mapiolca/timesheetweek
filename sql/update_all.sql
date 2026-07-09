@@ -289,8 +289,15 @@ AND lang = 'fr_FR'
 AND label = 'Notification TimesheetWeek';
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','<div>__TIMESHEETWEEK_NOTIFICATION_BODY__</div>'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'Notification TimesheetWeek');
+
+UPDATE llx_c_email_templates
+SET content = '<div>__TIMESHEETWEEK_NOTIFICATION_BODY__</div>'
+WHERE entity = 0
+AND lang = 'fr_FR'
+AND label = 'Notification TimesheetWeek'
+AND content = '__TIMESHEETWEEK_NOTIFICATION_BODY__';
 
 UPDATE llx_c_email_templates
 SET module = 'timesheetweek', type_template = 'timesheetweek@timesheetweek', position = 200, active = 1, enabled = 'isModEnabled(\"timesheetweek\")', joinfiles = 0
@@ -299,8 +306,37 @@ AND lang = 'en_US'
 AND label = 'Notification TimesheetWeek';
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','__TIMESHEETWEEK_NOTIFICATION_BODY__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'Notification TimesheetWeek',200,1,'isModEnabled(\"timesheetweek\")',0,'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__','<div>__TIMESHEETWEEK_NOTIFICATION_BODY__</div>'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'Notification TimesheetWeek');
+
+UPDATE llx_c_email_templates
+SET content = '<div>__TIMESHEETWEEK_NOTIFICATION_BODY__</div>'
+WHERE entity = 0
+AND lang = 'en_US'
+AND label = 'Notification TimesheetWeek'
+AND content = '__TIMESHEETWEEK_NOTIFICATION_BODY__';
+
+DELETE FROM llx_c_email_templates
+WHERE module = 'timesheetweek'
+AND type_template = 'timesheetweek_send'
+AND (
+	label IS NULL
+	OR label <> 'Notification TimesheetWeek [timesheetweek_send]'
+	OR COALESCE(lang, '') NOT IN ('fr_FR', 'en_US')
+);
+
+DELETE duplicate_template FROM llx_c_email_templates AS duplicate_template
+INNER JOIN llx_c_email_templates AS kept_template
+	ON kept_template.module = 'timesheetweek'
+	AND kept_template.type_template = 'timesheetweek_send'
+	AND kept_template.label = 'Notification TimesheetWeek [timesheetweek_send]'
+	AND kept_template.entity = duplicate_template.entity
+	AND kept_template.lang = duplicate_template.lang
+	AND kept_template.rowid < duplicate_template.rowid
+WHERE duplicate_template.module = 'timesheetweek'
+AND duplicate_template.type_template = 'timesheetweek_send'
+AND duplicate_template.label = 'Notification TimesheetWeek [timesheetweek_send]'
+AND duplicate_template.lang IN ('fr_FR', 'en_US');
 
 
 UPDATE llx_const

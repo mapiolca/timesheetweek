@@ -17,6 +17,8 @@ class ActionsTimesheetweek
 
     public const NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL = 'Notification TimesheetWeek';
 
+    public const NATIVE_NOTIFICATION_ROUTER_TEMPLATE_BODY = '<div>__TIMESHEETWEEK_NOTIFICATION_BODY__</div>';
+
     /** @var array<string,bool> */
     protected static $nativeNotificationSetupSynced = array();
 
@@ -238,14 +240,14 @@ class ActionsTimesheetweek
                 'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
-                'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
+                'content' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_BODY,
             ),
             array(
                 'lang' => 'en_US',
                 'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
                 'position' => 200,
                 'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
-                'content' => '__TIMESHEETWEEK_NOTIFICATION_BODY__',
+                'content' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_BODY,
             ),
         );
     }
@@ -363,6 +365,10 @@ class ActionsTimesheetweek
         }
 
         if (self::ensureNativeNotificationTemplateConstants($db, $entity) < 0) {
+            return -1;
+        }
+
+        if (self::cleanupObsoleteNotificationMirrors($db) < 0) {
             return -1;
         }
 
@@ -560,6 +566,14 @@ class ActionsTimesheetweek
             if (!$db->query($sqlNormalize)) {
                 return -1;
             }
+
+            $sqlUpdateOldDefaultBody = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+            $sqlUpdateOldDefaultBody .= " SET content = '".$db->escape(self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_BODY)."'";
+            $sqlUpdateOldDefaultBody .= " WHERE rowid = ".$newRowid;
+            $sqlUpdateOldDefaultBody .= " AND content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'";
+            if (!$db->query($sqlUpdateOldDefaultBody)) {
+                return -1;
+            }
         }
 
         return 1;
@@ -707,6 +721,41 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Remove hidden mirrors generated for obsolete per-event templates.
+     *
+     * @param DoliDB $db Database handler
+     * @return int 1 on success, -1 on error
+     */
+    protected static function cleanupObsoleteNotificationMirrors($db)
+    {
+        $mirrorLabel = self::getNotificationEmailTemplateMirrorLabel(self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL);
+
+        $sql = "DELETE FROM ".MAIN_DB_PREFIX."c_email_templates";
+        $sql .= " WHERE module = 'timesheetweek'";
+        $sql .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
+        $sql .= " AND (label IS NULL OR label <> '".$db->escape($mirrorLabel)."' OR COALESCE(lang, '') NOT IN ('fr_FR', 'en_US'))";
+
+        if (!$db->query($sql)) {
+            return -1;
+        }
+
+        $sqlDuplicates = "DELETE duplicate_template FROM ".MAIN_DB_PREFIX."c_email_templates AS duplicate_template";
+        $sqlDuplicates .= " INNER JOIN ".MAIN_DB_PREFIX."c_email_templates AS kept_template";
+        $sqlDuplicates .= " ON kept_template.module = 'timesheetweek'";
+        $sqlDuplicates .= " AND kept_template.type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
+        $sqlDuplicates .= " AND kept_template.label = '".$db->escape($mirrorLabel)."'";
+        $sqlDuplicates .= " AND kept_template.entity = duplicate_template.entity";
+        $sqlDuplicates .= " AND kept_template.lang = duplicate_template.lang";
+        $sqlDuplicates .= " AND kept_template.rowid < duplicate_template.rowid";
+        $sqlDuplicates .= " WHERE duplicate_template.module = 'timesheetweek'";
+        $sqlDuplicates .= " AND duplicate_template.type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
+        $sqlDuplicates .= " AND duplicate_template.label = '".$db->escape($mirrorLabel)."'";
+        $sqlDuplicates .= " AND duplicate_template.lang IN ('fr_FR', 'en_US')";
+
+        return $db->query($sqlDuplicates) ? 1 : -1;
+    }
+
+    /**
      * Copy visible TimesheetWeek notification templates into the native object email type.
      *
      * @param DoliDB $db Database handler
@@ -734,7 +783,6 @@ class ActionsTimesheetweek
         }
 
         $nbsource = 0;
-        $neutralMirrorsDone = array();
         while ($obj = $db->fetch_object($resql)) {
             $nbsource++;
             $mirrorLabel = self::getNotificationEmailTemplateMirrorLabel((string) $obj->label);
@@ -743,21 +791,6 @@ class ActionsTimesheetweek
             if ($result < 0) {
                 $db->free($resql);
                 return -1;
-            }
-
-            $neutralKey = serialize(array(
-                (int) $obj->entity,
-                (int) $obj->private,
-                ($obj->fk_user === null || $obj->fk_user === '') ? null : (int) $obj->fk_user,
-                $mirrorLabel,
-            ));
-            if (empty($neutralMirrorsDone[$neutralKey]) && (string) $obj->lang !== '') {
-                $result = self::syncNotificationEmailTemplateMirrorRow($db, $obj, $mirrorLabel, '');
-                if ($result < 0) {
-                    $db->free($resql);
-                    return -1;
-                }
-                $neutralMirrorsDone[$neutralKey] = 1;
             }
         }
 

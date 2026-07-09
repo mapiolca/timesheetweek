@@ -296,6 +296,12 @@ class TimesheetWeekNotification
 		$templateConstant = self::getTemplateConstant($reason);
 		$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, $entity) : 0;
 		$template = $templateId > 0 ? $this->fetchEmailTemplate($templateId, $entity) : array();
+		$templateLabel = !empty($template['label']) ? (string) $template['label'] : '';
+		$routerMirrorLabel = self::NATIVE_ROUTER_TEMPLATE_LABEL.' ['.self::NATIVE_TEMPLATE_TYPE.']';
+		$legacyRouterMirrorLabel = self::NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL.' ['.self::NATIVE_TEMPLATE_TYPE.']';
+		if (in_array($templateLabel, array(self::NATIVE_ROUTER_TEMPLATE_LABEL, self::NATIVE_ROUTER_TEMPLATE_LEGACY_LABEL, $routerMirrorLabel, $legacyRouterMirrorLabel), true)) {
+			$template = array();
+		}
 
 		$defaultRecipients = $this->resolveDefaultRecipients($object, !empty($definition['recipient']) ? $definition['recipient'] : 'employee');
 		$recipientUser = !empty($defaultRecipients) ? reset($defaultRecipients) : null;
@@ -308,7 +314,7 @@ class TimesheetWeekNotification
 		$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
 
 		$subject = dol_string_nohtmltag(html_entity_decode($subject, ENT_QUOTES, 'UTF-8'));
-		$body = html_entity_decode($body, ENT_QUOTES, 'UTF-8');
+		$body = $this->formatNotificationBodyAsHtml(html_entity_decode($body, ENT_QUOTES, 'UTF-8'));
 
 		$reasonLabel = !empty($substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__']) ? $substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] : $reason;
 		if ($subject === '') {
@@ -317,6 +323,7 @@ class TimesheetWeekNotification
 		if ($body === '') {
 			$body = $trans instanceof Translate ? $trans->transnoentities('TimesheetWeekNativeNotificationDefaultBody') : 'The timesheet __TIMESHEETWEEK_REF__ was updated.';
 			$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
+			$body = $this->formatNotificationBodyAsHtml(html_entity_decode($body, ENT_QUOTES, 'UTF-8'));
 		}
 
 		return array(
@@ -702,5 +709,62 @@ class TimesheetWeekNotification
 
 		$translated = $trans->transnoentities($translationKey);
 		return ($translated === $translationKey) ? '' : $translated;
+	}
+
+	/**
+	 * Convert a plain notification body into HTML while keeping custom HTML untouched.
+	 *
+	 * @param string $body Notification body after substitutions
+	 * @return string
+	 */
+	protected function formatNotificationBodyAsHtml($body)
+	{
+		$body = str_replace(array("\r\n", "\r"), "\n", (string) $body);
+		if ($body === '') {
+			return '';
+		}
+
+		if (preg_match('/<\s*(a|br|div|p|span|table|tbody|thead|tr|td|th|ul|ol|li|strong|em|b|i)\b/i', $body)) {
+			return $body;
+		}
+
+		return '<div style="white-space:pre-wrap">'.$this->escapeTextWithLinks($body).'</div>';
+	}
+
+	/**
+	 * Escape text and turn raw URLs into clickable links.
+	 *
+	 * @param string $text Plain text
+	 * @return string
+	 */
+	protected function escapeTextWithLinks($text)
+	{
+		$html = '';
+		$offset = 0;
+		$matches = array();
+		preg_match_all('~https?://[^\s<>"\']+~u', $text, $matches, PREG_OFFSET_CAPTURE);
+
+		foreach ($matches[0] as $match) {
+			$url = (string) $match[0];
+			$position = (int) $match[1];
+			if ($position < $offset) {
+				continue;
+			}
+
+			$html .= dol_escape_htmltag(substr($text, $offset, $position - $offset));
+
+			$cleanUrl = rtrim($url, '.,;:)');
+			$trailing = substr($url, strlen($cleanUrl));
+			if ($cleanUrl !== '') {
+				$html .= '<a href="'.dol_escape_htmltag($cleanUrl).'">'.dol_escape_htmltag($cleanUrl).'</a>';
+			}
+			$html .= dol_escape_htmltag($trailing);
+
+			$offset = $position + strlen($url);
+		}
+
+		$html .= dol_escape_htmltag(substr($text, $offset));
+
+		return $html;
 	}
 }
