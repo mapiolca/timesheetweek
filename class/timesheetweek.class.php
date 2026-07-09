@@ -2026,51 +2026,112 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	}
 
 	/**
-	* URL to card
-	* @param int $withpicto
-	* @param string $option
-	* @param int $notooltip
-	* @param string $morecss
+	* Return array of data to show into a native Dolibarr tooltip.
+	*
+	* @param array<string,mixed> $params Tooltip parameters
+	* @return array<string,string>
+	*/
+	public function getTooltipContentArray($params)
+	{
+		global $langs;
+
+		if (getDolGlobalString('MAIN_OPTIMIZEFORTEXTBROWSER')) {
+			return array('optimize' => $langs->trans('ShowTimesheetWeek', $this->ref));
+		}
+
+		$datas = array();
+		$datas['picto'] = img_picto('', $this->picto).' <u>'.$langs->trans('TimesheetWeek').'</u>';
+		if ($this->status !== null) {
+			$datas['picto'] .= ' '.$this->getLibStatut(5);
+		}
+		$datas['ref'] = '<br><b>'.$langs->trans('Ref').':</b> '.dol_escape_htmltag((string) $this->ref);
+		if (!empty($this->week) && !empty($this->year)) {
+			$datas['week'] = '<br><b>'.$langs->trans('Week').':</b> '.sprintf('%02d / %d', (int) $this->week, (int) $this->year);
+		}
+		if ($this->total_hours !== null) {
+			$datas['total_hours'] = '<br><b>'.$langs->trans('TotalHours').':</b> '.price2num((float) $this->total_hours, 'MU');
+		}
+
+		return $datas;
+	}
+
+	/**
+	* URL to card.
+	*
+	* @param int    $withpicto Add picto into link
+	* @param string $option    Link option ('nolink', 'ref', ...)
+	* @param int    $notooltip 1=Disable tooltip
+	* @param string $morecss   Add more css on link
 	* @return string
 	*/
 	public function getNomUrl($withpicto = 0, $option = '', $notooltip = 0, $morecss = '')
 	{
-		global $langs;
+		global $action, $conf, $hookmanager, $langs;
 
-		$label = dol_escape_htmltag($this->ref);
+		if (!empty($conf->dol_no_mouse_hover)) {
+			$notooltip = 1;
+		}
+
 		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 1).'?id='.(int) $this->id;
+		$ref = !empty($this->ref) ? (string) $this->ref : (string) $this->id;
+		$params = array(
+			'id' => (int) $this->id,
+			'objecttype' => $this->element,
+			'option' => $option,
+			'nofetch' => 1,
+		);
 
-		$linkstart = '';
-		$linkend = '';
-		$labeltooltip = $langs->trans('ShowTimesheetWeek', $this->ref);
+		$classfortooltip = 'classfortooltip';
+		$dataparams = '';
+		if (getDolGlobalInt('MAIN_ENABLE_AJAX_TOOLTIP')) {
+			$classfortooltip = 'classforajaxtooltip';
+			$dataparams = ' data-params="'.dol_escape_htmltag((string) json_encode($params)).'"';
+			$labeltooltip = '';
+		} else {
+			$labeltooltip = implode($this->getTooltipContentArray($params));
+			if ($labeltooltip === '') {
+				$labeltooltip = $langs->trans('ShowTimesheetWeek', $ref);
+			}
+		}
 
-		if ($option !== 'nolink') {
-			$linkstart = '<a href="'.$url.'"';
-			if ($morecss) {
-				$linkstart .= ' class="'.$morecss.'"';
+		$linkclose = '';
+		if (empty($notooltip)) {
+			if (getDolGlobalString('MAIN_OPTIMIZEFORTEXTBROWSER')) {
+				$labeltooltip = $langs->trans('ShowTimesheetWeek', $ref);
+				$linkclose .= ' alt="'.dolPrintHTMLForAttribute($labeltooltip).'"';
 			}
-			if (empty($notooltip)) {
-				$linkstart .= ' title="'.dol_escape_htmltag($labeltooltip).'"';
-			}
-			$linkstart .= '>';
-			$linkend = '</a>';
+			$linkclose .= ($labeltooltip ? ' title="'.dolPrintHTMLForAttribute($labeltooltip).'"' : ' title="tocomplete"');
+			$linkclose .= $dataparams.' class="'.$classfortooltip.($morecss ? ' '.$morecss : '').'"';
 		} elseif ($morecss) {
-			$linkstart = '<span class="'.$morecss.'">';
+			$linkclose .= ' class="'.dol_escape_htmltag($morecss).'"';
+		}
+
+		if ($option === 'nolink' || empty($url)) {
+			$linkstart = '<span'.$linkclose.'>';
 			$linkend = '</span>';
+		} else {
+			$linkstart = '<a href="'.dol_escape_htmltag($url).'"'.$linkclose.'>';
+			$linkend = '</a>';
 		}
 
-		$result = '';
+		$result = $linkstart;
 		if ($withpicto) {
-			$tooltip = empty($notooltip) ? $labeltooltip : '';
-			$picto = img_object($tooltip, $this->picto);
-			$result .= $linkstart.$picto.$linkend;
-			if ($withpicto != 2) {
-				$result .= ' ';
-			}
+			$result .= img_object(($notooltip ? '' : $labeltooltip), ($this->picto ? $this->picto : 'generic'), (($withpicto != 2) ? 'class="paddingright"' : ''), 0, 0, $notooltip ? 0 : 1);
 		}
-
 		if ($withpicto != 2 || $option === 'ref' || !$withpicto) {
-			$result .= $linkstart.$label.$linkend;
+			$result .= dol_escape_htmltag($ref);
+		}
+		$result .= $linkend;
+
+		if (is_object($hookmanager)) {
+			$hookmanager->initHooks(array($this->element.'dao'));
+			$parameters = array('id' => (int) $this->id, 'getnomurl' => &$result);
+			$reshook = $hookmanager->executeHooks('getNomUrl', $parameters, $this, $action);
+			if ($reshook > 0) {
+				$result = $hookmanager->resPrint;
+			} else {
+				$result .= $hookmanager->resPrint;
+			}
 		}
 
 		return $result;
