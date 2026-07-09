@@ -714,7 +714,7 @@ class ActionsTimesheetweek
     }
 
     /**
-     * Ensure existing native Notification template constants render as selectors.
+     * Ensure native Notification selector constants exist without selecting a template.
      *
      * @param DoliDB $db     Database handler
      * @param int    $entity Current entity
@@ -730,6 +730,27 @@ class ActionsTimesheetweek
         $templateConstants = self::getNativeNotificationTemplateConstantDefinitions();
         if (empty($templateConstants)) {
             return 1;
+        }
+
+        foreach ($templateConstants as $templateConstant => $definition) {
+            $sqlSelect = "SELECT rowid FROM ".MAIN_DB_PREFIX."const";
+            $sqlSelect .= " WHERE name = '".$db->escape($templateConstant)."'";
+            $sqlSelect .= " AND entity = ".$entity;
+            $sqlSelect .= " LIMIT 1";
+            $resqlSelect = $db->query($sqlSelect);
+            if (!$resqlSelect) {
+                return -1;
+            }
+
+            $exists = (bool) $db->num_rows($resqlSelect);
+            $db->free($resqlSelect);
+
+            if (!$exists) {
+                $result = dolibarr_set_const($db, $templateConstant, '', $definition['type'], 0, '', $entity);
+                if ($result < 0) {
+                    return -1;
+                }
+            }
         }
 
         $sqlUpdateTypes = "UPDATE ".MAIN_DB_PREFIX."const";
@@ -1381,23 +1402,17 @@ class ActionsTimesheetweek
 	{
 		global $conf;
 
-		$elementType = isset($parameters['elementType']) ? (string) $parameters['elementType'] : '';
-		if ($elementType === '') {
-			$this->results = array(
-				'module' => 'timesheetweek_invalid_element',
-				'element' => '',
-				'table_element' => '',
-				'subelement' => '',
-				'classpath' => 'timesheetweek/class',
-				'classfile' => 'timesheetweek',
-				'classname' => 'TimesheetWeek',
-				'picto' => self::getNativePicto(),
-				'dir_output' => '',
-				'dir_temp' => '',
-				'parent_element' => '',
-			);
+		$elementType = '';
+		foreach (array('elementType', 'elementtype', 'element_type', 'element') as $parameterKey) {
+			if (!empty($parameters[$parameterKey])) {
+				$elementType = (string) $parameters[$parameterKey];
+				break;
+			}
+		}
 
-			return 1;
+		$elementType = strtolower(trim($elementType));
+		if ($elementType === '') {
+			return 0;
 		}
 
 		if (!in_array($elementType, array('timesheetweek', 'timesheetweek@timesheetweek'), true)) {
