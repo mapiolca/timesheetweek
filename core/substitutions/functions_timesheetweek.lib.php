@@ -12,6 +12,79 @@ dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 /**
+ * Tell if Dolibarr is collecting available email substitutions for the help window.
+ *
+ * @param mixed $parameters Additional parameters passed by Dolibarr
+ * @return bool
+ */
+function timesheetweek_is_email_template_substitution_help_context($parameters)
+{
+	if (!is_array($parameters)) {
+		return false;
+	}
+
+	$mode = isset($parameters['mode']) ? (string) $parameters['mode'] : '';
+
+	return in_array($mode, array('formemail', 'formemailwithlines', 'formemailforlines', 'formwithlines', 'formforlines', 'emailing'), true);
+}
+
+/**
+ * Return TimesheetWeek substitutions shown in native email-template help.
+ *
+ * @param Translate|null $outputlangs Output language
+ * @return array<string,string>
+ */
+function timesheetweek_get_email_template_substitution_catalog($outputlangs = null)
+{
+	global $langs;
+
+	$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
+	if ($trans instanceof Translate) {
+		$trans->loadLangs(array('timesheetweek@timesheetweek', 'users'));
+	}
+
+	$labels = array(
+		'__TIMESHEETWEEK_ID__' => 'TimesheetWeekSubstitutionId',
+		'__TIMESHEETWEEK_REF__' => 'TimesheetWeekSubstitutionRef',
+		'__TIMESHEETWEEK_WEEK__' => 'TimesheetWeekSubstitutionWeek',
+		'__TIMESHEETWEEK_YEAR__' => 'TimesheetWeekSubstitutionYear',
+		'__TIMESHEETWEEK_STATUS__' => 'TimesheetWeekSubstitutionStatus',
+		'__TIMESHEETWEEK_OLD_STATUS__' => 'TimesheetWeekSubstitutionOldStatus',
+		'__TIMESHEETWEEK_NEW_STATUS__' => 'TimesheetWeekSubstitutionNewStatus',
+		'__TIMESHEETWEEK_TRIGGER_REASON__' => 'TimesheetWeekSubstitutionTriggerReason',
+		'__TIMESHEETWEEK_TRIGGER_REASON_LABEL__' => 'TimesheetWeekSubstitutionTriggerReasonLabel',
+		'__TIMESHEETWEEK_URL__' => 'TimesheetWeekSubstitutionUrlHtml',
+		'__TIMESHEETWEEK_URL_RAW__' => 'TimesheetWeekSubstitutionUrlRaw',
+		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => 'TimesheetWeekSubstitutionEmployeeFullname',
+		'__TIMESHEETWEEK_EMPLOYEE_EMAIL__' => 'TimesheetWeekSubstitutionEmployeeEmail',
+		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => 'TimesheetWeekSubstitutionValidatorFullname',
+		'__TIMESHEETWEEK_VALIDATOR_EMAIL__' => 'TimesheetWeekSubstitutionValidatorEmail',
+		'__TIMESHEETWEEK_MOTIF__' => 'TimesheetWeekSubstitutionMotif',
+		'__ACTION_USER_FULLNAME__' => 'TimesheetWeekSubstitutionActionUserFullname',
+		'__ACTION_USER_EMAIL__' => 'TimesheetWeekSubstitutionActionUserEmail',
+		'__RECIPIENT_FULLNAME__' => 'TimesheetWeekSubstitutionRecipientFullname',
+		'__RECIPIENT_EMAIL__' => 'TimesheetWeekSubstitutionRecipientEmail',
+		'__TIMESHEETWEEK_NOTIFICATION_SUBJECT__' => 'TimesheetWeekSubstitutionNotificationSubject',
+		'__TIMESHEETWEEK_NOTIFICATION_BODY__' => 'TimesheetWeekSubstitutionNotificationBody',
+		'__TIMESHEETWEEK_NOTIFICATION_REASON__' => 'TimesheetWeekSubstitutionNotificationReason',
+		'__TIMESHEETWEEK_NOTIFICATION_REASON_LABEL__' => 'TimesheetWeekSubstitutionNotificationReasonLabel',
+		'__TIMESHEETWEEK_NOTIFICATION_TEMPLATE_ID__' => 'TimesheetWeekSubstitutionNotificationTemplateId',
+	);
+
+	$catalog = array();
+	foreach ($labels as $variable => $translationKey) {
+		$label = $translationKey;
+		if ($trans instanceof Translate) {
+			$label = $trans->transnoentities($translationKey);
+		}
+
+		$catalog[$variable] = $label;
+	}
+
+	return $catalog;
+}
+
+/**
  * Complete substitution array for TimesheetWeek objects.
  *
  * @param array      $substitutionarray Substitution array passed by Dolibarr
@@ -24,13 +97,17 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 {
 	global $db, $langs;
 
-	if (!($object instanceof TimesheetWeek)) {
-		return;
-	}
-
 	$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 	if ($trans instanceof Translate) {
 		$trans->loadLangs(array('timesheetweek@timesheetweek', 'users'));
+	}
+
+	if (!($object instanceof TimesheetWeek)) {
+		if (timesheetweek_is_email_template_substitution_help_context($parameters)) {
+			$substitutionarray = array_replace($substitutionarray, timesheetweek_get_email_template_substitution_catalog($trans));
+		}
+
+		return;
 	}
 
 	$employeeName = '';
@@ -78,6 +155,10 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 		$newStatusLabel = !empty($newStatusDefinition['label']) ? (string) $newStatusDefinition['label'] : (string) $newStatus;
 	}
 
+	$substitutionarray['__ID__'] = (string) $object->id;
+	$substitutionarray['__REF__'] = (string) $object->ref;
+	$substitutionarray['__LABEL__'] = (string) $object->ref;
+	$substitutionarray['__TIMESHEETWEEK_ID__'] = (string) $object->id;
 	$substitutionarray['__TIMESHEETWEEK_REF__'] = (string) $object->ref;
 	$substitutionarray['__TIMESHEETWEEK_WEEK__'] = (string) $object->week;
 	$substitutionarray['__TIMESHEETWEEK_YEAR__'] = (string) $object->year;

@@ -76,7 +76,7 @@ class ActionsTimesheetweek
             'TIMESHEETWEEK_SEAL' => array_merge(array('label' => 'Seal weekly timesheet', 'description' => 'Executed when a weekly timesheet is sealed.', 'rang' => 45000306), $timesheetweek),
             'TIMESHEETWEEK_UNSEAL' => array_merge(array('label' => 'Unseal weekly timesheet', 'description' => 'Executed when a weekly timesheet is unsealed.', 'rang' => 45000307), $timesheetweek),
             'TIMESHEETWEEK_DELETE' => array_merge(array('label' => 'Delete weekly timesheet', 'description' => 'Executed when a weekly timesheet is deleted.', 'rang' => 45000308), $timesheetweek),
-            'TIMESHEETWEEK_MODIFY' => array_merge(array('label' => 'Modify weekly timesheet', 'description' => 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 'rang' => 45000309), $timesheetweek),
+            'TIMESHEETWEEK_MODIFY' => array_merge($timesheetweek, array('label' => 'Modify weekly timesheet', 'description' => 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 'rang' => 45000309, 'contexts' => 'agenda')),
         );
     }
 
@@ -249,9 +249,164 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Return visible native email templates for TimesheetWeek business notifications.
+     *
+     * @return array<int,array{lang:string,label:string,position:int,topic:string,content:string,legacy_topics:array<int,string>,legacy_contents:array<int,string>}>
+     */
+    public static function getNativeNotificationEmailTemplates()
+    {
+        return array(
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_CREATE',
+                'position' => 205,
+                'topic' => 'Feuille de temps __REF__ créée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été créée pour __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array(),
+                'legacy_contents' => array(),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
+                'position' => 210,
+                'topic' => 'Feuille de temps __REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValideur : __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ soumise'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
+                'position' => 220,
+                'topic' => 'Feuille de temps __REF__ approuvée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ approuvée'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est approuvée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
+                'position' => 230,
+                'topic' => 'Feuille de temps __REF__ refusée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ refusée'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
+                'position' => 240,
+                'topic' => 'Feuille de temps __REF__ repassée en brouillon',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été repassée en brouillon par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ remise en brouillon'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est remise en brouillon par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SEAL',
+                'position' => 250,
+                'topic' => 'Feuille de temps __REF__ scellée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été scellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ scellée'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est scellée.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
+                'position' => 260,
+                'topic' => 'Feuille de temps __REF__ descellée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été descellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Feuille de temps __TIMESHEETWEEK_REF__ descellée'),
+                'legacy_contents' => array("Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est descellée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'fr_FR',
+                'label' => 'TIMESHEETWEEK_NOTIFY_DELETE',
+                'position' => 270,
+                'topic' => 'Feuille de temps __REF__ supprimée',
+                'content' => "Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été supprimée par __ACTION_USER_FULLNAME__.\nSalarié : __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array(),
+                'legacy_contents' => array(),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_CREATE',
+                'position' => 205,
+                'topic' => 'Timesheet __REF__ created',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was created for __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array(),
+                'legacy_contents' => array(),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
+                'position' => 210,
+                'topic' => 'Timesheet __REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValidator: __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ submitted'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
+                'position' => 220,
+                'topic' => 'Timesheet __REF__ approved',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ approved'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
+                'position' => 230,
+                'topic' => 'Timesheet __REF__ refused',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ refused'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
+                'position' => 240,
+                'topic' => 'Timesheet __REF__ reverted to draft',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ reverted to draft'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_SEAL',
+                'position' => 250,
+                'topic' => 'Timesheet __REF__ sealed',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ sealed'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
+                'position' => 260,
+                'topic' => 'Timesheet __REF__ unsealed',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array('Timesheet __TIMESHEETWEEK_REF__ unsealed'),
+                'legacy_contents' => array("Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__"),
+            ),
+            array(
+                'lang' => 'en_US',
+                'label' => 'TIMESHEETWEEK_NOTIFY_DELETE',
+                'position' => 270,
+                'topic' => 'Timesheet __REF__ deleted',
+                'content' => "Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was deleted by __ACTION_USER_FULLNAME__.\nEmployee: __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__",
+                'legacy_topics' => array(),
+                'legacy_contents' => array(),
+            ),
+        );
+    }
+
+    /**
      * Return native Notification template constants and their expected email-template type.
      *
-     * @return array<string,array{type:string,default:string,legacy_values:array<int,string>}>
+     * @return array<string,array{type:string,default:string,legacy_default:string,legacy_values:array<int,string>}>
      */
     public static function getNativeNotificationTemplateConstantDefinitions()
     {
@@ -259,46 +414,55 @@ class ActionsTimesheetweek
             'TIMESHEETWEEK_CREATE_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
                 'default' => '',
-                'legacy_values' => array(),
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_CREATE',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_MODIFY_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
                 'default' => 'Notification TimesheetWeek',
+                'legacy_default' => 'Notification TimesheetWeek',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER'),
             ),
             'TIMESHEETWEEK_DELETE_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
-                'default' => '',
-                'legacy_values' => array(),
+                'default' => 'TIMESHEETWEEK_NOTIFY_DELETE',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_DELETE',
+                'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_SUBMIT_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
                 'default' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_SUBMIT',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_APPROVE_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
-                'default' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
+                'default' => '',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_APPROVE',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_REFUSE_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
-                'default' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
+                'default' => '',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_REFUSE',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_SETDRAFT_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
                 'default' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_SETDRAFT',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_SEAL_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
-                'default' => 'TIMESHEETWEEK_NOTIFY_SEAL',
+                'default' => '',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_SEAL',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
             'TIMESHEETWEEK_UNSEAL_TEMPLATE' => array(
                 'type' => 'emailtemplate:'.self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE,
-                'default' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
+                'default' => '',
+                'legacy_default' => 'TIMESHEETWEEK_NOTIFY_UNSEAL',
                 'legacy_values' => array('TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER', 'Notification TimesheetWeek'),
             ),
         );
@@ -352,6 +516,13 @@ class ActionsTimesheetweek
 
         foreach (self::getNativeNotificationRouterTemplates() as $template) {
             $result = self::upsertNativeNotificationRouterTemplate($db, $template);
+            if ($result < 0) {
+                return -1;
+            }
+        }
+
+        foreach (self::getNativeNotificationEmailTemplates() as $template) {
+            $result = self::upsertNativeNotificationEmailTemplate($db, $template);
             if ($result < 0) {
                 return -1;
             }
@@ -625,7 +796,7 @@ class ActionsTimesheetweek
             $sqlInsert .= "'".$db->escape($template['label'])."',";
             $sqlInsert .= ((int) $template['position']).",";
             $sqlInsert .= "1,";
-            $sqlInsert .= "'isModEnabled(\\\"timesheetweek\\\")',";
+            $sqlInsert .= "'isModEnabled(\\\"timesheetweek\\\") && isModEnabled(\\\"notification\\\")',";
             $sqlInsert .= "0,";
             $sqlInsert .= "'".$db->escape($template['topic'])."',";
             $sqlInsert .= "'".$db->escape($template['content'])."'";
@@ -641,7 +812,7 @@ class ActionsTimesheetweek
             $sqlNormalize .= " type_template = '".$db->escape($newType)."',";
             $sqlNormalize .= " position = ".((int) $template['position']).",";
             $sqlNormalize .= " active = 1,";
-            $sqlNormalize .= " enabled = 'isModEnabled(\\\"timesheetweek\\\")',";
+            $sqlNormalize .= " enabled = 'isModEnabled(\\\"timesheetweek\\\") && isModEnabled(\\\"notification\\\")',";
             $sqlNormalize .= " joinfiles = 0";
             $sqlNormalize .= " WHERE rowid = ".$newRowid;
             if (!$db->query($sqlNormalize)) {
@@ -673,6 +844,97 @@ class ActionsTimesheetweek
     }
 
     /**
+     * Insert or complete one visible TimesheetWeek notification email template.
+     *
+     * @param DoliDB $db Database handler
+     * @param array{lang:string,label:string,position:int,topic:string,content:string,legacy_topics:array<int,string>,legacy_contents:array<int,string>} $template Template data
+     * @return int 1 on success, -1 on error
+     */
+    protected static function upsertNativeNotificationEmailTemplate($db, array $template)
+    {
+        $type = self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE;
+        $enabled = 'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")';
+
+        $where = "entity = 0";
+        $where .= " AND lang = '".$db->escape($template['lang'])."'";
+        $where .= " AND label = '".$db->escape($template['label'])."'";
+
+        $sqlMigrateType = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlMigrateType .= " SET type_template = '".$db->escape($type)."'";
+        $sqlMigrateType .= " WHERE module = 'timesheetweek'";
+        $sqlMigrateType .= " AND type_template = 'timesheetweek_notification'";
+        $sqlMigrateType .= " AND lang = '".$db->escape($template['lang'])."'";
+        $sqlMigrateType .= " AND label = '".$db->escape($template['label'])."'";
+        if (!$db->query($sqlMigrateType)) {
+            return -1;
+        }
+
+        $sqlInsert = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlInsert .= " (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)";
+        $sqlInsert .= " SELECT 0,'timesheetweek','".$db->escape($type)."','".$db->escape($template['lang'])."',0,NULL,NOW(),";
+        $sqlInsert .= "'".$db->escape($template['label'])."',".((int) $template['position']).",1,'".$db->escape($enabled)."',0,";
+        $sqlInsert .= "'".$db->escape($template['topic'])."','".$db->escape($template['content'])."'";
+        $sqlInsert .= " WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE ".$where.")";
+        if (!$db->query($sqlInsert)) {
+            return -1;
+        }
+
+        $sqlNormalize = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlNormalize .= " SET module = 'timesheetweek',";
+        $sqlNormalize .= " type_template = '".$db->escape($type)."',";
+        $sqlNormalize .= " position = ".((int) $template['position']).",";
+        $sqlNormalize .= " active = 1,";
+        $sqlNormalize .= " enabled = '".$db->escape($enabled)."',";
+        $sqlNormalize .= " joinfiles = 0";
+        $sqlNormalize .= " WHERE ".$where;
+        if (!$db->query($sqlNormalize)) {
+            return -1;
+        }
+
+        $sqlUpdateTopic = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlUpdateTopic .= " SET topic = '".$db->escape($template['topic'])."'";
+        $sqlUpdateTopic .= " WHERE ".$where;
+        $sqlUpdateTopic .= " AND (".self::buildEmailTemplateTextUpdateCondition($db, 'topic', $template['legacy_topics']).")";
+        if (!$db->query($sqlUpdateTopic)) {
+            return -1;
+        }
+
+        $sqlUpdateContent = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlUpdateContent .= " SET content = '".$db->escape($template['content'])."'";
+        $sqlUpdateContent .= " WHERE ".$where;
+        $sqlUpdateContent .= " AND (".self::buildEmailTemplateTextUpdateCondition($db, 'content', $template['legacy_contents']).")";
+        if (!$db->query($sqlUpdateContent)) {
+            return -1;
+        }
+
+        return 1;
+    }
+
+    /**
+     * Build a conservative SQL condition for updating a standard template text.
+     *
+     * @param DoliDB            $db           Database handler
+     * @param string            $column       SQL column name
+     * @param array<int,string> $legacyValues Standard legacy values allowed to be replaced
+     * @return string
+     */
+    protected static function buildEmailTemplateTextUpdateCondition($db, $column, array $legacyValues)
+    {
+        $cleanColumn = preg_replace('/[^a-z0-9_]/i', '', (string) $column);
+        $column = is_string($cleanColumn) ? $cleanColumn : '';
+        if ($column === '') {
+            $column = 'content';
+        }
+
+        $conditions = array($column.' IS NULL', $column." = ''");
+        foreach ($legacyValues as $legacyValue) {
+            $conditions[] = $column." = '".$db->escape($legacyValue)."'";
+        }
+
+        return implode(' OR ', $conditions);
+    }
+
+    /**
      * Ensure native Notification template constants render as selectors and remain usable by Notify::send().
      *
      * @param DoliDB $db     Database handler
@@ -695,30 +957,44 @@ class ActionsTimesheetweek
             return -1;
         }
 
-        if (!function_exists('getDolGlobalString') || !function_exists('dolibarr_set_const')) {
+        if (!function_exists('dolibarr_set_const')) {
             return 1;
         }
 
         foreach ($templateConstants as $templateConstant => $definition) {
-            $selectedTemplate = getDolGlobalString($templateConstant, '');
-            if ($selectedTemplate === '' && $definition['default'] === '') {
-                $result = dolibarr_set_const($db, $templateConstant, '', $definition['type'], 0, '', $entity);
+            $sql = "SELECT value";
+            $sql .= " FROM ".MAIN_DB_PREFIX."const";
+            $sql .= " WHERE name = '".$db->escape($templateConstant)."'";
+            $sql .= " AND entity = ".$entity;
+            $sql .= " LIMIT 1";
+
+            $resql = $db->query($sql);
+            if (!$resql) {
+                return -1;
+            }
+
+            $row = $db->fetch_object($resql);
+            $constantExists = is_object($row);
+            $selectedTemplate = $constantExists ? (string) $row->value : null;
+            $db->free($resql);
+
+            if (!$constantExists) {
+                $result = dolibarr_set_const($db, $templateConstant, $definition['default'], $definition['type'], 0, '', $entity);
                 if ($result < 0) {
                     return -1;
                 }
                 continue;
             }
 
-            if ($selectedTemplate === '' || in_array($selectedTemplate, $definition['legacy_values'], true)) {
-                $selectedTemplate = $definition['default'];
-            }
             if ($selectedTemplate === '') {
                 continue;
             }
 
-            $result = dolibarr_set_const($db, $templateConstant, $selectedTemplate, $definition['type'], 0, '', $entity);
-            if ($result < 0) {
-                return -1;
+            if (in_array($selectedTemplate, $definition['legacy_values'], true)) {
+                $result = dolibarr_set_const($db, $templateConstant, $definition['legacy_default'], $definition['type'], 0, '', $entity);
+                if ($result < 0) {
+                    return -1;
+                }
             }
         }
 

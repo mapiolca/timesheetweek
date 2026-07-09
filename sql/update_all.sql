@@ -323,11 +323,6 @@ SET type_template = 'timesheetweek@timesheetweek'
 WHERE module = 'timesheetweek'
 AND type_template = 'timesheetweek_notification';
 
-UPDATE llx_const
-SET value = 'Notification TimesheetWeek'
-WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
-AND value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER';
-
 INSERT INTO llx_const (name, type, value, note, visible, entity)
 SELECT 'TIMESHEETWEEK_CREATE_TEMPLATE', oldc.type, oldc.value, oldc.note, oldc.visible, oldc.entity
 FROM llx_const AS oldc
@@ -370,94 +365,114 @@ WHERE oldc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_TIMESHEETWEEK_DELETE'
 AND oldc.value <> ''
 AND NOT EXISTS (SELECT 1 FROM llx_const AS newc WHERE newc.name = 'MAIN_AGENDA_ACTIONAUTO_TIMESHEETWEEK_DELETE' AND newc.entity = oldc.entity);
 
-UPDATE llx_const
-SET value = 'Notification TimesheetWeek'
-WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
-
 -- EN: Add workflow email templates used by configurable TimesheetWeek step notifications.
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ soumise','Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__','Bonjour __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValideur : __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_APPROVE',220,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ approuvée','Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est approuvée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_APPROVE',220,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ approuvée','Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_REFUSE',230,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ refusée','Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_REFUSE',230,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ refusée','Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SETDRAFT',240,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ remise en brouillon','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est remise en brouillon par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SETDRAFT',240,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ repassée en brouillon','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été repassée en brouillon par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SEAL',250,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ scellée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est scellée.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SEAL',250,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ scellée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été scellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_UNSEAL',260,1,'isModEnabled(\"timesheetweek\")',0,'Feuille de temps __TIMESHEETWEEK_REF__ descellée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est descellée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_UNSEAL',260,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ descellée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été descellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ submitted','Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SUBMIT',210,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__','Hello __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValidator: __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_APPROVE',220,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ approved','Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_APPROVE',220,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ approved','Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_REFUSE',230,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ refused','Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_REFUSE',230,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ refused','Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SETDRAFT',240,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ reverted to draft','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SETDRAFT',240,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ reverted to draft','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SEAL',250,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ sealed','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_SEAL',250,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ sealed','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL');
 
 INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
-SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_UNSEAL',260,1,'isModEnabled(\"timesheetweek\")',0,'Timesheet __TIMESHEETWEEK_REF__ unsealed','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__'
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_UNSEAL',260,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ unsealed','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
 WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL');
 
-UPDATE llx_const
-SET value = 'Notification TimesheetWeek'
-WHERE name = 'TIMESHEETWEEK_MODIFY_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER');
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_CREATE',205,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ créée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été créée pour __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_CREATE');
 
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_SUBMIT'
-WHERE name = 'TIMESHEETWEEK_SUBMIT_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','fr_FR',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_DELETE',270,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Feuille de temps __REF__ supprimée','Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été supprimée par __ACTION_USER_FULLNAME__.\nSalarié : __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_DELETE');
 
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_APPROVE'
-WHERE name = 'TIMESHEETWEEK_APPROVE_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_CREATE',205,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ created','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was created for __TIMESHEETWEEK_EMPLOYEE_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_CREATE');
 
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_REFUSE'
-WHERE name = 'TIMESHEETWEEK_REFUSE_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+INSERT INTO llx_c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content)
+SELECT 0,'timesheetweek','timesheetweek@timesheetweek','en_US',0,NULL,NOW(),'TIMESHEETWEEK_NOTIFY_DELETE',270,1,'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',0,'Timesheet __REF__ deleted','Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was deleted by __ACTION_USER_FULLNAME__.\nEmployee: __TIMESHEETWEEK_EMPLOYEE_FULLNAME__\n\n__SENDEREMAIL_SIGNATURE__'
+WHERE NOT EXISTS (SELECT 1 FROM llx_c_email_templates WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_DELETE');
 
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_SETDRAFT'
-WHERE name = 'TIMESHEETWEEK_SETDRAFT_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+UPDATE llx_c_email_templates
+SET module = 'timesheetweek',
+type_template = 'timesheetweek@timesheetweek',
+active = 1,
+enabled = 'isModEnabled(\"timesheetweek\") && isModEnabled(\"notification\")',
+joinfiles = 0
+WHERE entity = 0
+AND lang IN ('fr_FR', 'en_US')
+AND label IN (
+	'TIMESHEETWEEK_NOTIFY_CREATE',
+	'TIMESHEETWEEK_NOTIFY_SUBMIT',
+	'TIMESHEETWEEK_NOTIFY_APPROVE',
+	'TIMESHEETWEEK_NOTIFY_REFUSE',
+	'TIMESHEETWEEK_NOTIFY_SETDRAFT',
+	'TIMESHEETWEEK_NOTIFY_SEAL',
+	'TIMESHEETWEEK_NOTIFY_UNSEAL',
+	'TIMESHEETWEEK_NOTIFY_DELETE'
+);
 
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_SEAL'
-WHERE name = 'TIMESHEETWEEK_SEAL_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
-
-UPDATE llx_const
-SET value = 'TIMESHEETWEEK_NOTIFY_UNSEAL'
-WHERE name = 'TIMESHEETWEEK_UNSEAL_TEMPLATE'
-AND (value = '' OR value = 'TIMESHEETWEEK_NOTIFY_WORKFLOW_ROUTER' OR value = 'Notification TimesheetWeek');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ soumise par __TIMESHEETWEEK_EMPLOYEE_FULLNAME__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ soumise');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValideur : __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLe salarié __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ a soumis la feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ approuvée' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ approuvée');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été approuvée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est approuvée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ refusée' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ refusée');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nVotre feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est refusée par __ACTION_USER_FULLNAME__.\nMotif : __TIMESHEETWEEK_MOTIF__\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ repassée en brouillon' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ remise en brouillon');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été repassée en brouillon par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est remise en brouillon par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ scellée' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ scellée');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été scellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est scellée.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Feuille de temps __REF__ descellée' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL' AND (topic IS NULL OR topic = '' OR topic = 'Feuille de temps __TIMESHEETWEEK_REF__ descellée');
+UPDATE llx_c_email_templates SET content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ a été descellée par __ACTION_USER_FULLNAME__.\nStatut actuel : __TIMESHEETWEEK_STATUS__\nAccès direct : __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'fr_FR' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL' AND (content IS NULL OR content = '' OR content = 'Bonjour __RECIPIENT_FULLNAME__,\n\nLa feuille de temps __TIMESHEETWEEK_REF__ pour la semaine __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ est descellée par __ACTION_USER_FULLNAME__.\nVous pouvez la consulter ici : __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ submitted by __TIMESHEETWEEK_EMPLOYEE_FULLNAME__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ submitted');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\n__TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\n\nValidator: __TIMESHEETWEEK_VALIDATOR_FULLNAME__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SUBMIT' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nThe employee __TIMESHEETWEEK_EMPLOYEE_FULLNAME__ submitted timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ approved' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ approved');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_APPROVE' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was approved by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ refused' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ refused');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_REFUSE' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nYour timesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was refused by __ACTION_USER_FULLNAME__.\nReason: __TIMESHEETWEEK_MOTIF__\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ reverted to draft' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ reverted to draft');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SETDRAFT' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was reverted to draft by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ sealed' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ sealed');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_SEAL' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was sealed.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
+UPDATE llx_c_email_templates SET topic = 'Timesheet __REF__ unsealed' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL' AND (topic IS NULL OR topic = '' OR topic = 'Timesheet __TIMESHEETWEEK_REF__ unsealed');
+UPDATE llx_c_email_templates SET content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nCurrent status: __TIMESHEETWEEK_STATUS__\nDirect access: __TIMESHEETWEEK_URL_RAW__\n\n__SENDEREMAIL_SIGNATURE__' WHERE entity = 0 AND lang = 'en_US' AND label = 'TIMESHEETWEEK_NOTIFY_UNSEAL' AND (content IS NULL OR content = '' OR content = 'Hello __RECIPIENT_FULLNAME__,\n\nTimesheet __TIMESHEETWEEK_REF__ for week __TIMESHEETWEEK_WEEK__/__TIMESHEETWEEK_YEAR__ was unsealed by __ACTION_USER_FULLNAME__.\nYou can review it here: __TIMESHEETWEEK_URL__\n\n__TIMESHEETWEEK_MAIL_SIGNATURE__');
 
 UPDATE llx_const
 SET type = 'emailtemplate:timesheetweek@timesheetweek'
@@ -537,7 +552,7 @@ INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, des
 VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_DELETE', 'agenda:notification', 'Delete weekly timesheet', 'Executed when a weekly timesheet is deleted.', 45000308);
 
 INSERT IGNORE INTO llx_c_action_trigger (elementtype, code, contexts, label, description, rang)
-VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_MODIFY', 'agenda:notification', 'Modify weekly timesheet', 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 45000309);
+VALUES ('timesheetweek@timesheetweek', 'TIMESHEETWEEK_MODIFY', 'agenda', 'Modify weekly timesheet', 'Executed when a weekly timesheet is modified without a dedicated workflow transition.', 45000309);
 
 -- EN: Repair historical Agenda links that used the short element type.
 UPDATE llx_actioncomm

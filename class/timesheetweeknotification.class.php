@@ -604,12 +604,15 @@ class TimesheetWeekNotification
 
 		$substitutions = array();
 		if ($trans instanceof Translate && function_exists('getCommonSubstitutionArray')) {
-			$substitutions = getCommonSubstitutionArray($trans, 0, null, null, null);
+			$substitutions = getCommonSubstitutionArray($trans, 0, null, $object);
 		}
 		if ($includeCommonSubstitutions && $trans instanceof Translate && function_exists('complete_substitutions_array')) {
 			complete_substitutions_array($substitutions, $trans, $object);
 		}
 
+		$substitutions['__ID__'] = (string) $object->id;
+		$substitutions['__REF__'] = (string) $object->ref;
+		$substitutions['__LABEL__'] = (string) $object->ref;
 		$substitutions['__TIMESHEETWEEK_ID__'] = (string) $object->id;
 		$substitutions['__TIMESHEETWEEK_REF__'] = (string) $object->ref;
 		$substitutions['__TIMESHEETWEEK_WEEK__'] = (string) $object->week;
