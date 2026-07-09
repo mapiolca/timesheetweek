@@ -63,7 +63,7 @@ class TimesheetWeekCompatibility
 		}
 		$hasElementPropertiesHook = class_exists('ActionsTimesheetweek') && method_exists('ActionsTimesheetweek', 'getElementProperties');
 		$hasNativeNotificationRouter = class_exists('TimesheetWeekNotification') && method_exists('TimesheetWeekNotification', 'getNativeNotificationSubstitutions');
-		$hasUserBankLatestSheetsHook = self::isUserBankAfterExpenseReportHookAvailable();
+		$hasUserBankLatestSheetsHook = self::isUserBankFormObjectOptionsHookAvailable();
 
 		return array(
 			'native_notification_triggers' => array(
@@ -147,10 +147,10 @@ class TimesheetWeekCompatibility
 				'label' => 'TimesheetWeekCompatibilityUserBankLatestSheets',
 				'description' => 'TimesheetWeekCompatibilityUserBankLatestSheetsDesc',
 				'min_dolibarr' => '20.0.0',
-				'core_available_from' => 'printUserBankAfterExpenseReportArea hook in htdocs/user/bank.php',
+				'core_available_from' => 'formObjectOptions hook in htdocs/user/bank.php',
 				'module_available_from' => '1.8.4',
 				'min_php' => '8.0.0',
-				'compatibility_check' => "strpos(file_get_contents(DOL_DOCUMENT_ROOT.'/user/bank.php'), \"executeHooks('printUserBankAfterExpenseReportArea'\") !== false",
+				'compatibility_check' => "strpos(file_get_contents(DOL_DOCUMENT_ROOT.'/user/bank.php'), \"executeHooks('formObjectOptions'\") !== false",
 				'available' => self::isDolibarrVersionAtLeast('20.0.0') && self::isPhpVersionAtLeast('8.0.0') && $hasUserBankLatestSheetsHook,
 				'reason' => 'TimesheetWeekCompatibilityUserBankHookUnavailable',
 			),
@@ -158,11 +158,11 @@ class TimesheetWeekCompatibility
 	}
 
 	/**
-	 * Check if the user bank card exposes the TimesheetWeek insertion hook.
+	 * Check if the user bank card exposes the native formObjectOptions hook.
 	 *
 	 * @return bool
 	 */
-	public static function isUserBankAfterExpenseReportHookAvailable()
+	public static function isUserBankFormObjectOptionsHookAvailable()
 	{
 		if (!defined('DOL_DOCUMENT_ROOT')) {
 			return false;
@@ -178,8 +178,8 @@ class TimesheetWeekCompatibility
 			return false;
 		}
 
-		return strpos($content, "executeHooks('printUserBankAfterExpenseReportArea'") !== false
-			|| strpos($content, 'executeHooks("printUserBankAfterExpenseReportArea"') !== false;
+		return strpos($content, "executeHooks('formObjectOptions'") !== false
+			|| strpos($content, 'executeHooks("formObjectOptions"') !== false;
 	}
 
 	/**

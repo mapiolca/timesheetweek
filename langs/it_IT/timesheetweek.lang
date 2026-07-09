@@ -401,4 +401,4 @@ TimesheetWeekCompatibilityNotificationWorkflowRouterDesc = Routes business-step 
 TimesheetWeekCompatibilityNotificationWorkflowRouterUnavailable = The per-step notification router requires the native Notifications module and TimesheetWeek substitutions.
 TimesheetWeekCompatibilityUserBankLatestSheets = Ultimi fogli ore nella scheda bancaria dell'utente
 TimesheetWeekCompatibilityUserBankLatestSheetsDesc = Mostra le ultime righe TimesheetWeek nella scheda bancaria dell'utente quando l'hook del core è disponibile.
-TimesheetWeekCompatibilityUserBankHookUnavailable = L'hook printUserBankAfterExpenseReportArea della scheda bancaria dell'utente non è disponibile in questo core Dolibarr.
+TimesheetWeekCompatibilityUserBankHookUnavailable = L'hook formObjectOptions della scheda bancaria dell'utente non è disponibile in questo core Dolibarr.

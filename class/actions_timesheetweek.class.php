@@ -27,6 +27,9 @@ class ActionsTimesheetweek
     /** @var array */
     public $errors = array();
 
+    /** @var array */
+    public $warnings = array();
+
     /** @var string */
     public $resprints = '';
 
@@ -1042,7 +1045,7 @@ class ActionsTimesheetweek
      * @param HookManager        $hookmanager Hook manager
      * @return int
      */
-    public function printUserBankAfterExpenseReportArea($parameters, &$object, &$action, $hookmanager)
+    public function formObjectOptions($parameters, &$object, &$action, $hookmanager)
     {
         global $langs;
 
@@ -1050,6 +1053,10 @@ class ActionsTimesheetweek
         $this->resprints = '';
 
         if (!isModEnabled('timesheetweek')) {
+            return 0;
+        }
+
+        if (!$this->isUserBankPage()) {
             return 0;
         }
 
@@ -1065,9 +1072,32 @@ class ActionsTimesheetweek
         }
 
         $langs->loadLangs(array('timesheetweek@timesheetweek'));
-        $this->resprints = $this->buildUserBankLastTimesheetWeeksBlock($targetUserId);
+        print $this->buildUserBankLastTimesheetWeeksBlock($targetUserId);
 
         return 0;
+    }
+
+    /**
+     * Check whether the current hook call comes from the user bank card.
+     *
+     * @return bool
+     */
+    protected function isUserBankPage()
+    {
+        $candidates = array();
+        foreach (array('PHP_SELF', 'SCRIPT_NAME') as $key) {
+            if (!empty($_SERVER[$key])) {
+                $candidates[] = str_replace('\\', '/', (string) $_SERVER[$key]);
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (preg_match('~/user/bank\.php$~', $candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
