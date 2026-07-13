@@ -11,8 +11,30 @@
 
 	ready(function () {
 		var root = document.getElementById('timesheetweek-mobile-card');
+		if (!root) return;
+
+		function activateDay(day, activeButton) {
+			Array.prototype.forEach.call(root.querySelectorAll('[data-tw-day]'), function (item) {
+				var active = item === activeButton;
+				item.classList.toggle('tw-day-active', active);
+				item.setAttribute('aria-pressed', active ? 'true' : 'false');
+			});
+			Array.prototype.forEach.call(root.querySelectorAll('[data-tw-panel]'), function (panel) {
+				var hidden = panel.getAttribute('data-tw-panel') !== day;
+				panel.classList.toggle('tw-day-hidden', hidden);
+				panel.hidden = hidden;
+			});
+		}
+
+		// Day navigation must remain available even if autosave cannot be initialized.
+		Array.prototype.forEach.call(root.querySelectorAll('[data-tw-day]'), function (button) {
+			button.addEventListener('click', function () {
+				activateDay(button.getAttribute('data-tw-day'), button);
+			});
+		});
+
 		var form = document.getElementById('timesheetweek-mobile-form');
-		if (!root || !form) return;
+		if (!form) return;
 
 		var config;
 		try { config = JSON.parse(root.getAttribute('data-config') || '{}'); } catch (e) { return; }
@@ -162,14 +184,6 @@
 
 		Array.prototype.forEach.call(editableFields(), function (field) {
 			field.addEventListener(field.tagName === 'INPUT' && field.type === 'text' ? 'input' : 'change', function () { schedule(field); });
-		});
-
-		Array.prototype.forEach.call(root.querySelectorAll('[data-tw-day]'), function (button) {
-			button.addEventListener('click', function () {
-				var day = button.getAttribute('data-tw-day');
-				Array.prototype.forEach.call(root.querySelectorAll('[data-tw-day]'), function (item) { item.classList.toggle('tw-day-active', item === button); });
-				Array.prototype.forEach.call(root.querySelectorAll('[data-tw-panel]'), function (panel) { panel.classList.toggle('tw-day-hidden', panel.getAttribute('data-tw-panel') !== day); });
-			});
 		});
 
 		try {

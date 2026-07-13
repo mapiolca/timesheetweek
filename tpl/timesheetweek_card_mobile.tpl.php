@@ -68,7 +68,7 @@ $autosaveConfig = array(
 	),
 );
 
-print '<div id="timesheetweek-mobile-card" class="timesheetweek-mobile-card" data-config="'.dol_escape_htmltag((string) json_encode($autosaveConfig)).'">';
+print '<div id="timesheetweek-mobile-card" class="timesheetweek-mobile-card" data-config="'.dolPrintHTMLForAttribute((string) json_encode($autosaveConfig)).'">';
 print '<div id="tw-autosave-status" class="tw-autosave-status opacitymedium" role="status" aria-live="polite">'.dol_escape_htmltag($langs->trans('TimesheetWeekAutosaveReady')).'</div>';
 print '<div id="tw-restore-message" class="warning tw-restore-message" hidden>';
 print '<span>'.$langs->trans('TimesheetWeekAutosaveRestore').'</span> ';
@@ -90,7 +90,7 @@ print '<nav class="tw-day-navigation" aria-label="'.$langs->trans('TimesheetWeek
 foreach ($days as $index => $day) {
 	$dayLabelKey = isset($dayLabelKeys[$day]) ? $dayLabelKeys[$day] : $day;
 	$dateLabel = !empty($weekdates[$day]) ? dol_print_date(strtotime($weekdates[$day]), 'day') : '';
-	print '<button type="button" class="button tw-day-button'.($index === 0 ? ' tw-day-active' : '').'" data-tw-day="'.dol_escape_htmltag($day).'">';
+	print '<button type="button" class="button tw-day-button'.($index === 0 ? ' tw-day-active' : '').'" data-tw-day="'.dol_escape_htmltag($day).'" aria-pressed="'.($index === 0 ? 'true' : 'false').'">';
 	print '<span>'.dol_escape_htmltag($langs->trans($dayLabelKey)).'</span>';
 	if ($dateLabel !== '') {
 		print '<small>'.dol_escape_htmltag($dateLabel).'</small>';
@@ -103,7 +103,7 @@ if (!$isDailyRateEmployee) {
 	foreach ($days as $index => $day) {
 		$lockedLeave = !empty($holidayMarkerByDay[$day]['has_leave']) && empty($holidayMarkerByDay[$day]['is_public_holiday']);
 		$disabled = (!$editable || ($lockedLeave && !$canOverrideHolidayLock)) ? ' disabled' : '';
-		print '<section class="tw-day-options'.($index === 0 ? '' : ' tw-day-hidden').'" data-tw-panel="'.dol_escape_htmltag($day).'">';
+		print '<section class="tw-day-options'.($index === 0 ? '' : ' tw-day-hidden').'" data-tw-panel="'.dol_escape_htmltag($day).'"'.($index === 0 ? '' : ' hidden').'>';
 		print '<table class="noborder centpercent"><tbody><tr>';
 		print '<td><label for="tw-zone-'.$day.'">'.$langs->trans('Zone').'</label></td><td class="right">';
 		print '<select id="tw-zone-'.$day.'" name="zone_'.$day.'" class="flat tw-zone-select"'.$disabled.'><option value=""></option>';
@@ -149,7 +149,7 @@ foreach ($byproject as $projectId => $projectData) {
 			$isPublicHoliday = !empty($holidayMarkerByDay[$day]['is_public_holiday']);
 			$isLocked = ($editable && $holidayLabel !== '' && !$isPublicHoliday && !$canOverrideHolidayLock);
 			$fieldDisabled = (!$editable || $isLocked) ? ' disabled' : '';
-			print '<div class="tw-task-day-field'.($index === 0 ? '' : ' tw-day-hidden').'" data-tw-panel="'.dol_escape_htmltag($day).'">';
+			print '<div class="tw-task-day-field'.($index === 0 ? '' : ' tw-day-hidden').'" data-tw-panel="'.dol_escape_htmltag($day).'"'.($index === 0 ? '' : ' hidden').'>';
 			if ($isDailyRateEmployee) {
 				print '<select name="daily_'.$taskId.'_'.$day.'" class="flat daily-rate-select"'.$fieldDisabled.'><option value="">'.dol_escape_htmltag($holidayLabel).'</option>';
 				foreach ($dailyRateOptions as $code => $label) {
