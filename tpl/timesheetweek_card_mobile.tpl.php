@@ -164,9 +164,7 @@ foreach ($byproject as $projectId => $projectData) {
 	print '</tbody></table></section>';
 }
 
-if ($editable) {
-	print '<div class="center tw-mobile-save"><button type="submit" class="button button-save">'.$langs->trans('Save').'</button></div>';
-} else {
+if (!$editable) {
 	print '<div class="opacitymedium center">'.$langs->trans('TimesheetIsNotEditable').'</div>';
 }
 print '</div></form>';

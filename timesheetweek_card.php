@@ -1854,19 +1854,36 @@ $hasLegacyHalfDayDailyRate = true;
 		}
 
 		// ---- Boutons d’action (barre) ----
-		echo '<div class="tabsAction">';
+		echo '<div class="tabsAction'.($isMobileLayout ? ' tw-mobile-actions' : '').'">';
 
 		$token = newToken();
+		if ($isMobileLayout && $editable) {
+			$saveLabel = $langs->trans('Save');
+			print '<button type="submit" form="timesheetweek-mobile-form" class="btnTitle tw-mobile-action tw-mobile-action-save" title="'.dol_escape_htmltag($saveLabel).'">';
+			print '<span class="fa fa-save valignmiddle btnTitle-icon" aria-hidden="true"></span>';
+			print '<span class="valignmiddle text-plus-circle btnTitle-label">'.dol_escape_htmltag($saveLabel).'</span>';
+			print '</button>';
+		}
 
 		if ($object->status == tw_status('sealed')) {
 				// EN: In sealed state only show the unseal control for authorized users.
 				// FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
 				if ($permUnseal) {
-						echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('UnsealTimesheet'), '', 'fa fa-unlock', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-unseal'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $buttonUrl);
+						}
 				}
 		} else {
 				if ($canSendMail) {
-						echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('Sendbymail'), '', 'fa fa-envelope', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-mail'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $buttonUrl);
+						}
 				}
 
 				// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
@@ -1878,7 +1895,12 @@ $hasLegacyHalfDayDailyRate = true;
 						$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
 						if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
 						if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-								echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+								$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($langs->trans('Submit'), '', 'fa fa-paper-plane', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-submit'));
+								} else {
+									echo dolGetButtonAction('', $langs->trans('Submit'), 'default', $buttonUrl);
+								}
 						}
 				}
 
@@ -1887,7 +1909,12 @@ $hasLegacyHalfDayDailyRate = true;
 						$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 						$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 						if ($canEmployee || $canValidator) {
-								echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
+								$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($langs->trans('SetToDraft'), '', 'fa fa-undo', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-draft'));
+								} else {
+									echo dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $buttonUrl);
+								}
 						}
 				}
 
@@ -1895,22 +1922,40 @@ $hasLegacyHalfDayDailyRate = true;
 				if ($object->status == tw_status('submitted')) {
 						$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 						if ($canValidator) {
-								echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-								echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
+								$approveLabel = ($langs->trans('Approve') != 'Approve' ? $langs->trans('Approve') : 'Approuver');
+								$approveUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token;
+								$refuseUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($approveLabel, '', 'fa fa-check-circle', $approveUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-approve'));
+									echo dolGetButtonTitle($langs->trans('Refuse'), '', 'fa fa-times-circle', $refuseUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-refuse'));
+								} else {
+									echo dolGetButtonAction('', $approveLabel, 'default', $approveUrl);
+									echo dolGetButtonAction('', $langs->trans('Refuse'), 'default', $refuseUrl);
+								}
 						}
 				}
 
 				// EN: Allow sealing once the sheet is approved and the user is authorized.
 				// FR : Autorise le scellement dès que la feuille est approuvée et que l'utilisateur est habilité.
 				if ($object->status == tw_status('approved') && $permSeal) {
-						echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('SealTimesheet'), '', 'fa fa-lock', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-seal'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $buttonUrl);
+						}
 				}
 
 				// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
 				$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
 			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 				if ($canDelete) {
-						echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('Delete'), '', 'fa fa-trash', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-delete'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('Delete'), 'delete', $buttonUrl);
+						}
 				}
 		}
 

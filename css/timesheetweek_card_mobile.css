@@ -55,12 +55,93 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-task-entry { width: 42%; }
 .tw-task-day-field input,
 .tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
-.tw-mobile-save { position: sticky; bottom: 0; z-index: 5; padding: 10px 0; background: var(--colorbackbody, #fff); }
-.tw-mobile-save .button { min-height: 44px; min-width: 70%; }
-body.timesheetweek-mobile .tabsAction .butAction,
-body.timesheetweek-mobile .tabsAction .butActionDelete { display: block; min-height: 44px; margin: 8px 0; box-sizing: border-box; text-align: center; }
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin: 16px 0;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions a.tw-mobile-action,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions button.tw-mobile-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+	min-height: 48px;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 9px 10px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: normal;
+	text-decoration: none;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action .btnTitle-icon {
+	display: inline-block;
+	flex: 0 0 auto;
+	color: inherit;
+	font-size: 1.25em;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action .btnTitle-label,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:hover .btnTitle-label {
+	display: inline;
+	color: inherit;
+	font-weight: inherit;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:hover {
+	color: #fff;
+	border-color: rgba(255, 255, 255, 0.45);
+	text-decoration: none;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:focus-visible {
+	outline: 3px solid var(--colorbackhmenu1, #263e5b);
+	outline-offset: 2px;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:active {
+	box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.28);
+}
+body.timesheetweek-mobile .tw-mobile-action-save { background: #2563eb; }
+body.timesheetweek-mobile .tw-mobile-action-save:hover { background: #1d4ed8; }
+body.timesheetweek-mobile .tw-mobile-action-mail { background: #0e7490; }
+body.timesheetweek-mobile .tw-mobile-action-mail:hover { background: #155e75; }
+body.timesheetweek-mobile .tw-mobile-action-submit { background: #6d28d9; }
+body.timesheetweek-mobile .tw-mobile-action-submit:hover { background: #5b21b6; }
+body.timesheetweek-mobile .tw-mobile-action-draft { background: #b45309; }
+body.timesheetweek-mobile .tw-mobile-action-draft:hover { background: #92400e; }
+body.timesheetweek-mobile .tw-mobile-action-approve { background: #15803d; }
+body.timesheetweek-mobile .tw-mobile-action-approve:hover { background: #166534; }
+body.timesheetweek-mobile .tw-mobile-action-refuse { background: #c2410c; }
+body.timesheetweek-mobile .tw-mobile-action-refuse:hover { background: #9a3412; }
+body.timesheetweek-mobile .tw-mobile-action-delete { background: #b91c1c; }
+body.timesheetweek-mobile .tw-mobile-action-delete:hover { background: #991b1b; }
+body.timesheetweek-mobile .tw-mobile-action-seal { background: #475569; }
+body.timesheetweek-mobile .tw-mobile-action-seal:hover { background: #334155; }
+body.timesheetweek-mobile .tw-mobile-action-unseal { background: #0f766e; }
+body.timesheetweek-mobile .tw-mobile-action-unseal:hover { background: #115e59; }
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action.refused,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:disabled {
+	cursor: not-allowed;
+	color: #606060;
+	background: #e5e7eb;
+	border-color: #d1d5db;
+	box-shadow: none;
+	opacity: 0.75;
+}
 
 @media (max-width: 480px) {
 	.tw-task-label { width: 54%; }
 	.tw-task-entry { width: 46%; }
+}
+
+@media (max-width: 360px) {
+	body.timesheetweek-mobile .tabsAction.tw-mobile-actions { grid-template-columns: minmax(0, 1fr); }
 }
