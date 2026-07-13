@@ -15,12 +15,29 @@
 		var navigationAnchor = root.querySelector('.tw-day-navigation-anchor');
 		var dayNavigation = root.querySelector('.tw-day-navigation');
 		var navigationFrame = null;
+		var topMenuSelectors = ['#id-top-menu', '#id-top', '#mainmenu', 'header.navbar', 'header.navbar-fixed-top'];
+
+		function getVisibleTopMenuBottom() {
+			var bottom = 0;
+			Array.prototype.forEach.call(topMenuSelectors, function (selector) {
+				Array.prototype.forEach.call(document.querySelectorAll(selector), function (menu) {
+					var style = window.getComputedStyle(menu);
+					var rect = menu.getBoundingClientRect();
+					if (style.display !== 'none' && style.visibility !== 'hidden' && rect.height > 0 && rect.top <= 1 && rect.bottom > 0) {
+						bottom = Math.max(bottom, rect.bottom);
+					}
+				});
+			});
+			return Math.max(0, Math.round(bottom));
+		}
 
 		function updatePinnedNavigation() {
 			navigationFrame = null;
 			if (!navigationAnchor || !dayNavigation) return;
 			var anchorRect = navigationAnchor.getBoundingClientRect();
-			var mustBeFixed = anchorRect.top <= 0;
+			var topOffset = getVisibleTopMenuBottom();
+			var mustBeFixed = anchorRect.top <= topOffset;
+			dayNavigation.style.top = topOffset + 'px';
 			if (mustBeFixed) {
 				var navigationStyle = window.getComputedStyle(dayNavigation);
 				var marginBottom = parseFloat(navigationStyle.marginBottom) || 0;
