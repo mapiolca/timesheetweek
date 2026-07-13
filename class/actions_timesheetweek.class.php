@@ -629,6 +629,11 @@ class ActionsTimesheetweek
      */
     public static function ensureNativeNotificationTemplateConstants($db, $entity)
     {
+		dol_include_once('/core/lib/admin.lib.php');
+		if (!function_exists('dolibarr_set_const')) {
+			return -1;
+		}
+
         $entity = (int) $entity;
         if ($entity <= 0) {
             $entity = 1;
@@ -1289,12 +1294,6 @@ class ActionsTimesheetweek
             $conf->{$alias}->enabled = $moduleEnabled;
             $conf->{$alias}->name = 'TimesheetWeek';
             $conf->{$alias}->picto = self::getNativePicto();
-        }
-
-        $entity = (!empty($conf->entity) ? (int) $conf->entity : 1);
-        if (self::ensureNativeNotificationSetup($this->db, $entity) < 0) {
-            $this->error = $this->db->lasterror();
-            $this->errors[] = $this->error;
         }
 
         if (!empty($parameters['notifcode'])) {
