@@ -161,7 +161,6 @@ class modTimesheetWeek extends DolibarrModules
                                         'toprightmenu',
                                         'usercardBank',
                                         'timesheetweekcard',
-                                        'globalcard',
                                         'document',
                                         'notification',
                                         'emailtemplates',
