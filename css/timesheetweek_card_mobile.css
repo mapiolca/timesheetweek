@@ -9,10 +9,32 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-autosave-status { min-height: 24px; margin-bottom: 8px; text-align: right; }
 .tw-autosave-status.tw-state-error { color: var(--colortextbackhmenu, #a00); }
 .tw-restore-message { margin-bottom: 10px; }
-.tw-day-navigation { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scroll-snap-type: x mandatory; }
+.tw-day-navigation {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	gap: 4px;
+	overflow-x: auto;
+	margin-bottom: 10px;
+	padding: 8px 0;
+	background: var(--colorbackbody, #fff);
+	border-bottom: 1px solid var(--colorborder, #ccc);
+	box-shadow: 0 3px 5px rgba(0, 0, 0, 0.12);
+	scroll-snap-type: x mandatory;
+	-webkit-overflow-scrolling: touch;
+}
 .tw-day-navigation .tw-day-button { flex: 0 0 88px; min-height: 48px; margin: 0; padding: 5px 8px; scroll-snap-align: start; }
 .tw-day-navigation .tw-day-button small { display: block; font-weight: normal; }
-.tw-day-navigation .tw-day-active { box-shadow: inset 0 -3px 0 var(--colorbackhmenu1, #666); }
+.tw-day-navigation .tw-day-button.tw-day-active,
+.tw-day-navigation .tw-day-button[aria-pressed="true"] {
+	color: var(--colortextbackhmenu, #fff) !important;
+	background: var(--colorbackhmenu1, #263e5b) !important;
+	border-color: var(--colorbackhmenu1, #263e5b) !important;
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+}
+.tw-day-navigation .tw-day-button.tw-day-active small,
+.tw-day-navigation .tw-day-button[aria-pressed="true"] small { color: inherit; }
 .tw-day-hidden { display: none !important; }
 .tw-day-options { margin-bottom: 10px; }
 .tw-day-options td { min-height: 44px; vertical-align: middle; }
