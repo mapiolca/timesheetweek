@@ -31,6 +31,7 @@ if (!$res) die("Include of main fails");
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formmail.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
+require_once DOL_DOCUMENT_ROOT.'/core/class/html.formactions.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 // EN: Load the PDF model definitions to reuse Dolibarr's filtering helpers.
@@ -69,8 +70,11 @@ $hookmanager->initHooks(array('timesheetweekcard','globalcard'));
 // FR: Définit le flag forfait jour par défaut pour éviter les notices avant chargement des données.
 // EN: Default the quarter-day flag and daily rate usage before evaluating the employee profile.
 // FR: Définit par défaut le drapeau quart de jour et l'utilisation du forfait avant d'évaluer le profil du salarié.
-$useQuarterDayDailyContract = !empty($conf->global->TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT);
+$useQuarterDayDailyContract = (bool) getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
 $isDailyRateEmployee = false;
+// EN: Reuse Dolibarr's browser classification instead of running a second device detector.
+// FR: Réutilise la classification du navigateur de Dolibarr au lieu d'exécuter un second détecteur.
+$isMobileLayout = (isset($conf->browser->layout) && $conf->browser->layout === 'phone') || !empty($conf->dol_optimize_smallscreen);
 
 // ---- Fetch (set $object if id) ----
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php';
@@ -268,13 +272,6 @@ function tw_get_daily_rate_hours_map($useQuarterDayDailyContract)
 */
 function tw_can_override_holiday_lock(User $user)
 {
-	if (!method_exists($user, 'hasRight')) {
-		// @BACKPORT v19→v20 : hasRight() is not available before v19.
-		return !empty($user->rights->timesheetweek->disableownholiday)
-			|| !empty($user->rights->timesheetweek->disablechildholiday)
-			|| !empty($user->rights->timesheetweek->disableallholiday);
-	}
-
 	return $user->hasRight('timesheetweek', 'disableownholiday')
 		|| $user->hasRight('timesheetweek', 'disablechildholiday')
 		|| $user->hasRight('timesheetweek', 'disableallholiday');
@@ -528,7 +525,7 @@ function tw_can_validate_timesheet(
 
 // Sécurise l'objet si présent
 if (!empty($id) && $object->id <= 0) $object->fetch($id);
-if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, (int) $conf->entity)) {
+if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->fk_user, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity)) {
 	accessforbidden();
 }
 
@@ -906,7 +903,7 @@ if ($action === 'submit' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_SUBMIT';
+		$object->context['trigger_reason'] = 'submit';
 		$object->context['timesheetweek_card_action'] = 'submit';
 
 		$res = $object->submit($user);
@@ -985,7 +982,7 @@ if ($action === 'confirm_validate' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_APPROVE';
+		$object->context['trigger_reason'] = 'approve';
 		$object->context['timesheetweek_card_action'] = 'confirm_validate';
 
 		if (tw_requires_overtime_motif($db, $object) && $motif === '') {
@@ -1020,7 +1017,7 @@ if ($action === 'confirm_refuse' && $confirm === 'yes' && $id > 0) {
 		if (!is_array($object->context)) {
 				$object->context = array();
 		}
-		$object->context['actioncode'] = 'TIMESHEETWEEK_REFUSE';
+		$object->context['trigger_reason'] = 'refuse';
 		$object->context['timesheetweek_card_action'] = 'confirm_refuse';
 
 		if ($motif === '') {
@@ -1150,16 +1147,7 @@ if ($object->id > 0) {
 
 		// EN: Prepare PDF generation permissions once the object is fully loaded.
 		// FR: Prépare les permissions de génération PDF une fois l'objet complètement chargé.
-		$entityIdForDocs = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
-		$baseTimesheetDir = '';
-		if (!empty($conf->timesheetweek->multidir_output[$entityIdForDocs])) {
-			$baseTimesheetDir = $conf->timesheetweek->multidir_output[$entityIdForDocs];
-		} elseif (!empty($conf->timesheetweek->dir_output)) {
-			$baseTimesheetDir = $conf->timesheetweek->dir_output;
-		} else {
-			$baseTimesheetDir = DOL_DATA_ROOT.'/timesheetweek';
-		}
-		$upload_dir = $baseTimesheetDir.'/timesheetweek/'.dol_sanitizeFileName($object->ref);
+		$upload_dir = timesheetweekGetDocumentDir($object);
 
 		// EN: Authorise document creation to employees or managers allowed to act on the sheet.
 		// FR: Autorise la création de documents aux salariés ou responsables habilités à agir sur la feuille.
@@ -1230,7 +1218,7 @@ if ($object->id > 0) {
 		if (!empty($upload_dir)) {
 				// EN: Mirror the dedicated documents tab behaviour for permissions and storage scope.
 				// FR: Reproduit le comportement de l'onglet documents pour les permissions et le périmètre de stockage.
-				$modulepart = 'timesheetweek';
+				$modulepart = timesheetweekGetDocumentModulePart();
 				$permissiontoread = $permReadAny ? 1 : 0;
 				$permissiontoadd = $permissiontoadd ? 1 : 0;
 				$permissiontodownload = $permissiontoread;
@@ -1242,6 +1230,7 @@ if ($object->id > 0) {
 // ----------------- View -----------------
 $form = new Form($db);
 $formfile = new FormFile($db);
+$formactions = new FormActions($db);
 $title = $langs->trans("TimesheetWeek");
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
@@ -1257,7 +1246,7 @@ if ($action === 'create') {
 
 	llxHeader('', $title);
 
-	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'bookcal');
+	print load_fiche_titre($langs->trans("NewTimesheetWeek"), '', 'fa-calendar-check');
 
 	echo '<form method="POST" action="'.dol_escape_htmltag($_SERVER["PHP_SELF"]).'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
@@ -1341,11 +1330,15 @@ JS;
 		accessforbidden();
 	}
 
-	llxHeader('', $title);
+	if ($isMobileLayout) {
+		llxHeader('', $title, '', '', 0, 0, array('/timesheetweek/js/timesheetweek_card_mobile.js'), array('/timesheetweek/css/timesheetweek_card_mobile.css'), '', 'timesheetweek-mobile');
+	} else {
+		llxHeader('', $title);
+	}
 
 	// Head + banner
 	$head = timesheetweekPrepareHead($object);
-		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'bookcal');
+		print dol_get_fiche_head($head, 'card', $langs->trans("TimesheetWeek"), -1, 'fa-calendar-check');
 
 		$linkback = '<a href="'.dol_buildpath('/timesheetweek/timesheetweek_list.php',1).'">'.$langs->trans("BackToList").'</a>';
 		$morehtmlright = '';
@@ -1382,7 +1375,7 @@ JS;
 				}
 		}
 
-		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', $morehtmlright, '', $morehtmlstatus);
+		dol_banner_tab($object, 'ref', $linkback, 1, 'ref', 'ref', $morehtmlref, '', 0, '', $morehtmlstatus, 0, $morehtmlright);
 		print timesheetweekRenderStatusBadgeCleanup();
 
 		// Confirm modals
@@ -1654,7 +1647,7 @@ JS;
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
-	echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<form'.($isMobileLayout ? ' id="timesheetweek-mobile-form"' : '').' method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
 
@@ -1854,412 +1847,43 @@ $hasLegacyHalfDayDailyRate = true;
 		}
 
 		// 4) AFFICHAGE
-		if (empty($tasks)) {
-			echo '<div class="opacitymedium">'.$langs->trans("NoTasksAssigned").'</div>';
+		if ($isMobileLayout) {
+			include __DIR__.'/tpl/timesheetweek_card_mobile.tpl.php';
 		} else {
-		// Heures contractuelles
-		$contractedHours = $contractedHoursDisp;
-
-		// Inputs zone/panier bloqués si statut != brouillon
-		$disabledAttr = ($object->status != tw_status('draft')) ? ' disabled' : '';
-		$canOverrideHolidayLock = tw_can_override_holiday_lock($user);
-		$holidayMarkerByDay = tw_get_holiday_markers_by_day($db, $object->fk_user, $weekdates, $langs, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity);
-
-			echo '<div class="div-table-responsive">';
-				// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
-				// FR: Limite l'aide de centrage vertical et horizontal aux cellules spécifiques nécessitant l'alignement (jours/zones/paniers/heures/totaux).
-				echo '<style>';
-				echo '.grille-saisie-temps .cellule-jour,';
-				echo '.grille-saisie-temps .cellule-zone-panier,';
-				echo '.grille-saisie-temps .cellule-temps,';
-				echo '.grille-saisie-temps .cellule-total { vertical-align: middle; text-align: center; }';
-				echo '</style>';
-				echo '<table class="noborder centpercent grille-saisie-temps">';
-
-				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
-				// FR: Applique l'aide de centrage vertical sur chaque en-tête de jour pour conserver des libellés alignés visuellement.
-				// Header jours
-		echo '<tr class="liste_titre">';
-				echo '<th>'.$langs->trans("ProjectTaskColumn").'</th>';
-				foreach ($days as $d) {
-						// EN: Render day headers safely even if week dates are undefined.
-						// FR: Affiche les en-têtes de jours en sécurité même sans dates de semaine définies.
-						$labelDate = '';
-						if (!empty($weekdates[$d])) {
-								$tmpTs = strtotime($weekdates[$d]);
-								if ($tmpTs !== false) {
-										$labelDate = dol_print_date($tmpTs, 'day');
-								}
-						}
-						$dayLabelKey = isset($dayLabelKeys[$d]) ? $dayLabelKeys[$d] : $d;
-						// EN: Translate the full day name to avoid ambiguous abbreviations.
-						// FR: Traduit le nom complet du jour pour éviter les abréviations ambiguës.
-						$dayLabel = $langs->trans($dayLabelKey);
-						echo '<th class="cellule-jour">'.$dayLabel;
-						if ($labelDate !== '') {
-								echo '<br><span class="opacitymedium">'.$labelDate.'</span>';
-						}
-						echo '</th>';
-				}
-				echo '<th class="center cellule-total">'.$langs->trans("Total").'</th>';
-		echo '</tr>';
-
-				// EN: Add the vertical-centering helper on zone and meal cells so both controls stay centered whatever their height.
-				// FR: Ajoute l'aide de centrage vertical sur les cellules zone et repas afin que les deux contrôles restent centrés quelle que soit leur hauteur.
-// Ligne zone + panier (préfills depuis lignes)
-if (!$isDailyRateEmployee) {
-echo '<tr class="liste_titre">';
-echo '<td></td>';
-foreach ($days as $d) {
-	$dayDisabledAttr = $disabledAttr;
-	$hasLockedLeaveDay = !empty($holidayMarkerByDay[$d]['has_leave']) && empty($holidayMarkerByDay[$d]['is_public_holiday']);
-	if ($object->status == tw_status('draft') && $hasLockedLeaveDay && !$canOverrideHolidayLock) {
-		$dayDisabledAttr = ' disabled';
-	}
-// EN: Attach the vertical-centering helper to keep both zone selector and meal checkbox aligned.
-// FR: Attache l'aide de centrage vertical pour garder alignés le sélecteur de zone et la case repas.
-echo '<td class="center cellule-zone-panier">';
-// EN: Prefix zone selector with its label to improve understanding.
-// FR: Préfixe le sélecteur de zone avec son libellé pour améliorer la compréhension.
-echo '<span class="zone-select">'.$langs->trans("Zone").' ';
-echo '<select name="zone_'.$d.'" class="flat"'.$dayDisabledAttr.'>';
-// EN: Provide an empty choice so the default zone selector starts blank.
-// FR: Propose un choix vide pour que le sélecteur de zone soit vide par défaut.
-$selEmpty = ($dayZone[$d] === null || $dayZone[$d] === '') ? ' selected' : '';
-echo '<option value=""'.$selEmpty.'></option>';
-for ($z = 1; $z <= 5; $z++) {
-$sel = ($dayZone[$d] !== null && (int) $dayZone[$d] === $z) ? ' selected' : '';
-echo '<option value="'.$z.'"'.$sel.'>'.$z.'</option>';
-}
-echo '</select></span><br>';
-$checked = $dayMeal[$d] ? ' checked' : '';
-echo '<label><input type="checkbox" name="meal_'.$d.'" value="1" class="mealbox"'.$checked.$dayDisabledAttr.'> '.$langs->trans("Meal").'</label>';
-echo '</td>';
-}
-echo '<td></td>';
-echo '</tr>';
-}
-
-		// Regrouper par projet
-		$byproject = array();
-		foreach ($tasks as $t) {
-			$pid = (int)$t['project_id'];
-			if (empty($byproject[$pid])) {
-				$byproject[$pid] = array(
-					'ref'   => $t['project_ref'],
-					'title' => $t['project_title'],
-					'tasks' => array()
-				);
-			}
-			$byproject[$pid]['tasks'][] = $t;
+			include __DIR__.'/tpl/timesheetweek_card_desktop.tpl.php';
 		}
-
-// Lignes
-$grandInit = 0.0;
-$dailyRateOptions = array();
-if ($isDailyRateEmployee) {
-	if ($useQuarterDayDailyContract) {
-		// EN: Provide fractional-day labels when the quarter-day constant is enabled.
-		// FR: Fournit les libellés fractionnaires lorsque la constante quart de jour est activée.
-		$dailyRateOptions = array(
-			4 => $langs->trans('TimesheetWeekDailyRateQuarterDay'),
-			2 => $langs->trans('TimesheetWeekDailyRateHalfDay'),
-			1 => $langs->trans('TimesheetWeekDailyRateOneDay'),
-		);
-		if ($hasLegacyHalfDayDailyRate && empty($dailyRateOptions[3])) {
-			// EN: Keep the historical afternoon code selectable to display past data consistently.
-			// FR: Maintient le code historique de l'après-midi pour afficher les données passées de manière cohérente.
-			$dailyRateOptions[3] = $langs->trans('TimesheetWeekDailyRateHalfDay');
-		}
-	} else {
-		// EN: Prepare localized labels for each forfait-jour choice.
-		// FR: Prépare les libellés localisés pour chaque choix de forfait jour.
-		$dailyRateOptions = array(
-			1 => $langs->trans('TimesheetWeekDailyRateFullDay'),
-			2 => $langs->trans('TimesheetWeekDailyRateMorning'),
-			3 => $langs->trans('TimesheetWeekDailyRateAfternoon'),
-		);
-	}
-}
-foreach ($byproject as $pid => $pdata) {
-			// Ligne projet
-			echo '<tr class="oddeven trforbreak nobold">';
-			$colspan = 1 + count($days) + 1;
-			echo '<td colspan="'.$colspan.'">';
-			$proj = new Project($db);
-			$proj->fetch($pid);
-			if (empty($proj->ref)) { $proj->ref = $pdata['ref']; $proj->title = $pdata['title']; }
-						echo tw_get_project_nomurl($proj, 1);
-			echo '</td>';
-			echo '</tr>';
-
-			// Tâches
-foreach ($pdata['tasks'] as $task) {
-echo '<tr>';
-echo '<td class="paddingleft">';
-$tsk = new Task($db);
-$tsk->fetch((int)$task['task_id']);
-if (empty($tsk->label)) { $tsk->id = (int)$task['task_id']; $tsk->ref = $task['task_ref'] ?? ''; $tsk->label = $task['task_label']; }
-echo tw_get_task_nomurl($tsk, 1);
-echo '</td>';
-
-$rowTotal = 0.0;
-foreach ($days as $d) {
-// EN: Attach the vertical-centering helper to each time entry cell for consistent layouts.
-// FR: Attache l'aide de centrage vertical à chaque cellule de temps pour des mises en page cohérentes.
-$iname = 'hours_'.$task['task_id'].'_'.$d;
-$rateName = 'daily_'.$task['task_id'].'_'.$d;
-$val = '';
-$rateVal = 0;
-$dayPlaceholder = '00:00';
-$hasHolidayDayMarker = !empty($holidayMarkerByDay[$d]['label']);
-$isPublicHolidayLeaveDay = !empty($holidayMarkerByDay[$d]['is_public_holiday']);
-$daySelectEmptyLabel = '';
-$daySelectEmptySelected = ' selected';
-$daySelectEmptyValue = '';
-$daySelectEmptyDisabled = '';
-$daySelectEmptyHidden = '';
-$daySelectEmptyTitle = '';
-$daySelectTitleAttr = '';
-$isHolidayLockedDay = ($object->status == tw_status('draft') && $hasHolidayDayMarker && !$isPublicHolidayLeaveDay && !$canOverrideHolidayLock);
-if ($hasHolidayDayMarker) {
-	$dayPlaceholder = $holidayMarkerByDay[$d]['label'];
-	$daySelectEmptyLabel = $dayPlaceholder;
-	$daySelectTitleAttr = ' title="'.dol_escape_htmltag($dayPlaceholder).'"';
-}
-if ($isHolidayLockedDay) {
-	$daySelectEmptyValue = '__holiday__';
-	$daySelectEmptyDisabled = ' disabled';
-	$daySelectEmptyHidden = ' hidden';
-	$daySelectEmptyTitle = ' data-dayplaceholder="'.dol_escape_htmltag($dayPlaceholder).'"';
-}
-$keydate = $weekdates[$d];
-if (isset($hoursBy[(int)$task['task_id']][$keydate])) {
-$val = formatHours($hoursBy[(int)$task['task_id']][$keydate]);
-$rowTotal += (float)$hoursBy[(int)$task['task_id']][$keydate];
-}
-if (isset($dailyRateBy[(int)$task['task_id']][$keydate])) {
-$rateVal = (int)$dailyRateBy[(int)$task['task_id']][$keydate];
-}
-if ($isDailyRateEmployee) {
-$disabledSelect = ($object->status != tw_status('draft')) ? ' disabled' : '';
-$disabledSelect = $isHolidayLockedDay ? ' disabled' : $disabledSelect;
-$selectHtml = '<select name="'.$rateName.'" class="flat daily-rate-select"'.$disabledSelect.$daySelectTitleAttr.'>';
-if ($rateVal > 0) {
-	$daySelectEmptySelected = '';
-}
-$selectHtml .= '<option value="'.$daySelectEmptyValue.'"'.$daySelectEmptySelected.$daySelectEmptyDisabled.$daySelectEmptyHidden.$daySelectEmptyTitle.'>'.dol_escape_htmltag($daySelectEmptyLabel).'</option>';
-foreach ($dailyRateOptions as $code => $label) {
-$selected = ($rateVal === (int) $code) ? ' selected' : '';
-$selectHtml .= '<option value="'.$code.'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
-}
-$selectHtml .= '</select>';
-echo '<td class="center cellule-temps">'.$selectHtml.'</td>';
-		} else {
-$readonly = ($object->status != tw_status('draft')) ? ' readonly' : '';
-$readonly = $isHolidayLockedDay ? '' : $readonly;
-$inputDisabled = $isHolidayLockedDay ? ' disabled' : '';
-echo '<td class="center cellule-temps"><input type="text" class="flat hourinput" size="4" name="'.$iname.'" value="'.dol_escape_htmltag($val).'" placeholder="'.dol_escape_htmltag($dayPlaceholder).'"'.$readonly.$inputDisabled.'></td>';
-}
-}
-$grandInit += $rowTotal;
-// EN: Center task totals so they stay aligned with other centered figures.
-// FR: Centre les totaux de tâche pour les garder alignés avec les autres valeurs centrées.
-if ($isDailyRateEmployee) {
-echo '<td class="center task-total cellule-total">'.tw_format_days(($rowTotal > 0 ? ($rowTotal / 8.0) : 0.0), $langs).'</td>';
-		} else {
-echo '<td class="center task-total cellule-total">'.formatHours($rowTotal).'</td>';
-}
-echo '</tr>';
-}
-}
-
-$grand = ($object->total_hours > 0 ? (float) $object->total_hours : $grandInit);
-
-if ($isDailyRateEmployee) {
-$grandDays = ($grand > 0 ? ($grand / 8.0) : 0.0);
-echo '<tr class="liste_total row-total-days">';
-// EN: Center overall totals expressed in days for forfait jour employees.
-// FR: Centre les totaux globaux exprimés en jours pour les salariés au forfait jour.
-echo '<td class="left">'.$langs->trans("TimesheetWeekTotalDays").'</td>';
-foreach ($days as $d) {
-echo '<td class="center day-total cellule-total">'.tw_format_days(0, $langs).'</td>';
-}
-echo '<td class="center grand-total cellule-total">'.tw_format_days($grandDays, $langs).'</td>';
-echo '</tr>';
-		} else {
-echo '<tr class="liste_total row-total-hours">';
-// EN: Center overall totals and daily sums for consistent middle alignment.
-// FR: Centre les totaux généraux et journaliers pour un alignement médian homogène.
-echo '<td class="left">'.$langs->trans("Total").'</td>';
-foreach ($days as $d) {
-echo '<td class="center day-total cellule-total">00:00</td>';
-}
-echo '<td class="center grand-total cellule-total">'.formatHours($grand).'</td>';
-echo '</tr>';
-
-echo '<tr class="liste_total">';
-// EN: Center meal counters to match the rest of the grid alignment.
-// FR: Centre les compteurs de repas pour correspondre au reste de l'alignement de la grille.
-echo '<td class="left">'.$langs->trans("Meals").'</td>';
-$initMeals = array_sum($dayMeal);
-echo '<td colspan="'.count($days).'" class="cellule-total"></td>';
-echo '<td class="left meal-total cellule-total">'.$initMeals.'</td>';
-echo '</tr>';
-
-echo '<tr class="liste_total">';
-// EN: Center overtime summary cells so every footer row follows the same alignment pattern.
-// FR: Centre les cellules du récapitulatif des heures supplémentaires pour harmoniser l'alignement de chaque ligne de pied.
-echo '<td class="left">'.$langs->trans("Overtime").' ('.formatHours($contractedHours).')</td>';
-$ot = ($object->overtime_hours > 0 ? (float) $object->overtime_hours : max(0.0, $grand - $contractedHours));
-echo '<td colspan="'.count($days).'"class="cellule-total"></td>';
-echo '<td class="center overtime-total cellule-total">'.formatHours($ot).'</td>';
-echo '</tr>';
-}
-
-		echo '</table>';
-		echo '</div>';
-
-		// Bouton Save
-		if ($object->status == tw_status('draft') && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-			echo '<div class="center margintoponly"><input type="submit" class="button" value="'.$langs->trans("Save").'"></div>';
-		} else {
-			echo '<div class="opacitymedium center margintoponly">'.$langs->trans("TimesheetIsNotEditable").'</div>';
-		}
-
-		echo '</form>';
-
-		// JS totaux + mise à jour entête live
-		// EN: Use nowdoc to prevent PHP from stripping the JavaScript variable sigils.
-		// FR: Utilise nowdoc pour empêcher PHP de retirer les sigles de variables JavaScript.
-		$jsGrid = <<<'JS'
-<script>
-(function($){
-var isDailyRateMode = %s;
-var dailyRateHoursMap = %s;
-var weeklyContract = %s;
-function parseHours(v){
-	if(!v) return 0;
-	if(v.indexOf(":") === -1) return parseFloat(v)||0;
-	var p=v.split(":"); var h=parseInt(p[0],10)||0; var m=parseInt(p[1],10)||0;
-	return h + (m/60);
-}
-function elementHours($el){
-	if(isDailyRateMode && $el.is('select')){
-		var code=parseInt($el.val(),10);
-		return dailyRateHoursMap[code] ? dailyRateHoursMap[code] : 0;
-	}
-	return parseHours($el.val());
-}
-function elementDays($el){
-	// EN: Convert the hour contribution to days with a fixed 8h reference.
-	// FR: Convertit la contribution horaire en jours sur la base fixe de 8h.
-	return elementHours($el) / 8;
-}
-function formatHours(d){
-	if(isNaN(d)) return "00:00";
-	var h=Math.floor(d); var m=Math.round((d-h)*60);
-	if(m===60){ h++; m=0; }
-	// EN: Build HH:MM strings without padStart to work on legacy browsers.
-	// FR: Construit les chaînes HH:MM sans padStart pour fonctionner sur les anciens navigateurs.
-	var hh=(h<10?"0":"")+h;
-	var mm=(m<10?"0":"")+m;
-	return hh+":"+mm;
-}
-function formatDays(d){
-	if(isNaN(d)) return "0.00";
-	return (Math.round(d*100)/100).toFixed(2);
-}
-function updateTotals(){
-	var totalRowSelector = isDailyRateMode ? ".row-total-days" : ".row-total-hours";
-	var formatFn = isDailyRateMode ? formatDays : formatHours;
-	var elementFn = isDailyRateMode ? elementDays : elementHours;
-	var grand=0;
-	var dayTotals=[];
-
-	// EN: Reset per-task and per-day totals before recomputing the grid.
-	// FR: Réinitialise les totaux par tâche et par jour avant de recalculer la grille.
-	$(".task-total").text(formatFn(0));
-	$(totalRowSelector+" .day-total").each(function(idx){
-		dayTotals[idx]=0;
-		$(this).text(formatFn(0));
-	});
-	$(totalRowSelector+" .grand-total").text(formatFn(0));
-
-	$("table.noborder tr").each(function(){
-		var rowT=0;
-		$(this).find("input.hourinput, select.daily-rate-select").each(function(){
-			var v=elementFn($(this));
-			if(v>0){
-				rowT+=v;
-				// EN: Align the day counter with the footer cells by skipping the label column.
-				// FR: Aligne le compteur journalier sur les cellules du pied en ignorant la colonne du libellé.
-				var idx=$(this).closest("td").index()-1;
-				if(idx>=0 && typeof dayTotals[idx]!=="undefined"){
-					dayTotals[idx]+=v;
-				}
-				grand+=v;
-			}
-		});
-		if(rowT>0) $(this).find(".task-total").text(formatFn(rowT));
-	});
-
-	// EN: Reflect the new per-day totals after iterating over every input cell.
-	// FR: Répercute les nouveaux totaux journaliers après l'analyse de chaque cellule de saisie.
-	$(totalRowSelector+" .day-total").each(function(idx){
-		$(this).text(formatFn(dayTotals[idx]));
-	});
-
-	$(totalRowSelector+" .grand-total").text(formatFn(grand));
-
-if(isDailyRateMode){
-$(".meal-total").text('0');
-		} else {
-var meals = $(".mealbox:checked").length;
-$(".meal-total").text(meals);
-var ot = grand - weeklyContract; if (ot < 0) ot = 0;
-$(".overtime-total").text(formatFn(ot));
-if($(".header-overtime").length){
-$(".header-overtime").text(formatFn(ot));
-}
-}
-
-// met à jour l'entête
-$(".header-total-main").text(formatFn(grand));
-}
-	$(function(){
-		updateTotals(); // au chargement
-		$(document).on("input change", "input.hourinput, select.daily-rate-select, input.mealbox", updateTotals);
-	});
-})(jQuery);
-</script>
-JS;
-				// EN: Reuse the PHP hour map so JavaScript mirrors the backend conversions (quarter-day included).
-				// FR: Réutilise la correspondance horaire PHP pour que JavaScript reflète les conversions (quart de jour inclus).
-				$jsDailyRateHoursMap = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
-				$jsGrid = sprintf(
-					$jsGrid,
-					$isDailyRateEmployee ? 'true' : 'false',
-					json_encode($jsDailyRateHoursMap),
-					json_encode((float) price2num($contractedHours, '6'))
-				);
-		echo $jsGrid;
-	}
 
 		// ---- Boutons d’action (barre) ----
-		echo '<div class="tabsAction">';
+		echo '<div class="tabsAction'.($isMobileLayout ? ' tw-mobile-actions' : '').'">';
 
 		$token = newToken();
+		if ($isMobileLayout && $editable) {
+			$saveLabel = $langs->trans('Save');
+			print '<button type="submit" form="timesheetweek-mobile-form" class="btnTitle tw-mobile-action tw-mobile-action-save" title="'.dol_escape_htmltag($saveLabel).'">';
+			print '<span class="fa fa-save valignmiddle btnTitle-icon" aria-hidden="true"></span>';
+			print '<span class="valignmiddle text-plus-circle btnTitle-label">'.dol_escape_htmltag($saveLabel).'</span>';
+			print '</button>';
+		}
 
 		if ($object->status == tw_status('sealed')) {
 				// EN: In sealed state only show the unseal control for authorized users.
 				// FR : En statut scellé, n'afficher que l'action de descellage pour les utilisateurs autorisés.
 				if ($permUnseal) {
-						echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=unseal&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('UnsealTimesheet'), '', 'fa fa-unlock', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-unseal'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('UnsealTimesheet'), 'default', $buttonUrl);
+						}
 				}
 		} else {
 				if ($canSendMail) {
-						echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=presend&mode=init&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('Sendbymail'), '', 'fa fa-envelope', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-mail'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('Sendbymail'), 'default', $buttonUrl);
+						}
 				}
 
 				// Soumettre : uniquement brouillon + au moins 1 ligne existante + droits
@@ -2271,7 +1895,12 @@ JS;
 						$rescnt = $db->query("SELECT COUNT(*) as nb FROM ".MAIN_DB_PREFIX."timesheet_week_line WHERE fk_timesheet_week=".(int)$object->id." AND entity IN (".getEntity('timesheetweek').")");
 						if ($rescnt) { $o=$db->fetch_object($rescnt); $nbLines=(int)$o->nb; }
 						if ($nbLines > 0 && tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user)) {
-								echo dolGetButtonAction('', $langs->trans("Submit"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token);
+								$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=submit&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($langs->trans('Submit'), '', 'fa fa-paper-plane', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-submit'));
+								} else {
+									echo dolGetButtonAction('', $langs->trans('Submit'), 'default', $buttonUrl);
+								}
 						}
 				}
 
@@ -2280,7 +1909,12 @@ JS;
 						$canEmployee  = tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $permWriteAll, $user);
 						$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 						if ($canEmployee || $canValidator) {
-								echo dolGetButtonAction('', $langs->trans("SetToDraft"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token);
+								$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=setdraft&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($langs->trans('SetToDraft'), '', 'fa fa-undo', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-draft'));
+								} else {
+									echo dolGetButtonAction('', $langs->trans('SetToDraft'), 'default', $buttonUrl);
+								}
 						}
 				}
 
@@ -2288,22 +1922,40 @@ JS;
 				if ($object->status == tw_status('submitted')) {
 						$canValidator = tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 						if ($canValidator) {
-								echo dolGetButtonAction('', ($langs->trans("Approve")!='Approve'?$langs->trans("Approve"):'Approuver'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token);
-								echo dolGetButtonAction('', $langs->trans("Refuse"), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token);
+								$approveLabel = ($langs->trans('Approve') != 'Approve' ? $langs->trans('Approve') : 'Approuver');
+								$approveUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_validate&token='.$token;
+								$refuseUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=ask_refuse&token='.$token;
+								if ($isMobileLayout) {
+									echo dolGetButtonTitle($approveLabel, '', 'fa fa-check-circle', $approveUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-approve'));
+									echo dolGetButtonTitle($langs->trans('Refuse'), '', 'fa fa-times-circle', $refuseUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-refuse'));
+								} else {
+									echo dolGetButtonAction('', $approveLabel, 'default', $approveUrl);
+									echo dolGetButtonAction('', $langs->trans('Refuse'), 'default', $refuseUrl);
+								}
 						}
 				}
 
 				// EN: Allow sealing once the sheet is approved and the user is authorized.
 				// FR : Autorise le scellement dès que la feuille est approuvée et que l'utilisateur est habilité.
 				if ($object->status == tw_status('approved') && $permSeal) {
-						echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=seal&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('SealTimesheet'), '', 'fa fa-lock', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-seal'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('SealTimesheet'), 'default', $buttonUrl);
+						}
 				}
 
 				// Supprimer : brouillon OU soumis/approuvé/refusé si salarié (delete) ou validateur (validate*) ou all
 				$canDelete = tw_can_act_on_user($object->fk_user, $permDelete, $permDeleteChild, $permDeleteAll, $user)
 			|| tw_can_validate_timesheet($object, $user, $permValidate, $permValidateOwn, $permValidateChild, $permValidateAll, $permWrite, $permWriteChild, $permWriteAll);
 				if ($canDelete) {
-						echo dolGetButtonAction('', $langs->trans("Delete"), 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token);
+						$buttonUrl = $_SERVER["PHP_SELF"].'?id='.$object->id.'&action=delete&token='.$token;
+						if ($isMobileLayout) {
+							echo dolGetButtonTitle($langs->trans('Delete'), '', 'fa fa-trash', $buttonUrl, '', 1, array('forcenohideoftext' => 1, 'morecss' => 'tw-mobile-action tw-mobile-action-delete'));
+						} else {
+							echo dolGetButtonAction('', $langs->trans('Delete'), 'delete', $buttonUrl);
+						}
 				}
 		}
 
@@ -2322,18 +1974,9 @@ JS;
 				if ($includedocgeneration) {
 					// EN: Build the target directories depending on the entity, falling back to Dolibarr defaults.
 					// FR: Construit les répertoires cibles selon l'entité en retombant sur les valeurs par défaut de Dolibarr.
-					$docEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 					$object->element = 'timesheetweek';
-					$docRef = dol_sanitizeFileName($object->ref);
-					$entityOutput = !empty($conf->timesheetweek->multidir_output[$docEntityId]) ? $conf->timesheetweek->multidir_output[$docEntityId] : '';
-					if (empty($entityOutput) && !empty($conf->timesheetweek->dir_output)) {
-						$entityOutput = $conf->timesheetweek->dir_output;
-					}
-					if (empty($entityOutput)) {
-						$entityOutput = DOL_DATA_ROOT.'/timesheetweek';
-					}
-					$relativePath = $object->element.'/'.$docRef;
-					$filedir = rtrim($entityOutput, '/') . '/' . $relativePath;
+					$relativePath = timesheetweekGetDocumentRelativeDir($object);
+					$filedir = timesheetweekGetDocumentDir($object);
 					$urlsource = $_SERVER['PHP_SELF'].'?id='.$object->id;
 					$genallowed = $permReadAny ? 1 : 0;
 					if ($permReadAny) {
@@ -2347,7 +1990,7 @@ JS;
 					$delallowed = $permissiontoadd ? 1 : 0;
 
 				$documentHtml = $formfile->showdocuments(
-					'timesheetweek:TimesheetWeek',
+					timesheetweekGetDocumentModulePart(),
 					$relativePath,
 					$filedir,
 					$urlsource,
@@ -2438,6 +2081,10 @@ JS;
 				print $documentHtml;
 				}
 
+				print '</div><div class="fichehalfright">';
+				$MAXEVENT = getDolUserInt('MAIN_SIZE_SHORTLIST_LIMIT', getDolGlobalInt('MAIN_SIZE_SHORTLIST_LIMIT', 5));
+				$morehtmlcenter = dolGetButtonTitle($langs->trans('SeeAll'), '', 'fa fa-bars imgforviewmode', dol_buildpath('/timesheetweek/timesheetweek_agenda.php', 1).'?id='.(int) $object->id);
+				$formactions->showactions($object, 'timesheetweek@timesheetweek', 0, 1, '', $MAXEVENT, '', $morehtmlcenter);
 				print '</div></div>';
 			}
 

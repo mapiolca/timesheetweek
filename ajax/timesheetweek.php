@@ -37,9 +37,6 @@ if (!defined('NOREQUIREAJAX')) {
 if (!defined('NOREQUIRESOC')) {
 	define('NOREQUIRESOC', '1');
 }
-if (!defined('NOCSRFCHECK')) {
-	define('NOCSRFCHECK', '1');
-}
 if (!defined('NOREQUIREHTML')) {
 	define('NOREQUIREHTML', '1');
 }
@@ -69,7 +66,7 @@ dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 $mode = GETPOST('mode', 'aZ09');
 $objectId = GETPOSTINT('objectId');
 $field = GETPOST('field', 'aZ09');
-$value = GETPOST('value', 'aZ09');
+$value = GETPOST('value', 'restricthtml');
 
 // @phan-suppress-next-line PhanUndeclaredClass
 $object = new TimesheetWeek($db);
@@ -102,9 +99,22 @@ dol_syslog("Call ajax timesheetweek/ajax/timesheetweek.php");
 // EN: Prepare the JSON response headers for the AJAX consumer.
 // FR: Prépare les en-têtes JSON de la réponse pour le client AJAX.
 top_httphead('application/json; charset=UTF-8');
+if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+	http_response_code(405);
+	print json_encode(array('status' => 'error', 'message' => $langs->transnoentities('ErrorBadParameters')));
+	$db->close();
+	exit;
+}
 
 // Update the object field with the new value
 if ($objectId && $field && isset($value)) {
+	$allowedFields = array('note', 'motif');
+	if (!in_array($field, $allowedFields, true)) {
+		http_response_code(400);
+		print json_encode(array('status' => 'error', 'message' => $langs->transnoentities('ErrorBadParameters')));
+		$db->close();
+		exit;
+	}
 	$fetchResult = $object->fetch($objectId);
 	if ($fetchResult <= 0 || empty($object->id)) {
 		// EN: Return a JSON error when the target timesheet cannot be retrieved.
@@ -113,10 +123,8 @@ if ($objectId && $field && isset($value)) {
 		$db->close();
 		exit;
 	}
-	$objectEntityId = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 	if (
-		!tw_user_has_access_to_entity($db, $object->fk_user, $objectEntityId)
-		|| !tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $canWriteAll, $user)
+		!tw_can_act_on_user($object->fk_user, $permWrite, $permWriteChild, $canWriteAll, $user)
 	) {
 		// EN: Deny updates outside the entity and manager scope with a structured JSON reply.
 		// FR: Refuse les mises à jour hors périmètre entité/manager via une réponse JSON structurée.
@@ -128,7 +136,17 @@ if ($objectId && $field && isset($value)) {
 		$db->close();
 		exit;
 	}
-	$object->$field = $value;
+	if ((int) $object->status !== (int) TimesheetWeek::STATUS_DRAFT) {
+		http_response_code(409);
+		print json_encode(array('status' => 'error', 'message' => $langs->transnoentities('TimesheetIsNotEditable')));
+		$db->close();
+		exit;
+	}
+	if ($field === 'note') {
+		$object->note = $value;
+	} else {
+		$object->motif = $value;
+	}
 	$result = $object->update($user);
 	if ($result < 0) {
 		// EN: Return a translated error when the update fails.

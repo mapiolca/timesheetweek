@@ -1,0 +1,166 @@
+body.timesheetweek-mobile .timesheetweek-mobile-card input,
+body.timesheetweek-mobile .timesheetweek-mobile-card select,
+body.timesheetweek-mobile .timesheetweek-mobile-card textarea,
+body.timesheetweek-mobile .select2-container .select2-search__field {
+	font-size: 16px !important;
+}
+
+.timesheetweek-mobile-card { margin-top: 12px; }
+.tw-autosave-status { min-height: 24px; margin-bottom: 8px; text-align: right; }
+.tw-autosave-status.tw-state-error { color: var(--colortextbackhmenu, #a00); }
+.tw-restore-message { margin-bottom: 10px; }
+.tw-day-navigation-anchor { position: relative; width: 100%; }
+.tw-day-navigation {
+	position: -webkit-sticky;
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	display: flex;
+	gap: 4px;
+	overflow-x: auto;
+	margin-bottom: 10px;
+	padding: 8px 0;
+	background: var(--colorbackbody, #fff);
+	border-bottom: 1px solid var(--colorborder, #ccc);
+	box-shadow: 0 3px 5px rgba(0, 0, 0, 0.12);
+	scroll-snap-type: x mandatory;
+	-webkit-overflow-scrolling: touch;
+}
+.tw-day-navigation.tw-day-navigation-fixed {
+	position: fixed;
+	top: 0;
+	z-index: 100;
+	box-sizing: border-box;
+}
+.tw-day-navigation .tw-day-button { flex: 0 0 88px; min-height: 48px; margin: 0; padding: 5px 8px; scroll-snap-align: start; }
+.tw-day-navigation .tw-day-button small { display: block; font-weight: normal; }
+.tw-day-navigation .tw-day-button.tw-day-active,
+.tw-day-navigation .tw-day-button[aria-pressed="true"] {
+	color: var(--colortextbackhmenu, #fff) !important;
+	background: var(--colorbackhmenu1, #263e5b) !important;
+	border-color: var(--colorbackhmenu1, #263e5b) !important;
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+}
+.tw-day-navigation .tw-day-button.tw-day-active small,
+.tw-day-navigation .tw-day-button[aria-pressed="true"] small { color: inherit; }
+.tw-day-hidden { display: none !important; }
+.tw-day-options { margin-bottom: 10px; }
+.tw-day-options td { min-height: 44px; vertical-align: middle; }
+.tw-zone-select { min-width: 84px; min-height: 44px; }
+.tw-mobile-summary { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 10px; margin: 10px 0; background: var(--colorbacktitle1, #f2f2f2); border-bottom: 1px solid var(--colorbordertitle, #ccc); }
+.tw-project-section { margin-bottom: 14px; }
+.tw-project-title { padding: 9px; }
+.tw-mobile-task-table td { vertical-align: middle; }
+.tw-task-label { width: 58%; overflow-wrap: anywhere; }
+.tw-task-entry { width: 42%; }
+.tw-task-day-field input,
+.tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
+body.timesheetweek-mobile {
+	padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions {
+	position: fixed;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 1000;
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 10px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 8px;
+	padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+	background: var(--colorbackbody, #fff);
+	border-top: 1px solid var(--colorborder, #ccc);
+	box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.18);
+	scroll-snap-type: x proximity;
+	scrollbar-width: thin;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior-x: contain;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions a.tw-mobile-action,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions button.tw-mobile-action {
+	display: flex;
+	flex: 1 0 auto;
+	flex-basis: max-content;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: auto;
+	min-width: max-content;
+	min-height: 48px;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 9px 10px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	text-decoration: none;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+	scroll-snap-align: start;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action .btnTitle-icon {
+	display: inline-block;
+	flex: 0 0 auto;
+	color: inherit;
+	font-size: 1.25em;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action .btnTitle-label,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:hover .btnTitle-label {
+	display: inline;
+	color: inherit;
+	font-weight: inherit;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:hover {
+	color: #fff;
+	border-color: rgba(255, 255, 255, 0.45);
+	text-decoration: none;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:focus-visible {
+	outline: 3px solid var(--colorbackhmenu1, #263e5b);
+	outline-offset: 2px;
+}
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:active {
+	box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.28);
+}
+body.timesheetweek-mobile .tw-mobile-action-save { background: #2563eb; }
+body.timesheetweek-mobile .tw-mobile-action-save:hover { background: #1d4ed8; }
+body.timesheetweek-mobile .tw-mobile-action-mail { background: #0e7490; }
+body.timesheetweek-mobile .tw-mobile-action-mail:hover { background: #155e75; }
+body.timesheetweek-mobile .tw-mobile-action-submit { background: #6d28d9; }
+body.timesheetweek-mobile .tw-mobile-action-submit:hover { background: #5b21b6; }
+body.timesheetweek-mobile .tw-mobile-action-draft { background: #b45309; }
+body.timesheetweek-mobile .tw-mobile-action-draft:hover { background: #92400e; }
+body.timesheetweek-mobile .tw-mobile-action-approve { background: #15803d; }
+body.timesheetweek-mobile .tw-mobile-action-approve:hover { background: #166534; }
+body.timesheetweek-mobile .tw-mobile-action-refuse { background: #c2410c; }
+body.timesheetweek-mobile .tw-mobile-action-refuse:hover { background: #9a3412; }
+body.timesheetweek-mobile .tw-mobile-action-delete { background: #b91c1c; }
+body.timesheetweek-mobile .tw-mobile-action-delete:hover { background: #991b1b; }
+body.timesheetweek-mobile .tw-mobile-action-seal { background: #475569; }
+body.timesheetweek-mobile .tw-mobile-action-seal:hover { background: #334155; }
+body.timesheetweek-mobile .tw-mobile-action-unseal { background: #0f766e; }
+body.timesheetweek-mobile .tw-mobile-action-unseal:hover { background: #115e59; }
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action.refused,
+body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:disabled {
+	cursor: not-allowed;
+	color: #606060;
+	background: #e5e7eb;
+	border-color: #d1d5db;
+	box-shadow: none;
+	opacity: 0.75;
+}
+
+@media (max-width: 480px) {
+	.tw-task-label { width: 54%; }
+	.tw-task-entry { width: 46%; }
+}

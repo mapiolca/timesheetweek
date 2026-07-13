@@ -41,9 +41,9 @@ llxHeader('', $title, $helpurl);
 
 print load_fiche_titre($langs->trans('TimesheetWeekAbout'), '', 'info');
 $head = timesheetweekAdminPrepareHead();
-// EN: Render the admin tabs with the bookcal pictogram to stay consistent with the setup header.
-// FR: Affiche les onglets d'administration avec le pictogramme bookcal pour rester cohérent avec la configuration.
-print dol_get_fiche_head($head, 'about', $title, -1, 'bookcal@timesheetweek');
+// EN: Render the admin tabs with the module pictogram to stay consistent with the setup header.
+// FR: Affiche les onglets d'administration avec le pictogramme du module pour rester cohérent avec la configuration.
+print dol_get_fiche_head($head, 'about', $title, -1, 'fa-calendar-check');
 
 print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekAboutPage').'</div>';
 print '<br>';

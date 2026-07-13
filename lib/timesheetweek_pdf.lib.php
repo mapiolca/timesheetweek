@@ -67,14 +67,11 @@ function tw_generate_timesheet_pdf_to_temp(TimesheetWeek $sheet, Conf $conf, Tra
 
         // EN: Locate the freshly generated PDF inside the standard output directory.
         // FR: Localise le PDF fraîchement généré dans le répertoire de sortie standard.
-        $entityId = !empty($sheet->entity) ? (int) $sheet->entity : (int) $conf->entity;
-        $baseOutput = !empty($conf->timesheetweek->multidir_output[$entityId] ?? null)
-                ? $conf->timesheetweek->multidir_output[$entityId]
-                : (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
+        $baseOutput = timesheetweekGetDocumentBaseDir($sheet);
         $relativePath = $sheet->last_main_doc;
         if (empty($relativePath)) {
                 $cleanRef = dol_sanitizeFileName($sheet->ref ?: 'timesheetweek-'.$sheet->id);
-                $relativePath = $sheet->element.'/'.$cleanRef.'/'.$cleanRef.'.pdf';
+                $relativePath = timesheetweekGetDocumentRelativeDir($sheet).'/'.$cleanRef.'.pdf';
         }
 
         $sourcePath = rtrim($baseOutput, '/').'/'.ltrim($relativePath, '/');
@@ -454,7 +451,7 @@ function tw_pdf_draw_footer($pdf, $langs, $conf, $leftMargin, $rightMargin, $bot
 
 	// EN: Determine if Dolibarr must show the detailed footer blocks (tax numbers, contacts, ...).
 	// FR: Détermine si Dolibarr doit afficher les blocs détaillés du pied (numéros fiscaux, contacts, ...).
-	$showDetails = empty($conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS) ? 0 : $conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS;
+	$showDetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS', 0);
 
 	// EN: Delegate the rendering to pdf_pagefoot to mirror the official Dolibarr layout and logic.
 	// FR: Délègue le rendu à pdf_pagefoot pour reproduire la mise en forme et la logique officielles de Dolibarr.
@@ -762,10 +759,11 @@ function tw_pdf_resolve_sealed_by($db, $timesheetId, $entityId)
 	$sql = "SELECT ac.fk_user_author as sealer_id, u.firstname, u.lastname";
 	$sql .= " FROM ".MAIN_DB_PREFIX."actioncomm as ac";
 	$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON u.rowid = ac.fk_user_author";
-	$sql .= " WHERE ac.code = 'TSWK_SEAL'";
-	$sql .= " AND ac.elementtype = 'timesheetweek'";
+	$sql .= " WHERE ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_TIMESHEETWEEK_UPDATE', 'TIMESHEETWEEK_MODIFY', 'TIMESHEETWEEK_SEAL')";
+	$sql .= " AND ac.elementtype IN ('timesheetweek', 'timesheetweek@timesheetweek')";
 	$sql .= " AND ac.fk_element = ".$timesheetId;
 	$sql .= " AND ac.entity = ".$entityId;
+	$sql .= " AND (ac.code IN ('TSWK_SEAL', 'TIMESHEETWEEK_SEAL') OR ac.note_private LIKE '%seal%' OR ac.note_private LIKE '%Scell%')";
 	$sql .= " ORDER BY ac.rowid DESC";
 	$sql .= " LIMIT 1";
 
@@ -1020,7 +1018,7 @@ function tw_collect_summary_data($db, array $timesheetIds, User $user, $permRead
 	while ($row = $db->fetch_object($resql)) {
 		$targetUserId = (int) $row->fk_user;
 		$rowEntityId = !empty($row->entity) ? (int) $row->entity : 0;
-		$canRead = tw_user_has_timesheet_read_entity_access($db, $targetUserId)
+		$canRead = tw_user_has_timesheet_read_entity_access($db, $targetUserId, $rowEntityId)
 			&& tw_can_act_on_user($targetUserId, $permReadOwn, $permReadChild, ($permReadAll || !empty($user->admin)), $user);
 		if (!$canRead) {
 			$errors[] = 'TimesheetWeekSummaryUnauthorizedSheet';
@@ -1277,8 +1275,20 @@ function tw_generate_summary_pdf($db, $conf, $langs, User $user, array $timeshee
 	$firstWeekYear = $earliestWeek !== null ? sprintf('%04d', $earliestWeek['year']) : date('Y');
 	$lastWeekYear = $latestWeek !== null ? sprintf('%04d', $latestWeek['year']) : $firstWeekYear;
 
-	$uploaddir = !empty($conf->timesheetweek->multidir_output[$conf->entity] ?? null)
-		? $conf->timesheetweek->multidir_output[$conf->entity]
+	$summaryEntityIds = array();
+	foreach ($sortedUsers as $userSummary) {
+		if (empty($userSummary['records']) || !is_array($userSummary['records'])) {
+			continue;
+		}
+		foreach ($userSummary['records'] as $record) {
+			if (!empty($record['entity'])) {
+				$summaryEntityIds[(int) $record['entity']] = (int) $record['entity'];
+			}
+		}
+	}
+	$summaryEntityId = (count($summaryEntityIds) === 1) ? (int) reset($summaryEntityIds) : (int) $conf->entity;
+	$uploaddir = !empty($conf->timesheetweek->multidir_output[$summaryEntityId] ?? null)
+		? $conf->timesheetweek->multidir_output[$summaryEntityId]
 		: (!empty($conf->timesheetweek->dir_output) ? $conf->timesheetweek->dir_output : DOL_DATA_ROOT.'/timesheetweek');
 
 	$targetDir = rtrim($uploaddir, '/').'/'.TIMESHEETWEEK_PDF_SUMMARY_SUBDIR;
