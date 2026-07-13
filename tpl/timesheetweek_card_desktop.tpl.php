@@ -24,9 +24,7 @@ if (!defined('DOL_VERSION')) {
 		echo '<div class="div-table-responsive grille-saisie-temps-wrapper">';
 		// EN: Scope the vertical and horizontal centering helper to the specific cells that need alignment (days/zones/baskets/hours/totals).
 		echo '<style>';
-		echo ':root { --tw-grid-top-gap: 0px; }';
-		echo '.grille-saisie-temps-wrapper { max-height: 70vh; overflow-y: auto; overflow-x: auto; position: relative; }';
-		echo '.grille-saisie-temps-wrapper.sticky-active { max-height: calc(100vh - var(--tw-grid-top-gap, 0px)); position: sticky; top: var(--tw-grid-top-gap, 0px); z-index: 4; }';
+		echo '.grille-saisie-temps-wrapper { overflow-x: auto; position: relative; }';
 		echo '.grille-saisie-temps .cellule-jour,';
 		echo '.grille-saisie-temps .cellule-zone-panier,';
 		echo '.grille-saisie-temps .cellule-temps,';
@@ -39,58 +37,12 @@ if (!defined('DOL_VERSION')) {
 		echo '.grille-saisie-temps .trforbreak .col-project-task-filler {}';
 		echo '.grille-saisie-temps .col-total { position: sticky; right: 0; z-index: 6; }';
 		echo '.grille-saisie-temps .liste_titre .col-total { z-index: 10; }';
-		echo '.grille-saisie-temps .sticky-header th { position: sticky; top: 0; z-index: 12; }';
 		echo '</style>';
-		// EN: Keep the grid flush with the top menu while the bottom of the table is still outside the viewport.
-		echo '<script>';
-		echo '(function($){';
-		echo '$(function(){';
-		echo "\tvar \$wrapper = $('.grille-saisie-temps-wrapper');";
-		echo "\tif (!\$wrapper.length) { return; }";
-		echo "\tvar currentTopGap = 0;";
-		echo "\tfunction updateGridTopGap() {";
-		echo "\t\tvar selectors = ['#id-top-menu', '#id-top', '#mainmenu', 'header.navbar', 'header.navbar-fixed-top', 'header'];";
-		echo "\t\tvar topGap = 0;";
-		echo "\t\tfor (var i = 0; i < selectors.length; i++) {";
-		echo "\t\t\tvar \$candidate = $(selectors[i]);";
-		echo "\t\t\tif (\$candidate.length && \$candidate.first().outerHeight()) {";
-		echo "\t\t\t\ttopGap = \$candidate.first().outerHeight();";
-		echo "\t\t\t\tbreak;";
-		echo "\t\t\t}";
-		echo "\t\t}";
-		echo "\t\tcurrentTopGap = topGap;";
-		echo "\t\tdocument.documentElement.style.setProperty('--tw-grid-top-gap', topGap + 'px');";
-		echo "\t}";
-		echo "\tfunction toggleStickyState(isSticky) {";
-		echo "\t\tif (isSticky) {";
-		echo "\t\t\t\$wrapper.addClass('sticky-active');";
-		echo "\t\t\tvar maxHeight = 'calc(100vh - ' + currentTopGap + 'px)';";
-		echo "\t\t\t\$wrapper.css('max-height', maxHeight);";
-		echo "\t\t} else {";
-		echo "\t\t\t\$wrapper.removeClass('sticky-active');";
-		echo "\t\t\t\$wrapper.css('max-height', '70vh');";
-		echo "\t\t}";
-		echo "\t}";
-		echo "\tfunction updateStickyPosition() {";
-		echo "\t\tif (!\$wrapper.length) { return; }";
-		echo "\t\tvar rect = \$wrapper[0].getBoundingClientRect();";
-		echo "\t\tvar bottomVisible = rect.bottom <= window.innerHeight;";
-		echo "\t\ttoggleStickyState(!bottomVisible);";
-		echo "\t}";
-		echo "\tupdateGridTopGap();";
-		echo "\tupdateStickyPosition();";
-		echo "\t$(window).on('resize scroll', function(){";
-		echo "\t\tupdateGridTopGap();";
-		echo "\t\tupdateStickyPosition();";
-		echo "\t});";
-		echo '});';
-		echo '})(jQuery);';
-		echo '</script>';
 		echo '<table class="noborder centpercent grille-saisie-temps">';
 
 				// EN: Apply the vertical-centering helper on each day header to keep labels visually aligned.
 				// Header jours
-echo '<tr class="liste_titre sticky-header">';
+echo '<tr class="liste_titre">';
 echo '<th class="col-project-task">'.$langs->trans("ProjectTaskColumn").'</th>';
 				foreach ($days as $d) {
 						// EN: Render day headers safely even if week dates are undefined.
@@ -457,4 +409,3 @@ JS;
 				);
 		echo $jsGrid;
 	}
-
