@@ -19,6 +19,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
 - Affichage des dernières feuilles d'heures sous les tableaux natifs de la fiche bancaire utilisateur via `formObjectOptions`, limité par le réglage Dolibarr des listes courtes, avec lien vers la liste préfiltrée sur l'utilisateur et badge du total.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
+- Fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec saisie sans zoom iOS, navigation par jour et enregistrement automatique sécurisé des brouillons.
 - Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
 - Sécurisation des requêtes SQL par entité et filtres multi-entités alignés sur les pratiques Dolibarr.
 - Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
@@ -90,6 +91,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
 - Native scheduled job settings are preserved when the module is disabled and re-enabled.
 - Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
+- A dedicated mobile card uses Dolibarr native small-screen detection, prevents iOS input zoom and securely autosaves drafts with a local recovery buffer.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
 

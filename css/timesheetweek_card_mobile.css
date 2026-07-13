@@ -1,0 +1,36 @@
+body.timesheetweek-mobile .timesheetweek-mobile-card input,
+body.timesheetweek-mobile .timesheetweek-mobile-card select,
+body.timesheetweek-mobile .timesheetweek-mobile-card textarea,
+body.timesheetweek-mobile .select2-container .select2-search__field {
+	font-size: 16px !important;
+}
+
+.timesheetweek-mobile-card { margin-top: 12px; }
+.tw-autosave-status { min-height: 24px; margin-bottom: 8px; text-align: right; }
+.tw-autosave-status.tw-state-error { color: var(--colortextbackhmenu, #a00); }
+.tw-restore-message { margin-bottom: 10px; }
+.tw-day-navigation { display: flex; gap: 4px; overflow-x: auto; padding: 2px 0 10px; scroll-snap-type: x mandatory; }
+.tw-day-navigation .tw-day-button { flex: 0 0 88px; min-height: 48px; margin: 0; padding: 5px 8px; scroll-snap-align: start; }
+.tw-day-navigation .tw-day-button small { display: block; font-weight: normal; }
+.tw-day-navigation .tw-day-active { box-shadow: inset 0 -3px 0 var(--colorbackhmenu1, #666); }
+.tw-day-hidden { display: none !important; }
+.tw-day-options { margin-bottom: 10px; }
+.tw-day-options td { min-height: 44px; vertical-align: middle; }
+.tw-zone-select { min-width: 84px; min-height: 44px; }
+.tw-mobile-summary { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 10px; margin: 10px 0; background: var(--colorbacktitle1, #f2f2f2); border-bottom: 1px solid var(--colorbordertitle, #ccc); }
+.tw-project-section { margin-bottom: 14px; }
+.tw-project-title { padding: 9px; }
+.tw-mobile-task-table td { vertical-align: middle; }
+.tw-task-label { width: 58%; overflow-wrap: anywhere; }
+.tw-task-entry { width: 42%; }
+.tw-task-day-field input,
+.tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
+.tw-mobile-save { position: sticky; bottom: 0; z-index: 5; padding: 10px 0; background: var(--colorbackbody, #fff); }
+.tw-mobile-save .button { min-height: 44px; min-width: 70%; }
+body.timesheetweek-mobile .tabsAction .butAction,
+body.timesheetweek-mobile .tabsAction .butActionDelete { display: block; min-height: 44px; margin: 8px 0; box-sizing: border-box; text-align: center; }
+
+@media (max-width: 480px) {
+	.tw-task-label { width: 54%; }
+	.tw-task-entry { width: 46%; }
+}

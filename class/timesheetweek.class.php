@@ -791,9 +791,12 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		if (empty($notrigger) && $this->callTimesheetWeekTrigger(self::TRIGGER_UPDATE, $user, 'modify', array('ref', 'fk_user', 'week', 'year', 'status', 'note', 'motif', 'model_pdf', 'last_main_doc'), $oldStatus, (int) $this->status) < 0) {
 			return -1;
 		}
-		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
+		$skipDocumentGeneration = is_array($this->context) && !empty($this->context['skip_document_generation']);
+		if (!$skipDocumentGeneration && $this->generateDocumentIfAutoUpdateEnabled() < 0) {
 			return -1;
 		}
+		$this->tms = $now;
+		$this->date_modification = $now;
 		return 1;
 	}
 
@@ -1021,6 +1024,112 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			return -1;
 		}
 
+		$this->db->commit();
+		return 1;
+	}
+
+	/**
+	 * Persist one mobile draft entry (or the settings shared by one day).
+	 *
+	 * The caller must validate access rights, task eligibility and the ISO week day before
+	 * invoking this method. This method owns the transaction and never emits a business
+	 * trigger or regenerates a document.
+	 *
+	 * @param User $user User performing the autosave
+	 * @param array{settings_only:bool,task_id:int,date:string,hours:float,daily_rate:int,zone:int,meal:int,expected_revision:int} $entry Normalized draft entry
+	 * @return int 1 on success, -1 on failure, -2 on stale/non-editable draft
+	 */
+	public function saveDraftEntry(User $user, array $entry)
+	{
+		if (empty($this->id) || (int) $this->status !== (int) self::STATUS_DRAFT || (int) $this->entity <= 0) {
+			$this->error = 'TimesheetIsNotEditable';
+			return -1;
+		}
+		if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $entry['date'])) {
+			$this->error = 'ErrorBadParameters';
+			return -1;
+		}
+
+		$entity = (int) $this->entity;
+		$this->db->begin();
+		$sqlLock = 'SELECT status, tms FROM '.MAIN_DB_PREFIX.$this->table_element.' WHERE rowid='.(int) $this->id.' AND entity='.$entity.' FOR UPDATE';
+		$resLock = $this->db->query($sqlLock);
+		if (!$resLock) {
+			$this->db->rollback();
+			$this->error = $this->db->lasterror();
+			return -1;
+		}
+		$lockedRow = $this->db->fetch_object($resLock);
+		$this->db->free($resLock);
+		if (!is_object($lockedRow) || (int) $lockedRow->status !== (int) self::STATUS_DRAFT) {
+			$this->db->rollback();
+			$this->error = 'TimesheetIsNotEditable';
+			return -2;
+		}
+		$lockedRevision = (int) $this->db->jdate($lockedRow->tms);
+		if ($entry['expected_revision'] > 0 && $lockedRevision !== (int) $entry['expected_revision']) {
+			$this->db->rollback();
+			$this->error = 'TimesheetWeekAutosaveConflict';
+			$this->tms = $lockedRevision;
+			return -2;
+		}
+		if ($entry['settings_only']) {
+			$sql = 'UPDATE '.MAIN_DB_PREFIX.'timesheet_week_line SET zone='.(int) $entry['zone'].', meal='.(int) $entry['meal'];
+			$sql .= ' WHERE fk_timesheet_week='.(int) $this->id." AND day_date='".$this->db->escape($entry['date'])."'";
+			$sql .= ' AND entity='.$entity;
+			if (!$this->db->query($sql)) {
+				$this->db->rollback();
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+		} else {
+			$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'timesheet_week_line';
+			$sql .= ' WHERE fk_timesheet_week='.(int) $this->id.' AND fk_task='.(int) $entry['task_id'];
+			$sql .= " AND day_date='".$this->db->escape($entry['date'])."' AND entity=".$entity;
+			$resql = $this->db->query($sql);
+			if (!$resql) {
+				$this->db->rollback();
+				$this->error = $this->db->lasterror();
+				return -1;
+			}
+			$row = $this->db->fetch_object($resql);
+			$lineId = is_object($row) ? (int) $row->rowid : 0;
+			$this->db->free($resql);
+
+			if ((float) $entry['hours'] > 0) {
+				if ($lineId > 0) {
+					$sql = 'UPDATE '.MAIN_DB_PREFIX.'timesheet_week_line SET hours='.(float) $entry['hours'].', daily_rate='.(int) $entry['daily_rate'].', zone='.(int) $entry['zone'].', meal='.(int) $entry['meal'].' WHERE rowid='.$lineId.' AND entity='.$entity;
+				} else {
+					$sql = 'INSERT INTO '.MAIN_DB_PREFIX.'timesheet_week_line (entity, fk_timesheet_week, fk_task, day_date, hours, daily_rate, zone, meal) VALUES ('.$entity.', '.(int) $this->id.', '.(int) $entry['task_id'].", '".$this->db->escape($entry['date'])."', ".(float) $entry['hours'].', '.(int) $entry['daily_rate'].', '.(int) $entry['zone'].', '.(int) $entry['meal'].')';
+				}
+				if (!$this->db->query($sql)) {
+					$this->db->rollback();
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			} elseif ($lineId > 0) {
+				$sql = 'DELETE FROM '.MAIN_DB_PREFIX.'timesheet_week_line WHERE rowid='.$lineId.' AND entity='.$entity;
+				if (!$this->db->query($sql)) {
+					$this->db->rollback();
+					$this->error = $this->db->lasterror();
+					return -1;
+				}
+			}
+		}
+
+		if ($this->fetchLines() < 0) {
+			$this->db->rollback();
+			return -1;
+		}
+		$this->computeTotals();
+		if (!is_array($this->context)) {
+			$this->context = array();
+		}
+		$this->context['skip_document_generation'] = true;
+		if ($this->update($user, 1) < 0) {
+			$this->db->rollback();
+			return -1;
+		}
 		$this->db->commit();
 		return 1;
 	}

@@ -66,6 +66,17 @@ class TimesheetWeekCompatibility
 		$hasUserBankLatestSheetsHook = self::isUserBankFormObjectOptionsHookAvailable();
 
 		return array(
+			'mobile_timesheet_autosave' => array(
+				'label' => 'TimesheetWeekCompatibilityMobileAutosave',
+				'description' => 'TimesheetWeekCompatibilityMobileAutosaveDesc',
+				'min_dolibarr' => '20.0.0',
+				'core_available_from' => '20.0.0',
+				'module_available_from' => '1.8.4',
+				'min_php' => '8.0.0',
+				'compatibility_check' => "version_compare(DOL_VERSION, '20.0.0', '>=') && version_compare(PHP_VERSION, '8.0.0', '>=')",
+				'available' => self::isDolibarrVersionAtLeast('20.0.0') && self::isPhpVersionAtLeast('8.0.0'),
+				'reason' => 'TimesheetWeekCompatibilityRequiresDolibarr20Php80',
+			),
 			'native_notification_triggers' => array(
 				'label' => 'TimesheetWeekCompatibilityNativeNotificationTriggers',
 				'description' => 'TimesheetWeekCompatibilityNativeNotificationTriggersDesc',

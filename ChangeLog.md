@@ -1,6 +1,7 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
 ## 1.8.4 (29/06/2026)
+- Ajoute deux templates parallèles pour la fiche hebdomadaire, sélectionne la vue téléphone avec les indicateurs natifs Dolibarr, empêche le zoom iOS sur les saisies et protège les brouillons mobiles par autosauvegarde serveur, file d'attente et tampon local restaurable. / Adds parallel desktop and phone templates, selects the phone view with native Dolibarr indicators, prevents iOS input zoom and protects mobile drafts with server autosave, a queue and a restorable local buffer.
 - Corrige le rendu HTML des notifications TimesheetWeek en conservant les retours ligne, indentations et liens cliquables dans le corps injecté par le modèle routeur. / Fixes TimesheetWeek notification HTML rendering by preserving line breaks, indentation and clickable links in the body injected by the router template.
 - Normalise les retours ligne échappés `\n` et `\r\n` des modèles de notification avant le rendu HTML, y compris lorsque le corps contient déjà un lien. / Normalizes escaped `\n` and `\r\n` line breaks from notification templates before HTML rendering, including when the body already contains a link.
 - Convertit explicitement les retours ligne normalisés en balises `<br>` dans le corps HTML des notifications afin d'éviter l'affichage littéral de `\n` par les clients mail. / Explicitly converts normalized line breaks into `<br>` tags in notification HTML bodies to prevent mail clients from rendering literal `\n` text.
