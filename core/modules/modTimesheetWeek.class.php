@@ -149,9 +149,9 @@ class modTimesheetWeek extends DolibarrModules
 			// Set this to relative path of css file if module has its own css file
 			'css' => array(),
 			// Set this to relative path of js file if module must load a js on all pages
-			'js' => (!empty($_SERVER['PHP_SELF']) && preg_match('~/(admin/notification|user/bank)\.php$~', str_replace('\\', '/', (string) $_SERVER['PHP_SELF'])))
-				? array('/timesheetweek/js/timesheetweek.js.php')
-				: array(),
+			'js' => array(
+				'/timesheetweek/js/timesheetweek.js.php',
+			),
 			// Set here all hooks context managed by module. To find available hook context, make a "grep -r '>initHooks(' *" on source code. You can also set hook context to 'all'
 			/* BEGIN MODULEBUILDER HOOKSCONTEXTS */
                         // EN: Register the top right menu hook to inject quick creation entry.
