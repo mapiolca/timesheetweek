@@ -825,27 +825,15 @@ class modTimesheetWeek extends DolibarrModules
 		$extrafields->fetch_name_optionals_label('user');
 		$dailyRateVisibility = '-1';
 		$dailyRateSharedEntity = '0';
-			if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
-				// EN: Register the daily rate toggle on employees when the module is activated.
-				// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
-				$extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-			} else {
-				// EN: Avoid reapplying updates on the daily rate toggle to prevent redundant schema operations.
-				// FR: Éviter de réappliquer les mises à jour du forfait jour pour prévenir les opérations de schéma redondantes.
-				$currentVisibility = (string) ($extrafields->attributes['user']['visible']['lmdb_daily_rate'] ?? '');
-				$currentSharedEntity = (string) ($extrafields->attributes['user']['shared']['lmdb_daily_rate'] ?? '');
-				$currentType = (string) ($extrafields->attributes['user']['type']['lmdb_daily_rate'] ?? '');
-				$requiresUpdate = ($currentType !== 'boolean' || $currentVisibility !== $dailyRateVisibility || $currentSharedEntity !== $dailyRateSharedEntity);
-				if ($requiresUpdate) {
-					// EN: Refresh the existing daily rate toggle only when its definition diverges from the expected one.
-					// FR: Rafraîchir l'option de forfait jour existante uniquement lorsque sa définition diverge de celle attendue.
-					$resultUpdateDailyRate = $extrafields->updateExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
-					if ($resultUpdateDailyRate < 0) {
-						$this->error = $extrafields->error;
-						return -1;
-					}
-				}
+		if (empty($extrafields->attributes['user']['label']['lmdb_daily_rate'])) {
+			// EN: Register the daily rate toggle on employees when the module is activated.
+			// FR: Enregistre l'option de forfait jour sur les salariés lors de l'activation du module.
+			$resultDailyRate = $extrafields->addExtraField('lmdb_daily_rate', 'TimesheetWeekDailyRateLabel', 'boolean', 100, '', 'user', 0, 0, '', '', 0, '', $dailyRateVisibility, '', '', $dailyRateSharedEntity, 'timesheetweek@timesheetweek', 'isModEnabled("timesheetweek")', 0, 0);
+			if ($resultDailyRate < 0) {
+				$this->error = $extrafields->error;
+				return -1;
 			}
+		}
 
 			// EN: Ensure existing installations receive the daily_rate column for time entries.
 			// FR: Garantit que les installations existantes reçoivent la colonne daily_rate pour les lignes de temps.
