@@ -55,21 +55,43 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-task-entry { width: 42%; }
 .tw-task-day-field input,
 .tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
+body.timesheetweek-mobile {
+	padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+}
 body.timesheetweek-mobile .tabsAction.tw-mobile-actions {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	position: fixed;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 1000;
+	display: flex;
+	flex-wrap: nowrap;
 	gap: 10px;
-	margin: 16px 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 8px;
+	padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+	background: var(--colorbackbody, #fff);
+	border-top: 1px solid var(--colorborder, #ccc);
+	box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.18);
+	scroll-snap-type: x proximity;
+	scrollbar-width: thin;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior-x: contain;
 }
 body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action,
 body.timesheetweek-mobile .tabsAction.tw-mobile-actions a.tw-mobile-action,
 body.timesheetweek-mobile .tabsAction.tw-mobile-actions button.tw-mobile-action {
 	display: flex;
+	flex: 1 0 auto;
+	flex-basis: max-content;
 	align-items: center;
 	justify-content: center;
 	gap: 8px;
-	width: 100%;
-	min-width: 0;
+	width: auto;
+	min-width: max-content;
 	min-height: 48px;
 	box-sizing: border-box;
 	margin: 0;
@@ -80,9 +102,10 @@ body.timesheetweek-mobile .tabsAction.tw-mobile-actions button.tw-mobile-action 
 	font: inherit;
 	font-weight: 600;
 	line-height: 1.2;
-	white-space: normal;
+	white-space: nowrap;
 	text-decoration: none;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+	scroll-snap-align: start;
 }
 body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action .btnTitle-icon {
 	display: inline-block;
@@ -140,8 +163,4 @@ body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:disabl
 @media (max-width: 480px) {
 	.tw-task-label { width: 54%; }
 	.tw-task-entry { width: 46%; }
-}
-
-@media (max-width: 360px) {
-	body.timesheetweek-mobile .tabsAction.tw-mobile-actions { grid-template-columns: minmax(0, 1fr); }
 }
