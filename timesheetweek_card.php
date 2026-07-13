@@ -529,6 +529,13 @@ if ($object->id > 0 && !tw_user_has_timesheet_read_entity_access($db, $object->f
 	accessforbidden();
 }
 
+// Execute native card actions so cross-module hooks such as UserNavHistory can record this page.
+$parameters = array('id' => $id);
+$reshook = $hookmanager->executeHooks('doActions', $parameters, $object, $action);
+if ($reshook < 0) {
+	setEventMessages($hookmanager->error, $hookmanager->errors, 'errors');
+}
+
 $canSendMail = false;
 if ($object->id > 0) {
 		$canSendMail = tw_can_act_on_user($object->fk_user, $permRead, $permReadChild, $permReadAll, $user)

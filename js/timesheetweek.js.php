@@ -162,13 +162,20 @@ jQuery(document).ready(function () {
 		$row.find('input[name="NOTIF_' + code + '_new_amount"]').prop('disabled', true).hide();
 	});
 
-	jQuery('input[name="constname[]"]').each(function () {
-		var constName = String(jQuery(this).val() || '');
+	jQuery('select[name^="constvalue_TIMESHEETWEEK_"][name$="_TEMPLATE"], input[name="constname[]"]').each(function () {
+		var $field = jQuery(this);
+		var constName = String($field.val() || '');
+		if ($field.is('select')) {
+			constName = String($field.attr('name') || '').replace(/^constvalue_/, '');
+		}
 		if (constName.indexOf('TIMESHEETWEEK_') !== 0 || constName.substr(-9) !== '_TEMPLATE') {
 			return;
 		}
 
-		var $labelCell = jQuery(this).closest('tr').find('td').eq(0);
+		var $labelCell = $field.closest('tr').find('td').eq(0);
+		if ($labelCell.children('.fa-calendar-check').length) {
+			return;
+		}
 		$labelCell.children('.pictofixedwidth').first().remove();
 		$labelCell.prepend(buildBookCalPicto());
 	});
