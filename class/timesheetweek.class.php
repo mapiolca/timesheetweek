@@ -1284,10 +1284,33 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		}
 
 		// Set definitive ref if provisional
+		$numberingLockName = '';
 		if (empty($this->ref) || strpos($this->ref, '(PROV') === 0) {
+			$numberingLockName = $this->acquireDefinitiveRefLock();
+			if ($numberingLockName === '') {
+				$this->db->rollback();
+				$this->error = 'RefGenerationFailed';
+				return -1;
+			}
+
+			$sql = "SELECT status, ref FROM ".MAIN_DB_PREFIX.$this->table_element;
+			$sql .= " WHERE rowid=".(int) $this->id." AND entity=".(int) $this->entity." FOR UPDATE";
+			$resql = $this->db->query($sql);
+			$currentRow = $resql ? $this->db->fetch_object($resql) : false;
+			if ($resql) {
+				$this->db->free($resql);
+			}
+			if (!is_object($currentRow) || !in_array((int) $currentRow->status, array(self::STATUS_DRAFT, self::STATUS_REFUSED), true)) {
+				$this->db->rollback();
+				$this->releaseDefinitiveRefLock($numberingLockName);
+				$this->error = is_object($currentRow) ? 'BadStatusForSubmit' : $this->db->lasterror();
+				return -1;
+			}
+
 			$newref = $this->generateDefinitiveRef();
 			if (empty($newref)) {
 				$this->db->rollback();
+				$this->releaseDefinitiveRefLock($numberingLockName);
 				$this->error = 'RefGenerationFailed';
 				return -1;
 			}
@@ -1298,6 +1321,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$upref .= " AND entity IN (".getEntity('timesheetweek').")";
 			if (!$this->db->query($upref)) {
 				$this->db->rollback();
+				$this->releaseDefinitiveRefLock($numberingLockName);
 				$this->error = $this->db->lasterror();
 				return -1;
 			}
@@ -1309,6 +1333,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$up .= " AND entity IN (".getEntity('timesheetweek').")";
 		if (!$this->db->query($up)) {
 			$this->db->rollback();
+			$this->releaseDefinitiveRefLock($numberingLockName);
 			$this->error = $this->db->lasterror();
 			return -1;
 		}
@@ -1321,15 +1346,18 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SUBMIT, $user, 'submit', array('status', 'ref', 'date_validation', 'total_hours', 'overtime_hours', 'contract'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
+			$this->releaseDefinitiveRefLock($numberingLockName);
 			return -1;
 		}
 
 		if ($this->generateDocumentIfAutoUpdateEnabled() < 0) {
 			$this->db->rollback();
+			$this->releaseDefinitiveRefLock($numberingLockName);
 			return -1;
 		}
 
 		$this->db->commit();
+		$this->releaseDefinitiveRefLock($numberingLockName);
 		return 1;
 	}
 	/**
@@ -2022,6 +2050,49 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		$this->db->commit();
 		return 1;
+	}
+
+	/**
+	 * Acquire the MySQL lock protecting definitive references in the shared numbering scope.
+	 *
+	 * @return string Lock name, or an empty string when it cannot be acquired
+	 */
+	protected function acquireDefinitiveRefLock()
+	{
+		$entity = !empty($this->entity) ? (int) $this->entity : 1;
+		$numberingEntities = array($entity);
+		$sharedEntities = getEntity('timesheetweeknumbering', 1, $this);
+		foreach (explode(',', (string) $sharedEntities) as $sharedEntity) {
+			$sharedEntity = (int) trim($sharedEntity);
+			if ($sharedEntity > 0) {
+				$numberingEntities[] = $sharedEntity;
+			}
+		}
+		$numberingEntities = array_values(array_unique($numberingEntities));
+		sort($numberingEntities, SORT_NUMERIC);
+		$lockName = 'timesheetweek_ref_'.sha1(implode(',', $numberingEntities).'_'.((int) $this->year));
+
+		$resql = $this->db->query("SELECT GET_LOCK('".$this->db->escape($lockName)."', 10) AS lock_acquired");
+		if (!$resql) {
+			return '';
+		}
+		$row = $this->db->fetch_object($resql);
+		$this->db->free($resql);
+
+		return is_object($row) && (int) $row->lock_acquired === 1 ? $lockName : '';
+	}
+
+	/**
+	 * Release a definitive-reference lock acquired by this database connection.
+	 *
+	 * @param string $lockName Lock name
+	 * @return void
+	 */
+	protected function releaseDefinitiveRefLock($lockName)
+	{
+		if ($lockName !== '') {
+			$this->db->query("SELECT RELEASE_LOCK('".$this->db->escape($lockName)."')");
+		}
 	}
 
 	/**

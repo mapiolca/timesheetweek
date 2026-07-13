@@ -56,7 +56,7 @@ class mod_timesheetweek_fhweekly
 	{
 		global $db, $conf;
 
-		$entity = (int) $conf->entity;
+		$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 
 		$year = (int) $object->year;
 		$week = (int) $object->week;
@@ -68,21 +68,50 @@ class mod_timesheetweek_fhweekly
 			$week = (int) dol_print_date($ts, '%W'); // ISO week number
 		}
 
+		$numberingEntities = array($entity);
+		$sharedEntities = getEntity('timesheetweeknumbering', 1, $object);
+		foreach (explode(',', (string) $sharedEntities) as $sharedEntity) {
+			$sharedEntity = (int) trim($sharedEntity);
+			if ($sharedEntity > 0) {
+				$numberingEntities[] = $sharedEntity;
+			}
+		}
+		$numberingEntities = array_values(array_unique($numberingEntities));
+		sort($numberingEntities, SORT_NUMERIC);
+
 		$key = 'TIMESHEETWEEK_FHWEEKLY_COUNTER_'.$entity.'_'.$year;
-
-		$db->begin();
-
-		$current = (int) getDolGlobalInt($key, 0);
-		$next = $current + 1;
-
-		// EN: Persist the counter in Dolibarr constants per entity. FR: Persiste le compteur dans les constantes Dolibarr par entité.
-		$res = dolibarr_set_const($db, $key, $next, 'integer', 0, '', $entity);
-		if ($res <= 0) {
-			$db->rollback();
+		$current = 0;
+		$sql = "SELECT value FROM ".MAIN_DB_PREFIX."const";
+		$sql .= " WHERE name='".$db->escape($key)."' AND entity=".$entity;
+		$sql .= " ".$db->plimit(1);
+		$resql = $db->query($sql);
+		if (!$resql) {
 			return '';
 		}
+		$constRow = $db->fetch_object($resql);
+		$db->free($resql);
+		if (is_object($constRow)) {
+			$current = (int) $constRow->value;
+		}
 
-		$db->commit();
+		$sql = "SELECT MAX(CAST(SUBSTRING_INDEX(ref, '-', -1) AS UNSIGNED)) AS max_sequence";
+		$sql .= " FROM ".MAIN_DB_PREFIX."timesheet_week";
+		$sql .= " WHERE entity IN (".implode(',', $numberingEntities).")";
+		$sql .= " AND ref REGEXP '^FH".$year."[0-9]{2}-[0-9]{3,}$'";
+		$resql = $db->query($sql);
+		if (!$resql) {
+			return '';
+		}
+		$sequenceRow = $db->fetch_object($resql);
+		$db->free($resql);
+		$maxExisting = is_object($sequenceRow) ? (int) $sequenceRow->max_sequence : 0;
+		$next = max($current, $maxExisting) + 1;
+
+		// Keep the caller transaction open while persisting the owner-entity counter.
+		$res = dolibarr_set_const($db, $key, $next, 'integer', 0, '', $entity);
+		if ($res <= 0) {
+			return '';
+		}
 
 		return sprintf('FH%04d%02d-%03d', $year, $week, $next);
 	}

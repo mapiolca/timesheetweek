@@ -1232,6 +1232,9 @@ $form = new Form($db);
 $formfile = new FormFile($db);
 $formactions = new FormActions($db);
 $title = $langs->trans("TimesheetWeek");
+if ($object->id > 0 && !empty($object->ref)) {
+	$title .= ' - '.(string) $object->ref;
+}
 
 // EN: Render the header only after permission guards to avoid duplicated menus on errors.
 // FR: Affiche l'en-tête uniquement après les gardes de permissions pour éviter les menus dupliqués en cas d'erreur.
