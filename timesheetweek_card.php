@@ -1647,7 +1647,7 @@ JS;
 	print dol_get_fiche_end();
 
 	// ------- GRID (Assigned Tasks grouped by Project) -------
-	echo '<form method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
+	echo '<form'.($isMobileLayout ? ' id="timesheetweek-mobile-form"' : '').' method="POST" action="'.$_SERVER["PHP_SELF"].'?id='.$object->id.'">';
 	echo '<input type="hidden" name="token" value="'.newToken().'">';
 	echo '<input type="hidden" name="action" value="save">';
 

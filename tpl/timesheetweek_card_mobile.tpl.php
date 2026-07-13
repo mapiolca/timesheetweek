@@ -78,14 +78,11 @@ print '</div>';
 
 if (empty($tasks)) {
 	print '<div class="opacitymedium">'.$langs->trans('NoTasksAssigned').'</div>';
-	print '</div>';
+	print '</div></form>';
 	return;
 }
 
-print '<form id="timesheetweek-mobile-form" method="POST" action="'.dol_escape_htmltag($_SERVER['PHP_SELF']).'?id='.(int) $object->id.'">';
-print '<input type="hidden" name="token" value="'.newToken().'">';
-print '<input type="hidden" name="action" value="save">';
-
+print '<div class="tw-day-navigation-anchor">';
 print '<nav class="tw-day-navigation" aria-label="'.$langs->trans('TimesheetWeekMobileDayNavigation').'">';
 foreach ($days as $index => $day) {
 	$dayLabelKey = isset($dayLabelKeys[$day]) ? $dayLabelKeys[$day] : $day;
@@ -98,6 +95,7 @@ foreach ($days as $index => $day) {
 	print '</button>';
 }
 print '</nav>';
+print '</div>';
 
 if (!$isDailyRateEmployee) {
 	foreach ($days as $index => $day) {
@@ -171,4 +169,4 @@ if ($editable) {
 } else {
 	print '<div class="opacitymedium center">'.$langs->trans('TimesheetIsNotEditable').'</div>';
 }
-print '</form></div>';
+print '</div></form>';

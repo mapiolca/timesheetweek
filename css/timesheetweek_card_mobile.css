@@ -9,7 +9,9 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-autosave-status { min-height: 24px; margin-bottom: 8px; text-align: right; }
 .tw-autosave-status.tw-state-error { color: var(--colortextbackhmenu, #a00); }
 .tw-restore-message { margin-bottom: 10px; }
+.tw-day-navigation-anchor { position: relative; width: 100%; }
 .tw-day-navigation {
+	position: -webkit-sticky;
 	position: sticky;
 	top: 0;
 	z-index: 20;
@@ -23,6 +25,12 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 	box-shadow: 0 3px 5px rgba(0, 0, 0, 0.12);
 	scroll-snap-type: x mandatory;
 	-webkit-overflow-scrolling: touch;
+}
+.tw-day-navigation.tw-day-navigation-fixed {
+	position: fixed;
+	top: 0;
+	z-index: 100;
+	box-sizing: border-box;
 }
 .tw-day-navigation .tw-day-button { flex: 0 0 88px; min-height: 48px; margin: 0; padding: 5px 8px; scroll-snap-align: start; }
 .tw-day-navigation .tw-day-button small { display: block; font-weight: normal; }

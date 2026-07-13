@@ -12,6 +12,38 @@
 	ready(function () {
 		var root = document.getElementById('timesheetweek-mobile-card');
 		if (!root) return;
+		var navigationAnchor = root.querySelector('.tw-day-navigation-anchor');
+		var dayNavigation = root.querySelector('.tw-day-navigation');
+		var navigationFrame = null;
+
+		function updatePinnedNavigation() {
+			navigationFrame = null;
+			if (!navigationAnchor || !dayNavigation) return;
+			var anchorRect = navigationAnchor.getBoundingClientRect();
+			var mustBeFixed = anchorRect.top <= 0;
+			if (mustBeFixed) {
+				var navigationStyle = window.getComputedStyle(dayNavigation);
+				var marginBottom = parseFloat(navigationStyle.marginBottom) || 0;
+				navigationAnchor.style.height = (dayNavigation.offsetHeight + marginBottom) + 'px';
+				dayNavigation.style.left = Math.max(0, anchorRect.left) + 'px';
+				dayNavigation.style.width = anchorRect.width + 'px';
+				dayNavigation.classList.add('tw-day-navigation-fixed');
+			} else {
+				dayNavigation.classList.remove('tw-day-navigation-fixed');
+				dayNavigation.style.left = '';
+				dayNavigation.style.width = '';
+				navigationAnchor.style.height = '';
+			}
+		}
+
+		function requestPinnedNavigationUpdate() {
+			if (navigationFrame !== null) return;
+			navigationFrame = window.requestAnimationFrame(updatePinnedNavigation);
+		}
+
+		window.addEventListener('scroll', requestPinnedNavigationUpdate);
+		window.addEventListener('resize', requestPinnedNavigationUpdate);
+		requestPinnedNavigationUpdate();
 
 		function activateDay(day, activeButton) {
 			Array.prototype.forEach.call(root.querySelectorAll('[data-tw-day]'), function (item) {
