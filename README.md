@@ -28,7 +28,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
 - Affichage des dernières feuilles d'heures sous les tableaux natifs de la fiche bancaire utilisateur via `formObjectOptions`, limité par le réglage Dolibarr des listes courtes, avec lien vers la liste préfiltrée sur l'utilisateur et badge du total.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
-- Fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec saisie sans zoom iOS, navigation par jour maintenue sous le menu supérieur, autosauvegarde serveur, référence de tâche masquée et libellés configurables sur une ligne, deux lignes ou sans limitation.
+- Fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec saisie sans zoom iOS, navigation par jour maintenue sous le menu supérieur, autosauvegarde serveur, référence de tâche masquée et libellés configurables sur une ligne, deux lignes ou sans limitation pour les salariés horaires comme pour les forfaits jour et quarts de jour.
 - Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
 - Sécurisation des requêtes SQL par entité et filtres multi-entités alignés sur les pratiques Dolibarr.
 - Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
@@ -62,7 +62,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Configuration
 
 - Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
-- Dans la section **Affichage mobile**, choisissez par entité si les libellés de tâche sont affichés sur une ligne avec points de suspension, sur deux lignes avec points de suspension ou intégralement. Le mode une ligne est utilisé par défaut.
+- Dans la section **Affichage mobile**, choisissez par entité si les libellés de tâche sont affichés sur une ligne avec points de suspension, sur deux lignes avec points de suspension ou intégralement. Le mode une ligne est utilisé par défaut et s'applique aussi aux forfaits jour, y compris avec les quarts de jour activés.
 - Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
@@ -118,7 +118,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
 - Native scheduled job settings are preserved when the module is disabled and re-enabled.
 - Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
-- A dedicated mobile card uses Dolibarr native small-screen detection, hides task references, keeps time fields stable and supports one-line, two-line or unrestricted task labels.
+- A dedicated mobile card uses Dolibarr native small-screen detection, hides task references, keeps hourly and daily-rate selectors stable, and supports one-line, two-line or unrestricted task labels, including quarter-day mode.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
 
@@ -139,7 +139,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 
 ### Configuration
 
-- In the **Mobile display** section, select per entity whether task labels use one line with an ellipsis, two lines with an ellipsis or the complete unrestricted label. One line is the default.
+- In the **Mobile display** section, select per entity whether task labels use one line with an ellipsis, two lines with an ellipsis or the complete unrestricted label. One line is the default and also applies to daily-rate employees, including quarter-day mode.
 - Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
 - Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.

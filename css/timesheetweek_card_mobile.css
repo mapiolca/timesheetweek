@@ -78,8 +78,8 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 	overflow-wrap: anywhere;
 	word-break: break-word;
 }
-.tw-task-day-field input,
-.tw-task-day-field select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; text-align: center; }
+.tw-task-day-field .hourinput,
+.tw-task-day-field .daily-rate-select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
 body.timesheetweek-mobile {
 	padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
 }
