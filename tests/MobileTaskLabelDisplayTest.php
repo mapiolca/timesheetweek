@@ -32,6 +32,8 @@ $expectedFragments = array(
 	'mobile' => array(
 		"getDolGlobalString('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', 'single')",
 		"array('single', 'double', 'full')",
+		'foreach ($byproject as $projectId => $projectData)',
+		'<colgroup><col class="tw-task-label-column"><col class="tw-task-entry-column"></colgroup>',
 		'tw_get_task_nomurl($taskObject, 1, false, false)',
 		'tw-task-label-content',
 		'4 => $langs->trans(\'TimesheetWeekDailyRateQuarterDay\')',
@@ -46,7 +48,11 @@ $expectedFragments = array(
 	),
 	'css' => array(
 		'table-layout: fixed',
-		'.tw-task-entry { width: clamp(7rem, 32%, 9rem)',
+		'--tw-task-entry-width: max(7rem, 40%)',
+		'.tw-task-label { width: 60%; max-width: 60%; min-width: 0; }',
+		'.tw-task-entry-column,',
+		'.tw-task-entry { width: var(--tw-task-entry-width); }',
+		'.tw-project-title a { white-space: normal; overflow-wrap: anywhere; }',
 		'.tw-task-label-mode-single',
 		'.tw-task-label-mode-double',
 		'.tw-task-label-mode-full',
@@ -54,6 +60,7 @@ $expectedFragments = array(
 		'.tw-task-day-field .daily-rate-select { width: 100%; min-width: 0; max-width: 100%; min-height: 44px',
 	),
 	'mobilejs' => array(
+		"return form.querySelectorAll('input.hourinput, select.daily-rate-select, select.tw-zone-select, input.mealbox')",
 		"form.querySelectorAll('input.hourinput, select.daily-rate-select')",
 		"(config.dailyRateHours || {})[field.value]",
 	),
@@ -71,6 +78,14 @@ foreach ($expectedFragments as $sourceName => $fragments) {
 			exit(1);
 		}
 	}
+}
+
+$projectLoopPosition = strpos($sources['mobile'], 'foreach ($byproject as $projectId => $projectData)');
+$columnGroupPosition = strpos($sources['mobile'], '<colgroup><col class="tw-task-label-column"><col class="tw-task-entry-column"></colgroup>');
+$taskLoopPosition = strpos($sources['mobile'], "foreach (\$projectData['tasks'] as \$task)");
+if ($projectLoopPosition === false || $columnGroupPosition === false || $taskLoopPosition === false || $columnGroupPosition <= $projectLoopPosition || $columnGroupPosition >= $taskLoopPosition) {
+	fwrite(STDERR, "The shared mobile colgroup must be rendered inside every project block before its tasks.\n");
+	exit(1);
 }
 
 echo "Mobile task-label display test passed.\n";

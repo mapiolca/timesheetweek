@@ -5,7 +5,7 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 	font-size: 16px !important;
 }
 
-.timesheetweek-mobile-card { margin-top: 12px; }
+.timesheetweek-mobile-card { --tw-task-entry-width: max(7rem, 40%); margin-top: 12px; }
 .tw-autosave-status { min-height: 24px; margin-bottom: 8px; text-align: right; }
 .tw-autosave-status.tw-state-error { color: var(--colortextbackhmenu, #a00); }
 .tw-restore-message { margin-bottom: 10px; }
@@ -49,11 +49,16 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-zone-select { min-width: 84px; min-height: 44px; }
 .tw-mobile-summary { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 10px; margin: 10px 0; background: var(--colorbacktitle1, #f2f2f2); border-bottom: 1px solid var(--colorbordertitle, #ccc); }
 .tw-project-section { margin-bottom: 14px; }
+.tw-project-title,
+.tw-project-title a { white-space: normal; overflow-wrap: anywhere; }
 .tw-project-title { padding: 9px; }
 .tw-mobile-task-table { table-layout: fixed; }
 .tw-mobile-task-table td { vertical-align: middle; }
-.tw-task-label { width: auto; }
-.tw-task-entry { width: clamp(7rem, 32%, 9rem); min-width: 7rem; box-sizing: border-box; }
+.tw-task-label-column,
+.tw-task-label { width: 60%; max-width: 60%; min-width: 0; }
+.tw-task-entry-column,
+.tw-task-entry { width: var(--tw-task-entry-width); }
+.tw-task-entry { min-width: 7rem; box-sizing: border-box; }
 .tw-task-label-content { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
 .tw-task-label-content > a { min-width: 0; max-width: 100%; }
 .tw-task-label-mode-single .tw-task-label-content > a {

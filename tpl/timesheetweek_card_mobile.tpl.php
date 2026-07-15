@@ -133,7 +133,7 @@ foreach ($byproject as $projectId => $projectData) {
 	}
 	print '<section class="tw-project-section">';
 	print '<div class="liste_titre tw-project-title">'.tw_get_project_nomurl($project, 1).'</div>';
-	print '<table class="noborder centpercent tw-mobile-task-table"><tbody>';
+	print '<table class="noborder centpercent tw-mobile-task-table"><colgroup><col class="tw-task-label-column"><col class="tw-task-entry-column"></colgroup><tbody>';
 	foreach ($projectData['tasks'] as $task) {
 		$taskId = (int) $task['task_id'];
 		$taskObject = new Task($db);

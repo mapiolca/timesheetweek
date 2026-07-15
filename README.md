@@ -8,7 +8,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 
 ### Nouveautés de la version 2.0.0
 
-- **Expérience mobile** : fiche dédiée, navigation par jour maintenue sous le menu Dolibarr, saisie sans zoom iOS, autosauvegarde sécurisée et libellés de tâche configurables sans compression du champ horaire.
+- **Expérience mobile** : fiche dédiée, navigation par jour maintenue sous le menu Dolibarr, saisie sans zoom iOS, autosauvegarde sécurisée et libellés de tâche configurables avec des colonnes de saisie alignées entre tous les projets. Le libellé occupe au plus 60 % de la largeur afin de préserver au moins 40 % pour la saisie.
 - **Agenda et Notifications** : événements métier configurables dans les écrans natifs, onglet Agenda harmonisé, substitutions et modèle de courriel routeur unique personnalisable.
 - **Documents et Multicompany** : stockage dans l'entité propriétaire, accès natif aux PDF, contrôles d'entité renforcés et conservation des réglages lors des réactivations.
 - **Administration et compatibilité** : onglet Compatibilité avec diagnostics, affichage des dernières feuilles sur la fiche bancaire utilisateur et alignement des permissions et composants sur les standards Dolibarr.
@@ -28,7 +28,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 - Création rapide d'une feuille d'heures via le raccourci « Ajouter » du menu supérieur.
 - Affichage des dernières feuilles d'heures sous les tableaux natifs de la fiche bancaire utilisateur via `formObjectOptions`, limité par le réglage Dolibarr des listes courtes, avec lien vers la liste préfiltrée sur l'utilisateur et badge du total.
 - Compatibilité Multicompany pour partager les feuilles et leur numérotation, avec options de partage dédiées et filtres multi-sélection harmonisés à l'interface native.
-- Fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec saisie sans zoom iOS, navigation par jour maintenue sous le menu supérieur, autosauvegarde serveur, référence de tâche masquée et libellés configurables sur une ligne, deux lignes ou sans limitation pour les salariés horaires comme pour les forfaits jour et quarts de jour.
+- Fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec saisie sans zoom iOS, navigation par jour maintenue sous le menu supérieur, autosauvegarde serveur, référence de tâche masquée et libellés configurables sur une ligne, deux lignes ou sans limitation pour les salariés horaires comme pour les forfaits jour et quarts de jour. Les feuilles regroupant plusieurs projets conservent des colonnes de saisie alignées et incompressibles dans chaque bloc projet.
 - Affichage de l'entité dans les listes et fiches en environnement Multicompany, accompagné d'un badge visuel sous la référence lorsque l'entité diffère.
 - Sécurisation des requêtes SQL par entité et filtres multi-entités alignés sur les pratiques Dolibarr.
 - Harmonisation du filtre de semaine avec un sélecteur ISO multi-sélection permettant de regrouper plusieurs périodes.
@@ -118,7 +118,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 - Agenda, Notifications and navigation history use the stable external element type `timesheetweek@timesheetweek`.
 - Native scheduled job settings are preserved when the module is disabled and re-enabled.
 - Document paths are centralized on the owner entity and the Compatibility tab details Dolibarr/PHP dependencies and Agenda diagnostics.
-- A dedicated mobile card uses Dolibarr native small-screen detection, hides task references, keeps hourly and daily-rate selectors stable, and supports one-line, two-line or unrestricted task labels, including quarter-day mode.
+- A dedicated mobile card uses Dolibarr native small-screen detection, hides task references, keeps hourly and daily-rate selectors stable across every project block, and supports one-line, two-line or unrestricted task labels, including quarter-day mode. Task labels use at most 60% of the row so the input column always keeps at least 40%.
 - Dedicated « À propos » tab exposing the module version, publisher and handy resources.
 - Bilingual (FR/EN) README to streamline rollout and user onboarding.
 
