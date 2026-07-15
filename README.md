@@ -4,14 +4,12 @@
 
 TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-**Version actuelle : 2.0.0 — Dolibarr 20+ et PHP 8.0+.**
+**Version actuelle : 2.0.1 — Dolibarr 20+ et PHP 8.0+.**
 
-### Nouveautés de la version 2.0.0
+### Nouveautés de la version 2.0.1
 
-- **Expérience mobile** : fiche dédiée, navigation par jour maintenue sous le menu Dolibarr, saisie sans zoom iOS, autosauvegarde sécurisée et libellés de tâche configurables avec des colonnes de saisie alignées entre tous les projets. Le libellé occupe au plus 60 % de la largeur afin de préserver au moins 40 % pour la saisie.
-- **Agenda et Notifications** : événements métier configurables dans les écrans natifs, onglet Agenda harmonisé, substitutions et modèle de courriel routeur unique personnalisable.
-- **Documents et Multicompany** : stockage dans l'entité propriétaire, accès natif aux PDF, contrôles d'entité renforcés et conservation des réglages lors des réactivations.
-- **Administration et compatibilité** : onglet Compatibilité avec diagnostics, affichage des dernières feuilles sur la fiche bancaire utilisateur et alignement des permissions et composants sur les standards Dolibarr.
+- **Libellés mobiles** : références de tâche masquées et affichage configurable par entité sur une ligne, deux lignes ou sans limitation.
+- **Saisies multiprojets** : colonnes alignées entre tous les projets, avec au plus 60 % pour le libellé et au moins 40 % pour les saisies horaires, forfait jour et quart de jour.
 
 ### Fonctionnalités principales
 
@@ -54,7 +52,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Mise à niveau depuis la version 1.8.3
 
 1. Sauvegardez la base de données et le répertoire documentaire Dolibarr.
-2. Déployez les fichiers de TimesheetWeek 2.0.0 à la place de l'ancienne version.
+2. Déployez les fichiers de TimesheetWeek 2.0.1 à la place de l'ancienne version.
 3. Désactivez puis réactivez le module afin d'exécuter les migrations idempotentes, sans supprimer les réglages existants.
 4. Consultez l'onglet **Compatibilité** et vérifiez les diagnostics proposés.
 5. Contrôlez dans les pages natives **Agenda** et **Notifications** que les événements, destinataires et modèles attendus sont toujours configurés.
@@ -80,14 +78,12 @@ Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `
 
 TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
 
-**Current version: 2.0.0 — Dolibarr 20+ and PHP 8.0+.**
+**Current version: 2.0.1 — Dolibarr 20+ and PHP 8.0+.**
 
-### What's new in version 2.0.0
+### What's new in version 2.0.1
 
-- **Mobile experience**: dedicated card, day navigation kept below the Dolibarr top menu, iOS-friendly input, secure autosave and configurable task labels without compressing the time field.
-- **Agenda and Notifications**: business events configurable in native screens, aligned Agenda tab, substitutions and a single customizable router email template.
-- **Documents and Multicompany**: owner-entity storage, native PDF access, stronger entity checks and settings preserved across reactivation.
-- **Administration and compatibility**: Compatibility tab with diagnostics, latest timesheets on the user bank card, and permissions and components aligned with Dolibarr standards.
+- **Mobile labels**: hidden task references and per-entity display on one line, two lines or without restriction.
+- **Multi-project input**: aligned columns across every project, with at most 60% for labels and at least 40% for hourly, daily-rate and quarter-day input controls.
 
 ### Main features
 
@@ -132,7 +128,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Upgrading from version 1.8.3
 
 1. Back up the Dolibarr database and document directory.
-2. Deploy the TimesheetWeek 2.0.0 files over the previous version.
+2. Deploy the TimesheetWeek 2.0.1 files over the previous version.
 3. Disable and re-enable the module to run its idempotent migrations without deleting existing settings.
 4. Open the **Compatibility** tab and review the reported diagnostics.
 5. Check the native **Agenda** and **Notifications** pages to confirm that the expected events, recipients and templates remain configured.
