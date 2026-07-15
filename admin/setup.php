@@ -294,7 +294,7 @@ function timesheetweekListDocumentModels(array $directories, Translate $langs, a
 }
 
 // EN: Verify CSRF token when the request changes the configuration.
-if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveautoseal'), true)) {
+if (in_array($action, array('setmodule', 'updateMask', 'setdoc', 'setdocmodel', 'delmodel', 'setquarterday', 'setshowallmulticompanyuserstimesheet', 'savemobiledisplay', 'saveovertimeoptions', 'savereminder', 'testreminder', 'saveautoseal'), true)) {
         if (function_exists('dol_verify_token')) {
                 if (empty($token) || dol_verify_token($token) <= 0) {
                         accessforbidden();
@@ -390,6 +390,23 @@ if ($action === 'setshowallmulticompanyuserstimesheet') {
 		setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
 	} else {
 		setEventMessages($langs->trans('Error'), null, 'errors');
+	}
+}
+
+// EN: Save the mobile task-label display mode for the current entity.
+// FR: Enregistre le mode d'affichage mobile des libellés de tâche pour l'entité courante.
+if ($action === 'savemobiledisplay') {
+	$mobileTaskLabelModeValue = GETPOST('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', 'alpha');
+	$allowedMobileTaskLabelModes = array('single', 'double', 'full');
+	if (!in_array($mobileTaskLabelModeValue, $allowedMobileTaskLabelModes, true)) {
+		setEventMessages($langs->trans('TimesheetWeekMobileTaskLabelModeInvalid'), null, 'errors');
+	} else {
+		$res = dolibarr_set_const($db, 'TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', $mobileTaskLabelModeValue, 'chaine', 0, '', $conf->entity);
+		if ($res > 0) {
+			setEventMessages($langs->trans('SetupSaved'), null, 'mesgs');
+		} else {
+			setEventMessages($langs->trans('Error'), null, 'errors');
+		}
 	}
 }
 
@@ -523,6 +540,10 @@ $selectedNumbering = getDolGlobalString('TIMESHEETWEEK_ADDON', 'mod_timesheetwee
 $defaultPdf = getDolGlobalString('TIMESHEETWEEK_ADDON_PDF', 'standard_timesheetweek');
 $useQuarterDaySelector = getDolGlobalInt('TIMESHEETWEEK_QUARTERDAYFORDAILYCONTRACT', 0);
 $showAllMulticompanyUsersTimesheet = getDolGlobalInt('TIMESHEETWEEK_SHOW_ALL_MULTICOMPANY_USERS_TIMESHEET', 0);
+$mobileTaskLabelMode = getDolGlobalString('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', 'single');
+if (!in_array($mobileTaskLabelMode, array('single', 'double', 'full'), true)) {
+	$mobileTaskLabelMode = 'single';
+}
 $reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 $reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '');
 $reminderStartTimestamp = '';
@@ -695,6 +716,41 @@ print '</tr>';
 
 print '</table>';
 print '</div>';
+
+print '<br>';
+
+// EN: Configure how task labels are rendered on the dedicated mobile card.
+// FR: Configure le rendu des libellés de tâche sur la fiche mobile dédiée.
+print load_fiche_titre($langs->trans('TimesheetWeekMobileDisplaySectionTitle'), '', 'mobile');
+print '<div class="underbanner opacitymedium">'.$langs->trans('TimesheetWeekMobileDisplaySectionHelp').'</div>';
+
+print '<form method="post" action="'.$_SERVER['PHP_SELF'].'">';
+print '<input type="hidden" name="token" value="'.$pageToken.'">';
+print '<div class="div-table-responsive-no-min">';
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre">';
+print '<th>'.$langs->trans('Name').'</th>';
+print '<th>'.$langs->trans('Description').'</th>';
+print '<th class="center">'.$langs->trans('Value').'</th>';
+print '</tr>';
+
+$mobileTaskLabelModeOptions = array(
+	'single' => $langs->trans('TimesheetWeekMobileTaskLabelModeSingle'),
+	'double' => $langs->trans('TimesheetWeekMobileTaskLabelModeDouble'),
+	'full' => $langs->trans('TimesheetWeekMobileTaskLabelModeFull'),
+);
+$mobileTaskLabelModeSelect = $form->selectarray('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', $mobileTaskLabelModeOptions, $mobileTaskLabelMode, 0, 0, 0, '', 0, 0, 0, '', '', $conf->entity);
+$mobileTaskLabelModeSelect .= ajax_combobox('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE');
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TimesheetWeekMobileTaskLabelMode').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekMobileTaskLabelModeHelp').'</td>';
+print '<td class="center">'.$mobileTaskLabelModeSelect.'</td>';
+print '</tr>';
+print '</table>';
+print '</div>';
+print '<div class="center"><button type="submit" class="butAction" name="action" value="savemobiledisplay">'.$langs->trans('Save').'</button></div>';
+print '</form>';
 
 print '<br>';
 

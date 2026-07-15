@@ -50,11 +50,36 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-mobile-summary { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 10px; margin: 10px 0; background: var(--colorbacktitle1, #f2f2f2); border-bottom: 1px solid var(--colorbordertitle, #ccc); }
 .tw-project-section { margin-bottom: 14px; }
 .tw-project-title { padding: 9px; }
+.tw-mobile-task-table { table-layout: fixed; }
 .tw-mobile-task-table td { vertical-align: middle; }
-.tw-task-label { width: 58%; overflow-wrap: anywhere; }
-.tw-task-entry { width: 42%; }
+.tw-task-label { width: auto; }
+.tw-task-entry { width: clamp(7rem, 32%, 9rem); min-width: 7rem; box-sizing: border-box; }
+.tw-task-label-content { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.tw-task-label-content > a { min-width: 0; max-width: 100%; }
+.tw-task-label-mode-single .tw-task-label-content > a {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.tw-task-label-mode-double .tw-task-label-content > a {
+	display: -webkit-box;
+	overflow: hidden;
+	max-height: 2.7em;
+	line-height: 1.35;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+.tw-task-label-mode-full .tw-task-label-content > a {
+	display: block;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
 .tw-task-day-field input,
-.tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
+.tw-task-day-field select { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; text-align: center; }
 body.timesheetweek-mobile {
 	padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
 }
@@ -158,9 +183,4 @@ body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:disabl
 	border-color: #d1d5db;
 	box-shadow: none;
 	opacity: 0.75;
-}
-
-@media (max-width: 480px) {
-	.tw-task-label { width: 54%; }
-	.tw-task-entry { width: 46%; }
 }

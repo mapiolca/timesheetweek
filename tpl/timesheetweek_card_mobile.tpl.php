@@ -15,6 +15,10 @@ $contractedHours = $contractedHoursDisp;
 $canOverrideHolidayLock = tw_can_override_holiday_lock($user);
 $holidayMarkerByDay = tw_get_holiday_markers_by_day($db, $object->fk_user, $weekdates, $langs, !empty($object->entity) ? (int) $object->entity : (int) $conf->entity);
 $dailyRateHoursMap = tw_get_daily_rate_hours_map($useQuarterDayDailyContract);
+$mobileTaskLabelMode = getDolGlobalString('TIMESHEETWEEK_MOBILE_TASK_LABEL_MODE', 'single');
+if (!in_array($mobileTaskLabelMode, array('single', 'double', 'full'), true)) {
+	$mobileTaskLabelMode = 'single';
+}
 $dailyRateOptions = array();
 if ($isDailyRateEmployee) {
 	if ($useQuarterDayDailyContract) {
@@ -68,7 +72,7 @@ $autosaveConfig = array(
 	),
 );
 
-print '<div id="timesheetweek-mobile-card" class="timesheetweek-mobile-card" data-config="'.dolPrintHTMLForAttribute((string) json_encode($autosaveConfig)).'">';
+print '<div id="timesheetweek-mobile-card" class="timesheetweek-mobile-card tw-task-label-mode-'.dol_escape_htmltag($mobileTaskLabelMode).'" data-config="'.dolPrintHTMLForAttribute((string) json_encode($autosaveConfig)).'">';
 print '<div id="tw-autosave-status" class="tw-autosave-status opacitymedium" role="status" aria-live="polite">'.dol_escape_htmltag($langs->trans('TimesheetWeekAutosaveReady')).'</div>';
 print '<div id="tw-restore-message" class="warning tw-restore-message" hidden>';
 print '<span>'.$langs->trans('TimesheetWeekAutosaveRestore').'</span> ';
@@ -138,7 +142,7 @@ foreach ($byproject as $projectId => $projectData) {
 			$taskObject->ref = isset($task['task_ref']) ? (string) $task['task_ref'] : '';
 			$taskObject->label = (string) $task['task_label'];
 		}
-		print '<tr class="oddeven tw-task-row"><td class="tw-task-label">'.tw_get_task_nomurl($taskObject, 1).'</td><td class="right tw-task-entry">';
+		print '<tr class="oddeven tw-task-row"><td class="tw-task-label"><div class="tw-task-label-content">'.tw_get_task_nomurl($taskObject, 1, false, false).'</div></td><td class="right tw-task-entry">';
 		foreach ($days as $index => $day) {
 			$dateKey = $weekdates[$day];
 			$hoursValue = isset($hoursBy[$taskId][$dateKey]) ? formatHours((float) $hoursBy[$taskId][$dateKey]) : '';

@@ -488,29 +488,37 @@ function tw_get_project_nomurl(Project $project, $withpicto = 0)
 }
 
 /**
- * Return the task link formatted as "Ref - Label"
+ * Return the task link with its native Dolibarr rendering
  *
  * @param Task $task
  * @param int  $withpicto
  * @param bool $withproject
+ * @param bool $withref     Include the task reference before the label
  * @return string
  */
-function tw_get_task_nomurl(Task $task, $withpicto = 0, $withproject = false)
+function tw_get_task_nomurl(Task $task, $withpicto = 0, $withproject = false, $withref = true)
 {
-        $text = $task->ref;
-        if (!empty($task->label)) {
-                $text .= ' - '.$task->label;
-        }
+	$taskRef = (string) $task->ref;
+	$taskLabel = (string) $task->label;
+	$text = $taskLabel;
+	if ($withref && $taskRef !== '') {
+		$text = $taskRef;
+		if ($taskLabel !== '') {
+			$text .= ' - '.$taskLabel;
+		}
+	} elseif ($text === '') {
+		$text = $taskRef;
+	}
 
-        $anchor = $task->getNomUrl(0, $withproject ? 'withproject' : '');
-        $anchor = tw_replace_anchor_text($anchor, $text);
+	$anchor = $task->getNomUrl(0, $withproject ? 'withproject' : '');
+	$anchor = tw_replace_anchor_text($anchor, $text);
 
-        if ($withpicto) {
-                $picto = img_object('', !empty($task->picto) ? $task->picto : 'projecttask');
-                return $picto.' '.$anchor;
-        }
+	if ($withpicto) {
+		$picto = img_object('', !empty($task->picto) ? $task->picto : 'projecttask');
+		return $picto.' '.$anchor;
+	}
 
-        return $anchor;
+	return $anchor;
 }
 
 /**
