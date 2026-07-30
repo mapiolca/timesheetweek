@@ -397,6 +397,7 @@ class TimesheetWeek extends CommonObject
 		$this->context['timesheetweek_week'] = (int) $this->week;
 		$this->context['timesheetweek_year'] = (int) $this->year;
 		$this->context['timesheetweek_motif'] = trim((string) $motif);
+		$this->context['action_user_id'] = (int) $user->id;
 
 		$labelKey = 'TimesheetWeekTrigger'.ucfirst($reason);
 		$label = $langs->transnoentities($labelKey, $this->ref);
@@ -2364,7 +2365,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		// FR: Génère l'URL directe vers la fiche pour l'insérer dans le modèle d'e-mail.
 		// EN: Build the direct link to the card so it can be injected inside the e-mail template.
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
+		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $this->id;
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.

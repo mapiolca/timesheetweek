@@ -278,6 +278,7 @@ class TimesheetWeekNotification
 		if (!($actionUser instanceof User) && isset($user) && $user instanceof User) {
 			$actionUser = $user;
 		}
+		$actionUser = $this->resolveActionUser($object, $actionUser);
 
 		$reason = is_array($object->context) && !empty($object->context['trigger_reason']) ? (string) $object->context['trigger_reason'] : '';
 		$definition = self::getReasonDefinition($reason);
@@ -598,7 +599,7 @@ class TimesheetWeekNotification
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
+		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $object->id;
 		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
 
 		$oldStatus = is_array($object->context) && array_key_exists('old_status', $object->context) ? $object->context['old_status'] : null;
@@ -646,6 +647,30 @@ class TimesheetWeekNotification
 		$substitutions['__RECIPIENT_EMAIL__'] = $recipientUser instanceof User ? (string) $recipientUser->email : '';
 
 		return $substitutions;
+	}
+
+	/**
+	 * Resolve the business action user carried by the trigger context.
+	 *
+	 * Native Notifications may run under the cron launcher user. The trigger
+	 * context remains the source of truth for the user who performed the
+	 * transition, including the configured automatic-sealing user.
+	 *
+	 * @param TimesheetWeek $object Current timesheet
+	 * @param User|null     $fallbackUser User provided by the notification runtime
+	 * @return User|null
+	 */
+	protected function resolveActionUser(TimesheetWeek $object, $fallbackUser = null)
+	{
+		$contextUserId = is_array($object->context) && !empty($object->context['action_user_id']) ? (int) $object->context['action_user_id'] : 0;
+		if ($contextUserId > 0) {
+			$contextUser = $this->fetchUser($contextUserId);
+			if ($contextUser instanceof User) {
+				return $contextUser;
+			}
+		}
+
+		return $fallbackUser instanceof User ? $fallbackUser : null;
 	}
 
 	/**

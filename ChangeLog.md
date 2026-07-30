@@ -1,9 +1,10 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
-## 2.0.0 (13/07/2026)
+## 2.0.1 (30/07/2026)
 
 - Introduit une fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec navigation journalière maintenue sous le menu supérieur, contraste renforcé du jour actif et saisie adaptée à iOS sans zoom automatique. / Introduces a dedicated mobile card selected through native Dolibarr detection, with day navigation kept below the top menu, stronger active-day contrast and iOS-friendly input without automatic zoom.
 - Protège les brouillons mobiles par une autosauvegarde serveur sécurisée, une file d’enregistrement séquentielle, une détection des conflits de révision et un tampon local restaurable après une déconnexion. / Protects mobile drafts through secure server autosave, a sequential save queue, revision-conflict detection and a restorable local buffer after disconnection.
+- Corrige le courriel de scellement automatique pour mentionner l’utilisateur configuré pour le scellement et fournir un lien public complet vers la feuille. / Fixes the automatic sealing email so it names the configured sealing user and provides a complete public link to the timesheet.
 - Aligne Agenda et Notifications sur les mécanismes natifs Dolibarr : élément externe stable, événements métier configurables, onglet Agenda natif, substitutions et modèle de courriel routeur unique personnalisable. / Aligns Agenda and Notifications with native Dolibarr mechanisms: stable external element, configurable business events, native Agenda tab, substitutions and a single customizable router email template.
 - Migre de manière idempotente les anciennes déclarations Agenda et Notifications, nettoie prudemment les doublons historiques et préserve les modèles, destinataires et réglages déjà configurés. / Idempotently migrates legacy Agenda and Notification declarations, conservatively cleans historical duplicates and preserves existing templates, recipients and settings.
 - Renforce la gestion documentaire avec les répertoires de l’entité propriétaire, l’accès natif aux PDF, la régénération documentaire et la conservation de `last_main_doc`. / Strengthens document management with owner-entity directories, native PDF access, document regeneration and `last_main_doc` persistence.
