@@ -599,7 +599,7 @@ class TimesheetWeekNotification
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $object->id;
+		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
 		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
 
 		$oldStatus = is_array($object->context) && array_key_exists('old_status', $object->context) ? $object->context['old_status'] : null;
@@ -616,6 +616,13 @@ class TimesheetWeekNotification
 		}
 		if ($includeCommonSubstitutions && $trans instanceof Translate && function_exists('complete_substitutions_array')) {
 			complete_substitutions_array($substitutions, $trans, $object);
+		}
+		$isAutomaticSeal = $reason === 'seal'
+			&& is_array($object->context)
+			&& isset($object->context['timesheetweek_seal_origin'])
+			&& $object->context['timesheetweek_seal_origin'] === 'auto';
+		if ($isAutomaticSeal) {
+			$substitutions['__SENDEREMAIL_SIGNATURE__'] = '';
 		}
 
 		$substitutions['__ID__'] = (string) $object->id;

@@ -131,7 +131,7 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	}
 
 	$status = method_exists($object, 'getLibStatut') ? $object->getLibStatut(0) : (string) $object->status;
-	$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $object->id;
+	$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
 	$urlHtml = '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($url).'</a>';
 	$triggerReason = (!empty($object->context) && is_array($object->context) && !empty($object->context['trigger_reason'])) ? (string) $object->context['trigger_reason'] : '';
 	$triggerReasonLabel = '';

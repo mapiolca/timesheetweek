@@ -1518,7 +1518,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* EN: Seal the approved timesheet to prevent further changes.
 	* FR : Scelle la feuille approuvée pour empêcher de nouvelles modifications.
 	*
-	* @param User $user
+	* @param User   $user User performing the sealing
+	* @param string $origin Sealing origin (`manual` or `auto`)
 	* @return int
 	*/
 	public function seal($user, $origin = 'manual')
@@ -1609,6 +1610,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
+		if (!is_array($this->context)) {
+			$this->context = array();
+		}
+		$this->context['timesheetweek_seal_origin'] = ($origin === 'auto' ? 'auto' : 'manual');
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SEAL, $user, 'seal', array('status', 'fk_user_seal', 'date_seal'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
@@ -2363,9 +2368,9 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$employee = $this->loadUserFromCache($this->fk_user);
 		$validator = $this->loadUserFromCache($this->fk_user_valid);
 
-		// FR: Génère l'URL directe vers la fiche pour l'insérer dans le modèle d'e-mail.
-		// EN: Build the direct link to the card so it can be injected inside the e-mail template.
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $this->id;
+		// FR: Utilise l'hôte résolu par Dolibarr, y compris lors d'un scellement lancé par la tâche planifiée.
+		// EN: Use the host resolved by Dolibarr, including when sealing is launched by the scheduled job.
+		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.

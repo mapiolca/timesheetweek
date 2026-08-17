@@ -1,5 +1,9 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 2.0.2 (17/08/2026)
+
+- Corrige le lien d'accès direct des courriels de scellement automatique en utilisant l'hôte résolu par Dolibarr, afin d'éviter les URL incomplètes de type `https:/custom/...`, et retire la signature personnelle de l'utilisateur de ces envois automatiques. / Fixes the direct-access link in automatic sealing emails by using the host resolved by Dolibarr, preventing incomplete URLs such as `https:/custom/...`, and removes the user's personal signature from these automatic messages.
+
 ## 2.0.1 (30/07/2026)
 
 - Introduit une fiche mobile dédiée, sélectionnée par la détection native Dolibarr, avec navigation journalière maintenue sous le menu supérieur, contraste renforcé du jour actif et saisie adaptée à iOS sans zoom automatique. / Introduces a dedicated mobile card selected through native Dolibarr detection, with day navigation kept below the top menu, stronger active-day contrast and iOS-friendly input without automatic zoom.
