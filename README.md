@@ -4,12 +4,11 @@
 
 TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-**Version actuelle : 2.0.3 — Dolibarr 20+ et PHP 8.0+.**
+**Version actuelle : 2.0.2 — Dolibarr 20+ et PHP 8.0+.**
 
-### Nouveautés de la version 2.0.3
+### Nouveautés de la version 2.0.2
 
-- **Notifications de scellement** : les liens conservent `DOL_MAIN_URL_ROOT` pour les actions Web et utilisent, uniquement pour les tâches CLI, le mode natif d'URL publique fondé sur l'URL complète définie dans `conf.php`.
-- **Aperçu de diagnostic** : le test de scellement affiche aux administrateurs le modèle de courriel résolu avec le mode d'URL de la tâche planifiée, pour la feuille d'identifiant `1` par défaut, avec surcharge possible par `?id=...`, sans envoyer de courriel ni modifier la feuille.
+- **Notifications de scellement** : les liens utilisent l'URL publique complète configurée pour les tâches CLI, conservent `DOL_MAIN_URL_ROOT` pour les actions Web et n'incluent plus la signature personnelle de l'utilisateur. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
 
 ### Fonctionnalités principales
 
@@ -52,7 +51,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Mise à niveau depuis la version 1.8.3
 
 1. Sauvegardez la base de données et le répertoire documentaire Dolibarr.
-2. Déployez les fichiers de TimesheetWeek 2.0.3 à la place de l'ancienne version.
+2. Déployez les fichiers de TimesheetWeek 2.0.2 à la place de l'ancienne version.
 3. Désactivez puis réactivez le module afin d'exécuter les migrations idempotentes, sans supprimer les réglages existants.
 4. Consultez l'onglet **Compatibilité** et vérifiez les diagnostics proposés.
 5. Contrôlez dans les pages natives **Agenda** et **Notifications** que les événements, destinataires et modèles attendus sont toujours configurés.
@@ -77,12 +76,11 @@ Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `
 
 TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
 
-**Current version: 2.0.3 — Dolibarr 20+ and PHP 8.0+.**
+**Current version: 2.0.2 — Dolibarr 20+ and PHP 8.0+.**
 
-### What's new in version 2.0.3
+### What's new in version 2.0.2
 
-- **Sealing notifications**: links retain `DOL_MAIN_URL_ROOT` for Web actions and use Dolibarr's native public-URL mode, based on the complete URL defined in `conf.php`, only for CLI jobs.
-- **Diagnostic preview**: the sealing test shows administrators the resolved email template using the scheduled-job URL mode, for timesheet ID `1` by default, with an optional `?id=...` override, without sending an email or changing the timesheet.
+- **Sealing notifications**: links use the complete configured public URL for CLI jobs, retain `DOL_MAIN_URL_ROOT` for Web actions and no longer include the user's personal signature. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
 
 ### Main features
 
@@ -127,7 +125,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Upgrading from version 1.8.3
 
 1. Back up the Dolibarr database and document directory.
-2. Deploy the TimesheetWeek 2.0.3 files over the previous version.
+2. Deploy the TimesheetWeek 2.0.2 files over the previous version.
 3. Disable and re-enable the module to run its idempotent migrations without deleting existing settings.
 4. Open the **Compatibility** tab and review the reported diagnostics.
 5. Check the native **Agenda** and **Notifications** pages to confirm that the expected events, recipients and templates remain configured.
