@@ -2368,9 +2368,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$employee = $this->loadUserFromCache($this->fk_user);
 		$validator = $this->loadUserFromCache($this->fk_user_valid);
 
-		// FR: Utilise l'hôte résolu par Dolibarr, y compris lors d'un scellement lancé par la tâche planifiée.
-		// EN: Use the host resolved by Dolibarr, including when sealing is launched by the scheduled job.
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $this->id;
+		// FR: Conserve l'hôte courant pour les actions web et utilise l'URL publique configurée pour les tâches CLI.
+		// EN: Keep the current host for web actions and use the configured public URL for CLI jobs.
+		$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
+		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $this->id;
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.

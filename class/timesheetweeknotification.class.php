@@ -599,7 +599,8 @@ class TimesheetWeekNotification
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', 2).'?id='.(int) $object->id;
+		$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
+		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $object->id;
 		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
 
 		$oldStatus = is_array($object->context) && array_key_exists('old_status', $object->context) ? $object->context['old_status'] : null;

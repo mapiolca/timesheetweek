@@ -40,15 +40,10 @@ $emailSources = array(
 );
 
 foreach ($emailSources as $path => $source) {
-	$expected = "dol_buildpath('/timesheetweek/timesheetweek_card.php', 2)";
-	if (strpos($source, $expected) === false) {
-		fwrite(STDERR, $path." must build the TimesheetWeek email URL from the host resolved by Dolibarr.\n");
-		exit(1);
-	}
-
-	$forbidden = "dol_buildpath('/timesheetweek/timesheetweek_card.php', 3)";
-	if (strpos($source, $forbidden) !== false) {
-		fwrite(STDERR, $path." must not use the configured external host for the TimesheetWeek email URL.\n");
+	$modeSelection = "PHP_SAPI === 'cli' ? 3 : 2";
+	$urlBuilder = "dol_buildpath('/timesheetweek/timesheetweek_card.php', \$urlMode)";
+	if (strpos($source, $modeSelection) === false || strpos($source, $urlBuilder) === false) {
+		fwrite(STDERR, $path." must use Dolibarr's configured public URL for CLI notifications and the current host for web notifications.\n");
 		exit(1);
 	}
 }
