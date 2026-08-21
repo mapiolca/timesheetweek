@@ -264,9 +264,10 @@ class TimesheetWeekNotification
 	 * @param TimesheetWeek  $object Current timesheet
 	 * @param Translate|null $outputlangs Output language
 	 * @param User|null      $actionUser User who triggered the action
+	 * @param int|null       $urlMode Dolibarr URL mode override, used by the read-only cron preview
 	 * @return array{subject:string,body:string,reason:string,reason_label:string,template_id:int,substitutions:array<string,string>}
 	 */
-	public function getNativeNotificationContent(TimesheetWeek $object, $outputlangs = null, $actionUser = null)
+	public function getNativeNotificationContent(TimesheetWeek $object, $outputlangs = null, $actionUser = null, $urlMode = null)
 	{
 		global $langs, $user, $conf;
 
@@ -306,7 +307,7 @@ class TimesheetWeekNotification
 
 		$defaultRecipients = $this->resolveDefaultRecipients($object, !empty($definition['recipient']) ? $definition['recipient'] : 'employee');
 		$recipientUser = !empty($defaultRecipients) ? reset($defaultRecipients) : null;
-		$substitutions = $this->buildSubstitutions($object, $actionUser, $recipientUser instanceof User ? $recipientUser : null, $reason, $definition, $trans, false);
+		$substitutions = $this->buildSubstitutions($object, $actionUser, $recipientUser instanceof User ? $recipientUser : null, $reason, $definition, $trans, false, $urlMode);
 
 		$subject = !empty($template['topic']) ? $template['topic'] : $this->getDefaultTemplateText($definition['subject_key'], $object, $actionUser, $trans);
 		$body = !empty($template['content']) ? $template['content'] : $this->getDefaultTemplateText($definition['body_key'], $object, $actionUser, $trans);
@@ -590,16 +591,19 @@ class TimesheetWeekNotification
 	 * @param array<string,string> $definition Reason definition
 	 * @param Translate|null       $outputlangs Output language
 	 * @param bool                 $includeCommonSubstitutions Include module substitutions
+	 * @param int|null             $urlMode Dolibarr URL mode override
 	 * @return array<string,string>
 	 */
-	protected function buildSubstitutions(TimesheetWeek $object, $actionUser, $recipientUser, $reason, array $definition, $outputlangs = null, $includeCommonSubstitutions = true)
+	protected function buildSubstitutions(TimesheetWeek $object, $actionUser, $recipientUser, $reason, array $definition, $outputlangs = null, $includeCommonSubstitutions = true, $urlMode = null)
 	{
 		global $langs;
 
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
+		if ($urlMode !== 2 && $urlMode !== 3) {
+			$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
+		}
 		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $object->id;
 		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
 

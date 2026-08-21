@@ -9,6 +9,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Nouveautés de la version 2.0.3
 
 - **Notifications de scellement** : les liens conservent `DOL_MAIN_URL_ROOT` pour les actions Web et utilisent, uniquement pour les tâches CLI, le mode natif d'URL publique fondé sur l'URL complète définie dans `conf.php`.
+- **Aperçu de diagnostic** : le test de scellement affiche aux administrateurs le modèle de courriel résolu avec le mode d'URL de la tâche planifiée, pour la feuille d'identifiant `1` par défaut, avec surcharge possible par `?id=...`, sans envoyer de courriel ni modifier la feuille.
 
 ### Fonctionnalités principales
 
@@ -81,6 +82,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### What's new in version 2.0.3
 
 - **Sealing notifications**: links retain `DOL_MAIN_URL_ROOT` for Web actions and use Dolibarr's native public-URL mode, based on the complete URL defined in `conf.php`, only for CLI jobs.
+- **Diagnostic preview**: the sealing test shows administrators the resolved email template using the scheduled-job URL mode, for timesheet ID `1` by default, with an optional `?id=...` override, without sending an email or changing the timesheet.
 
 ### Main features
 
