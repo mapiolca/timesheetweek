@@ -112,9 +112,42 @@ if (PHP_SAPI !== 'cli') {
 $objectSource = file_get_contents(__DIR__.'/../class/timesheetweek.class.php');
 $notificationSource = file_get_contents(__DIR__.'/../class/timesheetweeknotification.class.php');
 $substitutionSource = file_get_contents(__DIR__.'/../core/substitutions/functions_timesheetweek.lib.php');
+$librarySource = file_get_contents(__DIR__.'/../lib/timesheetweek.lib.php');
+$setupSource = file_get_contents(__DIR__.'/../admin/setup.php');
+$descriptorSource = file_get_contents(__DIR__.'/../core/modules/modTimesheetWeek.class.php');
 
-if ($objectSource === false || $notificationSource === false || $substitutionSource === false) {
+if ($objectSource === false || $notificationSource === false || $substitutionSource === false || $librarySource === false || $setupSource === false || $descriptorSource === false) {
 	fwrite(STDERR, "Unable to read TimesheetWeek notification sources.\n");
+	exit(1);
+}
+
+if (!defined('DOL_URL_ROOT')) {
+	define('DOL_URL_ROOT', '/dolibarr');
+}
+if (!function_exists('dol_buildpath')) {
+	function dol_buildpath($path, $type = 0)
+	{
+		return DOL_URL_ROOT.'/custom/'.ltrim((string) $path, '/');
+	}
+}
+if (!function_exists('getDolGlobalString')) {
+	function getDolGlobalString($key, $default = '')
+	{
+		return $key === 'TIMESHEETWEEK_PUBLIC_URL_ROOT' ? 'https://erp.example.com/dolibarr' : $default;
+	}
+}
+
+require_once __DIR__.'/../lib/timesheetweek.lib.php';
+if (
+	timesheetweekNormalizePublicUrlRoot('https:/custom') !== ''
+	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/') !== 'https://erp.example.com'
+	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/dolibarr/') !== 'https://erp.example.com/dolibarr'
+	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/custom') !== ''
+	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/?token=secret') !== ''
+	|| timesheetweekBuildUrlFromPublicRoot('https://erp.example.com/dolibarr', '/timesheetweek/timesheetweek_card.php') !== 'https://erp.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php'
+	|| timesheetweekBuildNotificationUrl(null, 471, 2, 3) !== 'https://erp.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php?id=471&entity=2'
+) {
+	fwrite(STDERR, "Notification public URL validation must reject incomplete or unsafe roots.\n");
 	exit(1);
 }
 
@@ -137,8 +170,11 @@ if (
 	strpos($notificationSource, "\$reason === 'seal'") === false
 	|| strpos($notificationSource, "\$object->context['timesheetweek_seal_origin'] === 'auto'") === false
 	|| strpos($notificationSource, "\$substitutions['__SENDEREMAIL_SIGNATURE__'] = '';") === false
+	|| strpos($notificationSource, "\$substitutions['__USER_SIGNATURE__'] = '';") === false
+	|| strpos($notificationSource, "\$substitutions['__MYCOMPANY_NAME__'] = '';") === false
+	|| strpos($notificationSource, "\$signature = '';") === false
 ) {
-	fwrite(STDERR, "Automatic sealing notifications must suppress the sender user signature.\n");
+	fwrite(STDERR, "Automatic sealing notifications must suppress user and trailing template signatures.\n");
 	exit(1);
 }
 
@@ -149,12 +185,21 @@ $emailSources = array(
 );
 
 foreach ($emailSources as $path => $source) {
-	$modeSelection = "PHP_SAPI === 'cli' ? 3 : 2";
-	$urlBuilder = "dol_buildpath('/timesheetweek/timesheetweek_card.php', \$urlMode)";
-	if (strpos($source, $modeSelection) === false || strpos($source, $urlBuilder) === false) {
-		fwrite(STDERR, $path." must use Dolibarr's configured public URL for CLI notifications and the current host for web notifications.\n");
+	if (strpos($source, 'timesheetweekBuildNotificationUrl(') === false) {
+		fwrite(STDERR, $path." must use the centralized validated notification URL builder.\n");
 		exit(1);
 	}
+}
+
+if (
+	strpos($librarySource, "getDolGlobalString('TIMESHEETWEEK_PUBLIC_URL_ROOT', '')") === false
+	|| strpos($librarySource, "timesheetweekGetMulticompanyPublicUrlRoot(\$db, \$entity)") === false
+	|| strpos($librarySource, "timesheetweekIsAbsoluteHttpUrl(\$nativeUrl)") === false
+	|| strpos($setupSource, "name=\"TIMESHEETWEEK_PUBLIC_URL_ROOT\"") === false
+	|| strpos($descriptorSource, 'timesheetweekInitializeNotificationPublicUrlRoot(') === false
+) {
+	fwrite(STDERR, "Automatic sealing must expose, initialize and validate a per-entity public URL.\n");
+	exit(1);
 }
 
 echo "Sealing notification test passed.\n";

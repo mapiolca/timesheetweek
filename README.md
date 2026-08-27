@@ -8,7 +8,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 
 ### Nouveautés de la version 2.0.2
 
-- **Notifications de scellement** : les liens utilisent l'URL publique complète configurée pour les tâches CLI, conservent `DOL_MAIN_URL_ROOT` pour les actions Web et n'incluent plus la signature personnelle de l'utilisateur. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
+- **Notifications de scellement** : les liens utilisent une URL publique absolue validée et enregistrée par entité, avec reprise de l'URL Multicompany puis de l'URL native Dolibarr seulement lorsqu'elles contiennent un hôte. Les courriels automatiques n'incluent plus de signature utilisateur ni de pied de modèle contenant le nom de la société. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
 
 ### Fonctionnalités principales
 
@@ -59,7 +59,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Configuration
 
 - Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
-- Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
+- Configurez le scellement automatique (activation, délai, utilisateur responsable et URL publique de la racine Dolibarr) depuis la section dédiée. L'URL doit ressembler à `https://erp.example.com` ou `https://erp.example.com/dolibarr`, sans suffixe `/custom` ; elle est enregistrée séparément pour chaque entité.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
 - La configuration TimesheetWeek affiche uniquement un lien vers le module natif Notifications ; les destinataires et le modèle de courriel utilisé par les événements se règlent dans cette administration native.
@@ -80,7 +80,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 
 ### What's new in version 2.0.2
 
-- **Sealing notifications**: links use the complete configured public URL for CLI jobs, retain `DOL_MAIN_URL_ROOT` for Web actions and no longer include the user's personal signature. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
+- **Sealing notifications**: links use a validated absolute public URL stored per entity, with fallbacks to the Multicompany URL and then the native Dolibarr URL only when they contain a host. Automatic emails no longer include user signatures or the template footer containing the company name. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
 
 ### Main features
 
@@ -133,7 +133,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Configuration
 
 - Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
-- Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
+- Configure automatic sealing (enablement, delay, responsible user, and public Dolibarr root URL) from the dedicated section. The URL must look like `https://erp.example.com` or `https://erp.example.com/dolibarr`, without a `/custom` suffix; it is stored separately for each entity.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
 - Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
 - TimesheetWeek setup only displays a link to the native Notifications module; recipients and the email template used by events are configured in that native administration page.

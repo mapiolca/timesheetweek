@@ -9,6 +9,7 @@
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 /**
@@ -131,9 +132,8 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	}
 
 	$status = method_exists($object, 'getLibStatut') ? $object->getLibStatut(0) : (string) $object->status;
-	$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
-	$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $object->id;
-	$urlHtml = '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($url).'</a>';
+	$url = timesheetweekBuildNotificationUrl($db, (int) $object->id, (int) $object->entity);
+	$urlHtml = $url !== '' ? '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($url).'</a>' : '';
 	$triggerReason = (!empty($object->context) && is_array($object->context) && !empty($object->context['trigger_reason'])) ? (string) $object->context['trigger_reason'] : '';
 	$triggerReasonLabel = '';
 	if ($triggerReason !== '') {

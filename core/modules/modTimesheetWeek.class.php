@@ -1064,6 +1064,11 @@ class modTimesheetWeek extends DolibarrModules
 			return $resultInit;
 		}
 
+		dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+		if (timesheetweekInitializeNotificationPublicUrlRoot($this->db, (int) $conf->entity) < 0) {
+			dol_syslog(__METHOD__.': unable to initialize TIMESHEETWEEK_PUBLIC_URL_ROOT: '.$this->db->lasterror(), LOG_WARNING);
+		}
+
 		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');
 		if (class_exists('ActionsTimesheetweek') && ActionsTimesheetweek::ensureNativeNotificationSetup($this->db, (int) $conf->entity) < 0) {
 			$this->error = $this->db->lasterror();

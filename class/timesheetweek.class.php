@@ -14,6 +14,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 class TimesheetWeek extends CommonObject
 {
@@ -2368,15 +2369,14 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$employee = $this->loadUserFromCache($this->fk_user);
 		$validator = $this->loadUserFromCache($this->fk_user_valid);
 
-		// FR: Conserve l'hôte courant pour les actions web et utilise l'URL publique configurée pour les tâches CLI.
-		// EN: Keep the current host for web actions and use the configured public URL for CLI jobs.
-		$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $this->id;
+		// FR: Utilise une URL publique absolue validée, y compris depuis les tâches CLI sans hôte HTTP.
+		// EN: Use a validated absolute public URL, including from CLI jobs without an HTTP host.
+		$url = timesheetweekBuildNotificationUrl($this->db, (int) $this->id, (int) $this->entity);
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.
 		$urlRaw = $url;
-		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
+		$urlHtml = $urlRaw !== '' ? '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>' : '';
 
 		$employeeName = $employee ? $employee->getFullName($langs) : '';
 		$validatorName = $validator ? $validator->getFullName($langs) : '';

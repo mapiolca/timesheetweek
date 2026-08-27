@@ -110,6 +110,223 @@ function timesheetweekGetDocumentModulePart()
 }
 
 /**
+ * Check that an URL is an absolute HTTP(S) URL with a host.
+ *
+ * @param string $url URL to validate
+ * @return bool
+ */
+function timesheetweekIsAbsoluteHttpUrl($url)
+{
+	$url = trim((string) $url);
+	if ($url === '' || preg_match('/[\r\n]/', $url) || filter_var($url, FILTER_VALIDATE_URL) === false) {
+		return false;
+	}
+
+	$parts = parse_url($url);
+	if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+		return false;
+	}
+
+	return in_array(strtolower((string) $parts['scheme']), array('http', 'https'), true);
+}
+
+/**
+ * Normalize a configured Dolibarr public URL root.
+ *
+ * The root may contain the Dolibarr installation path, but must not contain
+ * credentials, a query string or a fragment.
+ *
+ * @param string $url URL root to normalize
+ * @return string Normalized root, or an empty string when invalid
+ */
+function timesheetweekNormalizePublicUrlRoot($url)
+{
+	$url = trim((string) $url);
+	if (!timesheetweekIsAbsoluteHttpUrl($url)) {
+		return '';
+	}
+
+	$parts = parse_url($url);
+	if (!is_array($parts) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+		return '';
+	}
+	$path = isset($parts['path']) ? rtrim((string) $parts['path'], '/') : '';
+	if ($path !== '' && preg_match('~/custom$~i', $path)) {
+		return '';
+	}
+
+	return rtrim($url, '/');
+}
+
+/**
+ * Read the public URL declared for a Multicompany entity when available.
+ *
+ * @param DoliDB $db Database handler
+ * @param int     $entity Entity identifier
+ * @return string Normalized URL root, or an empty string
+ */
+function timesheetweekGetMulticompanyPublicUrlRoot($db, $entity)
+{
+	/** @var array<int,string> $cache */
+	static $cache = array();
+	/** @var bool|null $hasUrlColumn */
+	static $hasUrlColumn = null;
+
+	$entity = (int) $entity;
+	if ($entity <= 0 || !is_object($db) || !function_exists('isModEnabled') || !isModEnabled('multicompany')) {
+		return '';
+	}
+	if (array_key_exists($entity, $cache)) {
+		return $cache[$entity];
+	}
+	if ($hasUrlColumn === null) {
+		$sqlColumn = "SHOW COLUMNS FROM ".MAIN_DB_PREFIX."entity LIKE 'url'";
+		$resqlColumn = $db->query($sqlColumn);
+		$hasUrlColumn = $resqlColumn ? $db->num_rows($resqlColumn) > 0 : false;
+		if ($resqlColumn) {
+			$db->free($resqlColumn);
+		}
+	}
+	if (!$hasUrlColumn) {
+		$cache[$entity] = '';
+		return '';
+	}
+
+	$sql = 'SELECT url FROM '.MAIN_DB_PREFIX.'entity';
+	$sql .= ' WHERE rowid='.$entity.' AND active=1';
+	$resql = $db->query($sql);
+	if (!$resql) {
+		$cache[$entity] = '';
+		return '';
+	}
+
+	$root = '';
+	$obj = $db->fetch_object($resql);
+	if (is_object($obj) && isset($obj->url)) {
+		$root = timesheetweekNormalizePublicUrlRoot((string) $obj->url);
+	}
+	$db->free($resql);
+	$cache[$entity] = $root;
+
+	return $root;
+}
+
+/**
+ * Append a module URL path to a configured Dolibarr public root.
+ *
+ * @param string $root Public Dolibarr root
+ * @param string $modulePath Module path passed to dol_buildpath()
+ * @return string Absolute URL without query string, or an empty string
+ */
+function timesheetweekBuildUrlFromPublicRoot($root, $modulePath)
+{
+	$root = timesheetweekNormalizePublicUrlRoot($root);
+	if ($root === '') {
+		return '';
+	}
+
+	$relativePath = dol_buildpath($modulePath, 1);
+	$dolUrlRoot = defined('DOL_URL_ROOT') ? rtrim((string) DOL_URL_ROOT, '/') : '';
+	if ($dolUrlRoot !== '' && ($relativePath === $dolUrlRoot || strpos($relativePath, $dolUrlRoot.'/') === 0)) {
+		$relativePath = substr($relativePath, strlen($dolUrlRoot));
+	}
+
+	$url = $root.'/'.ltrim($relativePath, '/');
+	return timesheetweekIsAbsoluteHttpUrl($url) ? $url : '';
+}
+
+/**
+ * Build the absolute URL used in TimesheetWeek notification emails.
+ *
+ * A dedicated per-entity setting is preferred. Multicompany's entity URL is
+ * used as a native fallback, then Dolibarr's own URL builder is accepted only
+ * when its result really contains a scheme and a host.
+ *
+ * @param DoliDB   $db Database handler
+ * @param int      $timesheetId Timesheet identifier
+ * @param int      $entity Owner entity identifier
+ * @param int|null $urlMode Optional Dolibarr URL mode override
+ * @param string|null $configuredRootOverride Optional configured root override, mainly for setup validation
+ * @return string Absolute timesheet URL, or an empty string when no safe root exists
+ */
+function timesheetweekBuildNotificationUrl($db, $timesheetId, $entity = 0, $urlMode = null, $configuredRootOverride = null)
+{
+	$timesheetId = (int) $timesheetId;
+	$entity = (int) $entity;
+	if ($timesheetId <= 0) {
+		return '';
+	}
+	$query = '?id='.$timesheetId.($entity > 0 ? '&entity='.$entity : '');
+
+	$configuredRoot = $configuredRootOverride !== null
+		? timesheetweekNormalizePublicUrlRoot($configuredRootOverride)
+		: timesheetweekNormalizePublicUrlRoot(getDolGlobalString('TIMESHEETWEEK_PUBLIC_URL_ROOT', ''));
+	$roots = array($configuredRoot, timesheetweekGetMulticompanyPublicUrlRoot($db, $entity));
+	foreach (array_unique($roots) as $root) {
+		if ($root === '') {
+			continue;
+		}
+
+		$url = timesheetweekBuildUrlFromPublicRoot($root, '/timesheetweek/timesheetweek_card.php');
+		if ($url !== '') {
+			return $url.$query;
+		}
+	}
+
+	if ($urlMode !== 2 && $urlMode !== 3) {
+		$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
+	}
+	$nativeUrl = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode);
+	if (timesheetweekIsAbsoluteHttpUrl($nativeUrl)) {
+		return $nativeUrl.$query;
+	}
+
+	dol_syslog(__FUNCTION__.': no absolute public URL is available for TimesheetWeek notifications (entity='.(int) $entity.')', LOG_WARNING);
+	return '';
+}
+
+/**
+ * Initialize the notification public URL from the current Web request once.
+ *
+ * An existing constant, including an intentionally empty value, is preserved.
+ *
+ * @param DoliDB $db Database handler
+ * @param int     $entity Entity identifier
+ * @return int 1 when initialized, 0 when preserved or unavailable, -1 on error
+ */
+function timesheetweekInitializeNotificationPublicUrlRoot($db, $entity)
+{
+	$entity = (int) $entity;
+	if ($entity <= 0 || !is_object($db)) {
+		return -1;
+	}
+
+	$sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.'const';
+	$sql .= " WHERE name='".$db->escape('TIMESHEETWEEK_PUBLIC_URL_ROOT')."'";
+	$sql .= ' AND entity='.$entity;
+	$resql = $db->query($sql);
+	if (!$resql) {
+		return -1;
+	}
+
+	$alreadyExists = (bool) $db->num_rows($resql);
+	$db->free($resql);
+	if ($alreadyExists) {
+		return 0;
+	}
+
+	$root = defined('DOL_MAIN_URL_ROOT') ? timesheetweekNormalizePublicUrlRoot((string) DOL_MAIN_URL_ROOT) : '';
+	if ($root === '') {
+		$root = timesheetweekGetMulticompanyPublicUrlRoot($db, $entity);
+	}
+	if ($root === '') {
+		return 0;
+	}
+
+	return dolibarr_set_const($db, 'TIMESHEETWEEK_PUBLIC_URL_ROOT', $root, 'chaine', 0, '', $entity) > 0 ? 1 : -1;
+}
+
+/**
  * Return the document relative directory for a timesheet.
  *
  * @param object $object Timesheet-like object

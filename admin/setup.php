@@ -493,17 +493,32 @@ if ($action === 'saveautoseal') {
 	$autoSealEnabledValue = GETPOSTISSET('TIMESHEETWEEK_AUTOSEAL_ENABLE') ? (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_ENABLE', 'int') : getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 	$autoSealDelayValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 'int');
 	$autoSealUserIdValue = (int) GETPOST('TIMESHEETWEEK_AUTOSEAL_USERID', 'int');
+	$autoSealPublicUrlRootRaw = trim((string) GETPOST('TIMESHEETWEEK_PUBLIC_URL_ROOT', 'nohtml'));
+	$autoSealPublicUrlRootValue = timesheetweekNormalizePublicUrlRoot($autoSealPublicUrlRootRaw);
+	$error = 0;
 
 	if ($autoSealDelayValue < 0) {
 		$autoSealDelayValue = 0;
 	}
+	if ($autoSealPublicUrlRootRaw !== '' && $autoSealPublicUrlRootValue === '') {
+		setEventMessages($langs->trans('TimesheetWeekPublicUrlRootInvalid'), null, 'errors');
+		$error++;
+	}
+	$autoSealNotificationUrl = timesheetweekBuildNotificationUrl($db, 1, (int) $conf->entity, 3, $autoSealPublicUrlRootValue);
+	if ($autoSealEnabledValue && $autoSealNotificationUrl === '') {
+		setEventMessages($langs->trans('TimesheetWeekPublicUrlRootMissing'), null, 'errors');
+		$error++;
+	}
 
 	$results = array();
-	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_ENABLE', ($autoSealEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
-	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', $autoSealDelayValue, 'chaine', 0, '', $conf->entity);
-	$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_USERID', $autoSealUserIdValue, 'chaine', 0, '', $conf->entity);
+	if (!$error) {
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_ENABLE', ($autoSealEnabledValue ? 1 : 0), 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', $autoSealDelayValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_AUTOSEAL_USERID', $autoSealUserIdValue, 'chaine', 0, '', $conf->entity);
+		$results[] = dolibarr_set_const($db, 'TIMESHEETWEEK_PUBLIC_URL_ROOT', $autoSealPublicUrlRootValue, 'chaine', 0, '', $conf->entity);
+	}
 
-	$hasError = false;
+	$hasError = (bool) $error;
 	foreach ($results as $resultValue) {
 		if ($resultValue <= 0) {
 			$hasError = true;
@@ -567,6 +582,11 @@ $nativeWorkflowNotificationAvailable = class_exists('TimesheetWeekNotification')
 $autoSealEnabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
 $autoSealDelayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
 $autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
+$autoSealPublicUrlRoot = getDolGlobalString('TIMESHEETWEEK_PUBLIC_URL_ROOT', '');
+$autoSealNotificationUrl = timesheetweekBuildNotificationUrl($db, 1, (int) $conf->entity, 3);
+if ($autoSealEnabled && $autoSealNotificationUrl === '') {
+	setEventMessages($langs->trans('TimesheetWeekPublicUrlRootMissing'), null, 'warnings');
+}
 $overtimeRequireMotif = getDolGlobalInt('TIMESHEETWEEK_OVERTIME_MOTIF_REQUIRED', 1);
 $overtimeMotifThreshold = getDolGlobalString('TIMESHEETWEEK_OVERTIME_MOTIF_THRESHOLD', '00:00');
 $directories = array_merge(array('/'), (array) $conf->modules_parts['models']);
@@ -864,6 +884,14 @@ print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_AUTOSEAL_DELAY_DAY
 print '<td class="small">'.$langs->trans('TimesheetWeekAutoSealDelayHelp').'</td>';
 print '<td class="center">';
 print '<input type="number" name="TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS" min="0" class="width60" value="'.(int) $autoSealDelayDays.'">';
+print '</td>';
+print '</tr>';
+
+print '<tr class="oddeven">';
+print '<td class="nowraponall">'.$langs->trans('TIMESHEETWEEK_PUBLIC_URL_ROOT').'</td>';
+print '<td class="small">'.$langs->trans('TimesheetWeekPublicUrlRootHelp').'</td>';
+print '<td class="center">';
+print '<input type="url" name="TIMESHEETWEEK_PUBLIC_URL_ROOT" class="minwidth300" autocomplete="url" spellcheck="false" placeholder="https://erp.example.com" value="'.dol_escape_htmltag($autoSealPublicUrlRoot).'">';
 print '</td>';
 print '</tr>';
 

@@ -13,6 +13,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 /**
  * Workflow email notification content for TimesheetWeek status steps.
@@ -601,11 +602,8 @@ class TimesheetWeekNotification
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		if ($urlMode !== 2 && $urlMode !== 3) {
-			$urlMode = PHP_SAPI === 'cli' ? 3 : 2;
-		}
-		$urlRaw = dol_buildpath('/timesheetweek/timesheetweek_card.php', $urlMode).'?id='.(int) $object->id;
-		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
+		$urlRaw = timesheetweekBuildNotificationUrl($this->db, (int) $object->id, (int) $object->entity, $urlMode);
+		$urlHtml = $urlRaw !== '' ? '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>' : '';
 
 		$oldStatus = is_array($object->context) && array_key_exists('old_status', $object->context) ? $object->context['old_status'] : null;
 		$newStatus = is_array($object->context) && array_key_exists('new_status', $object->context) ? $object->context['new_status'] : (int) $object->status;
@@ -628,6 +626,9 @@ class TimesheetWeekNotification
 			&& $object->context['timesheetweek_seal_origin'] === 'auto';
 		if ($isAutomaticSeal) {
 			$substitutions['__SENDEREMAIL_SIGNATURE__'] = '';
+			$substitutions['__USER_SIGNATURE__'] = '';
+			$substitutions['__MYCOMPANY_NAME__'] = '';
+			$signature = '';
 		}
 
 		$substitutions['__ID__'] = (string) $object->id;
