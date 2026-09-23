@@ -297,7 +297,18 @@ class TimesheetWeekNotification
 
 		$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
 		$templateConstant = self::getTemplateConstant($reason);
-		$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, $entity) : 0;
+		$templateId = 0;
+		if ($templateConstant !== '') {
+			$currentEntity = is_object($conf) && isset($conf->entity) ? (int) $conf->entity : 1;
+			if ($entity === $currentEntity) {
+				$templateId = getDolGlobalInt($templateConstant, 0);
+			} elseif (is_object($conf) && method_exists($conf, 'setEntityValues')) {
+				$entityConf = clone $conf;
+				if ($entityConf->setEntityValues($this->db, $entity) >= 0 && isset($entityConf->global) && is_object($entityConf->global) && isset($entityConf->global->{$templateConstant})) {
+					$templateId = (int) $entityConf->global->{$templateConstant};
+				}
+			}
+		}
 		$template = $templateId > 0 ? $this->fetchEmailTemplate($templateId, $entity) : array();
 		$templateLabel = !empty($template['label']) ? (string) $template['label'] : '';
 		$routerMirrorLabel = self::NATIVE_ROUTER_TEMPLATE_LABEL.' ['.self::NATIVE_TEMPLATE_TYPE.']';
@@ -312,9 +323,37 @@ class TimesheetWeekNotification
 
 		$subject = !empty($template['topic']) ? $template['topic'] : $this->getDefaultTemplateText($definition['subject_key'], $object, $actionUser, $trans);
 		$body = !empty($template['content']) ? $template['content'] : $this->getDefaultTemplateText($definition['body_key'], $object, $actionUser, $trans);
+		$isAutomaticSeal = $reason === 'seal'
+			&& is_array($object->context)
+			&& isset($object->context['timesheetweek_seal_origin'])
+			&& $object->context['timesheetweek_seal_origin'] === 'auto';
+		if ($isAutomaticSeal && empty($substitutions['__TIMESHEETWEEK_URL_RAW__'])) {
+			$normalizedBody = preg_replace(
+				'~<a\b[^>]*\bhref\s*=\s*(?:"__TIMESHEETWEEK_URL_RAW__"|\'__TIMESHEETWEEK_URL_RAW__\'|__TIMESHEETWEEK_URL_RAW__)(?=[\s>])[^>]*>.*?</a>~is',
+				'__TIMESHEETWEEK_ACCESS__',
+				$body
+			);
+			if (is_string($normalizedBody)) {
+				$body = $normalizedBody;
+			}
+			$body = str_replace(
+				array(
+					'Accès direct : __TIMESHEETWEEK_URL_RAW__',
+					'Accès direct: __TIMESHEETWEEK_URL_RAW__',
+					'Direct access: __TIMESHEETWEEK_URL_RAW__',
+					'Direct access : __TIMESHEETWEEK_URL_RAW__',
+				),
+				'__TIMESHEETWEEK_ACCESS__',
+				$body
+			);
+		}
 
 		$subject = make_substitutions($subject, $substitutions);
 		$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
+		$accessBlock = !empty($substitutions['__TIMESHEETWEEK_ACCESS__']) ? (string) $substitutions['__TIMESHEETWEEK_ACCESS__'] : '';
+		if ($isAutomaticSeal && empty($substitutions['__TIMESHEETWEEK_URL_RAW__']) && $accessBlock !== '' && strpos($body, $accessBlock) === false) {
+			$body = dol_concatdesc(rtrim($body), $accessBlock);
+		}
 
 		$subject = dol_string_nohtmltag(html_entity_decode($subject, ENT_QUOTES, 'UTF-8'));
 		$body = $this->formatNotificationBodyAsHtml(html_entity_decode($body, ENT_QUOTES, 'UTF-8'));
@@ -387,13 +426,36 @@ class TimesheetWeekNotification
 		}
 
 		$entity = !empty($object->entity) ? (int) $object->entity : (int) $conf->entity;
+		$currentEntity = is_object($conf) && isset($conf->entity) ? (int) $conf->entity : 1;
+		$entityConf = null;
+		if ($entity !== $currentEntity && is_object($conf) && method_exists($conf, 'setEntityValues')) {
+			$entityConf = clone $conf;
+			if ($entityConf->setEntityValues($this->db, $entity) < 0) {
+				$entityConf = null;
+			}
+		}
 		$enableConstant = self::getEnableConstant($reason);
-		if ($enableConstant === '' || !getDolGlobalInt($enableConstant, 0, $entity)) {
+		$notificationEnabled = 0;
+		if ($enableConstant !== '') {
+			if ($entity === $currentEntity) {
+				$notificationEnabled = getDolGlobalInt($enableConstant, 0);
+			} elseif (is_object($entityConf) && isset($entityConf->global) && is_object($entityConf->global) && isset($entityConf->global->{$enableConstant})) {
+				$notificationEnabled = (int) $entityConf->global->{$enableConstant};
+			}
+		}
+		if (!$notificationEnabled) {
 			return 0;
 		}
 
 		$templateConstant = self::getTemplateConstant($reason);
-		$templateId = ($templateConstant !== '') ? getDolGlobalInt($templateConstant, 0, $entity) : 0;
+		$templateId = 0;
+		if ($templateConstant !== '') {
+			if ($entity === $currentEntity) {
+				$templateId = getDolGlobalInt($templateConstant, 0);
+			} elseif (is_object($entityConf) && isset($entityConf->global) && is_object($entityConf->global) && isset($entityConf->global->{$templateConstant})) {
+				$templateId = (int) $entityConf->global->{$templateConstant};
+			}
+		}
 		if ($templateId <= 0) {
 			dol_syslog(__METHOD__.': missing email template for '.$reason.' on timesheet '.$object->id, LOG_WARNING);
 			return 0;
@@ -425,8 +487,36 @@ class TimesheetWeekNotification
 
 		$subject = !empty($template['topic']) ? $template['topic'] : $this->getDefaultTemplateText($definition['subject_key'], $object, $actionUser);
 		$body = !empty($template['content']) ? $template['content'] : $this->getDefaultTemplateText($definition['body_key'], $object, $actionUser);
+		$isAutomaticSeal = $reason === 'seal'
+			&& is_array($object->context)
+			&& isset($object->context['timesheetweek_seal_origin'])
+			&& $object->context['timesheetweek_seal_origin'] === 'auto';
+		if ($isAutomaticSeal && empty($substitutions['__TIMESHEETWEEK_URL_RAW__'])) {
+			$normalizedBody = preg_replace(
+				'~<a\b[^>]*\bhref\s*=\s*(?:"__TIMESHEETWEEK_URL_RAW__"|\'__TIMESHEETWEEK_URL_RAW__\'|__TIMESHEETWEEK_URL_RAW__)(?=[\s>])[^>]*>.*?</a>~is',
+				'__TIMESHEETWEEK_ACCESS__',
+				$body
+			);
+			if (is_string($normalizedBody)) {
+				$body = $normalizedBody;
+			}
+			$body = str_replace(
+				array(
+					'Accès direct : __TIMESHEETWEEK_URL_RAW__',
+					'Accès direct: __TIMESHEETWEEK_URL_RAW__',
+					'Direct access: __TIMESHEETWEEK_URL_RAW__',
+					'Direct access : __TIMESHEETWEEK_URL_RAW__',
+				),
+				'__TIMESHEETWEEK_ACCESS__',
+				$body
+			);
+		}
 		$subject = make_substitutions($subject, $substitutions);
 		$body = make_substitutions(str_replace('\\n', "\n", $body), $substitutions);
+		$accessBlock = !empty($substitutions['__TIMESHEETWEEK_ACCESS__']) ? (string) $substitutions['__TIMESHEETWEEK_ACCESS__'] : '';
+		if ($isAutomaticSeal && empty($substitutions['__TIMESHEETWEEK_URL_RAW__']) && $accessBlock !== '' && strpos($body, $accessBlock) === false) {
+			$body = dol_concatdesc(rtrim($body), $accessBlock);
+		}
 
 		$subject = dol_string_nohtmltag(html_entity_decode($subject, ENT_QUOTES, 'UTF-8'));
 		$body = html_entity_decode($body, ENT_QUOTES, 'UTF-8');
@@ -602,8 +692,22 @@ class TimesheetWeekNotification
 		$trans = ($outputlangs instanceof Translate) ? $outputlangs : $langs;
 		$employee = $this->fetchUser((int) $object->fk_user);
 		$validator = $this->fetchUser((int) $object->fk_user_valid);
-		$urlRaw = timesheetweekBuildNotificationUrl($this->db, (int) $object->id, (int) $object->entity, $urlMode);
+		$urlRaw = '';
+		if (is_array($object->context) && array_key_exists('timesheetweek_notification_url', $object->context)) {
+			$contextUrl = trim((string) $object->context['timesheetweek_notification_url']);
+			$urlRaw = timesheetweekIsAbsoluteHttpUrl($contextUrl) ? $contextUrl : '';
+		} else {
+			$urlRaw = timesheetweekBuildNotificationUrl($this->db, (int) $object->id, (int) $object->entity, $urlMode);
+		}
 		$urlHtml = $urlRaw !== '' ? '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>' : '';
+		$accessTranslationKey = $urlRaw !== '' ? 'TimesheetWeekNotificationDirectAccess' : 'TimesheetWeekNotificationAccountAccess';
+		$accessBlock = '';
+		if ($trans instanceof Translate) {
+			$accessBlock = $urlRaw !== '' ? $trans->transnoentities($accessTranslationKey, $urlHtml) : $trans->transnoentities($accessTranslationKey);
+		}
+		if ($accessBlock === '' || $accessBlock === $accessTranslationKey) {
+			$accessBlock = $urlRaw !== '' ? 'Direct access: '.$urlHtml : 'Please view it directly from your Dolibarr user account.';
+		}
 
 		$oldStatus = is_array($object->context) && array_key_exists('old_status', $object->context) ? $object->context['old_status'] : null;
 		$newStatus = is_array($object->context) && array_key_exists('new_status', $object->context) ? $object->context['new_status'] : (int) $object->status;
@@ -645,6 +749,7 @@ class TimesheetWeekNotification
 		$substitutions['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] = $trans instanceof Translate ? $trans->trans($definition['label']) : $reason;
 		$substitutions['__TIMESHEETWEEK_URL__'] = $urlHtml;
 		$substitutions['__TIMESHEETWEEK_URL_RAW__'] = $urlRaw;
+		$substitutions['__TIMESHEETWEEK_ACCESS__'] = $accessBlock;
 		$substitutions['__TIMESHEETWEEK_MOTIF__'] = $motif;
 		$substitutions['__TIMESHEETWEEK_MAIL_SIGNATURE__'] = $signature;
 

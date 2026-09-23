@@ -506,8 +506,7 @@ if ($action === 'saveautoseal') {
 	}
 	$autoSealNotificationUrl = timesheetweekBuildNotificationUrl($db, 1, (int) $conf->entity, 3, $autoSealPublicUrlRootValue);
 	if ($autoSealEnabledValue && $autoSealNotificationUrl === '') {
-		setEventMessages($langs->trans('TimesheetWeekPublicUrlRootMissing'), null, 'errors');
-		$error++;
+		setEventMessages($langs->trans('TimesheetWeekPublicUrlRootMissing'), null, 'warnings');
 	}
 
 	$results = array();

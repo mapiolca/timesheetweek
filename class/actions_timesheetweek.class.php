@@ -22,6 +22,9 @@ class ActionsTimesheetweek
     /** @var array<string,bool> */
     protected static $nativeNotificationSetupSynced = array();
 
+    /** @var array<string,string> */
+    protected static $nativeNotificationVisibleTemplateLabels = array();
+
     /** @var DoliDB */
     public $db;
 
@@ -235,6 +238,13 @@ class ActionsTimesheetweek
     public static function getNativeNotificationRouterTemplates()
     {
         return array(
+            array(
+                'lang' => '',
+                'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
+                'position' => 200,
+                'topic' => '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__',
+                'content' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_BODY,
+            ),
             array(
                 'lang' => 'fr_FR',
                 'label' => self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL,
@@ -681,34 +691,63 @@ class ActionsTimesheetweek
      *
      * @param DoliDB $db Database handler
      * @param string $notifcode Notification trigger code
+     * @param int $entity Owner entity identifier
+     * @param bool $forceAccessFallback Use a dedicated no-URL mirror for automatic sealing
      * @return int<-1,1>
      */
-    public static function syncSelectedNotificationEmailTemplateMirror($db, $notifcode)
+    public static function syncSelectedNotificationEmailTemplateMirror($db, $notifcode, $entity = 0, $forceAccessFallback = false)
     {
         if (empty($notifcode) || !in_array($notifcode, self::getNativeNotificationTriggerCodes(), true)) {
             return 1;
         }
-        if (!function_exists('getDolGlobalString')) {
-            return 1;
-        }
 
-        $label = getDolGlobalString($notifcode.'_TEMPLATE');
-        if ($label === '') {
-            return 1;
-        }
+        global $conf;
 
-        $visibleLabel = self::getVisibleNotificationEmailTemplateLabel($label);
-        $result = self::syncNotificationEmailTemplateMirror($db, $visibleLabel);
+        $currentEntity = is_object($conf) && isset($conf->entity) ? (int) $conf->entity : 1;
+        $entity = (int) $entity > 0 ? (int) $entity : $currentEntity;
+        $currentSelectionLabel = '';
+        if (function_exists('getDolGlobalString')) {
+            $runtimeLabel = getDolGlobalString($notifcode.'_TEMPLATE');
+            $selectionKey = $notifcode.':'.$currentEntity;
+            $visibleConfiguredLabel = self::getVisibleNotificationEmailTemplateLabel($runtimeLabel);
+            if ($visibleConfiguredLabel !== $runtimeLabel && array_key_exists($selectionKey, self::$nativeNotificationVisibleTemplateLabels)) {
+                $currentSelectionLabel = self::$nativeNotificationVisibleTemplateLabels[$selectionKey];
+            } else {
+                $currentSelectionLabel = $visibleConfiguredLabel;
+                self::$nativeNotificationVisibleTemplateLabels[$selectionKey] = $currentSelectionLabel;
+            }
+        }
+        $label = $entity === $currentEntity ? $currentSelectionLabel : '';
+
+        // Notify::send() resolves its template in the current execution entity. For a shared
+        // timesheet, keep the global router and let the inner notification content use the
+        // owner entity configuration prepared on the object context.
+        $useBundledRouter = $entity !== $currentEntity || $label === '';
+        $visibleLabel = $useBundledRouter ? self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL : self::getVisibleNotificationEmailTemplateLabel($label);
+        $sourceEntity = $useBundledRouter ? 0 : $entity;
+        $mirrorAccessFallback = !$useBundledRouter && (bool) $forceAccessFallback;
+        $result = self::syncNotificationEmailTemplateMirror($db, $visibleLabel, $sourceEntity, $mirrorAccessFallback);
         if ($result < 0) {
             return $result;
         }
-        if ($result === 0) {
-            return 1;
+        if ($result === 0 && $visibleLabel !== self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL) {
+            if (function_exists('dol_syslog')) {
+                dol_syslog(__METHOD__.': configured template "'.$visibleLabel.'" is unavailable for '.$notifcode.'; using the bundled router in memory', LOG_WARNING);
+            }
+            $visibleLabel = self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL;
+            $sourceEntity = 0;
+            $mirrorAccessFallback = false;
+            $result = self::syncNotificationEmailTemplateMirror($db, $visibleLabel, 0);
+        }
+        if ($result <= 0) {
+            if (function_exists('dol_syslog')) {
+                dol_syslog(__METHOD__.': bundled notification router is unavailable for '.$notifcode, LOG_ERR);
+            }
+            return -1;
         }
 
-        global $conf;
         if (is_object($conf) && !empty($conf->global) && is_object($conf->global)) {
-            $conf->global->{$notifcode.'_TEMPLATE'} = self::getNotificationEmailTemplateMirrorLabel($visibleLabel);
+            $conf->global->{$notifcode.'_TEMPLATE'} = self::getNotificationEmailTemplateMirrorLabel($visibleLabel, $mirrorAccessFallback, $sourceEntity);
         }
 
         return 1;
@@ -722,7 +761,7 @@ class ActionsTimesheetweek
      */
     protected static function copyNativeNotificationTemplatesToObjectType($db)
     {
-        return self::syncNotificationEmailTemplateMirror($db, self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL) < 0 ? -1 : 1;
+        return self::syncNotificationEmailTemplateMirror($db, self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL, 0) < 0 ? -1 : 1;
     }
 
     /**
@@ -738,7 +777,7 @@ class ActionsTimesheetweek
         $sql = "DELETE FROM ".MAIN_DB_PREFIX."c_email_templates";
         $sql .= " WHERE module = 'timesheetweek'";
         $sql .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
-        $sql .= " AND (label IS NULL OR label <> '".$db->escape($mirrorLabel)."' OR COALESCE(lang, '') NOT IN ('fr_FR', 'en_US'))";
+        $sql .= " AND (entity <> 0 OR label IS NULL OR label <> '".$db->escape($mirrorLabel)."' OR lang IS NULL OR lang NOT IN ('', 'fr_FR', 'en_US'))";
 
         if (!$db->query($sql)) {
             return -1;
@@ -755,7 +794,7 @@ class ActionsTimesheetweek
         $sqlDuplicates .= " WHERE duplicate_template.module = 'timesheetweek'";
         $sqlDuplicates .= " AND duplicate_template.type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
         $sqlDuplicates .= " AND duplicate_template.label = '".$db->escape($mirrorLabel)."'";
-        $sqlDuplicates .= " AND duplicate_template.lang IN ('fr_FR', 'en_US')";
+        $sqlDuplicates .= " AND duplicate_template.lang IN ('', 'fr_FR', 'en_US')";
 
         return $db->query($sqlDuplicates) ? 1 : -1;
     }
@@ -765,43 +804,96 @@ class ActionsTimesheetweek
      *
      * @param DoliDB $db Database handler
      * @param string $label Optional visible template label to sync
+     * @param int $entity Source entity; 0 restricts the lookup to global templates
+     * @param bool $forceAccessFallback Build a dedicated mirror that cannot expose an empty access link
      * @return int<-1,1> 1 if synced, 0 if no source template found, -1 on error
      */
-    protected static function syncNotificationEmailTemplateMirror($db, $label = '')
+    protected static function syncNotificationEmailTemplateMirror($db, $label = '', $entity = 0, $forceAccessFallback = false)
     {
         if ($label === '') {
             $label = self::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL;
         }
 
+        $entity = (int) $entity;
+
         $sql = "SELECT rowid, entity, module, type_template, lang, private, fk_user, label, position, defaultfortype, enabled, active,";
         $sql .= " email_from, email_to, email_tocc, email_tobcc, topic, joinfiles, content, content_lines";
         $sql .= " FROM ".MAIN_DB_PREFIX."c_email_templates";
-        $sql .= " WHERE module = 'timesheetweek'";
+        $sql .= " WHERE (module IS NULL OR module = '' OR module = 'timesheetweek')";
         $sql .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_VISIBLE_TEMPLATE_TYPE)."'";
         $sql .= " AND label = '".$db->escape($label)."'";
         $sql .= " AND active = 1";
-        $sql .= " ORDER BY entity, lang, position, rowid";
+        $sql .= $entity > 0 ? " AND entity IN (0, ".$entity.")" : " AND entity = 0";
+        $sql .= " ORDER BY lang, entity DESC, position, rowid";
 
         $resql = $db->query($sql);
         if (!$resql) {
             return -1;
         }
 
-        $nbsource = 0;
+        $notificationUserId = isset($GLOBALS['user']) && is_object($GLOBALS['user']) && isset($GLOBALS['user']->id) ? (int) $GLOBALS['user']->id : 0;
+        /** @var array<string,stdClass> $effectiveSources */
+        $effectiveSources = array();
         while ($obj = $db->fetch_object($resql)) {
-            $nbsource++;
-            $mirrorLabel = self::getNotificationEmailTemplateMirrorLabel((string) $obj->label);
+            if (!empty($obj->private) && (int) $obj->fk_user !== $notificationUserId) {
+                continue;
+            }
 
-            $result = self::syncNotificationEmailTemplateMirrorRow($db, $obj, $mirrorLabel, $obj->lang);
-            if ($result < 0) {
-                $db->free($resql);
-                return -1;
+            $languageKey = $obj->lang === null || (string) $obj->lang === '' ? 'neutral:' : 'string:'.(string) $obj->lang;
+            if (
+                !isset($effectiveSources[$languageKey])
+                || ($entity > 0 && (int) $obj->entity === $entity && (int) $effectiveSources[$languageKey]->entity !== $entity)
+            ) {
+                $effectiveSources[$languageKey] = clone $obj;
+                if ($languageKey === 'neutral:') {
+                    $effectiveSources[$languageKey]->lang = '';
+                }
             }
         }
 
         $db->free($resql);
 
-        return $nbsource > 0 ? 1 : 0;
+        $mirrorLabel = self::getNotificationEmailTemplateMirrorLabel($label, $forceAccessFallback, $entity);
+        $effectiveLanguageValues = array();
+        $hasNullLanguage = false;
+        foreach ($effectiveSources as $source) {
+            if ($source->lang === null) {
+                $hasNullLanguage = true;
+            } else {
+                $effectiveLanguageValues[(string) $source->lang] = (string) $source->lang;
+            }
+        }
+
+        $sqlDeleteStale = "DELETE FROM ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlDeleteStale .= " WHERE module = 'timesheetweek'";
+        $sqlDeleteStale .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
+        $sqlDeleteStale .= " AND entity = ".($entity > 0 ? $entity : 0);
+        $sqlDeleteStale .= " AND label ".self::sqlNullableCondition($db, $mirrorLabel);
+        if (!empty($effectiveLanguageValues)) {
+            $languageList = self::buildSqlStringList($db, array_values($effectiveLanguageValues));
+            $sqlDeleteStale .= $hasNullLanguage
+                ? " AND lang IS NOT NULL AND lang NOT IN (".$languageList.")"
+                : " AND (lang IS NULL OR lang NOT IN (".$languageList."))";
+        } elseif ($hasNullLanguage) {
+            $sqlDeleteStale .= " AND lang IS NOT NULL";
+        }
+        if (!$db->query($sqlDeleteStale)) {
+            return -1;
+        }
+
+        foreach ($effectiveSources as $obj) {
+            $mirrorRow = clone $obj;
+            if ($entity > 0) {
+                $mirrorRow->entity = $entity;
+            }
+
+            $result = self::syncNotificationEmailTemplateMirrorRow($db, $mirrorRow, $mirrorLabel, $obj->lang, $forceAccessFallback);
+            if ($result < 0) {
+                return -1;
+            }
+        }
+
+        return !empty($effectiveSources) ? 1 : 0;
     }
 
     /**
@@ -811,10 +903,55 @@ class ActionsTimesheetweek
      * @param stdClass $obj         Source template row
      * @param string   $mirrorLabel Hidden mirror label
      * @param mixed    $mirrorLang  Hidden mirror language
+     * @param bool     $forceAccessFallback Replace unsafe legacy raw links with the complete access block
      * @return int<-1,1>
      */
-    protected static function syncNotificationEmailTemplateMirrorRow($db, $obj, $mirrorLabel, $mirrorLang)
+    protected static function syncNotificationEmailTemplateMirrorRow($db, $obj, $mirrorLabel, $mirrorLang, $forceAccessFallback = false)
     {
+        $legacyAccessPatterns = array(
+            'Accès direct : __TIMESHEETWEEK_URL_RAW__',
+            'Accès direct: __TIMESHEETWEEK_URL_RAW__',
+            'Direct access: __TIMESHEETWEEK_URL_RAW__',
+            'Direct access : __TIMESHEETWEEK_URL_RAW__',
+        );
+        $mirrorContent = $obj->content;
+        if ($mirrorContent !== null) {
+            $mirrorContent = str_replace($legacyAccessPatterns, '__TIMESHEETWEEK_ACCESS__', (string) $mirrorContent);
+        }
+        if ($forceAccessFallback) {
+            $mirrorContent = $mirrorContent === null ? '' : (string) $mirrorContent;
+            $normalizedContent = preg_replace(
+                '~<a\b[^>]*\bhref\s*=\s*(?:"__TIMESHEETWEEK_URL_RAW__"|\'__TIMESHEETWEEK_URL_RAW__\'|__TIMESHEETWEEK_URL_RAW__)(?=[\s>])[^>]*>.*?</a>~is',
+                '__TIMESHEETWEEK_ACCESS__',
+                $mirrorContent
+            );
+            if (is_string($normalizedContent)) {
+                $mirrorContent = $normalizedContent;
+            }
+            $contentParts = preg_split('~(<[^>]*>)~s', $mirrorContent, -1, PREG_SPLIT_DELIM_CAPTURE);
+            if (is_array($contentParts)) {
+                foreach ($contentParts as $partIndex => $contentPart) {
+                    if ($contentPart !== '' && $contentPart[0] === '<') {
+                        $contentParts[$partIndex] = str_replace('__TIMESHEETWEEK_URL_RAW__', '', $contentPart);
+                    } else {
+                        $contentParts[$partIndex] = str_replace('__TIMESHEETWEEK_URL_RAW__', '__TIMESHEETWEEK_ACCESS__', $contentPart);
+                    }
+                }
+                $mirrorContent = implode('', $contentParts);
+            }
+            if (
+                strpos($mirrorContent, '__TIMESHEETWEEK_ACCESS__') === false
+                && strpos($mirrorContent, '__TIMESHEETWEEK_NOTIFICATION_BODY__') === false
+            ) {
+                $mirrorContent = rtrim($mirrorContent);
+                $mirrorContent .= ($mirrorContent !== '' ? "\n" : '').'__TIMESHEETWEEK_ACCESS__';
+            }
+        }
+        $mirrorContentLines = $obj->content_lines;
+        if ($mirrorContentLines !== null) {
+            $mirrorContentLines = str_replace($legacyAccessPatterns, '__TIMESHEETWEEK_ACCESS__', (string) $mirrorContentLines);
+        }
+
         $uniqueWhere = self::getEmailTemplateUniqueWhere($db, (int) $obj->entity, $mirrorLabel, $mirrorLang);
         $mirrorWhere = "module = 'timesheetweek'";
         $mirrorWhere .= " AND type_template = '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."'";
@@ -822,7 +959,7 @@ class ActionsTimesheetweek
         $mirrorWhere .= " AND label ".self::sqlNullableCondition($db, $mirrorLabel);
         $mirrorWhere .= " AND lang ".self::sqlNullableCondition($db, $mirrorLang);
 
-        $sqlInsert = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates";
+        $sqlInsert = "INSERT IGNORE INTO ".MAIN_DB_PREFIX."c_email_templates";
         $sqlInsert .= " (entity, module, type_template, lang, private, fk_user, datec, label, position, defaultfortype, enabled, active,";
         $sqlInsert .= " email_from, email_to, email_tocc, email_tobcc, topic, joinfiles, content, content_lines)";
         $sqlInsert .= " SELECT ".((int) $obj->entity).", 'timesheetweek', '".$db->escape(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE)."',";
@@ -832,7 +969,7 @@ class ActionsTimesheetweek
         $sqlInsert .= " ".self::sqlNullableString($db, $obj->email_from).", ".self::sqlNullableString($db, $obj->email_to).",";
         $sqlInsert .= " ".self::sqlNullableString($db, $obj->email_tocc).", ".self::sqlNullableString($db, $obj->email_tobcc).",";
         $sqlInsert .= " ".self::sqlNullableString($db, $obj->topic).", ".self::sqlNullableString($db, $obj->joinfiles).",";
-        $sqlInsert .= " ".self::sqlNullableString($db, $obj->content).", ".self::sqlNullableString($db, $obj->content_lines);
+        $sqlInsert .= " ".self::sqlNullableString($db, $mirrorContent).", ".self::sqlNullableString($db, $mirrorContentLines);
         $sqlInsert .= " FROM DUAL";
         $sqlInsert .= " WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE ".$uniqueWhere.")";
         if (!$db->query($sqlInsert)) {
@@ -852,8 +989,8 @@ class ActionsTimesheetweek
         $sqlUpdate .= ", email_tobcc = ".self::sqlNullableString($db, $obj->email_tobcc);
         $sqlUpdate .= ", topic = ".self::sqlNullableString($db, $obj->topic);
         $sqlUpdate .= ", joinfiles = ".self::sqlNullableString($db, $obj->joinfiles);
-        $sqlUpdate .= ", content = ".self::sqlNullableString($db, $obj->content);
-        $sqlUpdate .= ", content_lines = ".self::sqlNullableString($db, $obj->content_lines);
+        $sqlUpdate .= ", content = ".self::sqlNullableString($db, $mirrorContent);
+        $sqlUpdate .= ", content_lines = ".self::sqlNullableString($db, $mirrorContentLines);
         $sqlUpdate .= " WHERE ".$mirrorWhere;
 
         return $db->query($sqlUpdate) ? 1 : -1;
@@ -863,21 +1000,46 @@ class ActionsTimesheetweek
      * Return the hidden label used for the object-type mirror.
      *
      * @param string $label Visible template label
+     * @param bool $forceAccessFallback Use the dedicated no-URL suffix
+     * @param int $entity Execution entity copied into the mirror
      * @return string
      */
-    protected static function getNotificationEmailTemplateMirrorLabel($label)
+    protected static function getNotificationEmailTemplateMirrorLabel($label, $forceAccessFallback = false, $entity = 0)
     {
-        $suffix = ' ['.self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE.']';
-        if (substr($label, -strlen($suffix)) === $suffix) {
+        $label = (string) $label;
+        $suffixStart = ' ['.self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE;
+        $suffixEntity = (int) $entity > 0 ? ':entity'.((int) $entity) : '';
+        $suffixFallback = $forceAccessFallback ? ':no_url' : '';
+        $suffix = $suffixStart.$suffixEntity.$suffixFallback.']';
+        $matchingSuffixPattern = '~ '.preg_quote('['.self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE.$suffixEntity, '~')
+            .'(?::h[0-9a-f]{12})?'.preg_quote($suffixFallback.']', '~').'$~';
+        if (preg_match($matchingSuffixPattern, $label) === 1) {
             return $label;
         }
 
-        $maxLabelSize = 180 - strlen($suffix);
+        $maxLabelSize = 180 - dol_strlen($suffix);
         if ($maxLabelSize < 1) {
             $maxLabelSize = 1;
         }
 
-        return substr((string) $label, 0, $maxLabelSize).$suffix;
+        if (dol_strlen($label) <= $maxLabelSize) {
+            return $label.$suffix;
+        }
+
+        // Keep long custom labels distinct and valid even when Dolibarr runs without mbstring:
+        // in that case Dolibarr v20 falls back to byte-based strlen()/substr().
+        $suffix = $suffixStart.$suffixEntity.':h'.substr(hash('sha256', $label), 0, 12).$suffixFallback.']';
+        $maxLabelSize = 180 - dol_strlen($suffix);
+        if ($maxLabelSize < 1) {
+            $maxLabelSize = 1;
+        }
+
+        $truncatedLabel = dol_substr($label, 0, $maxLabelSize);
+        while ($truncatedLabel !== '' && preg_match('//u', $truncatedLabel) !== 1) {
+            $truncatedLabel = substr($truncatedLabel, 0, -1);
+        }
+
+        return $truncatedLabel.$suffix;
     }
 
     /**
@@ -888,9 +1050,13 @@ class ActionsTimesheetweek
      */
     protected static function getVisibleNotificationEmailTemplateLabel($label)
     {
-        $suffix = ' ['.self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE.']';
-        if (substr($label, -strlen($suffix)) === $suffix) {
-            return substr($label, 0, -strlen($suffix));
+        $visibleLabel = preg_replace(
+            '~ \['.preg_quote(self::NATIVE_NOTIFICATION_MIRROR_TEMPLATE_TYPE, '~').'(?::entity[1-9][0-9]*)?(?::h[0-9a-f]{12})?(?::no_url)?\]$~',
+            '',
+            $label
+        );
+        if (is_string($visibleLabel)) {
+            return $visibleLabel;
         }
 
         return $label;
@@ -1297,9 +1463,21 @@ class ActionsTimesheetweek
         }
 
         if (!empty($parameters['notifcode'])) {
-            $result = self::syncSelectedNotificationEmailTemplateMirror($this->db, (string) $parameters['notifcode']);
+            $notificationEntity = is_object($object) && isset($object->entity) ? (int) $object->entity : (isset($conf->entity) ? (int) $conf->entity : 1);
+            $forceAccessFallback = (string) $parameters['notifcode'] === 'TIMESHEETWEEK_SEAL'
+                && is_object($object)
+                && isset($object->context)
+                && is_array($object->context)
+                && isset($object->context['timesheetweek_seal_origin'])
+                && $object->context['timesheetweek_seal_origin'] === 'auto'
+                && array_key_exists('timesheetweek_notification_url', $object->context)
+                && trim((string) $object->context['timesheetweek_notification_url']) === '';
+            $result = self::syncSelectedNotificationEmailTemplateMirror($this->db, (string) $parameters['notifcode'], $notificationEntity, $forceAccessFallback);
             if ($result < 0) {
-                $this->error = $this->db->lasterror();
+                $this->error = is_object($this->db) && method_exists($this->db, 'lasterror') ? (string) $this->db->lasterror() : '';
+                if ($this->error === '') {
+                    $this->error = 'Unable to prepare the TimesheetWeek native notification router.';
+                }
                 $this->errors[] = $this->error;
                 return -1;
             }

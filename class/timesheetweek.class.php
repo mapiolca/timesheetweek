@@ -2371,12 +2371,21 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 
 		// FR: Utilise une URL publique absolue validée, y compris depuis les tâches CLI sans hôte HTTP.
 		// EN: Use a validated absolute public URL, including from CLI jobs without an HTTP host.
-		$url = timesheetweekBuildNotificationUrl($this->db, (int) $this->id, (int) $this->entity);
+		$url = '';
+		if (is_array($this->context) && array_key_exists('timesheetweek_notification_url', $this->context)) {
+			$contextUrl = trim((string) $this->context['timesheetweek_notification_url']);
+			$url = timesheetweekIsAbsoluteHttpUrl($contextUrl) ? $contextUrl : '';
+		} else {
+			$url = timesheetweekBuildNotificationUrl($this->db, (int) $this->id, (int) $this->entity);
+		}
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.
 		$urlRaw = $url;
 		$urlHtml = $urlRaw !== '' ? '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>' : '';
+		$accessBlock = $urlRaw !== ''
+			? $langs->transnoentities('TimesheetWeekNotificationDirectAccess', $urlHtml)
+			: $langs->transnoentities('TimesheetWeekNotificationAccountAccess');
 
 		$employeeName = $employee ? $employee->getFullName($langs) : '';
 		$validatorName = $validator ? $validator->getFullName($langs) : '';
@@ -2390,6 +2399,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		'__TIMESHEETWEEK_YEAR__' => $this->year,
 		'__TIMESHEETWEEK_URL__' => $urlHtml,
 		'__TIMESHEETWEEK_URL_RAW__' => $urlRaw,
+		'__TIMESHEETWEEK_ACCESS__' => $accessBlock,
 		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
 		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
 		'__ACTION_USER_FULLNAME__' => $actionUserName,

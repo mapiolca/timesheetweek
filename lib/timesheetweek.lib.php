@@ -226,6 +226,10 @@ function timesheetweekBuildUrlFromPublicRoot($root, $modulePath)
 	}
 
 	$relativePath = dol_buildpath($modulePath, 1);
+	if (timesheetweekIsAbsoluteHttpUrl($relativePath)) {
+		$builtPathParts = parse_url($relativePath);
+		$relativePath = is_array($builtPathParts) && isset($builtPathParts['path']) ? (string) $builtPathParts['path'] : '';
+	}
 	$dolUrlRoot = defined('DOL_URL_ROOT') ? rtrim((string) DOL_URL_ROOT, '/') : '';
 	if ($dolUrlRoot !== '' && ($relativePath === $dolUrlRoot || strpos($relativePath, $dolUrlRoot.'/') === 0)) {
 		$relativePath = substr($relativePath, strlen($dolUrlRoot));
@@ -251,16 +255,29 @@ function timesheetweekBuildUrlFromPublicRoot($root, $modulePath)
  */
 function timesheetweekBuildNotificationUrl($db, $timesheetId, $entity = 0, $urlMode = null, $configuredRootOverride = null)
 {
+	global $conf;
+
 	$timesheetId = (int) $timesheetId;
 	$entity = (int) $entity;
 	if ($timesheetId <= 0) {
 		return '';
 	}
 	$query = '?id='.$timesheetId.($entity > 0 ? '&entity='.$entity : '');
+	$currentEntity = is_object($conf) && isset($conf->entity) ? (int) $conf->entity : 1;
 
-	$configuredRoot = $configuredRootOverride !== null
-		? timesheetweekNormalizePublicUrlRoot($configuredRootOverride)
-		: timesheetweekNormalizePublicUrlRoot(getDolGlobalString('TIMESHEETWEEK_PUBLIC_URL_ROOT', ''));
+	$configuredRoot = '';
+	if ($configuredRootOverride !== null) {
+		$configuredRoot = timesheetweekNormalizePublicUrlRoot($configuredRootOverride);
+	} elseif (!is_object($conf) || $entity <= 0 || $entity === $currentEntity) {
+		$configuredRoot = timesheetweekNormalizePublicUrlRoot(getDolGlobalString('TIMESHEETWEEK_PUBLIC_URL_ROOT', ''));
+	} elseif (is_object($db) && method_exists($conf, 'setEntityValues')) {
+		// Conf::setEntityValues() is the native way to load constants for another
+		// entity. Work on a clone so the running cron keeps its original context.
+		$entityConf = clone $conf;
+		if ($entityConf->setEntityValues($db, $entity) >= 0 && isset($entityConf->global) && is_object($entityConf->global)) {
+			$configuredRoot = timesheetweekNormalizePublicUrlRoot(isset($entityConf->global->TIMESHEETWEEK_PUBLIC_URL_ROOT) ? (string) $entityConf->global->TIMESHEETWEEK_PUBLIC_URL_ROOT : '');
+		}
+	}
 	$roots = array($configuredRoot, timesheetweekGetMulticompanyPublicUrlRoot($db, $entity));
 	foreach (array_unique($roots) as $root) {
 		if ($root === '') {

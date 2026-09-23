@@ -31,6 +31,7 @@ class TimesheetweekAutoSeal extends CommonObject
 	public $db;
 	public $error;
 	public $errors = array();
+	public $warnings = array();
 	public $output;
 
 	public function __construct(DoliDB $db)
@@ -66,9 +67,9 @@ class TimesheetweekAutoSeal extends CommonObject
 
 		// EN: Load auto-seal configuration values from module settings.
 		// FR: Charge les valeurs de configuration du scellement automatique.
-		$enabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0, $conf->entity);
-		$delayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7, $conf->entity);
-		$userId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0, $conf->entity);
+		$enabled = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_ENABLE', 0);
+		$delayDays = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_DELAY_DAYS', 7);
+		$userId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
 
 		if (empty($enabled)) {
 			$this->output = $langs->trans('TimesheetWeekAutoSealDisabled');
@@ -118,6 +119,7 @@ class TimesheetweekAutoSeal extends CommonObject
 		$sealedCount = 0;
 		$skippedCount = 0;
 		$errorCount = 0;
+		$warningCount = 0;
 
 		while ($obj = $this->db->fetch_object($resql)) {
 			$timesheetLine = new TimesheetWeek($this->db);
@@ -127,9 +129,21 @@ class TimesheetweekAutoSeal extends CommonObject
 				continue;
 			}
 
+			if (!is_array($timesheetLine->context)) {
+				$timesheetLine->context = array();
+			}
+			$notificationUrl = timesheetweekBuildNotificationUrl($this->db, (int) $timesheetLine->id, (int) $timesheetLine->entity, 3);
+			$timesheetLine->context['timesheetweek_notification_url'] = $notificationUrl;
+
 			$resultSeal = $timesheetLine->seal($userAuto, 'auto');
 			if ($resultSeal > 0) {
 				$sealedCount++;
+				if ($notificationUrl === '') {
+					$warningCount++;
+					$warning = $langs->trans('TimesheetWeekAutoSealPublicUrlWarning', (string) $timesheetLine->ref, (int) $timesheetLine->entity);
+					$this->warnings[] = $warning;
+					dol_syslog(__METHOD__.': '.$warning, LOG_WARNING);
+				}
 			} else {
 				$errorCount++;
 				if (!empty($timesheetLine->error)) {
@@ -139,7 +153,10 @@ class TimesheetweekAutoSeal extends CommonObject
 		}
 
 		$this->output = $langs->trans('TimesheetWeekAutoSealSummary', $sealedCount, $skippedCount, $errorCount);
-		if ($errorCount > 0) {
+		if ($warningCount > 0) {
+			$this->output = dol_concatdesc($this->output, $langs->trans('TimesheetWeekAutoSealWarningSummary', $warningCount));
+		}
+		if ($errorCount > 0 || $warningCount > 0) {
 			dol_syslog($this->output, LOG_WARNING);
 		}
 

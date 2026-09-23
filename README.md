@@ -8,7 +8,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 
 ### Nouveautés de la version 2.0.2
 
-- **Notifications de scellement** : les liens utilisent une URL publique absolue validée et enregistrée par entité, avec reprise de l'URL Multicompany puis de l'URL native Dolibarr seulement lorsqu'elles contiennent un hôte. Les courriels automatiques n'incluent plus de signature utilisateur ni de pied de modèle contenant le nom de la société. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
+- **Notifications de scellement** : le cron résout le lien public avec la configuration de l'entité propriétaire de la feuille. Lorsqu'une URL HTTP(S) absolue est disponible, le courriel contient le lien complet ; sinon le scellement et la notification continuent avec la consigne « À consulter directement depuis votre compte utilisateur Dolibarr. » et un simple avertissement dans le résultat du cron. Les courriels automatiques n'incluent plus de signature utilisateur ni de pied de modèle contenant le nom de la société. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
 
 ### Fonctionnalités principales
 
@@ -59,12 +59,13 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Configuration
 
 - Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
-- Configurez le scellement automatique (activation, délai, utilisateur responsable et URL publique de la racine Dolibarr) depuis la section dédiée. L'URL doit ressembler à `https://erp.example.com` ou `https://erp.example.com/dolibarr`, sans suffixe `/custom` ; elle est enregistrée séparément pour chaque entité.
+- Configurez le scellement automatique (activation, délai, utilisateur responsable et URL publique de la racine Dolibarr) depuis la section dédiée. L'URL recommandée doit ressembler à `https://erp.example.com` ou `https://erp.example.com/dolibarr`, sans suffixe `/custom` ; elle est enregistrée séparément pour chaque entité. Si aucune URL complète ne peut être résolue, le cron scelle quand même la feuille et le courriel renvoie l'utilisateur vers son compte Dolibarr.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
 - La configuration TimesheetWeek affiche uniquement un lien vers le module natif Notifications ; les destinataires et le modèle de courriel utilisé par les événements se règlent dans cette administration native.
 - Dans la page native Notifications, configurez les événements métier `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` et `TIMESHEETWEEK_DELETE` avec le modèle unique `Notification TimesheetWeek`; les choix existants sont conservés à l'activation.
 - À l'envoi, le module synchronise automatiquement un miroir technique `timesheetweek_send` pour que le module Notifications natif applique bien le modèle sélectionné au lieu du message standard.
+- La substitution `__TIMESHEETWEEK_ACCESS__` fournit le bloc d'accès complet : lien absolu cliquable lorsqu'il est valide, sinon consigne de consultation du compte Dolibarr. La substitution historique `__TIMESHEETWEEK_URL_RAW__` reste disponible et vaut une chaîne vide lorsqu'aucun lien sûr n'existe.
 - Consultez l'onglet « Compatibilité » pour vérifier les fonctionnalités disponibles selon la version Dolibarr/PHP courante.
 - L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
 
@@ -80,7 +81,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 
 ### What's new in version 2.0.2
 
-- **Sealing notifications**: links use a validated absolute public URL stored per entity, with fallbacks to the Multicompany URL and then the native Dolibarr URL only when they contain a host. Automatic emails no longer include user signatures or the template footer containing the company name. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
+- **Sealing notifications**: the cron resolves the public link from the timesheet owner entity configuration. When an absolute HTTP(S) URL is available, the email contains the complete link; otherwise sealing and notification continue with “Please view it directly from your Dolibarr user account.” and only a warning in the cron result. Automatic emails no longer include user signatures or the template footer containing the company name. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
 
 ### Main features
 
@@ -133,12 +134,13 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Configuration
 
 - Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
-- Configure automatic sealing (enablement, delay, responsible user, and public Dolibarr root URL) from the dedicated section. The URL must look like `https://erp.example.com` or `https://erp.example.com/dolibarr`, without a `/custom` suffix; it is stored separately for each entity.
+- Configure automatic sealing (enablement, delay, responsible user, and public Dolibarr root URL) from the dedicated section. The recommended URL must look like `https://erp.example.com` or `https://erp.example.com/dolibarr`, without a `/custom` suffix; it is stored separately for each entity. If no complete URL can be resolved, the cron still seals the timesheet and the email directs the user to their Dolibarr account.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
 - Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
 - TimesheetWeek setup only displays a link to the native Notifications module; recipients and the email template used by events are configured in that native administration page.
 - In the native Notifications page, configure business events `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` and `TIMESHEETWEEK_DELETE` with the single `Notification TimesheetWeek` template; existing selections are preserved on activation.
 - When sending, the module automatically synchronizes a technical `timesheetweek_send` mirror so the native Notifications module applies the selected template instead of the standard message.
+- The `__TIMESHEETWEEK_ACCESS__` substitution provides the complete access block: a clickable absolute link when valid, otherwise the Dolibarr-account instruction. The historical `__TIMESHEETWEEK_URL_RAW__` substitution remains available and is empty when no safe link exists.
 - Open the Compatibility tab to check feature availability for the current Dolibarr/PHP version.
 - The « À propos » tab summarises the module version, publisher and support links.
 

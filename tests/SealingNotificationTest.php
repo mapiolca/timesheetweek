@@ -32,7 +32,16 @@ if (PHP_SAPI !== 'cli') {
 	$templateLabel = '';
 
 	if ($fetchResult > 0) {
-		$autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0, (int) $object->entity);
+		$autoSealUserId = 0;
+		$currentEntity = isset($conf->entity) ? (int) $conf->entity : 1;
+		if ((int) $object->entity === $currentEntity) {
+			$autoSealUserId = getDolGlobalInt('TIMESHEETWEEK_AUTOSEAL_USERID', 0);
+		} elseif (method_exists($conf, 'setEntityValues')) {
+			$entityConf = clone $conf;
+			if ($entityConf->setEntityValues($db, (int) $object->entity) >= 0 && isset($entityConf->global) && is_object($entityConf->global) && isset($entityConf->global->TIMESHEETWEEK_AUTOSEAL_USERID)) {
+				$autoSealUserId = (int) $entityConf->global->TIMESHEETWEEK_AUTOSEAL_USERID;
+			}
+		}
 		if ($autoSealUserId > 0) {
 			$autoSealUser = new User($db);
 			if ($autoSealUser->fetch($autoSealUserId) > 0) {
@@ -51,6 +60,7 @@ if (PHP_SAPI !== 'cli') {
 			'action_user_id' => (int) $actionUser->id,
 			'old_status' => TimesheetWeek::STATUS_APPROVED,
 			'new_status' => TimesheetWeek::STATUS_SEALED,
+			'timesheetweek_notification_url' => timesheetweekBuildNotificationUrl($db, (int) $object->id, (int) $object->entity, 3),
 		);
 
 		$notification = new TimesheetWeekNotification($db);
@@ -111,12 +121,17 @@ if (PHP_SAPI !== 'cli') {
 
 $objectSource = file_get_contents(__DIR__.'/../class/timesheetweek.class.php');
 $notificationSource = file_get_contents(__DIR__.'/../class/timesheetweeknotification.class.php');
+$autoSealSource = file_get_contents(__DIR__.'/../class/timesheetweekautoseal.class.php');
+$actionsSource = file_get_contents(__DIR__.'/../class/actions_timesheetweek.class.php');
+$reminderSource = file_get_contents(__DIR__.'/../class/timesheetweek_reminder.class.php');
 $substitutionSource = file_get_contents(__DIR__.'/../core/substitutions/functions_timesheetweek.lib.php');
 $librarySource = file_get_contents(__DIR__.'/../lib/timesheetweek.lib.php');
 $setupSource = file_get_contents(__DIR__.'/../admin/setup.php');
 $descriptorSource = file_get_contents(__DIR__.'/../core/modules/modTimesheetWeek.class.php');
+$frLangSource = file_get_contents(__DIR__.'/../langs/fr_FR/timesheetweek.lang');
+$enLangSource = file_get_contents(__DIR__.'/../langs/en_US/timesheetweek.lang');
 
-if ($objectSource === false || $notificationSource === false || $substitutionSource === false || $librarySource === false || $setupSource === false || $descriptorSource === false) {
+if ($objectSource === false || $notificationSource === false || $autoSealSource === false || $actionsSource === false || $reminderSource === false || $substitutionSource === false || $librarySource === false || $setupSource === false || $descriptorSource === false || $frLangSource === false || $enLangSource === false) {
 	fwrite(STDERR, "Unable to read TimesheetWeek notification sources.\n");
 	exit(1);
 }
@@ -127,7 +142,8 @@ if (!defined('DOL_URL_ROOT')) {
 if (!function_exists('dol_buildpath')) {
 	function dol_buildpath($path, $type = 0)
 	{
-		return DOL_URL_ROOT.'/custom/'.ltrim((string) $path, '/');
+		$builtPath = DOL_URL_ROOT.'/custom/'.ltrim((string) $path, '/');
+		return !empty($GLOBALS['timesheetweek_test_absolute_buildpath']) ? 'https://legacy-alt.example.com'.$builtPath : $builtPath;
 	}
 }
 if (!function_exists('getDolGlobalString')) {
@@ -136,18 +152,66 @@ if (!function_exists('getDolGlobalString')) {
 		return $key === 'TIMESHEETWEEK_PUBLIC_URL_ROOT' ? 'https://erp.example.com/dolibarr' : $default;
 	}
 }
+if (!defined('LOG_WARNING')) {
+	define('LOG_WARNING', 4);
+}
+if (!function_exists('dol_syslog')) {
+	function dol_syslog($message, $level = 0)
+	{
+		return true;
+	}
+}
 
 require_once __DIR__.'/../lib/timesheetweek.lib.php';
 if (
 	timesheetweekNormalizePublicUrlRoot('https:/custom') !== ''
+	|| timesheetweekNormalizePublicUrlRoot('/dolibarr/custom') !== ''
+	|| timesheetweekNormalizePublicUrlRoot('ftp://erp.example.com') !== ''
+	|| timesheetweekNormalizePublicUrlRoot("https://erp.example.com/\r\nBcc: hidden@example.com") !== ''
+	|| timesheetweekNormalizePublicUrlRoot('https://user:secret@erp.example.com') !== ''
 	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/') !== 'https://erp.example.com'
 	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/dolibarr/') !== 'https://erp.example.com/dolibarr'
 	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/custom') !== ''
 	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/?token=secret') !== ''
+	|| timesheetweekNormalizePublicUrlRoot('https://erp.example.com/#fragment') !== ''
 	|| timesheetweekBuildUrlFromPublicRoot('https://erp.example.com/dolibarr', '/timesheetweek/timesheetweek_card.php') !== 'https://erp.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php'
 	|| timesheetweekBuildNotificationUrl(null, 471, 2, 3) !== 'https://erp.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php?id=471&entity=2'
+	|| timesheetweekBuildNotificationUrl(null, 471, 2, 3, 'https://erp.example.com') !== 'https://erp.example.com/custom/timesheetweek/timesheetweek_card.php?id=471&entity=2'
+	|| timesheetweekBuildNotificationUrl(null, 471, 2, 3, 'https://erp.example.com/subdir') !== 'https://erp.example.com/subdir/custom/timesheetweek/timesheetweek_card.php?id=471&entity=2'
+	|| timesheetweekBuildNotificationUrl(null, 471, 2, 3, '') !== ''
 ) {
 	fwrite(STDERR, "Notification public URL validation must reject incomplete or unsafe roots.\n");
+	exit(1);
+}
+$timesheetweek_test_absolute_buildpath = true;
+$urlFromAbsoluteBuildPath = timesheetweekBuildUrlFromPublicRoot('https://erp.example.com/dolibarr', '/timesheetweek/timesheetweek_card.php');
+$timesheetweek_test_absolute_buildpath = false;
+if ($urlFromAbsoluteBuildPath !== 'https://erp.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php') {
+	fwrite(STDERR, "An absolute legacy dol_buildpath result must be reduced to its path before joining the configured root.\n");
+	exit(1);
+}
+
+$conf = new class() {
+	public $entity = 1;
+	public $global;
+
+	public function __construct()
+	{
+		$this->global = new stdClass();
+		$this->global->TIMESHEETWEEK_PUBLIC_URL_ROOT = 'https://current.example.com/dolibarr';
+	}
+
+	public function setEntityValues($db, $entity)
+	{
+		$this->entity = (int) $entity;
+		$this->global = new stdClass();
+		$this->global->TIMESHEETWEEK_PUBLIC_URL_ROOT = (int) $entity === 2 ? 'https://owner.example.com/dolibarr' : '';
+		return 1;
+	}
+};
+$ownerEntityUrl = timesheetweekBuildNotificationUrl(new stdClass(), 471, 2, 3);
+if ($ownerEntityUrl !== 'https://owner.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php?id=471&entity=2') {
+	fwrite(STDERR, "Notification URLs for shared timesheets must use the owner entity configuration.\n");
 	exit(1);
 }
 
@@ -178,6 +242,97 @@ if (
 	exit(1);
 }
 
+if (
+	strpos($autoSealSource, "\$timesheetLine->context['timesheetweek_notification_url'] = \$notificationUrl;") === false
+	|| strpos($autoSealSource, "TimesheetWeekAutoSealPublicUrlWarning") === false
+	|| strpos($autoSealSource, "TimesheetWeekAutoSealWarningSummary") === false
+) {
+	fwrite(STDERR, "Automatic sealing must keep an empty URL as a non-blocking cron warning and continue sealing.\n");
+	exit(1);
+}
+$sealCallPosition = strpos($autoSealSource, "\$resultSeal = \$timesheetLine->seal(\$userAuto, 'auto');");
+$urlWarningPosition = strpos($autoSealSource, "if (\$notificationUrl === '')", $sealCallPosition !== false ? $sealCallPosition : 0);
+if ($sealCallPosition === false || $urlWarningPosition === false || $urlWarningPosition < $sealCallPosition) {
+	fwrite(STDERR, "The missing-URL warning must only be counted after a successful seal.\n");
+	exit(1);
+}
+
+if (
+	strpos($notificationSource, "array_key_exists('timesheetweek_notification_url', \$object->context)") === false
+	|| strpos($substitutionSource, "array_key_exists('timesheetweek_notification_url', \$object->context)") === false
+	|| strpos($notificationSource, "\$substitutions['__TIMESHEETWEEK_ACCESS__'] = \$accessBlock;") === false
+	|| strpos($substitutionSource, "'__TIMESHEETWEEK_ACCESS__' => 'TimesheetWeekSubstitutionAccess'") === false
+	|| strpos($substitutionSource, "\$substitutionarray['__TIMESHEETWEEK_ACCESS__'] = \$accessBlock;") === false
+) {
+	fwrite(STDERR, "Notification substitutions must trust the validated cron context and expose the complete access block.\n");
+	exit(1);
+}
+
+if (
+	strpos($notificationSource, "'Accès direct : __TIMESHEETWEEK_URL_RAW__'") === false
+	|| strpos($notificationSource, "'Direct access: __TIMESHEETWEEK_URL_RAW__'") === false
+	|| substr_count($notificationSource, '$normalizedBody = preg_replace(') < 2
+	|| strpos($notificationSource, "strpos(\$body, \$accessBlock) === false") === false
+	|| strpos($actionsSource, "str_replace(\$legacyAccessPatterns, '__TIMESHEETWEEK_ACCESS__'") === false
+) {
+	fwrite(STDERR, "Historical URL-only templates must receive the account instruction without an orphan access label.\n");
+	exit(1);
+}
+
+$legacyHrefBodies = array(
+	'<p>Sealed</p><a class="button" href="__TIMESHEETWEEK_URL_RAW__">View</a>',
+	'<p>Sealed</p><a class="button" href=__TIMESHEETWEEK_URL_RAW__>View</a>',
+);
+foreach ($legacyHrefBodies as $legacyHrefBody) {
+	$legacyHrefBody = preg_replace(
+		'~<a\b[^>]*\bhref\s*=\s*(?:"__TIMESHEETWEEK_URL_RAW__"|\'__TIMESHEETWEEK_URL_RAW__\'|__TIMESHEETWEEK_URL_RAW__)(?=[\s>])[^>]*>.*?</a>~is',
+		'__TIMESHEETWEEK_ACCESS__',
+		$legacyHrefBody
+	);
+	$legacyHrefBody = is_string($legacyHrefBody)
+		? str_replace('__TIMESHEETWEEK_ACCESS__', 'Please view it directly from your Dolibarr user account.', $legacyHrefBody)
+		: '';
+	if (strpos($legacyHrefBody, 'href=') !== false || strpos($legacyHrefBody, '__TIMESHEETWEEK_URL_RAW__') !== false || substr_count($legacyHrefBody, 'Please view it directly from your Dolibarr user account.') !== 1) {
+		fwrite(STDERR, "A historical HTML link with an empty raw URL must become exactly one account instruction.\n");
+		exit(1);
+	}
+}
+
+if (
+	strpos($notificationSource, 'transnoentities($accessTranslationKey, $urlHtml)') === false
+	|| strpos($substitutionSource, 'transnoentities($accessTranslationKey, $urlHtml)') === false
+) {
+	fwrite(STDERR, "A valid complete access block must contain the escaped clickable absolute URL.\n");
+	exit(1);
+}
+
+if (
+	strpos($frLangSource, 'TimesheetWeekNotificationAccountAccess = À consulter directement depuis votre compte utilisateur Dolibarr.') === false
+	|| strpos($enLangSource, 'TimesheetWeekNotificationAccountAccess = Please view it directly from your Dolibarr user account.') === false
+	|| strpos($frLangSource, 'TimesheetWeekTemplateSealBody = ') === false
+	|| strpos($frLangSource, '__TIMESHEETWEEK_ACCESS__') === false
+	|| strpos($enLangSource, '__TIMESHEETWEEK_ACCESS__') === false
+) {
+	fwrite(STDERR, "French and English templates must provide the expected access instruction.\n");
+	exit(1);
+}
+
+if (
+	strpos($actionsSource, '$useBundledRouter = $entity !== $currentEntity || $label === \'\';') === false
+	|| strpos($actionsSource, 'self::syncNotificationEmailTemplateMirror($db, $visibleLabel, $sourceEntity, $mirrorAccessFallback)') === false
+	|| strpos($actionsSource, '" AND entity IN (0, ".$entity.")"') === false
+	|| strpos($actionsSource, "\$conf->global->{\$notifcode.'_TEMPLATE'} = self::getNotificationEmailTemplateMirrorLabel(\$visibleLabel, \$mirrorAccessFallback, \$sourceEntity);") === false
+) {
+	fwrite(STDERR, "Native template routing must isolate entities and use the bundled router in memory when needed.\n");
+	exit(1);
+}
+
+$nativeHelperSources = $notificationSource.$autoSealSource.$reminderSource;
+if (preg_match('/getDolGlobal(?:Int|String)\([^()\r\n]*,[^,()\r\n]*,[^,()\r\n]*\)/', $nativeHelperSources)) {
+	fwrite(STDERR, "Dolibarr global helpers must not receive an unsupported entity argument.\n");
+	exit(1);
+}
+
 $emailSources = array(
 	'class/timesheetweek.class.php' => $objectSource,
 	'class/timesheetweeknotification.class.php' => $notificationSource,
@@ -196,9 +351,10 @@ if (
 	|| strpos($librarySource, "timesheetweekGetMulticompanyPublicUrlRoot(\$db, \$entity)") === false
 	|| strpos($librarySource, "timesheetweekIsAbsoluteHttpUrl(\$nativeUrl)") === false
 	|| strpos($setupSource, "name=\"TIMESHEETWEEK_PUBLIC_URL_ROOT\"") === false
+	|| strpos($setupSource, "setEventMessages(\$langs->trans('TimesheetWeekPublicUrlRootMissing'), null, 'errors');") !== false
 	|| strpos($descriptorSource, 'timesheetweekInitializeNotificationPublicUrlRoot(') === false
 ) {
-	fwrite(STDERR, "Automatic sealing must expose, initialize and validate a per-entity public URL.\n");
+	fwrite(STDERR, "Automatic sealing must expose and validate the per-entity public URL without requiring one to seal.\n");
 	exit(1);
 }
 
