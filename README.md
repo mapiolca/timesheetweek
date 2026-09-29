@@ -162,7 +162,7 @@ vérifier les fichiers réellement déployés, le cache PHP et tout lien saisi e
 dans le modèle personnalisé ; ne pas réinitialiser les modèles de l'administrateur.
 
 Mobile : références de tâches masquées jusqu'à 480 px (sauf tâche sans libellé),
-références de projets conservées, colonne de temps réservée à `7.5rem` et clavier
+références de projets conservées, colonne de temps réservée à `6.5rem` et clavier
 texte permettant de saisir `:`. Les noms des champs et l'autosauvegarde sont inchangés.
 
 Validation locale du complément : six tests PHP sous PHP 8.4, lint des fichiers PHP,
