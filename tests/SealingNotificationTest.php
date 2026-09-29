@@ -142,6 +142,9 @@ if (!defined('DOL_URL_ROOT')) {
 if (!function_exists('dol_buildpath')) {
 	function dol_buildpath($path, $type = 0)
 	{
+		if ($type === 3 && !empty($GLOBALS['timesheetweek_test_malformed_cli_url'])) {
+			return 'https:/custom/'.ltrim((string) $path, '/');
+		}
 		$builtPath = DOL_URL_ROOT.'/custom/'.ltrim((string) $path, '/');
 		return !empty($GLOBALS['timesheetweek_test_absolute_buildpath']) ? 'https://legacy-alt.example.com'.$builtPath : $builtPath;
 	}
@@ -214,6 +217,28 @@ if ($ownerEntityUrl !== 'https://owner.example.com/dolibarr/custom/timesheetweek
 	fwrite(STDERR, "Notification URLs for shared timesheets must use the owner entity configuration.\n");
 	exit(1);
 }
+
+// CLI alternative roots may be relative: the native instance root must supply the host.
+$dolibarr_main_url_root = 'https://instance.example.com/dolibarr';
+$timesheetweek_test_malformed_cli_url = true;
+$instanceUrl = timesheetweekBuildNotificationUrl(null, 483, 1, 3, '');
+if ($instanceUrl !== 'https://instance.example.com/dolibarr/custom/timesheetweek/timesheetweek_card.php?id=483&entity=1') {
+	fwrite(STDERR, "The configured native instance root must qualify relative CLI module paths.\n");
+	exit(1);
+}
+if (timesheetweekBuildNotificationUrl(new stdClass(), 471, 2, 3) !== $ownerEntityUrl) {
+	fwrite(STDERR, "The native instance root must not override the owner entity root.\n");
+	exit(1);
+}
+foreach (array('https:/custom', '/custom', 'https://user:secret@instance.example.com', 'https://instance.example.com?x=1') as $invalidRoot) {
+	$dolibarr_main_url_root = $invalidRoot;
+	if (timesheetweekBuildNotificationUrl(null, 483, 1, 3, '') !== '') {
+		fwrite(STDERR, "An invalid native instance root must not become an email link.\n");
+		exit(1);
+	}
+}
+unset($dolibarr_main_url_root);
+unset($timesheetweek_test_malformed_cli_url);
 
 if (strpos($objectSource, "\$this->context['action_user_id'] = (int) \$user->id;") === false) {
 	fwrite(STDERR, "TimesheetWeek triggers must carry the business action user identifier.\n");

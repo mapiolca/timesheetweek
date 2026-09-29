@@ -255,7 +255,7 @@ function timesheetweekBuildUrlFromPublicRoot($root, $modulePath)
  */
 function timesheetweekBuildNotificationUrl($db, $timesheetId, $entity = 0, $urlMode = null, $configuredRootOverride = null)
 {
-	global $conf;
+	global $conf, $dolibarr_main_url_root;
 
 	$timesheetId = (int) $timesheetId;
 	$entity = (int) $entity;
@@ -278,7 +278,13 @@ function timesheetweekBuildNotificationUrl($db, $timesheetId, $entity = 0, $urlM
 			$configuredRoot = timesheetweekNormalizePublicUrlRoot(isset($entityConf->global->TIMESHEETWEEK_PUBLIC_URL_ROOT) ? (string) $entityConf->global->TIMESHEETWEEK_PUBLIC_URL_ROOT : '');
 		}
 	}
-	$roots = array($configuredRoot, timesheetweekGetMulticompanyPublicUrlRoot($db, $entity));
+	// Alternative web roots can be relative in CLI even when conf.php contains
+	// the complete instance URL. Preserve owner-specific roots as first choice.
+	$roots = array(
+		$configuredRoot,
+		timesheetweekGetMulticompanyPublicUrlRoot($db, $entity),
+		timesheetweekNormalizePublicUrlRoot(isset($dolibarr_main_url_root) ? $dolibarr_main_url_root : ''),
+	);
 	foreach (array_unique($roots) as $root) {
 		if ($root === '') {
 			continue;

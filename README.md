@@ -150,6 +150,36 @@ Translation sources are stored under `langs/en_US`, `langs/fr_FR`, `langs/de_DE`
 
 Other external modules are available on [Dolistore.com](https://www.dolistore.com).
 
+## Vérification du correctif 2.0.2 / Fix verification
+
+Le lien du scellement utilise, dans cet ordre, le réglage de l'entité propriétaire,
+l'URL Multicompany, la racine native `$dolibarr_main_url_root` et le chemin absolu
+retourné par `dol_buildpath()`. Aucun domaine client n'est codé en dur.
+Après déploiement, vérifier l'URL publique dans les réglages du module de l'entité
+concernée, puis lancer un scellement de test avec SMTP de capture. Un ancien mail
+ne change pas après mise à jour. Si un nouveau mail contient encore `https:/custom`,
+vérifier les fichiers réellement déployés, le cache PHP et tout lien saisi en dur
+dans le modèle personnalisé ; ne pas réinitialiser les modèles de l'administrateur.
+
+Mobile : références de tâches masquées jusqu'à 480 px (sauf tâche sans libellé),
+références de projets conservées, colonne de temps réservée à `7.5rem` et clavier
+texte permettant de saisir `:`. Les noms des champs et l'autosauvegarde sont inchangés.
+
+Validation locale du complément : six tests PHP sous PHP 8.4, lint des fichiers PHP,
+et `node tests/MobileLayoutTest.cjs` avec Playwright et Edge installé (largeurs
+320/360/393/480/600/768 px, HTML et styles natifs simulés). Le test de lien simule
+le retour CLI `https:/custom/...` et vérifie le domaine complet ou le repli sans lien.
+Ce ne sont pas des essais sur une instance Dolibarr : cron réel, capture SMTP,
+Multicompany réel et matrice Dolibarr 20–25 restent à exécuter. PHPStan n'est pas
+disponible dans l'environnement de validation.
+
+English: the native instance root now qualifies relative CLI paths after owner
+and Multicompany settings. No customer domain is hardcoded. Deploy the complete
+patch and verify a newly generated email using a test instance and SMTP capture;
+existing emails are unchanged. Mobile task references hide up to 480 px while
+time entry keeps a reserved width and a keyboard allowing a colon. Browser tests
+use simulated markup; real Dolibarr/SMTP and versions 20–25 are not validated.
+
 ## Licenses
 
 ### Main code
