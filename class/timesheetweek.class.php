@@ -14,6 +14,7 @@ require_once DOL_DOCUMENT_ROOT.'/projet/class/project.class.php';
 require_once DOL_DOCUMENT_ROOT.'/projet/class/task.class.php';
 
 dol_include_once('/timesheetweek/class/timesheetweekline.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 
 class TimesheetWeek extends CommonObject
 {
@@ -1518,7 +1519,8 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 	* EN: Seal the approved timesheet to prevent further changes.
 	* FR : Scelle la feuille approuvée pour empêcher de nouvelles modifications.
 	*
-	* @param User $user
+	* @param User   $user User performing the sealing
+	* @param string $origin Sealing origin (`manual` or `auto`)
 	* @return int
 	*/
 	public function seal($user, $origin = 'manual')
@@ -1609,6 +1611,10 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 			$this->note = $noteUpdate;
 		}
 
+		if (!is_array($this->context)) {
+			$this->context = array();
+		}
+		$this->context['timesheetweek_seal_origin'] = ($origin === 'auto' ? 'auto' : 'manual');
 		if ($this->callTimesheetWeekTrigger(self::TRIGGER_SEAL, $user, 'seal', array('status', 'fk_user_seal', 'date_seal'), $oldStatus, (int) $this->status) < 0) {
 			$this->db->rollback();
 			return -1;
@@ -2363,14 +2369,23 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		$employee = $this->loadUserFromCache($this->fk_user);
 		$validator = $this->loadUserFromCache($this->fk_user_valid);
 
-		// FR: Génère l'URL directe vers la fiche pour l'insérer dans le modèle d'e-mail.
-		// EN: Build the direct link to the card so it can be injected inside the e-mail template.
-		$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $this->id;
+		// FR: Utilise une URL publique absolue validée, y compris depuis les tâches CLI sans hôte HTTP.
+		// EN: Use a validated absolute public URL, including from CLI jobs without an HTTP host.
+		$url = '';
+		if (is_array($this->context) && array_key_exists('timesheetweek_notification_url', $this->context)) {
+			$contextUrl = trim((string) $this->context['timesheetweek_notification_url']);
+			$url = timesheetweekIsAbsoluteHttpUrl($contextUrl) ? $contextUrl : '';
+		} else {
+			$url = timesheetweekBuildNotificationUrl($this->db, (int) $this->id, (int) $this->entity);
+		}
 
 		// FR: Conserve aussi une version HTML cliquable du lien.
 		// EN: Keep a clickable HTML version of the link as well.
 		$urlRaw = $url;
-		$urlHtml = '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>';
+		$urlHtml = $urlRaw !== '' ? '<a href="'.dol_escape_htmltag($urlRaw).'">'.dol_escape_htmltag($urlRaw).'</a>' : '';
+		$accessBlock = $urlRaw !== ''
+			? $langs->transnoentities('TimesheetWeekNotificationDirectAccess', $urlHtml)
+			: $langs->transnoentities('TimesheetWeekNotificationAccountAccess');
 
 		$employeeName = $employee ? $employee->getFullName($langs) : '';
 		$validatorName = $validator ? $validator->getFullName($langs) : '';
@@ -2384,6 +2399,7 @@ $sets[] = "zone1_count=".(int) ($this->zone1_count ?: 0);
 		'__TIMESHEETWEEK_YEAR__' => $this->year,
 		'__TIMESHEETWEEK_URL__' => $urlHtml,
 		'__TIMESHEETWEEK_URL_RAW__' => $urlRaw,
+		'__TIMESHEETWEEK_ACCESS__' => $accessBlock,
 		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => $employeeName,
 		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => $validatorName,
 		'__ACTION_USER_FULLNAME__' => $actionUserName,

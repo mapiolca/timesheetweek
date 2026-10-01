@@ -50,9 +50,11 @@ body.timesheetweek-mobile .select2-container .select2-search__field {
 .tw-mobile-summary { display: flex; justify-content: space-between; align-items: center; min-height: 44px; padding: 0 10px; margin: 10px 0; background: var(--colorbacktitle1, #f2f2f2); border-bottom: 1px solid var(--colorbordertitle, #ccc); }
 .tw-project-section { margin-bottom: 14px; }
 .tw-project-title { padding: 9px; }
+.tw-mobile-task-table { table-layout: fixed; }
 .tw-mobile-task-table td { vertical-align: middle; }
-.tw-task-label { width: 58%; overflow-wrap: anywhere; }
-.tw-task-entry { width: 42%; }
+.tw-task-label { overflow-wrap: anywhere; }
+.tw-mobile-task-table .tw-task-label a { white-space: normal; }
+.tw-mobile-task-table .tw-task-entry { width: 5.5rem; }
 .tw-task-day-field input,
 .tw-task-day-field select { width: 100%; min-height: 44px; box-sizing: border-box; text-align: center; }
 body.timesheetweek-mobile {
@@ -161,6 +163,5 @@ body.timesheetweek-mobile .tabsAction.tw-mobile-actions .tw-mobile-action:disabl
 }
 
 @media (max-width: 480px) {
-	.tw-task-label { width: 54%; }
-	.tw-task-entry { width: 46%; }
+	.tw-task-reference { display: none; }
 }

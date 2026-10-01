@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.0.1';
+		$this->version = '2.0.2';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -1062,6 +1062,11 @@ class modTimesheetWeek extends DolibarrModules
 		$resultInit = $this->_init($sql, $options);
 		if ($resultInit <= 0) {
 			return $resultInit;
+		}
+
+		dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
+		if (timesheetweekInitializeNotificationPublicUrlRoot($this->db, (int) $conf->entity) < 0) {
+			dol_syslog(__METHOD__.': unable to initialize TIMESHEETWEEK_PUBLIC_URL_ROOT: '.$this->db->lasterror(), LOG_WARNING);
 		}
 
 		dol_include_once('/timesheetweek/class/actions_timesheetweek.class.php');

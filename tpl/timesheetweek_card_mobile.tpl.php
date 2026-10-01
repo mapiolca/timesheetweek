@@ -138,7 +138,15 @@ foreach ($byproject as $projectId => $projectData) {
 			$taskObject->ref = isset($task['task_ref']) ? (string) $task['task_ref'] : '';
 			$taskObject->label = (string) $task['task_label'];
 		}
-		print '<tr class="oddeven tw-task-row"><td class="tw-task-label">'.tw_get_task_nomurl($taskObject, 1).'</td><td class="right tw-task-entry">';
+		print '<tr class="oddeven tw-task-row"><td class="tw-task-label">';
+		print $taskObject->getNomUrl(2).' ';
+		if (trim((string) $taskObject->label) !== '') {
+			print '<span class="tw-task-reference">'.$taskObject->getNomUrl(0).' - </span>';
+			print tw_replace_anchor_text($taskObject->getNomUrl(0), $taskObject->label);
+		} else {
+			print $taskObject->getNomUrl(0);
+		}
+		print '</td><td class="right tw-task-entry">';
 		foreach ($days as $index => $day) {
 			$dateKey = $weekdates[$day];
 			$hoursValue = isset($hoursBy[$taskId][$dateKey]) ? formatHours((float) $hoursBy[$taskId][$dateKey]) : '';
@@ -155,7 +163,7 @@ foreach ($byproject as $projectId => $projectData) {
 				}
 				print '</select>';
 			} else {
-				print '<input type="text" inputmode="decimal" autocomplete="off" name="hours_'.$taskId.'_'.$day.'" value="'.dol_escape_htmltag($hoursValue).'" placeholder="'.dol_escape_htmltag($holidayLabel !== '' ? $holidayLabel : '00:00').'" class="flat hourinput"'.$fieldDisabled.'>';
+				print '<input type="text" autocomplete="off" name="hours_'.$taskId.'_'.$day.'" value="'.dol_escape_htmltag($hoursValue).'" placeholder="'.dol_escape_htmltag($holidayLabel !== '' ? $holidayLabel : '00:00').'" class="flat hourinput"'.$fieldDisabled.'>';
 			}
 			print '</div>';
 		}

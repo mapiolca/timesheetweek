@@ -9,6 +9,7 @@
 
 dol_include_once('/timesheetweek/class/timesheetweek.class.php');
 dol_include_once('/timesheetweek/class/timesheetweeknotification.class.php');
+dol_include_once('/timesheetweek/lib/timesheetweek.lib.php');
 require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 /**
@@ -55,6 +56,7 @@ function timesheetweek_get_email_template_substitution_catalog($outputlangs = nu
 		'__TIMESHEETWEEK_TRIGGER_REASON_LABEL__' => 'TimesheetWeekSubstitutionTriggerReasonLabel',
 		'__TIMESHEETWEEK_URL__' => 'TimesheetWeekSubstitutionUrlHtml',
 		'__TIMESHEETWEEK_URL_RAW__' => 'TimesheetWeekSubstitutionUrlRaw',
+		'__TIMESHEETWEEK_ACCESS__' => 'TimesheetWeekSubstitutionAccess',
 		'__TIMESHEETWEEK_EMPLOYEE_FULLNAME__' => 'TimesheetWeekSubstitutionEmployeeFullname',
 		'__TIMESHEETWEEK_EMPLOYEE_EMAIL__' => 'TimesheetWeekSubstitutionEmployeeEmail',
 		'__TIMESHEETWEEK_VALIDATOR_FULLNAME__' => 'TimesheetWeekSubstitutionValidatorFullname',
@@ -131,8 +133,22 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	}
 
 	$status = method_exists($object, 'getLibStatut') ? $object->getLibStatut(0) : (string) $object->status;
-	$url = dol_buildpath('/timesheetweek/timesheetweek_card.php', 3).'?id='.(int) $object->id;
-	$urlHtml = '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($url).'</a>';
+	$url = '';
+	if (is_array($object->context) && array_key_exists('timesheetweek_notification_url', $object->context)) {
+		$contextUrl = trim((string) $object->context['timesheetweek_notification_url']);
+		$url = timesheetweekIsAbsoluteHttpUrl($contextUrl) ? $contextUrl : '';
+	} else {
+		$url = timesheetweekBuildNotificationUrl($db, (int) $object->id, (int) $object->entity);
+	}
+	$urlHtml = $url !== '' ? '<a href="'.dol_escape_htmltag($url).'">'.dol_escape_htmltag($url).'</a>' : '';
+	$accessTranslationKey = $url !== '' ? 'TimesheetWeekNotificationDirectAccess' : 'TimesheetWeekNotificationAccountAccess';
+	$accessBlock = '';
+	if ($trans instanceof Translate) {
+		$accessBlock = $url !== '' ? $trans->transnoentities($accessTranslationKey, $urlHtml) : $trans->transnoentities($accessTranslationKey);
+	}
+	if ($accessBlock === '' || $accessBlock === $accessTranslationKey) {
+		$accessBlock = $url !== '' ? 'Direct access: '.$urlHtml : 'Please view it directly from your Dolibarr user account.';
+	}
 	$triggerReason = (!empty($object->context) && is_array($object->context) && !empty($object->context['trigger_reason'])) ? (string) $object->context['trigger_reason'] : '';
 	$triggerReasonLabel = '';
 	if ($triggerReason !== '') {
@@ -169,6 +185,7 @@ function timesheetweek_completesubstitutionarray(&$substitutionarray, $outputlan
 	$substitutionarray['__TIMESHEETWEEK_TRIGGER_REASON_LABEL__'] = $triggerReasonLabel;
 	$substitutionarray['__TIMESHEETWEEK_URL__'] = $urlHtml;
 	$substitutionarray['__TIMESHEETWEEK_URL_RAW__'] = $url;
+	$substitutionarray['__TIMESHEETWEEK_ACCESS__'] = $accessBlock;
 	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_NAME__'] = $employeeName;
 	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_FULLNAME__'] = $employeeName;
 	$substitutionarray['__TIMESHEETWEEK_EMPLOYEE_EMAIL__'] = $employeeEmail;

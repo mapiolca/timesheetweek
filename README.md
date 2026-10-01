@@ -4,14 +4,11 @@
 
 TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-**Version actuelle : 2.0.1 — Dolibarr 20+ et PHP 8.0+.**
+**Version actuelle : 2.0.2 — Dolibarr 20+ et PHP 8.0+.**
 
-### Nouveautés de la version 2.0.1
+### Nouveautés de la version 2.0.2
 
-- **Expérience mobile** : fiche dédiée, navigation par jour maintenue sous le menu Dolibarr, saisie sans zoom iOS et autosauvegarde sécurisée avec restauration locale après une déconnexion.
-- **Agenda et Notifications** : événements métier configurables dans les écrans natifs, onglet Agenda harmonisé, substitutions et modèle de courriel routeur unique personnalisable.
-- **Documents et Multicompany** : stockage dans l'entité propriétaire, accès natif aux PDF, contrôles d'entité renforcés et conservation des réglages lors des réactivations.
-- **Administration et compatibilité** : onglet Compatibilité avec diagnostics, affichage des dernières feuilles sur la fiche bancaire utilisateur et alignement des permissions et composants sur les standards Dolibarr.
+- **Notifications de scellement** : le cron résout le lien public avec la configuration de l'entité propriétaire de la feuille. Lorsqu'une URL HTTP(S) absolue est disponible, le courriel contient le lien complet ; sinon le scellement et la notification continuent avec la consigne « À consulter directement depuis votre compte utilisateur Dolibarr. » et un simple avertissement dans le résultat du cron. Les courriels automatiques n'incluent plus de signature utilisateur ni de pied de modèle contenant le nom de la société. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
 
 ### Fonctionnalités principales
 
@@ -54,7 +51,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Mise à niveau depuis la version 1.8.3
 
 1. Sauvegardez la base de données et le répertoire documentaire Dolibarr.
-2. Déployez les fichiers de TimesheetWeek 2.0.1 à la place de l'ancienne version.
+2. Déployez les fichiers de TimesheetWeek 2.0.2 à la place de l'ancienne version.
 3. Désactivez puis réactivez le module afin d'exécuter les migrations idempotentes, sans supprimer les réglages existants.
 4. Consultez l'onglet **Compatibilité** et vérifiez les diagnostics proposés.
 5. Contrôlez dans les pages natives **Agenda** et **Notifications** que les événements, destinataires et modèles attendus sont toujours configurés.
@@ -62,12 +59,13 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Configuration
 
 - Rendez-vous dans `Configuration > Modules > TimesheetWeek` pour activer le masque de numérotation via les commutateurs natifs et sélectionner les modèles PDF souhaités.
-- Configurez le scellement automatique (activation, délai et utilisateur responsable) depuis la section dédiée afin de sceller automatiquement les feuilles approuvées.
+- Configurez le scellement automatique (activation, délai, utilisateur responsable et URL publique de la racine Dolibarr) depuis la section dédiée. L'URL recommandée doit ressembler à `https://erp.example.com` ou `https://erp.example.com/dolibarr`, sans suffixe `/custom` ; elle est enregistrée séparément pour chaque entité. Si aucune URL complète ne peut être résolue, le cron scelle quand même la feuille et le courriel renvoie l'utilisateur vers son compte Dolibarr.
 - Ajustez les options Multicompany via les onglets de configuration dédiés si vous partagez les feuilles de temps entre plusieurs entités.
 - Utilisez les pages natives Agenda et Notifications de Dolibarr pour activer les événements automatiques et les notifications liés aux feuilles hebdomadaires.
 - La configuration TimesheetWeek affiche uniquement un lien vers le module natif Notifications ; les destinataires et le modèle de courriel utilisé par les événements se règlent dans cette administration native.
 - Dans la page native Notifications, configurez les événements métier `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` et `TIMESHEETWEEK_DELETE` avec le modèle unique `Notification TimesheetWeek`; les choix existants sont conservés à l'activation.
 - À l'envoi, le module synchronise automatiquement un miroir technique `timesheetweek_send` pour que le module Notifications natif applique bien le modèle sélectionné au lieu du message standard.
+- La substitution `__TIMESHEETWEEK_ACCESS__` fournit le bloc d'accès complet : lien absolu cliquable lorsqu'il est valide, sinon consigne de consultation du compte Dolibarr. La substitution historique `__TIMESHEETWEEK_URL_RAW__` reste disponible et vaut une chaîne vide lorsqu'aucun lien sûr n'existe.
 - Consultez l'onglet « Compatibilité » pour vérifier les fonctionnalités disponibles selon la version Dolibarr/PHP courante.
 - L'onglet « À propos » récapitule la version du module, l'éditeur et les liens de support.
 
@@ -79,14 +77,11 @@ Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `
 
 TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
 
-**Current version: 2.0.1 — Dolibarr 20+ and PHP 8.0+.**
+**Current version: 2.0.2 — Dolibarr 20+ and PHP 8.0+.**
 
-### What's new in version 2.0.1
+### What's new in version 2.0.2
 
-- **Mobile experience**: dedicated card, day navigation kept below the Dolibarr top menu, iOS-friendly input and secure autosave with local recovery after disconnection.
-- **Agenda and Notifications**: business events configurable in native screens, aligned Agenda tab, substitutions and a single customizable router email template.
-- **Documents and Multicompany**: owner-entity storage, native PDF access, stronger entity checks and settings preserved across reactivation.
-- **Administration and compatibility**: Compatibility tab with diagnostics, latest timesheets on the user bank card, and permissions and components aligned with Dolibarr standards.
+- **Sealing notifications**: the cron resolves the public link from the timesheet owner entity configuration. When an absolute HTTP(S) URL is available, the email contains the complete link; otherwise sealing and notification continue with “Please view it directly from your Dolibarr user account.” and only a warning in the cron result. Automatic emails no longer include user signatures or the template footer containing the company name. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
 
 ### Main features
 
@@ -131,7 +126,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Upgrading from version 1.8.3
 
 1. Back up the Dolibarr database and document directory.
-2. Deploy the TimesheetWeek 2.0.1 files over the previous version.
+2. Deploy the TimesheetWeek 2.0.2 files over the previous version.
 3. Disable and re-enable the module to run its idempotent migrations without deleting existing settings.
 4. Open the **Compatibility** tab and review the reported diagnostics.
 5. Check the native **Agenda** and **Notifications** pages to confirm that the expected events, recipients and templates remain configured.
@@ -139,12 +134,13 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Configuration
 
 - Visit `Setup > Modules > TimesheetWeek` to switch on the numbering mask and enable the PDF templates you want to expose.
-- Configure automatic sealing (enablement, delay, and responsible user) from the dedicated section to seal approved timesheets automatically.
+- Configure automatic sealing (enablement, delay, responsible user, and public Dolibarr root URL) from the dedicated section. The recommended URL must look like `https://erp.example.com` or `https://erp.example.com/dolibarr`, without a `/custom` suffix; it is stored separately for each entity. If no complete URL can be resolved, the cron still seals the timesheet and the email directs the user to their Dolibarr account.
 - In Multicompany contexts, tune the sharing preferences through the dedicated configuration tabs.
 - Use the native Dolibarr Agenda and Notifications pages to enable automatic events and notifications related to weekly timesheets.
 - TimesheetWeek setup only displays a link to the native Notifications module; recipients and the email template used by events are configured in that native administration page.
 - In the native Notifications page, configure business events `TIMESHEETWEEK_CREATE`, `TIMESHEETWEEK_SUBMIT`, `TIMESHEETWEEK_APPROVE`, `TIMESHEETWEEK_REFUSE`, `TIMESHEETWEEK_SETDRAFT`, `TIMESHEETWEEK_SEAL`, `TIMESHEETWEEK_UNSEAL` and `TIMESHEETWEEK_DELETE` with the single `Notification TimesheetWeek` template; existing selections are preserved on activation.
 - When sending, the module automatically synchronizes a technical `timesheetweek_send` mirror so the native Notifications module applies the selected template instead of the standard message.
+- The `__TIMESHEETWEEK_ACCESS__` substitution provides the complete access block: a clickable absolute link when valid, otherwise the Dolibarr-account instruction. The historical `__TIMESHEETWEEK_URL_RAW__` substitution remains available and is empty when no safe link exists.
 - Open the Compatibility tab to check feature availability for the current Dolibarr/PHP version.
 - The « À propos » tab summarises the module version, publisher and support links.
 
@@ -153,6 +149,36 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 Translation sources are stored under `langs/en_US`, `langs/fr_FR`, `langs/de_DE`, `langs/es_ES` and `langs/it_IT`. Please keep these locales aligned for every new string to stay compatible with Dolibarr's translation workflow.
 
 Other external modules are available on [Dolistore.com](https://www.dolistore.com).
+
+## Vérification du correctif 2.0.2 / Fix verification
+
+Le lien du scellement utilise, dans cet ordre, le réglage de l'entité propriétaire,
+l'URL Multicompany, la racine native `$dolibarr_main_url_root` et le chemin absolu
+retourné par `dol_buildpath()`. Aucun domaine client n'est codé en dur.
+Après déploiement, vérifier l'URL publique dans les réglages du module de l'entité
+concernée, puis lancer un scellement de test avec SMTP de capture. Un ancien mail
+ne change pas après mise à jour. Si un nouveau mail contient encore `https:/custom`,
+vérifier les fichiers réellement déployés, le cache PHP et tout lien saisi en dur
+dans le modèle personnalisé ; ne pas réinitialiser les modèles de l'administrateur.
+
+Mobile : références de tâches masquées jusqu'à 480 px (sauf tâche sans libellé),
+références de projets conservées, colonne de temps réservée à `5.5rem` et clavier
+texte permettant de saisir `:`. Les noms des champs et l'autosauvegarde sont inchangés.
+
+Validation locale du complément : six tests PHP sous PHP 8.4, lint des fichiers PHP,
+et `node tests/MobileLayoutTest.cjs` avec Playwright et Edge installé (largeurs
+320/360/393/480/600/768 px, HTML et styles natifs simulés). Le test de lien simule
+le retour CLI `https:/custom/...` et vérifie le domaine complet ou le repli sans lien.
+Ce ne sont pas des essais sur une instance Dolibarr : cron réel, capture SMTP,
+Multicompany réel et matrice Dolibarr 20–25 restent à exécuter. PHPStan n'est pas
+disponible dans l'environnement de validation.
+
+English: the native instance root now qualifies relative CLI paths after owner
+and Multicompany settings. No customer domain is hardcoded. Deploy the complete
+patch and verify a newly generated email using a test instance and SMTP capture;
+existing emails are unchanged. Mobile task references hide up to 480 px while
+time entry keeps a reserved width and a keyboard allowing a colon. Browser tests
+use simulated markup; real Dolibarr/SMTP and versions 20–25 are not validated.
 
 ## Licenses
 

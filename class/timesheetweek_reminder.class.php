@@ -111,14 +111,14 @@ class TimesheetweekReminder extends CommonObject
 			dol_syslog(__METHOD__.' use ModelMail', LOG_DEBUG);
 		}
 
-		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0, $conf->entity);
+		$reminderEnabled = getDolGlobalInt('TIMESHEETWEEK_REMINDER_ENABLED', 0);
 		if (empty($reminderEnabled) && empty($forceExecution)) {
 			dol_syslog('TimesheetweekReminder: reminder disabled', LOG_INFO);
 			$this->output = $langs->trans('TimesheetWeekReminderDisabled');
 			return 0;
 		}
 
-		$reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '', $conf->entity);
+		$reminderStartValue = getDolGlobalString('TIMESHEETWEEK_REMINDER_STARTTIME', '');
 		$reminderStartTimestamp = 0;
 		if ($reminderStartValue !== '') {
 			if (is_numeric($reminderStartValue)) {
@@ -140,7 +140,7 @@ class TimesheetweekReminder extends CommonObject
 			return 0;
 		}
 
-		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0, $conf->entity);
+		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
 		if (empty($templateId)) {
 			$this->error = $langs->trans('TimesheetWeekReminderTemplateMissing');
 			$this->output = $this->error;
@@ -197,7 +197,7 @@ class TimesheetweekReminder extends CommonObject
 		$substitutions = getCommonSubstitutionArray($langs, 0, null, null, null);
 		complete_substitutions_array($substitutions, $langs, null);
 
-		$excludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '', $conf->entity);
+		$excludedUsersString = getDolGlobalString('TIMESHEETWEEK_REMINDER_EXCLUDED_USERS', '');
 		$excludedUsers = array();
 		if ($excludedUsersString !== '') {
 			$excludedUsers = array_filter(array_map('intval', explode(',', $excludedUsersString)));
