@@ -1,5 +1,10 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 2.0.3 (2026-10-26)
+
+- Retire les signatures personnelles des modèles de notification fournis pour les six étapes du workflow et le message générique, en conservant le nom de l'auteur dans le texte métier et le pied société lorsqu'il est prévu. / Removes personal signatures from the supplied notification templates for the six workflow steps and the generic message, preserving the action user's name in the business text and the company footer when configured.
+- À l'activation, retire de manière idempotente les deux marqueurs de signature du corps des modèles de notification existants de l'entité courante et des modèles partagés, puis synchronise leurs miroirs techniques. Réactiver le module dans chaque entité utilisée après déploiement ; les autres contenus personnalisés, destinataires et rappels hebdomadaires sont conservés. / On activation, idempotently removes both signature placeholders from existing notification bodies in the current entity and shared templates, then synchronizes their technical mirrors. Re-enable the module in each entity in use after deployment; other custom content, recipients and weekly reminders are preserved.
+
 ## 2.0.2 (27/08/2026)
 
 - Complète les liens du cron avec la racine d'instance configurée dans Dolibarr lorsque les chemins alternatifs sont relatifs, sans remplacer les réglages de l'entité propriétaire. / Qualifies cron links with the configured Dolibarr instance root when alternative paths are relative, preserving owner-entity settings.

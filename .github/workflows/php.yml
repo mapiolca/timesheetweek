@@ -32,8 +32,9 @@ jobs:
     - name: Install dependencies
       run: composer install --prefer-dist --no-progress
 
-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
-    # Docs: https://getcomposer.org/doc/articles/scripts.md
+    - name: Run PHP regression tests
+      run: |
+        for test in tests/*Test.php; do php "$test"; done
 
-    # - name: Run test suite
-    #   run: composer run-script test
+    - name: Check notification templates and signature migration
+      run: python3 tests/NotificationSignatureTest.py

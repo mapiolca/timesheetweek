@@ -87,6 +87,8 @@ $routerDb = new class() {
 			$sourceLabel = ActionsTimesheetweek::NATIVE_NOTIFICATION_ROUTER_TEMPLATE_LABEL;
 		} elseif (strpos($sql, "label = 'Valid custom template'") !== false) {
 			$sourceLabel = 'Valid custom template';
+		} elseif (strpos($sql, "label = 'Migrated signature template'") !== false) {
+			$sourceLabel = 'Migrated signature template';
 		} elseif (strpos($sql, "label = 'Legacy raw template'") !== false) {
 			$sourceLabel = 'Legacy raw template';
 		} elseif (strpos($sql, "label = 'Legacy href template'") !== false) {
@@ -128,7 +130,9 @@ $routerDb = new class() {
 				$row->email_tobcc = '';
 				$row->topic = '__TIMESHEETWEEK_NOTIFICATION_SUBJECT__';
 				$row->joinfiles = 0;
-				if ($sourceLabel === 'Legacy raw template') {
+				if ($sourceLabel === 'Migrated signature template') {
+					$row->content = getenv('TIMESHEETWEEK_TEST_MIGRATED_BODY') ?: '<p>Approved by __ACTION_USER_FULLNAME__.</p><footer>__MYCOMPANY_NAME__</footer>';
+				} elseif ($sourceLabel === 'Legacy raw template') {
 					$row->content = 'Accès direct : __TIMESHEETWEEK_URL_RAW__';
 				} elseif ($sourceLabel === 'Legacy href template') {
 					$row->content = '<a href="__TIMESHEETWEEK_URL_RAW__">View</a>';
@@ -214,6 +218,23 @@ $timesheetweek_test_template_label = 'Valid custom template';
 $routerResult = ActionsTimesheetweek::syncSelectedNotificationEmailTemplateMirror($routerDb, 'TIMESHEETWEEK_SEAL', 3);
 if ($routerResult !== 1 || $conf->global->TIMESHEETWEEK_SEAL_TEMPLATE !== 'Valid custom template [timesheetweek_send:entity3]') {
 	fwrite(STDERR, "A valid native template selection must remain selected through its in-memory mirror.\n");
+	exit(1);
+}
+
+$timesheetweek_test_template_label = 'Migrated signature template';
+$routerDb->queries = array();
+$routerResult = ActionsTimesheetweek::syncSelectedNotificationEmailTemplateMirror($routerDb, 'TIMESHEETWEEK_APPROVE', 3);
+$migratedBody = getenv('TIMESHEETWEEK_TEST_MIGRATED_BODY') ?: '<p>Approved by __ACTION_USER_FULLNAME__.</p><footer>__MYCOMPANY_NAME__</footer>';
+$migratedMirrorQueries = implode("\n", $routerDb->queries);
+if (
+	$routerResult !== 1
+	|| strpos($migratedMirrorQueries, $routerDb->escape($migratedBody)) === false
+	|| strpos($migratedMirrorQueries, '__SENDEREMAIL_SIGNATURE__') !== false
+	|| strpos($migratedMirrorQueries, '__USER_SIGNATURE__') !== false
+	|| strpos($migratedMirrorQueries, '__ACTION_USER_FULLNAME__') === false
+	|| strpos($migratedMirrorQueries, '__MYCOMPANY_NAME__') === false
+) {
+	fwrite(STDERR, "Notification mirrors must preserve the migrated body, action user and company footer.\n");
 	exit(1);
 }
 
