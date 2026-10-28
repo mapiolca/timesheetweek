@@ -4,11 +4,12 @@
 
 TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-**Version actuelle : 2.0.2 — Dolibarr 20+ et PHP 8.0+.**
+**Version actuelle : 2.0.3 — Dolibarr 20+ et PHP 8.0+.**
 
-### Nouveautés de la version 2.0.2
+### Nouveautés de la version 2.0.3
 
-- **Notifications de scellement** : le cron résout le lien public avec la configuration de l'entité propriétaire de la feuille. Lorsqu'une URL HTTP(S) absolue est disponible, le courriel contient le lien complet ; sinon le scellement et la notification continuent avec la consigne « À consulter directement depuis votre compte utilisateur Dolibarr. » et un simple avertissement dans le résultat du cron. Les courriels automatiques n'incluent plus de signature utilisateur ni de pied de modèle contenant le nom de la société. Le test associé permet aux administrateurs d'afficher, sans envoi ni modification, le courriel résolu pour la feuille d'identifiant `1` par défaut ou pour celle indiquée avec `?id=...`.
+- **Modèles de notification** : les corps de mail fournis pour les six étapes du workflow et le message générique ne contiennent plus de signature personnelle. L'auteur reste nommé dans le texte métier et le pied société est conservé lorsqu'il est prévu ; le scellement automatique garde son comportement existant.
+- **Mise à niveau** : après déploiement, désactivez puis réactivez le module dans chaque entité utilisée. Une migration idempotente retire uniquement `__SENDEREMAIL_SIGNATURE__` et `__USER_SIGNATURE__` du corps des modèles de notification de l'entité courante et des modèles partagés. Les autres textes, le HTML et les destinataires sont conservés ; les miroirs techniques reprennent les corps mis à jour. Les rappels hebdomadaires ne sont pas concernés.
 
 ### Fonctionnalités principales
 
@@ -51,7 +52,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Mise à niveau depuis la version 1.8.3
 
 1. Sauvegardez la base de données et le répertoire documentaire Dolibarr.
-2. Déployez les fichiers de TimesheetWeek 2.0.2 à la place de l'ancienne version.
+2. Déployez les fichiers de TimesheetWeek 2.0.3 à la place de l'ancienne version.
 3. Désactivez puis réactivez le module afin d'exécuter les migrations idempotentes, sans supprimer les réglages existants.
 4. Consultez l'onglet **Compatibilité** et vérifiez les diagnostics proposés.
 5. Contrôlez dans les pages natives **Agenda** et **Notifications** que les événements, destinataires et modèles attendus sont toujours configurés.
@@ -77,11 +78,12 @@ Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `
 
 TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
 
-**Current version: 2.0.2 — Dolibarr 20+ and PHP 8.0+.**
+**Current version: 2.0.3 — Dolibarr 20+ and PHP 8.0+.**
 
-### What's new in version 2.0.2
+### What's new in version 2.0.3
 
-- **Sealing notifications**: the cron resolves the public link from the timesheet owner entity configuration. When an absolute HTTP(S) URL is available, the email contains the complete link; otherwise sealing and notification continue with “Please view it directly from your Dolibarr user account.” and only a warning in the cron result. Automatic emails no longer include user signatures or the template footer containing the company name. The related test lets administrators display the resolved email for timesheet ID `1` by default, or the one selected with `?id=...`, without sending an email or modifying the timesheet.
+- **Notification templates**: the supplied bodies for the six workflow steps and the generic message no longer contain personal signatures. The business text still names the action user and keeps the company footer when configured; automatic sealing keeps its existing behavior.
+- **Upgrade**: after deployment, disable and re-enable the module in each entity in use. An idempotent migration removes only `__SENDEREMAIL_SIGNATURE__` and `__USER_SIGNATURE__` from notification template bodies in the current entity and shared templates. Other text, HTML and recipients are preserved; technical mirrors use the updated bodies. Weekly reminders are unaffected.
 
 ### Main features
 
@@ -126,7 +128,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Upgrading from version 1.8.3
 
 1. Back up the Dolibarr database and document directory.
-2. Deploy the TimesheetWeek 2.0.2 files over the previous version.
+2. Deploy the TimesheetWeek 2.0.3 files over the previous version.
 3. Disable and re-enable the module to run its idempotent migrations without deleting existing settings.
 4. Open the **Compatibility** tab and review the reported diagnostics.
 5. Check the native **Agenda** and **Notifications** pages to confirm that the expected events, recipients and templates remain configured.

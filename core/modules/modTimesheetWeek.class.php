@@ -112,7 +112,7 @@ class modTimesheetWeek extends DolibarrModules
 		}
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '2.0.2';
+		$this->version = '2.0.3';
     
 		// Url to the file with your last numberversion of this module
 		$this->url_last_version = 'https://moduleversion.lesmetiersdubatiment.fr/ver.php?m=timesheetweek';
@@ -996,6 +996,14 @@ class modTimesheetWeek extends DolibarrModules
 			$sql[] = "UPDATE ".MAIN_DB_PREFIX."c_email_templates SET content = '".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."' AND content = '__TIMESHEETWEEK_NOTIFICATION_BODY__'";
 			$sql[] = "INSERT INTO ".MAIN_DB_PREFIX."c_email_templates (entity,module,type_template,lang,private,fk_user,datec,label,position,active,enabled,joinfiles,topic,content) SELECT 0,'timesheetweek','timesheetweek@timesheetweek','".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."',0,NULL,NOW(),'".$this->db->escape($nativeWorkflowRouterTemplate['label'])."',".((int) $nativeWorkflowRouterTemplate['position']).",1,'isModEnabled(\\\"timesheetweek\\\") && isModEnabled(\\\"notification\\\")',0,'".$this->db->escape($nativeWorkflowRouterTemplate['topic'])."','".$this->db->escape($nativeWorkflowRouterTemplate['content'])."' WHERE NOT EXISTS (SELECT 1 FROM ".MAIN_DB_PREFIX."c_email_templates WHERE entity = 0 AND lang = '".$this->db->escape($nativeWorkflowRouterTemplate['lang'])."' AND label = '".$this->db->escape($nativeWorkflowRouterTemplate['label'])."')";
 		}
+		// Remove personal signatures from notification bodies before synchronizing their mirrors.
+		$sqlRemoveNotificationSignatures = "UPDATE ".MAIN_DB_PREFIX."c_email_templates";
+		$sqlRemoveNotificationSignatures .= " SET content = REPLACE(REPLACE(content, '__SENDEREMAIL_SIGNATURE__', ''), '__USER_SIGNATURE__', '')";
+		$sqlRemoveNotificationSignatures .= " WHERE type_template IN ('timesheetweek@timesheetweek', 'timesheetweek_send')";
+		$sqlRemoveNotificationSignatures .= " AND (module IS NULL OR module = '' OR module = 'timesheetweek')";
+		$sqlRemoveNotificationSignatures .= " AND entity IN (0, ".((int) $conf->entity).")";
+		$sqlRemoveNotificationSignatures .= " AND (INSTR(content, '__SENDEREMAIL_SIGNATURE__') > 0 OR INSTR(content, '__USER_SIGNATURE__') > 0)";
+		$sql[] = $sqlRemoveNotificationSignatures;
 		$sql[] = "DELETE FROM ".MAIN_DB_PREFIX."c_email_templates WHERE module = 'timesheetweek' AND type_template = 'timesheetweek_send' AND (label IS NULL OR label <> 'Notification TimesheetWeek [timesheetweek_send]' OR COALESCE(lang, '') NOT IN ('fr_FR', 'en_US'))";
 		$sql[] = "DELETE duplicate_template FROM ".MAIN_DB_PREFIX."c_email_templates AS duplicate_template INNER JOIN ".MAIN_DB_PREFIX."c_email_templates AS kept_template ON kept_template.module = 'timesheetweek' AND kept_template.type_template = 'timesheetweek_send' AND kept_template.label = 'Notification TimesheetWeek [timesheetweek_send]' AND kept_template.entity = duplicate_template.entity AND kept_template.lang = duplicate_template.lang AND kept_template.rowid < duplicate_template.rowid WHERE duplicate_template.module = 'timesheetweek' AND duplicate_template.type_template = 'timesheetweek_send' AND duplicate_template.label = 'Notification TimesheetWeek [timesheetweek_send]' AND duplicate_template.lang IN ('fr_FR', 'en_US')";
 		$sql[] = "UPDATE ".MAIN_DB_PREFIX."actioncomm SET elementtype = 'timesheetweek@timesheetweek' WHERE elementtype = 'timesheetweek' AND fk_element IN (SELECT rowid FROM ".MAIN_DB_PREFIX."timesheet_week)";
