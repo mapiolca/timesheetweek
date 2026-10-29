@@ -38,3 +38,6 @@ jobs:
 
     - name: Check notification templates and signature migration
       run: python3 tests/NotificationSignatureTest.py
+
+    - name: Check preview environment loading in both installation layouts
+      run: python3 tests/SealingBootstrapTest.py
