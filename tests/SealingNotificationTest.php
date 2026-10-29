@@ -1,7 +1,17 @@
 <?php
 
 if (PHP_SAPI !== 'cli') {
-	require_once __DIR__.'/../../../main.inc.php';
+	// Load Dolibarr from either htdocs/timesheetweek or htdocs/custom/timesheetweek.
+	$res = 0;
+	if (!$res && file_exists(__DIR__.'/../../main.inc.php')) {
+		$res = require_once __DIR__.'/../../main.inc.php';
+	}
+	if (!$res && file_exists(__DIR__.'/../../../main.inc.php')) {
+		$res = require_once __DIR__.'/../../../main.inc.php';
+	}
+	if (!$res) {
+		die('Include of main fails');
+	}
 	require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
 
 	dol_include_once('/timesheetweek/class/timesheetweek.class.php');

@@ -1,5 +1,10 @@
 # CHANGELOG MODULE TIMESHEETWEEK FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
 
+## 2.0.4 (2026-10-28)
+
+- Corrige le chargement de Dolibarr dans l'aperçu des notifications de scellement avec deux chemins d'inclusion, pour les installations à la racine de `htdocs` et sous `custom`, conformément au contrôle de paquet Dolistore. / Fixes Dolibarr loading in the sealing notification preview with two inclusion paths, supporting installations directly under `htdocs` and under `custom`, as required by the Dolistore package check.
+- Arrête proprement l'aperçu lorsque l'environnement Dolibarr est introuvable. / Stops the preview cleanly when the Dolibarr environment cannot be found.
+
 ## 2.0.3 (2026-10-26)
 
 - Retire les signatures personnelles des modèles de notification fournis pour les six étapes du workflow et le message générique, en conservant le nom de l'auteur dans le texte métier et le pied société lorsqu'il est prévu. / Removes personal signatures from the supplied notification templates for the six workflow steps and the generic message, preserving the action user's name in the business text and the company footer when configured.

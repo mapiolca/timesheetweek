@@ -4,7 +4,12 @@
 
 TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l'expérience Dolibarr. Le module renforce les cycles de validation, propose des compteurs opérationnels (zones, paniers, heures supplémentaires) et respecte les standards graphiques pour les écrans administratifs et les modèles de documents.
 
-**Version actuelle : 2.0.3 — Dolibarr 20+ et PHP 8.0+.**
+**Version actuelle : 2.0.4 — Dolibarr 20+ et PHP 8.0+.**
+
+### Nouveautés de la version 2.0.4
+
+- Corrige le chargement de Dolibarr dans l'aperçu des notifications de scellement pour les installations directement sous `htdocs` et sous `custom`, avec un arrêt propre si l'environnement est absent. Ce correctif répond au rejet Dolistore signalant un chemin d'inclusion unique.
+- Validation locale : `python tests/SealingBootstrapTest.py` teste les deux dispositions avec un serveur PHP et un environnement minimal simulé. L'acceptation du ZIP par Dolistore reste à vérifier après sa reconstruction.
 
 ### Nouveautés de la version 2.0.3
 
@@ -52,7 +57,7 @@ TimesheetWeek ajoute une gestion hebdomadaire des feuilles de temps fidèle à l
 ### Mise à niveau depuis la version 1.8.3
 
 1. Sauvegardez la base de données et le répertoire documentaire Dolibarr.
-2. Déployez les fichiers de TimesheetWeek 2.0.3 à la place de l'ancienne version.
+2. Déployez les fichiers de TimesheetWeek 2.0.4 à la place de l'ancienne version.
 3. Désactivez puis réactivez le module afin d'exécuter les migrations idempotentes, sans supprimer les réglages existants.
 4. Consultez l'onglet **Compatibilité** et vérifiez les diagnostics proposés.
 5. Contrôlez dans les pages natives **Agenda** et **Notifications** que les événements, destinataires et modèles attendus sont toujours configurés.
@@ -78,7 +83,12 @@ Les fichiers de traduction sont disponibles dans `langs/en_US`, `langs/fr_FR`, `
 
 TimesheetWeek delivers weekly timesheet management that follows Dolibarr design guidelines. It enhances approval workflows, exposes operational counters (zones, meal allowances, overtime) and keeps the administration area consistent with native modules.
 
-**Current version: 2.0.3 — Dolibarr 20+ and PHP 8.0+.**
+**Current version: 2.0.4 — Dolibarr 20+ and PHP 8.0+.**
+
+### What's new in version 2.0.4
+
+- Fixes Dolibarr loading in the sealing notification preview for installations directly under `htdocs` and under `custom`, stopping cleanly if the environment is missing. This addresses the reported Dolistore rejection for a single inclusion path.
+- Local verification: `python tests/SealingBootstrapTest.py` exercises both layouts with a PHP server and a minimal simulated environment. Dolistore acceptance of the rebuilt ZIP remains to be checked.
 
 ### What's new in version 2.0.3
 
@@ -128,7 +138,7 @@ TimesheetWeek delivers weekly timesheet management that follows Dolibarr design 
 ### Upgrading from version 1.8.3
 
 1. Back up the Dolibarr database and document directory.
-2. Deploy the TimesheetWeek 2.0.3 files over the previous version.
+2. Deploy the TimesheetWeek 2.0.4 files over the previous version.
 3. Disable and re-enable the module to run its idempotent migrations without deleting existing settings.
 4. Open the **Compatibility** tab and review the reported diagnostics.
 5. Check the native **Agenda** and **Notifications** pages to confirm that the expected events, recipients and templates remain configured.
