@@ -45,6 +45,7 @@ TimesheetWeekReminderCronComment = Envoie un rappel hebdomadaire par email pour 
 TimesheetWeekReminderTemplateMissing = Le modèle d'email de rappel n'est pas configuré.
 TimesheetWeekReminderSendFailed = Échec de l'envoi du rappel à %s.
 TimesheetWeekReminderSendSuccess = Rappel envoyé avec succès à %s.
+TimesheetWeekReminderNotDue = Le rappel n’est pas encore arrivé à échéance.
 TimesheetWeekReminderAlreadyRunning = Un rappel hebdomadaire est déjà en cours d'exécution.
 TimesheetWeekReminderAlreadySent = Le rappel hebdomadaire a déjà été traité pour cette période.
 TimesheetWeekReminderRecipientAlreadySent = Un destinataire a déjà reçu le rappel hebdomadaire pour cette période.
