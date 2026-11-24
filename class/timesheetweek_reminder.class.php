@@ -89,18 +89,11 @@ class TimesheetweekReminder extends CommonObject
 		$db = $this->db;
 
 		$langs->loadLangs(array('timesheetweek@timesheetweek'));
+		if (!isModEnabled('timesheetweek')) {
+			return 0;
+		}
 
 		$forceExecution = !empty($forcerun);
-		if (!$forceExecution) {
-			$forceExecution = ((int) GETPOST('forcerun', 'int') > 0);
-		}
-		if (!$forceExecution) {
-			$action = GETPOST('action', 'aZ09');
-			$confirm = GETPOST('confirm', 'alpha');
-			if ($action === 'confirm_execute' && $confirm === 'yes') {
-				$forceExecution = true;
-			}
-		}
 
 		$useCoreTemplateClass = (version_compare(DOL_VERSION, '23.0.0', '>=') || file_exists(DOL_DOCUMENT_ROOT.'/core/class/cemailtemplate.class.php')) ? true : false;
 		if ($useCoreTemplateClass) {
@@ -134,10 +127,20 @@ class TimesheetweekReminder extends CommonObject
 			return 0;
 		}
 
+		if (!$forceExecution && $reminderStartTimestamp > dol_now()) {
+			$this->output = $langs->trans('TimesheetWeekReminderNotDue');
+			if (self::updateCronStartTime($this->db, $reminderStartTimestamp) <= 0) {
+				$this->error = $langs->trans('TimesheetWeekReminderCronUpdateFailed');
+				$this->output = $this->error;
+				return -1;
+			}
+			return 0;
+		}
+
 		if (empty($forceExecution) && $this->isReminderStartAlreadySent($reminderStartTimestamp)) {
 			$this->output = $langs->trans('TimesheetWeekReminderAlreadySent');
 			dol_syslog(__METHOD__.' '.$this->output.' entity='.(int) $conf->entity.' start='.(int) $reminderStartTimestamp, LOG_INFO);
-			return 0;
+			return $this->scheduleNextStart($reminderStartTimestamp) > 0 ? 0 : -1;
 		}
 
 		$templateId = getDolGlobalInt('TIMESHEETWEEK_REMINDER_EMAIL_TEMPLATE', 0);
@@ -219,7 +222,7 @@ class TimesheetweekReminder extends CommonObject
 				$this->releaseMysqlLock($lockName);
 				$this->output = $langs->trans('TimesheetWeekReminderAlreadySent');
 				dol_syslog(__METHOD__.' '.$this->output.' entity='.(int) $conf->entity.' start='.(int) $reminderStartTimestamp, LOG_INFO);
-				return 0;
+				return $this->scheduleNextStart($reminderStartTimestamp) > 0 ? 0 : -1;
 			}
 		}
 
@@ -320,8 +323,16 @@ class TimesheetweekReminder extends CommonObject
 		}
 
 		if (empty($forceExecution)) {
-			$this->markReminderStartSent($reminderStartTimestamp);
-			$this->scheduleNextStart($reminderStartTimestamp);
+			if (!$this->markReminderStartSent($reminderStartTimestamp)
+				|| $this->scheduleNextStart($reminderStartTimestamp) < 0) {
+				$this->error = $langs->trans('TimesheetWeekReminderCronUpdateFailed');
+				$this->output = $this->error;
+				dol_syslog(__METHOD__.' '.$this->error, LOG_ERR);
+				if ($lockAcquired) {
+					$this->releaseMysqlLock($lockName);
+				}
+				return -1;
+			}
 		}
 
 		$this->output = $langs->trans('TimesheetWeekReminderSendSuccess', $emailsSent);
@@ -354,9 +365,9 @@ class TimesheetweekReminder extends CommonObject
 		*/
 		public static function updateCronStartTime(DoliDB $db, int $startTimestamp, $currentUser = null)
 		{
-			global $conf, $user;
-			
-			$sql = 'SELECT COUNT(rowid) as nb';
+			global $conf, $user, $cronjob, $object;
+
+			$sql = 'SELECT rowid';
 			$sql .= ' FROM '.MAIN_DB_PREFIX.'cronjob';
 			$sql .= " WHERE jobtype = 'method'";
 			$sql .= " AND classesname = '/timesheetweek/class/timesheetweek_reminder.class.php'";
@@ -367,9 +378,12 @@ class TimesheetweekReminder extends CommonObject
 			if (!$resql) {
 				return -1;
 			}
-			$obj = $db->fetch_object($resql);
+			$jobIds = array();
+			while (is_object($row = $db->fetch_object($resql))) {
+				$jobIds[] = (int) $row->rowid;
+			}
 			$db->free($resql);
-			if (empty($obj) || (int) $obj->nb <= 0) {
+			if (!$jobIds) {
 				return 0;
 			}
 			
@@ -390,22 +404,45 @@ class TimesheetweekReminder extends CommonObject
 			$sql .= " AND methodename = 'run'";
 			$sql .= ' AND entity = '.((int) $conf->entity);
 
-			return $db->query($sql) ? 1 : -1;
+			if (!$db->query($sql)) {
+				return -1;
+			}
+
+			// Native CLI/URL runners use $cronjob; cron/card.php uses $object.
+			// Keep the loaded job in sync: run_jobs() saves it again after this method.
+			foreach (array($cronjob, $object) as $runningJob) {
+				if ($runningJob instanceof Cronjob && in_array((int) $runningJob->id, $jobIds, true)
+					&& (int) $runningJob->entity === (int) $conf->entity) {
+					$runningJob->datestart = $startTimestamp;
+					$runningJob->datenextrun = $startTimestamp;
+				}
+			}
+			return 1;
 		}
 		
 		/**
 		* Store the next reminder start date based on the provided timestamp.
 		*
 		* @param int $currentStartTimestamp Current start timestamp
-		* @return int                       Next start timestamp
+		* @return int                       Next start timestamp, or -1 on persistence failure
 		*/
 		private function scheduleNextStart($currentStartTimestamp)
 		{
-			global $db, $conf;
-			
-			$nextStartTimestamp = dol_time_plus_duree($currentStartTimestamp, 1, 'w');
-			dolibarr_set_const($db, 'TIMESHEETWEEK_REMINDER_STARTTIME', (string) $nextStartTimestamp, 'chaine', 0, '', $conf->entity);
-			self::updateCronStartTime($db, $nextStartTimestamp);
+			global $conf, $langs;
+
+			$nextStartTimestamp = (int) $currentStartTimestamp;
+			$now = dol_now();
+			do {
+				$nextStartTimestamp = dol_time_plus_duree($nextStartTimestamp, 1, 'w');
+			} while ($nextStartTimestamp <= $now);
+
+			if (dolibarr_set_const($this->db, 'TIMESHEETWEEK_REMINDER_STARTTIME', (string) $nextStartTimestamp, 'chaine', 0, '', $conf->entity) <= 0
+				|| self::updateCronStartTime($this->db, $nextStartTimestamp) <= 0) {
+				$this->error = $langs->trans('TimesheetWeekReminderCronUpdateFailed');
+				$this->output = $this->error;
+				dol_syslog(__METHOD__.' '.$this->error, LOG_ERR);
+				return -1;
+			}
 			
 			return $nextStartTimestamp;
 		}
